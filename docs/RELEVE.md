@@ -9,6 +9,13 @@ Dépôt `takatakca/BESOINAVOCAT.CA`, branche `main`. Le 14 octobre 2026, il ne c
 - Mentions légales cohérentes avec une version sans collecte de données.
 - Tests Node 22 et workflows de validation et publication Pages.
 
+## Déploiement vérifié
+
+- Service Render créé : `besoinavocat`, ID `srv-db7srnmi0phs73ahkue0`, URL `https://besoinavocat.onrender.com`.
+- Premier déploiement `dep-db7srnui0phs73ahkvag` confirmé `live` dans l'API Render le 14 octobre 2026.
+- Déploiement automatique des commits de la branche `main` : oui.
+- GitHub Pages est facultatif et gardé inactif tant que `ENABLE_GITHUB_PAGES` n'est pas configuré.
+
 ## À vérifier après la publication
 1. Statut Actions et tests, URL Pages et absence d'erreurs console.
 2. Navigation clavier, lecteur d'écran, mobile et viewport 320 px.

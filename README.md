@@ -9,7 +9,8 @@ Site d'orientation juridique généraliste pour le Québec — version initiale 
 - Copie volontaire du plan; **aucune donnée personnelle n'est envoyée, enregistrée ou partagée** par l'outil.
 - Mentions de confidentialité et d'utilisation adaptées à ce périmètre (à réviser avec un responsable juridique avant les futurs traitements de données).
 - Tests unitaires Node.js natifs et GitHub Actions pour contrôle qualité.
-- Workflow GitHub Pages prêt à publier à chaque commit sur main **une fois la source GitHub Pages configurée**.
+- Hébergement Render **en ligne** : service statique `besoinavocat` relié à `main`, déploiement automatique à chaque push.
+- Workflow GitHub Pages facultatif, désactivé tant que `ENABLE_GITHUB_PAGES` n'est pas configurée à `true` et que Pages n'est pas activé.
 
 Le produit n'est **pas encore** un annuaire propriétaire, un réseau de mise en relation, un cabinet d'avocats ou une plateforme de traitement de dossiers.
 
@@ -34,9 +35,21 @@ node --test tests/*.test.mjs
 
 Node 22 recommandé. Les vérifications sont aussi lancées par les workflows GitHub Actions.
 
-## Déploiement
+## Déploiement principal : Render
 
-Le workflow `.github/workflows/pages.yml` publie le dossier `site/` vers GitHub Pages lors des pushes sur `main`, à condition d'avoir activé **Settings → Pages → Build and deployment → Source: GitHub Actions**. Sans cette activation, l'étape `configure-pages` échouera; un fichier de workflow ne suffit pas à activer Pages.
+Service : [besoinavocat.onrender.com](https://besoinavocat.onrender.com) (premier déploiement **live** le 14 octobre 2026).
+
+- Compte : espace Render `My Workspace`.
+- Dépôt : `https://github.com/takatakca/BESOINAVOCAT.CA`.
+- Branche : `main` ; déploiement automatique : activé.
+- Commande de build : `test -s site/index.html && test -s site/styles.css`.
+- Répertoire publié : `site`.
+
+Ce site Render n'est pas encore relié au domaine personnalisé. Faire pointer le DNS et activer HTTPS uniquement après vérification de la propriété du domaine et du paramétrage Render.
+
+## Déploiement facultatif : GitHub Pages
+
+Le workflow `.github/workflows/pages.yml` publie le dossier `site/` vers GitHub Pages lors des pushes sur `main` **uniquement si** la variable de dépôt GitHub Actions `ENABLE_GITHUB_PAGES` vaut `true` et si **Settings → Pages → Build and deployment → Source: GitHub Actions** est activé. Sans ces activations, le workflow Pages est ignoré. Cela évite les échecs de déploiement inutiles maintenant que Render assure la publication.
 
 Ne pas créer de fichier CNAME avant que le domaine soit vérifié, que le DNS pointe vers l'hébergement choisi et que HTTPS soit fonctionnel. Le déploiement GitHub Pages n'est **pas** un déploiement automatique vers l'hébergement commercial du nom de domaine `besoinavocat.ca`.
 

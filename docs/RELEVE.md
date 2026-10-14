@@ -1,7 +1,7 @@
 # Relève développement — BESOINAVOCAT.CA
 
 ## Référence de travail
-Dépôt \`takatakca/BESOINAVOCAT.CA\`, branche \`main\`. Le 14 octobre 2026, il ne contenait que le README initial. La première livraison a été bâtie sans créer de profils fictifs ni traiter de dossiers confidentiels.
+Dépôt `takatakca/BESOINAVOCAT.CA`, branche `main`. Le 14 octobre 2026, il ne contenait que le README initial. La première livraison a été bâtie sans créer de profils fictifs ni traiter de dossiers confidentiels.
 
 ## Livré
 - Site statique réactif, français canadien, huit domaines juridiques.
@@ -13,7 +13,7 @@ Dépôt \`takatakca/BESOINAVOCAT.CA\`, branche \`main\`. Le 14 octobre 2026, il 
 1. Statut Actions et tests, URL Pages et absence d'erreurs console.
 2. Navigation clavier, lecteur d'écran, mobile et viewport 320 px.
 3. Liens officiels, présence des pages de confidentialité et des conditions.
-4. Domaine \`besoinavocat.ca\` : propriété, DNS, SSL, hébergement définitif et identité de l'exploitant.
+4. Domaine `besoinavocat.ca` : propriété, DNS, SSL, hébergement définitif et identité de l'exploitant.
 5. Avis juridique externe avant lancement commercial.
 
 ## Produit futur — backlog conditionnel, pas de faux accomplissement

@@ -17,34 +17,34 @@ Le produit n'est **pas encore** un annuaire propriétaire, un réseau de mise en
 
 Sans installation de dépendances :
 
-\`\`\`sh
+```sh
 python3 -m http.server 8080 --directory site
 # ouvrir http://localhost:8080
-\`\`\`
+```
 
 Le navigateur doit accéder aux fichiers par HTTP local, car le script utilise des modules ES.
 
 ## Tests
 
-\`\`\`sh
+```sh
 node --check site/app.js
 node --check site/guide.mjs
 node --test tests/*.test.mjs
-\`\`\`
+```
 
 Node 22 recommandé. Les vérifications sont aussi lancées par les workflows GitHub Actions.
 
 ## Déploiement
 
-Le workflow \`.github/workflows/pages.yml\` publie le dossier \`site/\` vers GitHub Pages lors des pushes sur \`main\`, à condition d'avoir activé **Settings → Pages → Build and deployment → Source: GitHub Actions**. Sans cette activation, l'étape \`configure-pages\` échouera; un fichier de workflow ne suffit pas à activer Pages.
+Le workflow `.github/workflows/pages.yml` publie le dossier `site/` vers GitHub Pages lors des pushes sur `main`, à condition d'avoir activé **Settings → Pages → Build and deployment → Source: GitHub Actions**. Sans cette activation, l'étape `configure-pages` échouera; un fichier de workflow ne suffit pas à activer Pages.
 
-Ne pas créer de fichier CNAME avant que le domaine soit vérifié, que le DNS pointe vers l'hébergement choisi et que HTTPS soit fonctionnel. Le déploiement GitHub Pages n'est **pas** un déploiement automatique vers l'hébergement commercial du nom de domaine \`besoinavocat.ca\`.
+Ne pas créer de fichier CNAME avant que le domaine soit vérifié, que le DNS pointe vers l'hébergement choisi et que HTTPS soit fonctionnel. Le déploiement GitHub Pages n'est **pas** un déploiement automatique vers l'hébergement commercial du nom de domaine `besoinavocat.ca`.
 
 ## Sécurité et respect de la vie privée
 
 - Pas de formulaire de dossier confidentiel ni de collecte de leads.
 - Pas de cookies analytiques, publicitaires ou d'intégrations tierces sur les pages.
-- Politique CSP restrictive. Liens externes \`noopener noreferrer\`.
+- Politique CSP restrictive. Liens externes `noopener noreferrer`.
 - Contenus généraux sans promesse juridique; aucune usurpation d'appartenance au Barreau.
 - L'hébergeur peut disposer de journaux techniques. Vérifier leur politique et les obligations applicables lors du déploiement.
 

@@ -1,0 +1,30 @@
+name: Quality checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check site/app.js
+          node --check site/guide.mjs
+      - name: Run tests
+        run: node --test tests/*.test.mjs
+      - name: Confirm HTML and deployment assets
+        run: |
+          test -s site/index.html
+          test -s site/styles.css
+          test -s site/confidentialite.html
+          test -s site/conditions.html
+          test -s site/favicon.svg

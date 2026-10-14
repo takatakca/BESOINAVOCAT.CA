@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102d2e">
+  <meta name="description" content="Besoin d'un avocat au Québec? Identifiez votre domaine de droit, préparez vos prochaines étapes et consultez des ressources officielles, sans partager de données sensibles.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_CA">
+  <meta property="og:title" content="BesoinAvocat.ca — Trouvez votre point de départ">
+  <meta property="og:description" content="Votre première étape vers les bonnes ressources juridiques au Québec.">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+  <title>BesoinAvocat.ca | L'aide juridique commence par la bonne direction</title>
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu principal</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="./index.html" aria-label="BesoinAvocat.ca, accueil">
+        <span class="brand-symbol" aria-hidden="true">b<span>.</span></span>
+        <span>besoin<span class="brand-accent">avocat</span><small>.ca</small></span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="mainNav" aria-label="Ouvrir ou fermer le menu"><span></span><span></span><span></span></button>
+      <nav class="main-nav" id="mainNav" aria-label="Navigation principale">
+        <a href="#domaines">Domaines de droit</a><a href="#parcours">Comment ça marche</a><a href="#ressources">Ressources</a><a href="#questions">Questions</a>
+        <a class="nav-cta" href="#domaines">Commencer <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+  <main id="contenu">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-layout">
+        <div class="hero-copy">
+          <div class="hero-kicker"><span class="kicker-dot" aria-hidden="true"></span> LE BON POINT DE DÉPART AU QUÉBEC</div>
+          <h1 id="hero-title">Un souci juridique?<br><em>Vous n'êtes pas</em><br>sans options.</h1>
+          <p class="hero-description">Famille, emploi, logement, affaires… Comprenez par où commencer pour trouver la bonne aide. Simple, confidentiel et sans jargon.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#domaines">Préparer ma recherche <span aria-hidden="true">↗</span></a>
+            <a class="button button-ghost" href="https://www.barreau.qc.ca/fr/trouver-un-avocat/" target="_blank" rel="noopener noreferrer">Annuaire officiel <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="hero-assurance"><span aria-hidden="true">◈</span> Aucun compte requis <span class="separator">·</span> Aucune donnée transmise <span class="separator">·</span> Gratuit</div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="art-ring art-ring-outer"></div><div class="art-ring art-ring-inner"></div>
+          <div class="art-orbit"></div>
+          <div class="art-center"><span class="art-glyph">§</span><span class="art-caption">Une décision éclairée<br>commence ici.</span></div>
+          <div class="art-label art-label-one"><span class="label-dot"></span> Votre situation</div>
+          <div class="art-label art-label-two"><span class="label-dot"></span> Vos prochaines étapes</div>
+          <div class="art-number">01 <span>/ 03</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="section intro-section" aria-label="Nos engagements">
+      <div class="container value-grid">
+        <div class="value-item"><span class="value-icon" aria-hidden="true">01</span><div><h2>Clair et accessible</h2><p>Des étapes concrètes, dans un langage simple.</p></div></div>
+        <div class="value-item"><span class="value-icon" aria-hidden="true">02</span><div><h2>À votre rythme</h2><p>Quelques choix pour mieux cibler votre recherche.</p></div></div>
+        <div class="value-item"><span class="value-icon" aria-hidden="true">03</span><div><h2>Vie privée d'abord</h2><p>Pas de récit personnel ni de documents à transmettre.</p></div></div>
+      </div>
+    </section>
+    <section class="section domains-section" id="domaines" aria-labelledby="domaines-title">
+      <div class="container">
+        <div class="section-heading"><div><p class="eyebrow">01 / TROUVEZ VOTRE DOMAINE</p><h2 id="domaines-title">De quel type d'aide<br><em>avez-vous besoin?</em></h2></div><p>Choisissez le domaine qui ressemble le plus à votre situation. Il n'est pas nécessaire de raconter votre histoire ici.</p></div>
+        <div class="domain-grid" id="domainGrid" role="group" aria-label="Choisir un domaine de droit"></div>
+        <p class="below-grid">Vous hésitez? <a href="https://www.juridiqc.gouv.qc.ca/" target="_blank" rel="noopener noreferrer">Consultez JuridiQC pour explorer vos options ↗</a></p>
+      </div>
+    </section>
+    <section class="section guide-section" id="parcours" aria-labelledby="parcours-title">
+      <div class="container guide-layout">
+        <div class="guide-aside"><p class="eyebrow">02 / PRÉPAREZ VOTRE RECHERCHE</p><h2 id="parcours-title">Quelques détails.<br><em>Une direction claire.</em></h2><p>Aucune inscription ni description de votre dossier : vous recevez un plan d'orientation à consulter ou copier directement.</p><div class="guide-note"><span aria-hidden="true">✳</span><div><strong>Vous avez une échéance?</strong><br>Un délai légal peut être très court. En cas d'urgence, contactez rapidement un avocat. Cet outil ne traite pas les urgences.</div></div></div>
+        <div class="guide-panel">
+          <div class="panel-top"><span>VOTRE PARCOURS</span><span>ÉTAPE 02 / 03</span></div>
+          <form id="guideForm" novalidate>
+            <div class="form-block"><span class="field-index">01</span><label class="field-title" for="chosenDomain">Votre domaine de droit</label><div class="chosen-domain" id="chosenDomain">Sélectionnez un domaine ci-dessus</div></div>
+            <div class="form-block"><span class="field-index">02</span><label class="field-title" for="region">Dans quelle région cherchez-vous?</label><select id="region" name="region" required><option value="">Choisissez une région</option></select></div>
+            <fieldset class="form-block"><legend><span class="field-index">03</span><span class="field-title">À quel point est-ce urgent?</span></legend>
+              <div class="urgency-choices">
+                <label><input type="radio" name="urgency" value="normal" checked><span>Pas de date précise</span></label>
+                <label><input type="radio" name="urgency" value="soon"><span>Échéance prochaine</span></label>
+                <label><input type="radio" name="urgency" value="today"><span>Très urgent</span></label>
+              </div>
+            </fieldset>
+            <label class="checkbox-row"><input type="checkbox" id="aide" name="aide"><span>Je souhaite aussi explorer les possibilités d'aide juridique.</span></label>
+            <button type="submit" class="button button-primary form-submit">Voir mes prochaines étapes <span aria-hidden="true">→</span></button>
+            <p id="formNotice" class="form-notice" role="status" aria-live="polite">Ce formulaire reste entièrement sur votre appareil.</p>
+          </form>
+          <div class="guide-result" id="guideResult" tabindex="-1" hidden></div>
+        </div>
+      </div>
+    </section>
+    <section class="section resources-section" id="ressources" aria-labelledby="resources-title">
+      <div class="container">
+        <div class="section-heading"><div><p class="eyebrow">03 / DES SOURCES DE CONFIANCE</p><h2 id="resources-title">De bonnes ressources.<br><em>De vraies réponses.</em></h2></div><p>Ces services publics et professionnels peuvent vous aider à poursuivre vos démarches. Nous ne sommes affiliés à aucun d'eux.</p></div>
+        <div class="resources-grid">
+          <a class="resource-card" href="https://www.barreau.qc.ca/fr/trouver-un-avocat/" target="_blank" rel="noopener noreferrer"><span class="resource-tag">ANNUAIRE PROFESSIONNEL</span><span class="resource-mark" aria-hidden="true">⚖</span><h3>Barreau du Québec</h3><p>Rechercher un avocat par domaine ou région et vérifier son statut professionnel.</p><span class="resource-action">Accéder au service ↗</span></a>
+          <a class="resource-card" href="https://www.juridiqc.gouv.qc.ca/" target="_blank" rel="noopener noreferrer"><span class="resource-tag">INFORMATION JURIDIQUE</span><span class="resource-mark" aria-hidden="true">◈</span><h3>JuridiQC</h3><p>Explorer des informations et ressources pour mieux comprendre vos démarches.</p><span class="resource-action">Explorer les ressources ↗</span></a>
+          <a class="resource-card" href="https://www.csj.qc.ca/" target="_blank" rel="noopener noreferrer"><span class="resource-tag">AIDE JURIDIQUE</span><span class="resource-mark" aria-hidden="true">✳</span><h3>Services juridiques</h3><p>Connaître le réseau d'aide juridique et les conditions d'admissibilité.</p><span class="resource-action">Voir les possibilités ↗</span></a>
+        </div>
+      </div>
+    </section>
+    <section class="section faq-section" id="questions" aria-labelledby="faq-title"><div class="container faq-layout">
+      <div><p class="eyebrow">BON À SAVOIR</p><h2 id="faq-title">Vos questions,<br><em>sans détour.</em></h2></div>
+      <div class="faq-list">
+        <details><summary>Est-ce que BesoinAvocat.ca fournit des conseils juridiques?</summary><p>Non. Le site propose uniquement une orientation générale et des liens vers des ressources externes. Seul un professionnel qualifié peut analyser votre situation et vous donner un avis juridique.</p></details>
+        <details><summary>Mon dossier est-il envoyé à un avocat?</summary><p>Non. Le parcours se déroule dans votre navigateur. Il ne transmet aucune demande ni information personnelle et ne constitue pas une relation avocat-client.</p></details>
+        <details><summary>Comment vérifier si un avocat est autorisé à exercer?</summary><p>Utilisez le service de vérification du Tableau de l'Ordre sur le site du Barreau du Québec avant de retenir ses services.</p></details>
+        <details><summary>Que faire si j'ai une audience ou un délai urgent?</summary><p>Contactez immédiatement un avocat ou un service d'urgence juridique approprié. N'attendez pas une réponse de ce site et ne présumez pas que les délais sont suspendus.</p></details>
+      </div>
+    </div></section>
+    <section class="closing-section"><div class="container closing-content"><div><p class="eyebrow">LE PREMIER PAS COMPTE</p><h2>Vous n'avez pas besoin de tout savoir.<br><em>Seulement par où commencer.</em></h2></div><a class="button button-light" href="#domaines">Commencer maintenant ↗</a></div></section>
+  </main>
+  <footer class="footer"><div class="container footer-main"><div class="footer-brand"><a class="brand brand-footer" href="./index.html"><span class="brand-symbol" aria-hidden="true">b<span>.</span></span><span>besoin<span class="brand-accent">avocat</span><small>.ca</small></span></a><p>Un point de départ pour une recherche juridique mieux informée au Québec.</p></div><div class="footer-links"><div><strong>Explorer</strong><a href="#domaines">Domaines</a><a href="#parcours">Mon parcours</a><a href="#ressources">Ressources</a></div><div><strong>Informations</strong><a href="./confidentialite.html">Confidentialité</a><a href="./conditions.html">Conditions d'utilisation</a><a href="https://www.barreau.qc.ca/fr/trouver-un-avocat/" target="_blank" rel="noopener noreferrer">Barreau du Québec ↗</a></div></div></div><div class="container footer-bottom"><span>© <span id="year">2026</span> BesoinAvocat.ca</span><span>Information générale uniquement — aucun conseil juridique.</span></div></footer>
+</body>
+</html>

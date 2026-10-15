@@ -20,7 +20,7 @@ jobs:
           node --check site/app.js
           node --check site/guide.mjs
       - name: Run tests
-        run: node --test tests/*.test.mjs
+        run: node --test tests/guide.test.mjs
       - name: Verify static site structure
         run: node --test tests/site.test.mjs
       - name: Confirm HTML and deployment assets

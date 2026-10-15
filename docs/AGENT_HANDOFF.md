@@ -9,6 +9,10 @@
 - Le code applicatif de cette livraison a été poussé dans **\`50305d8df9e56371522d04f3a3b4e8d82ed54eb6\`**.
 - Les fichiers de suivi du présent rapport font l'objet d'un commit documentaire ultérieur; **la HEAD GitHub après ce commit est la source de vérité** : \`https://github.com/takatakca/BESOINAVOCAT.CA/commits/main\`.
 
+## Régression diagnostiquée et correction
+- CI du commit \`50305d8\` : **11/12 tests, 1 échec**. Cause : l'ancien test familial supposait 2 ressources, alors que le moteur enrichi en fournit désormais 3. L'assertion a été actualisée, avec vérification supplémentaire que l'aide juridique n'est pas incluse lorsqu'elle n'est pas choisie.
+- La vérification de structure HTML conserve son propre job Node; les tests de guide ne sont plus exécutés deux fois.
+
 ## Tâche en cours
 - BA-006 : vérifier le résultat final des GitHub Actions et le dernier Render deploy au SHA exact, puis lancer le smoke HTTPS.
 - BA-007 : revue manuelle mobile/lecteur d'écran/impression.
@@ -23,7 +27,7 @@
 - \`git clone\` depuis le conteneur non disponible (DNS GitHub inaccessible); la CI GitHub est la vérification exécutable de référence.
 - CI de la version précédente \`6d74a42\` : succès.
 - Contrôles ajoutés sur \`main\` : \`node --check\` et \`node --test tests/*.test.mjs\`.
-- État final des contrôles de cette livraison : à confirmer par nouvelle lecture des Actions après le commit documentaire.
+- Échec identifié dans `50305d8`, correctif appliqué après publication documentaire `cb19521`. Vérifier le résultat de la nouvelle CI avant clôture.
 - Liens institutionnels vérifiés contre leurs sites publics le 15 octobre 2026.
 
 ## Statut du déploiement

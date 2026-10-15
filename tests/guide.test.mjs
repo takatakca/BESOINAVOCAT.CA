@@ -9,7 +9,8 @@ test("Les domaines et régions sont uniques", () => {
 test("Plan courant sans aide juridique", () => {
   const guide = buildGuide({ domain: "famille", region: "Montréal" });
   assert.match(guide.summary, /Montréal/);
-  assert.equal(guide.resources.length, 2);
+  assert.equal(guide.resources.length, 3);
+  assert.ok(!guide.resources.some((source) => source.url === SOURCES.aide.url));
   assert.ok(guide.steps.every((step) => typeof step === "string"));
 });
 test("Cas urgent renvoie vers l'information officielle d'urgence", () => {

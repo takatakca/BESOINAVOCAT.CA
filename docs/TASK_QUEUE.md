@@ -9,7 +9,7 @@ Tâches ordonnées; les tâches bloquées ne doivent pas interrompre celles qui 
 | BA-003 | P0 | livré | Page 404, health.json, copie/impression du plan | tests structure |
 | BA-004 | P0 | livré | Contrôles GitHub Actions et smoke quotidien du site | CI + workflow planifié |
 | BA-005 | P0 | livré | Cinq fichiers de suivi et AGENTS.md | présence dans main |
-| BA-006 | P0 | à valider | Exécuter la CI après les derniers commits et confirmer un déploiement Render au SHA exact | Actions success + Render live |
+| BA-006 | P0 | correction CI en cours | Exécuter la CI après les derniers commits et confirmer un déploiement Render au SHA exact | Actions success + Render live |
 | BA-007 | P1 | à valider | Tester manuellement clavier, lecteur d'écran, appareils étroits et impression | rapport QA |
 | BA-008 | P1 | bloqué externe | Raccorder \`besoinavocat.ca\` | preuve propriété DNS, domaine ajouté sur Render, TLS |
 | BA-009 | P0 produit | décision requise | Arrêter le modèle de service : annuaire, référence, mise en relation ou consultation; responsables/contrats | décision métier écrite |

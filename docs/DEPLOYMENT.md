@@ -19,6 +19,13 @@ node --test tests/*.test.mjs
 \`\`\`
 Le workflow \`.github/workflows/checks.yml\` effectue ces vérifications sur chaque push sur \`main\` et sur les PR.
 
+## Dernière vérification réussie
+- Commit code/automatisation : `8ea7be249fc83762d5e9f159bfe4b56b68e94bc9`.
+- GitHub Actions Quality checks : `success` (run `38776153594`).
+- Render : `live` au SHA identique (deploy `dep-db8glgflot8c738va7mg`).
+- Smoke HTTPS : `success` (run `38776190441`), **7 requêtes HTTP 200**, première tentative.
+- Toute écriture de documentation ultérieure déclenche un nouveau SHA, à vérifier à nouveau.
+
 ## Contrôle post-déploiement
 1. Vérifier \`GitHub Actions → Quality checks\` : conclusion success sur le commit attendu.
 2. Vérifier le dernier déploiement Render du service : \`status=live\` et \`commit.id == SHA\` poussé sur \`main\`.

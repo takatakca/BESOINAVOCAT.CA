@@ -5,13 +5,14 @@
 **Branche :** \`main\`
 
 ## Vérifications du code et de la publication
-- GitHub Actions `Quality checks` du commit `b4167ca5a6f175b2d20e70ce52ce35931d284781` : **success**. Les 12 tests (7 de guide, 5 de structure) réussissent.
-- Déploiement Render `dep-db8gkn5bedkc738he0j0` : **live** sur le même commit `b4167ca`, le 15 octobre 2026.
-- Smoke HTTPS indépendant : pas encore exécuté avec succès depuis cet environnement (accès HTTP externe indisponible). Le workflow GitHub Actions de production a été complété afin de se lancer après la validation des changements sur `main`, chaque jour et manuellement.
-- Le nouveau workflow effectuera jusqu'à six tentatives avec délais limités pour tolérer le temps de publication Render.
+- GitHub Actions `Quality checks` du commit **`8ea7be249fc83762d5e9f159bfe4b56b68e94bc9`** : **success**. Les **12 tests** (7 de guide, 5 de structure) réussissent.
+- Render deploy **`dep-db8glgflot8c738va7mg`** : **live** au même SHA **`8ea7be2`** le 15 octobre 2026.
+- GitHub Actions **Production availability smoke test**, run **`38776190441`** : **success**, automatiquement déclenché à la suite du contrôle qualité de `8ea7be2`.
+- Les sept requêtes HTTP du smoke ont retourné **200** (racine, JS, CSS, guide, confidentialité, conditions, health). Le contrôle a réussi dès la première tentative. Ce résultat prouve une disponibilité HTTP à l'instant du test, non une revue visuelle complète.
+- Smoke périodique quotidien à 10:17 UTC et possibilité de déclenchement manuel : configurés.
 
 ## Dernière tâche terminée
-- BA-001 à BA-006 (contrôles CI et Render) : site interactif amélioré, recherche avec synonymes, liens officiels contextuels, impression du plan, 404/health, tests et documentation de continuité.
+- BA-001 à BA-006 (incluant smoke HTTP réussi) : site interactif amélioré, recherche avec synonymes, liens officiels contextuels, impression du plan, 404/health, tests et documentation de continuité.
 - Le code applicatif de cette livraison a été poussé dans **\`50305d8df9e56371522d04f3a3b4e8d82ed54eb6\`**.
 - Les fichiers de suivi du présent rapport font l'objet d'un commit documentaire ultérieur; **la HEAD GitHub après ce commit est la source de vérité** : \`https://github.com/takatakca/BESOINAVOCAT.CA/commits/main\`.
 
@@ -20,8 +21,7 @@
 - La vérification de structure HTML conserve son propre job Node; les tests de guide ne sont plus exécutés deux fois.
 
 ## Tâche en cours
-- Vérifier que le nouveau workflow **Production availability smoke test** est bien déclenché après le dernier CI réussi et noter ses résultats.
-- BA-007 : revue manuelle mobile/lecteur d'écran/impression.
+- BA-007 : revue manuelle mobile (notamment 320 px), lecteur d'écran, parcours clavier et impression sur navigateurs réels. Pas encore exécutée dans cette session.
 
 ## Fichiers créés / modifiés
 - Produit : \`site/guide.mjs\`, \`site/app.js\`, \`site/index.html\`, \`site/styles.css\`, \`site/404.html\`, \`site/health.json\`.
@@ -33,7 +33,7 @@
 - \`git clone\` depuis le conteneur non disponible (DNS GitHub inaccessible); la CI GitHub est la vérification exécutable de référence.
 - CI de la version précédente \`6d74a42\` : succès.
 - Contrôles ajoutés sur \`main\` : \`node --check\` et \`node --test tests/*.test.mjs\`.
-- Échec identifié dans `50305d8`, correctif appliqué après publication documentaire `cb19521`. Vérifier le résultat de la nouvelle CI avant clôture.
+- Échec identifié dans `50305d8` et `cb19521`, corrigé dans `b4167ca`; CI verte sur `b4167ca` puis sur `8ea7be2`.
 - Liens institutionnels vérifiés contre leurs sites publics le 15 octobre 2026.
 
 ## Statut du déploiement
@@ -54,3 +54,6 @@
 3. Déclencher/exécuter \`node scripts/production-smoke.mjs\` contre Render et vérifier les liens et pages.
 4. Passer BA-006 à « livré » seulement après preuve, réaliser BA-007 selon les moyens disponibles.
 5. Réécrire cette relève avec les nouvelles preuves et passer à la prochaine tâche exécutable. Ne pas lancer BA-011–014 sans décisions BA-009/010.
+
+## Note sur l'intégrité du SHA
+Le présent fichier est versionné. Chaque modification documentaire produit nécessairement un nouveau commit; pour connaître le dernier SHA poussé **y compris celui qui contient ce rapport**, consulter le HEAD réel de `main` sur GitHub, et non supposer que le SHA du code validé correspond encore au commit de tête.

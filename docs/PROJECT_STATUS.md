@@ -17,7 +17,7 @@ Révision : 15 octobre 2026.
 - Liens institutionnels et ressources contextuelles (CNESST, TAL, JuridiQC, Barreau, CSJ).
 - Copier/imprimer le plan, navigation clavier, messages d'état, repli JavaScript désactivé.
 - Pages confidentialité, conditions, 404 et \`/health.json\`.
-- CI : tests unitaires et vérification de la structure HTML; smoke public quotidien et déclenchable manuellement.
+- CI : **12 tests réussis** au SHA `8ea7be2`; smoke public GitHub Actions en post-CI, quotidien et déclenchable manuellement. Le run `38776190441` a réussi avec **7 réponses HTTP 200** le 15 octobre 2026.
 
 ## Non implémenté — ne pas confondre avec un bug
 - Annuaire propriétaire, fiches d'avocats, onboarding professionnel, statut Barreau vérifié et consentement.
@@ -26,7 +26,7 @@ Révision : 15 octobre 2026.
 - Raccordement du domaine personnalisé et conformité définitive avant exploitation commerciale de ces fonctionnalités.
 
 ## Qualité / risques
-- Les tests Node.js ne remplacent pas une revue d'accessibilité avec lecteur d'écran ni un test manuel mobile.
+- Les tests Node.js et le smoke HTTP ont réussi mais ne remplacent pas une revue d'accessibilité avec lecteur d'écran, un test manuel mobile et une inspection visuelle.
 - Les logs HTTP et règles d'hébergement Render restent du ressort de l'exploitant/hébergeur.
 - Les ressources officielles doivent être revérifiées périodiquement.
 - Aucune collecte de dossier, donc pas de fonctionnalité serveur nécessitant des permissions actuellement.

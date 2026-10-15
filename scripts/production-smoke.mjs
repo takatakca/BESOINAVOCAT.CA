@@ -16,6 +16,7 @@ for (const path of paths) {
       assert.match(content, /BesoinAvocat\.ca/i);
       assert.match(content, /id="domainGrid"/);
       assert.match(content, /id="guideForm"/);
+      assert.match(content, /id="domainSearch"/);
     }
     if (path === "/health.json") {
       assert.deepEqual(JSON.parse(content), { service: "besoinavocat", status: "ok" });

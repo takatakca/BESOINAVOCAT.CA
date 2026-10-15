@@ -4,8 +4,14 @@
 **Dépôt :** \`takatakca/BESOINAVOCAT.CA\`  
 **Branche :** \`main\`
 
+## Vérifications du code et de la publication
+- GitHub Actions `Quality checks` du commit `b4167ca5a6f175b2d20e70ce52ce35931d284781` : **success**. Les 12 tests (7 de guide, 5 de structure) réussissent.
+- Déploiement Render `dep-db8gkn5bedkc738he0j0` : **live** sur le même commit `b4167ca`, le 15 octobre 2026.
+- Smoke HTTPS indépendant : pas encore exécuté avec succès depuis cet environnement (accès HTTP externe indisponible). Le workflow GitHub Actions de production a été complété afin de se lancer après la validation des changements sur `main`, chaque jour et manuellement.
+- Le nouveau workflow effectuera jusqu'à six tentatives avec délais limités pour tolérer le temps de publication Render.
+
 ## Dernière tâche terminée
-- BA-001 à BA-005 : site interactif amélioré, recherche avec synonymes, liens officiels contextuels, impression du plan, 404/health, tests et documentation de continuité.
+- BA-001 à BA-006 (contrôles CI et Render) : site interactif amélioré, recherche avec synonymes, liens officiels contextuels, impression du plan, 404/health, tests et documentation de continuité.
 - Le code applicatif de cette livraison a été poussé dans **\`50305d8df9e56371522d04f3a3b4e8d82ed54eb6\`**.
 - Les fichiers de suivi du présent rapport font l'objet d'un commit documentaire ultérieur; **la HEAD GitHub après ce commit est la source de vérité** : \`https://github.com/takatakca/BESOINAVOCAT.CA/commits/main\`.
 
@@ -14,7 +20,7 @@
 - La vérification de structure HTML conserve son propre job Node; les tests de guide ne sont plus exécutés deux fois.
 
 ## Tâche en cours
-- BA-006 : vérifier le résultat final des GitHub Actions et le dernier Render deploy au SHA exact, puis lancer le smoke HTTPS.
+- Vérifier que le nouveau workflow **Production availability smoke test** est bien déclenché après le dernier CI réussi et noter ses résultats.
 - BA-007 : revue manuelle mobile/lecteur d'écran/impression.
 
 ## Fichiers créés / modifiés

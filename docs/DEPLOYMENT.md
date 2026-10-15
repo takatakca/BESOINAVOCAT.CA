@@ -27,7 +27,7 @@ Le workflow \`.github/workflows/checks.yml\` effectue ces vérifications sur cha
 5. En cas d'échec, inspecter les journaux Render et GitHub Actions; ne pas déclarer la version courante déployée.
 
 ## Surveillance planifiée
-\`.github/workflows/production-smoke.yml\` : contrôle en lecture seule quotidien à 10:17 UTC et déclenchable manuellement. Il n'effectue aucun redéploiement ni aucune relance autonome de l'agent de code.
+\`.github/workflows/production-smoke.yml\` : contrôle en lecture seule quotidien à 10:17 UTC, déclenchable manuellement et automatiquement après le succès du workflow Quality checks sur `main`. Il effectue jusqu'à six tentatives espacées de 12 secondes pour laisser Render publier. Il n'effectue aucun redéploiement ni aucune relance autonome de l'agent de code.
 
 ## Pages et DNS
 GitHub Pages reste optionnel et son workflow ne s'exécute que si la variable GitHub \`ENABLE_GITHUB_PAGES=true\` et la source Pages GitHub Actions sont activées. **Ne pas l'activer sans décision d'hébergement.**

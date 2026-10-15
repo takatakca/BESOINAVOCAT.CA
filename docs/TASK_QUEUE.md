@@ -7,9 +7,9 @@ Tâches ordonnées; les tâches bloquées ne doivent pas interrompre celles qui 
 | BA-001 | P0 | livré | Recherche par mot-clé et synonymes, navigation/affichage accessibles | tests de recherche |
 | BA-002 | P0 | livré | Ressources officielles contextuelles selon le domaine | tests liens et mapping |
 | BA-003 | P0 | livré | Page 404, health.json, copie/impression du plan | tests structure |
-| BA-004 | P0 | livré | Contrôles GitHub Actions et smoke quotidien du site | CI + workflow planifié |
+| BA-004 | P0 | livré (automatisation, smoke à vérifier) | Contrôles GitHub Actions et smoke quotidien/post-CI du site | CI + workflow planifié |
 | BA-005 | P0 | livré | Cinq fichiers de suivi et AGENTS.md | présence dans main |
-| BA-006 | P0 | correction CI en cours | Exécuter la CI après les derniers commits et confirmer un déploiement Render au SHA exact | Actions success + Render live |
+| BA-006 | P0 | livré (CI + Render) | Exécuter la CI après les derniers commits et confirmer un déploiement Render au SHA exact | Actions success + Render live |
 | BA-007 | P1 | à valider | Tester manuellement clavier, lecteur d'écran, appareils étroits et impression | rapport QA |
 | BA-008 | P1 | bloqué externe | Raccorder \`besoinavocat.ca\` | preuve propriété DNS, domaine ajouté sur Render, TLS |
 | BA-009 | P0 produit | décision requise | Arrêter le modèle de service : annuaire, référence, mise en relation ou consultation; responsables/contrats | décision métier écrite |
@@ -19,6 +19,6 @@ Tâches ordonnées; les tâches bloquées ne doivent pas interrompre celles qui 
 | BA-013 | P2 | dépend de 010-012 | Demandes de consultation minimisées, sécurité, prévention d'abus, purge et traçabilité | tests E2E/sécurité |
 | BA-014 | P2 | après BA-013 | Observabilité, sauvegardes, reprise, conformité et monitoring applicatif | procédures et exercices |
 
-**Prochaine tâche exécutable indépendante** : BA-006, puis BA-007. Les BA-009/010 exigent des décisions réelles avant toute implémentation serveur impliquant des personnes ou dossiers juridiques.
+**Prochaine tâche exécutable indépendante** : vérifier le prochain résultat du smoke de production, puis BA-007. Les BA-009/010 exigent des décisions réelles avant toute implémentation serveur impliquant des personnes ou dossiers juridiques.
 
 Ne pas présenter les BA-011 à BA-014 comme implémentées.

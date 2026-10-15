@@ -22,6 +22,44 @@ export const SOURCES = Object.freeze({
   aide: { label: "Commission des services juridiques — Aide juridique", url: "https://www.csj.qc.ca/" },
   urgence: { label: "Barreau du Québec — Besoin d'un avocat", url: "https://www.barreau.qc.ca/fr/grand-public/acces-justice/besoin-avocat/" }
 });
+// Liens institutionnels par domaine. Ne pas présenter ces organismes comme partenaires.
+export const DOMAIN_RESOURCES = Object.freeze({
+  famille: Object.freeze([{ label: "JuridiQC — Séparation et divorce", url: "https://www.juridiqc.gouv.qc.ca/separation-et-divorce" }]),
+  travail: Object.freeze([{ label: "CNESST — Plaintes et recours", url: "https://www.cnesst.gouv.qc.ca/fr/service-clientele/plaintes-recours" }]),
+  logement: Object.freeze([
+    { label: "Tribunal administratif du logement", url: "https://www.tal.gouv.qc.ca/fr/" },
+    { label: "JuridiQC — Être locataire", url: "https://www.juridiqc.gouv.qc.ca/etre-locataire/bottin-des-ressources" }
+  ]),
+  immigration: Object.freeze([{ label: "Québec — Guide des procédures d'immigration", url: "https://www.quebec.ca/gouvernement/ministeres-organismes/immigration/publications/guide-procedures-immigration" }]),
+  affaires: Object.freeze([]),
+  civil: Object.freeze([]),
+  penal: Object.freeze([]),
+  successions: Object.freeze([])
+});
+
+const SEARCH_ALIASES = Object.freeze({
+  famille: "divorce enfants garde pension médiation conjoints parent parentalité",
+  travail: "salaire licenciement congédiement cnesst harcèlement employeur",
+  logement: "loyer bail éviction propriétaire locataire habitation logement",
+  immigration: "visa permis résidence citoyenneté refus statut",
+  affaires: "commercial entreprise société entrepreneur contrat associé",
+  civil: "dommages créance dette litige procès petites créances",
+  penal: "criminel infraction arrestation détention contravention amende accusation",
+  successions: "testament héritage décès fiducie succession"
+});
+
+function normalizeSearch(value) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr-CA").trim().replace(/\s+/g, " ");
+}
+export function findDomains(query = "") {
+  const words = normalizeSearch(query).split(" ").filter(Boolean);
+  if (!words.length) return [...DOMAINS];
+  return DOMAINS.filter((domain) => {
+    const haystack = normalizeSearch([domain.title, domain.short, SEARCH_ALIASES[domain.id]].join(" "));
+    return words.every((word) => haystack.includes(word));
+  });
+}
+
 export function buildGuide({ domain, region, urgency = "normal", aid = false } = {}) {
   const field = DOMAINS.find((item) => item.id === domain);
   if (!field) throw new Error("Choisissez un domaine de droit.");
@@ -42,7 +80,7 @@ export function buildGuide({ domain, region, urgency = "normal", aid = false } =
   if (aid) {
     steps.push("Renseignez-vous auprès de la Commission des services juridiques sur les conditions d'admissibilité à l'aide juridique.");
   }
-  const resources = [SOURCES.barreau, SOURCES.juridiqc];
+  const resources = [SOURCES.barreau, SOURCES.juridiqc, ...(DOMAIN_RESOURCES[domain] ?? [])];
   if (aid) resources.push(SOURCES.aide);
   if (urgent || domain === "penal") resources.push(SOURCES.urgence);
   return {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DOMAINS, REGIONS, SOURCES, buildGuide } from "../site/guide.mjs";
+import { DOMAINS, REGIONS, SOURCES, DOMAIN_RESOURCES, buildGuide, findDomains } from "../site/guide.mjs";
 
 test("Les domaines et régions sont uniques", () => {
   assert.equal(new Set(DOMAINS.map((item) => item.id)).size, DOMAINS.length);
@@ -25,4 +25,23 @@ test("Les paramètres inattendus sont refusés", () => {
 });
 test("Aucun lien de ressource externe en HTTP non chiffré", () => {
   for (const source of Object.values(SOURCES)) assert.ok(source.url.startsWith("https://"));
+});
+
+test("La recherche accepte les accents et synonymes français", () => {
+  assert.deepEqual(findDomains("congediement").map((d) => d.id), ["travail"]);
+  assert.deepEqual(findDomains("GARDE").map((d) => d.id), ["famille"]);
+  assert.deepEqual(findDomains("bail").map((d) => d.id), ["logement"]);
+  assert.deepEqual(findDomains("permis visa").map((d) => d.id), ["immigration"]);
+  assert.equal(findDomains("mot-inexistant-au-repertoire").length, 0);
+  assert.equal(findDomains("   ").length, DOMAINS.length);
+});
+test("Chaque domaine peut retourner des ressources fiables distinctes sans collecte de données", () => {
+  for (const domain of DOMAINS) {
+    const guide = buildGuide({domain: domain.id, region: "Montérégie", aid: true});
+    assert.ok(guide.resources.length >= 3);
+    assert.ok(guide.resources.every((source) => new URL(source.url).protocol === "https:"));
+    assert.equal(new Set(guide.resources.map((s) => s.url)).size, guide.resources.length);
+  }
+  assert.ok(buildGuide({domain:"logement",region:"Montréal"}).resources.some((s) => s.url.includes("tal.gouv.qc.ca")));
+  assert.equal(Object.keys(DOMAIN_RESOURCES).length, DOMAINS.length);
 });

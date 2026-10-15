@@ -1,4 +1,4 @@
-import { DOMAINS, REGIONS, buildGuide } from "./guide.mjs";
+import { DOMAINS, REGIONS, buildGuide, findDomains } from "./guide.mjs";
 
 const $ = (selector) => document.querySelector(selector);
 const categories = $("#domainGrid");
@@ -32,6 +32,18 @@ for (const domain of DOMAINS) {
   });
   categories.append(card);
 }
+const searchInput = $("#domainSearch");
+const resultCount = $("#domainCount");
+const emptyMessage = $("#noDomains");
+searchInput.addEventListener("input", () => {
+  const matches = new Set(findDomains(searchInput.value).map((domain) => domain.id));
+  for (const card of categories.querySelectorAll(".domain-card")) {
+    card.hidden = !matches.has(card.dataset.domain);
+  }
+  resultCount.textContent = matches.size + (matches.size === 1 ? " domaine trouvé" : " domaines trouvés");
+  emptyMessage.hidden = matches.size !== 0;
+});
+
 for (const name of REGIONS) {
   const option = document.createElement("option");
   option.value = name;
@@ -94,12 +106,17 @@ form.addEventListener("submit", (event) => {
       }
     });
     result.append(copy);
+    const print = element("button", "button button-outline print-button", "Imprimer mon plan");
+    print.type = "button";
+    print.addEventListener("click", () => window.print());
+    result.append(print);
     notice.textContent = "Votre plan a été préparé sur cet appareil. Aucune donnée n'a été envoyée.";
     result.scrollIntoView({ behavior: "smooth", block: "start" });
     result.focus({ preventScroll: true });
   } catch (error) {
     notice.textContent = error.message;
     result.hidden = true;
+    if (!region.value || !REGIONS.includes(region.value)) region.focus();
   }
 });
 

@@ -21,6 +21,8 @@ jobs:
           node --check site/guide.mjs
       - name: Run tests
         run: node --test tests/*.test.mjs
+      - name: Verify static site structure
+        run: node --test tests/site.test.mjs
       - name: Confirm HTML and deployment assets
         run: |
           test -s site/index.html

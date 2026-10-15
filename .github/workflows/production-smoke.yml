@@ -1,0 +1,20 @@
+name: Production availability smoke test
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 10 * * *'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check live Render site
+        env:
+          SITE_URL: https://besoinavocat.onrender.com
+        run: node scripts/production-smoke.mjs

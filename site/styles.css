@@ -5,3 +5,24 @@
 @media(max-width:850px){.container{width:min(100% - 38px,700px)}.header-inner{min-height:74px}.menu-toggle{display:block}.main-nav{display:none;position:absolute;top:100%;left:0;right:0;background:var(--dark);padding:22px max(19px,calc((100% - 700px)/2));box-shadow:0 22px 30px #0014;flex-direction:column;align-items:stretch;gap:4px}.main-nav.open{display:flex}.main-nav a{padding:13px 10px}.nav-cta{text-align:center;margin-top:8px}.hero-layout{grid-template-columns:1fr;min-height:auto}.hero-copy{padding:75px 0 22px}.hero-art{height:310px;transform:scale(.67);margin:-30px 0 -24px}.art-label-one{left:-20px}.art-label-two{right:-20px}.value-grid{grid-template-columns:1fr;gap:0}.value-item{border-right:0;border-bottom:1px solid var(--line);padding:19px 0}.value-item:last-child{border-bottom:0}.intro-section{padding:8px 0}.section{padding:70px 0}.section-heading{flex-direction:column;align-items:start;gap:16px}.section-heading>p{max-width:600px}.domain-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.guide-layout,.faq-layout{grid-template-columns:1fr;gap:30px}.guide-aside{padding-top:0}.guide-note{margin-top:25px}.resources-grid{grid-template-columns:1fr}.resource-card{min-height:230px}.closing-content{align-items:start;flex-direction:column}.footer-main{flex-direction:column}.footer-links{gap:40px}.faq-layout{gap:25px}}
 @media(max-width:500px){.container{width:calc(100% - 32px)}.brand{font-size:19px}.brand-symbol{width:36px;height:36px;font-size:29px}.brand small{font-size:13px}.hero h1{font-size:clamp(43px,11vw,58px)}.hero-copy{padding-top:55px}.hero-description{font-size:14px}.hero-actions{flex-direction:column;align-items:stretch}.hero-art{height:250px;transform:scale(.52);margin:-55px 0 -30px}.hero-assurance{line-height:1.8}.section{padding:58px 0}.section h2{font-size:39px}.domain-grid{gap:10px}.domain-card{min-height:196px;padding:20px 15px}.domain-title{font-size:14px}.domain-short{font-size:11px}.domain-icon{font-size:29px}.domain-arrow{right:14px;top:19px}.guide-panel{padding:22px 17px}.urgency-choices{grid-template-columns:1fr}.urgency-choices span{min-height:45px}.footer-links{gap:26px;flex-wrap:wrap}.footer-bottom{flex-direction:column}.closing-content h2{font-size:32px}.legal-page .legal-inner{padding:60px 0}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.button,.domain-card,.resource-card{transition:none}.button:hover,.domain-card:hover,.resource-card:hover{transform:none}}
+/* Domaine de droit : recherche locale, sans requête réseau */
+.domain-search{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:21px}
+.domain-search>label{font-size:13px;font-weight:800;max-width:210px;line-height:1.5}
+.domain-search-controls{display:flex;align-items:center;gap:15px;min-width:min(100%,520px);flex:0 1 520px}
+.domain-search input{width:100%;min-height:48px;border:1px solid #cad7cc;border-radius:12px;padding:12px 17px;background:#fff;color:var(--deep);font-size:14px}
+.domain-search-controls>span{font-size:11px;color:var(--muted);white-space:nowrap}
+.domain-card[hidden],.no-domains[hidden]{display:none}
+.no-domains{padding:23px;border-radius:12px;background:#f0f2e9;border:1px solid #d9e1d5;font-size:14px;color:var(--muted)}
+.print-button{margin-left:8px}
+@media(max-width:650px){.domain-search{flex-direction:column;align-items:stretch;gap:10px}.domain-search-controls{flex-direction:column;align-items:stretch;flex:initial;gap:7px}.domain-search-controls>span{align-self:flex-end}.print-button{margin:9px 0 0}}
+@media print{
+  @page{margin:18mm}
+  body{background:#fff!important;color:#111!important}
+  .site-header,.hero,.intro-section,.domains-section,.guide-aside,.guide-panel>form,.panel-top,.resources-section,.faq-section,.closing-section,.footer,.guide-result button{display:none!important}
+  .guide-section,.guide-panel{padding:0!important;background:#fff!important;border:0!important;box-shadow:none!important}
+  .guide-layout{display:block!important}.guide-result{display:block!important;background:#fff!important;border:none!important;padding:0!important;margin:0!important}
+  .guide-result[hidden]{display:none!important}
+  .result-steps,.resource-list{font-size:12pt!important}
+  a{text-decoration:underline!important}
+  .result-disclaimer{border-top:1px solid #333}
+}

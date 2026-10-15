@@ -64,7 +64,10 @@
     <section class="section domains-section" id="domaines" aria-labelledby="domaines-title">
       <div class="container">
         <div class="section-heading"><div><p class="eyebrow">01 / TROUVEZ VOTRE DOMAINE</p><h2 id="domaines-title">De quel type d'aide<br><em>avez-vous besoin?</em></h2></div><p>Choisissez le domaine qui ressemble le plus à votre situation. Il n'est pas nécessaire de raconter votre histoire ici.</p></div>
+        <div class="domain-search"><label for="domainSearch">Chercher un domaine ou une situation</label><div class="domain-search-controls"><input id="domainSearch" type="search" placeholder="Ex. garde, congédiement, bail…" autocomplete="off" aria-controls="domainGrid" maxlength="80"><span id="domainCount" role="status" aria-live="polite">8 domaines trouvés</span></div></div>
         <div class="domain-grid" id="domainGrid" role="group" aria-label="Choisir un domaine de droit"></div>
+        <p id="noDomains" class="no-domains" hidden>Aucun domaine ne correspond. Essayez un terme plus général ou utilisez JuridiQC pour vous orienter.</p>
+        <noscript><p class="no-domains">Le parcours interactif nécessite JavaScript. Vous pouvez consulter directement les ressources officielles plus bas.</p></noscript>
         <p class="below-grid">Vous hésitez? <a href="https://www.juridiqc.gouv.qc.ca/" target="_blank" rel="noopener noreferrer">Consultez JuridiQC pour explorer vos options ↗</a></p>
       </div>
     </section>
@@ -74,7 +77,7 @@
         <div class="guide-panel">
           <div class="panel-top"><span>VOTRE PARCOURS</span><span>ÉTAPE 02 / 03</span></div>
           <form id="guideForm" novalidate>
-            <div class="form-block"><span class="field-index">01</span><span class="field-title">Votre domaine de droit</span><div class="chosen-domain" id="chosenDomain">Sélectionnez un domaine ci-dessus</div></div>
+            <div class="form-block"><span class="field-index">01</span><span class="field-title">Votre domaine de droit</span><div class="chosen-domain" id="chosenDomain" role="status" aria-live="polite">Sélectionnez un domaine ci-dessus</div></div>
             <div class="form-block"><span class="field-index">02</span><label class="field-title" for="region">Dans quelle région cherchez-vous?</label><select id="region" name="region" required><option value="">Choisissez une région</option></select></div>
             <fieldset class="form-block"><legend><span class="field-index">03</span><span class="field-title">À quel point est-ce urgent?</span></legend>
               <div class="urgency-choices">

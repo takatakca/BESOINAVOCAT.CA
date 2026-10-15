@@ -1,14 +1,15 @@
 # BESOINAVOCAT.CA
 
-Site d'orientation juridique généraliste pour le Québec — version initiale (MVP statique), en français.
+Site d'orientation juridique généraliste pour le Québec — application statique évolutive en français, sans collecte de dossiers.
 
-## État actuel (14 octobre 2026)
+## État actuel (15 octobre 2026)
 
-- Interface responsive et accessible en français : huit domaines de droit, sélection de région, niveau d'urgence, intérêt pour l'aide juridique.
+- Interface responsive en français : huit domaines de droit recherchables (accents et synonymes), sélection de région, niveau d'urgence, intérêt pour l'aide juridique.
 - Guide généré localement dans le navigateur, lien vers le Barreau du Québec, JuridiQC et la Commission des services juridiques.
-- Copie volontaire du plan; **aucune donnée personnelle n'est envoyée, enregistrée ou partagée** par l'outil.
+- Copie et impression volontaires du plan; **aucune donnée personnelle n'est envoyée, enregistrée ou partagée** par l'outil.
+- Ressources institutionnelles ciblées (Barreau, JuridiQC, CSJ, CNESST et TAL), page 404 et contrôle public `/health.json`.
 - Mentions de confidentialité et d'utilisation adaptées à ce périmètre (à réviser avec un responsable juridique avant les futurs traitements de données).
-- Tests unitaires Node.js natifs et GitHub Actions pour contrôle qualité.
+- Tests unitaires/structure Node.js natifs et GitHub Actions pour contrôle qualité; smoke HTTPS quotidien de production.
 - Hébergement Render **en ligne** : service statique `besoinavocat` relié à `main`, déploiement automatique à chaque push.
 - Workflow GitHub Pages facultatif, désactivé tant que `ENABLE_GITHUB_PAGES` n'est pas configurée à `true` et que Pages n'est pas activé.
 
@@ -64,3 +65,12 @@ Ne pas créer de fichier CNAME avant que le domaine soit vérifié, que le DNS p
 ## Prochaines phases (non réalisées)
 
 Voir [docs/RELEVE.md](docs/RELEVE.md). Le périmètre réel d'une plateforme de mise en relation, ses partenaires, rôles, contrats, consentements, processus de vérification et traitements de données nécessitent des décisions métier et des contrôles de sécurité avant ouverture en production.
+
+
+## Pilotage et reprise des agents
+
+Lire [AGENTS.md](AGENTS.md) puis [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md),
+[docs/TASK_QUEUE.md](docs/TASK_QUEUE.md), [docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md),
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) et [docs/DECISIONS.md](docs/DECISIONS.md).
+Ces fichiers distinguent livrables réels, décisions encore nécessaires et tâches futures.
+Le workflow de surveillance ne constitue pas un orchestrateur d'agents autonome.

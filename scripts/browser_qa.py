@@ -68,6 +68,18 @@ def run_suite() -> None:
                     overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                     check(overflow <= 1, f"Aucun débordement horizontal ({width}px, écart={overflow}px)")
 
+                    if width == 1440:
+                        glyph = page.locator(".art-glyph")
+                        topmost = glyph.evaluate("""(el) => {
+                            const rect = el.getBoundingClientRect();
+                            const target = document.elementFromPoint(
+                                rect.left + rect.width / 2,
+                                rect.top + rect.height / 2
+                            );
+                            return target?.closest(".art-center") !== null;
+                        }""")
+                        check(topmost, "Le symbole § du héros n'est pas masqué par un anneau")
+
                     if width == 320:
                         menu = page.locator("#menuToggle")
                         check(menu.is_visible(), "Menu mobile visible")

@@ -26,3 +26,5 @@
   a{text-decoration:underline!important}
   .result-disclaimer{border-top:1px solid #333}
 }
+/* Le pictogramme du héros doit rester devant les anneaux positionnés. */
+.art-center{position:relative;z-index:1}

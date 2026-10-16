@@ -68,6 +68,8 @@ def run_suite() -> None:
                     overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                     check(overflow <= 1, f"Aucun débordement horizontal ({width}px, écart={overflow}px)")
 
+                    check(page.locator(".value-item h2").first.evaluate("(el) => parseFloat(getComputedStyle(el).fontSize)") <= 16, f"Titres des engagements lisibles et compacts ({width}px)")
+
                     if width == 1440:
                         glyph = page.locator(".art-glyph")
                         topmost = glyph.evaluate("""(el) => {

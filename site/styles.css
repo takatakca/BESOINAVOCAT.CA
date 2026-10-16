@@ -28,3 +28,6 @@
 }
 /* Le pictogramme du héros doit rester devant les anneaux positionnés. */
 .art-center{position:relative;z-index:1}
+
+/* Titres compacts des engagements, indépendants des grands titres de section. */
+.section .value-item h2{font-size:15px;line-height:1.4;letter-spacing:-.025em}

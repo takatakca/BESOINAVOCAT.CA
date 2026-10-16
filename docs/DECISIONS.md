@@ -4,7 +4,7 @@ Journal des décisions et hypothèses qui guident le code. Une hypothèse ne dev
 
 ## D-001 — Dépôt ciblé
 - Date : 14 octobre 2026
-- Décision : utiliser \`takatakca/BESOINAVOCAT.CA\` (lien explicite), sans modifier le dépôt distinct AHMVERDUN malgré son apparition dans le premier message.
+- Décision : utiliser `takatakca/BESOINAVOCAT.CA` (lien explicite), sans modifier le dépôt distinct AHMVERDUN malgré son apparition dans le premier message.
 - Conséquence : versionnement et déploiement isolés.
 
 ## D-002 — Livrer une orientation sans collecte
@@ -14,8 +14,8 @@ Journal des décisions et hypothèses qui guident le code. Une hypothèse ne dev
 
 ## D-003 — Hébergement
 - Date : 14 octobre 2026
-- Décision exécutée : service Render statique dédié, publication depuis \`main\`.
-- Détails : \`docs/DEPLOYMENT.md\`; GitHub Pages optionnel et volontairement inactif.
+- Décision exécutée : service Render statique dédié, publication depuis `main`.
+- Détails : `docs/DEPLOYMENT.md`; GitHub Pages optionnel et volontairement inactif.
 - Point non décidé : date et configuration DNS du domaine personnalisé.
 
 ## D-004 — Autorités externes
@@ -38,3 +38,8 @@ Journal des décisions et hypothèses qui guident le code. Une hypothèse ne dev
 - Date : 15 octobre 2026
 - Décision : CI et vérification HTTPS quotidienne depuis GitHub Actions; le fichier de relève permet la reprise manuelle ou via orchestrateur.
 - Limite : un workflow programmé n'est pas un agent de développement permanent et ne relance pas de session d'IA.
+
+## D-008 — QA navigateur et correction de défauts visuels (16 octobre 2026)
+- Playwright/Chromium sur les quatre tailles est exécuté à chaque push et PR; ses captures sont conservées comme artéfacts GitHub.
+- Les captures ont révélé un symbole masqué et des titres de carte disproportionnés, corrigés dans les commits `22e8970` et `2cd5be9`.
+- Cette QA automatisée ne remplace ni NVDA/VoiceOver ni les validations légales et métier BA-009/BA-010.

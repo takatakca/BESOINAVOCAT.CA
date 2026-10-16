@@ -74,3 +74,13 @@ Lire [AGENTS.md](AGENTS.md) puis [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) et [docs/DECISIONS.md](docs/DECISIONS.md).
 Ces fichiers distinguent livrables réels, décisions encore nécessaires et tâches futures.
 Le workflow de surveillance ne constitue pas un orchestrateur d'agents autonome.
+
+## QA navigateur
+
+```sh
+python -m pip install -r requirements-qa.txt
+python -m playwright install chromium
+python scripts/browser_qa.py
+```
+
+Le workflow [Browser QA](.github/workflows/browser-qa.yml) effectue des tests Chromium à 320, 375, 768 et 1440 px, vérifie les interactions clavier, les erreurs et l'impression. Voir [docs/QA_REPORT.md](docs/QA_REPORT.md). La revue humaine lecteur d'écran demeure à effectuer.

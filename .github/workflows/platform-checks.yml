@@ -19,5 +19,14 @@ jobs:
           node --check platform/server.mjs
           node --check platform/public/app.js
           node --check platform/tools/import-corpus.mjs
+          node --check platform/deploy/passenger.cjs
+          node --check wordpress/besoinavocat-experience/assets/experience.js
+          node --check wordpress/besoinavocat-experience/assets/common.js
+          php -l wordpress/besoinavocat-experience/besoinavocat-experience.php
+          php -l wordpress/besoinavocat-experience/render-integrity.php
+          php -l wordpress/besoinavocat-experience/render-rules.php
+          php wordpress/besoinavocat-experience/checks/check-render.php
       - name: Test isolation, documents and import preparation
-        run: node --test platform/test/*.test.mjs
+        run: node --test platform/test/*.test.mjs platform/deploy/passenger.test.cjs
+      - name: Verify the deployment archive excludes private data
+        run: python3 platform/deploy/test_build_bundle.py

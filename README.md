@@ -4,7 +4,9 @@ Site d'orientation juridique généraliste pour le Québec et développement d'u
 
 ## Nouveau mandat — 26 octobre 2026
 
-Le propriétaire a confirmé **besoinavocat.ca chez MochaHost** et demandé WordPress pour la vitrine, un backend Node.js et un portail de travail pour les dossiers. Le dépôt est conservé; `site/` continue de contenir le site public existant.
+Le propriétaire a confirmé **besoinavocat.ca chez MochaHost** et demandé WordPress pour la vitrine, un backend Node.js et un portail de travail pour les dossiers. Le dépôt est conservé; `site/` contient le site d’orientation Render distinct. Les pages WordPress existantes sont conservées.
+
+L’habillage WordPress réversible et l’aperçu du tableau de bord sont versionnés dans [`wordpress/besoinavocat-experience/`](wordpress/besoinavocat-experience/README.md). Leur état réel de publication et les contrôles sont consignés dans [PROJECT_STATUS](docs/PROJECT_STATUS.md). Les archives de sauvegarde et exports privés ne sont pas inclus dans Git.
 
 Le pilote `platform/` ajoute une API persistante, des contrôles par dossier et organisation, des pièces et versions avec empreintes/provenance, la recherche, les échanges et des déclarations de temps à valider. Son interface propose un aperçu explicitement fictif. **Ce pilote n'est pas encore installé chez MochaHost et le compte client n'est pas activé.** Le raccordement à l'identité TAKATAK et la connexion navigateur restent à effectuer; aucun mot de passe local n'est créé.
 
@@ -49,7 +51,7 @@ node --test tests/*.test.mjs
 
 Node 22 recommandé. Les vérifications sont aussi lancées par les workflows GitHub Actions.
 
-## Déploiement principal : Render
+## Site d’orientation distinct : Render
 
 Service : [besoinavocat.onrender.com](https://besoinavocat.onrender.com) (premier déploiement **live** le 14 octobre 2026).
 
@@ -59,7 +61,7 @@ Service : [besoinavocat.onrender.com](https://besoinavocat.onrender.com) (premie
 - Commande de build : `test -s site/index.html && test -s site/styles.css`.
 - Répertoire publié : `site`.
 
-Ce site Render n'est pas encore relié au domaine personnalisé. Faire pointer le DNS et activer HTTPS uniquement après vérification de la propriété du domaine et du paramétrage Render.
+**besoinavocat.ca reste sur WordPress chez MochaHost. Ne pas rediriger ce domaine vers Render.** Le site Render conserve son adresse propre; le futur backend MochaHost est distinct de ces deux vitrines.
 
 ## Déploiement facultatif : GitHub Pages
 
@@ -67,7 +69,7 @@ Le workflow `.github/workflows/pages.yml` publie le dossier `site/` vers GitHub 
 
 Ne pas créer de fichier CNAME avant que le domaine soit vérifié, que le DNS pointe vers l'hébergement choisi et que HTTPS soit fonctionnel. Le déploiement GitHub Pages n'est **pas** un déploiement automatique vers l'hébergement commercial du nom de domaine `besoinavocat.ca`.
 
-## Sécurité et respect de la vie privée
+## Sécurité du site statique `site/`
 
 - Pas de formulaire de dossier confidentiel ni de collecte de leads.
 - Pas de cookies analytiques, publicitaires ou d'intégrations tierces sur les pages.

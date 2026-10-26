@@ -17,3 +17,6 @@ platform/.secrets/
 *.sqlite-*
 *.db
 *.db-*
+
+# Installation archives are generated from reviewed source.
+wordpress/**/*.zip

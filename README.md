@@ -1,8 +1,21 @@
 # BESOINAVOCAT.CA
 
-Site d'orientation juridique généraliste pour le Québec — application statique évolutive en français, sans collecte de dossiers.
+Site d'orientation juridique généraliste pour le Québec et développement d'un espace client/avocat distinct.
 
-## État actuel (15 octobre 2026)
+## Nouveau mandat — 26 octobre 2026
+
+Le propriétaire a confirmé **besoinavocat.ca chez MochaHost** et demandé WordPress pour la vitrine, un backend Node.js et un portail de travail pour les dossiers. Le dépôt est conservé; `site/` continue de contenir le site public existant.
+
+Le pilote `platform/` ajoute une API persistante, des contrôles par dossier et organisation, des pièces et versions avec empreintes/provenance, la recherche, les échanges et des déclarations de temps à valider. Son interface propose un aperçu explicitement fictif. **Ce pilote n'est pas encore installé chez MochaHost et le compte client n'est pas activé.** Le raccordement à l'identité TAKATAK et la connexion navigateur restent à effectuer; aucun mot de passe local n'est créé.
+
+- [Démarrage et tests du pilote](platform/README.md)
+- [Architecture et limites réelles](docs/PLATFORM_ARCHITECTURE.md)
+- [Raccordement WordPress / MochaHost](docs/MOCHAHOST_WORDPRESS.md)
+- [État de reprise](docs/AGENT_HANDOFF.md)
+
+Les crédits, paiements, Twilio, IA et accès à un disque distant ne sont pas actifs. La préparation d'import reste locale; aucune pièce du dossier maître n'est envoyée automatiquement dans un nouveau service.
+
+## Site d'orientation conservé (livraison du 15 octobre 2026)
 
 - Interface responsive en français : huit domaines de droit recherchables (accents et synonymes), sélection de région, niveau d'urgence, intérêt pour l'aide juridique.
 - Guide généré localement dans le navigateur, lien vers le Barreau du Québec, JuridiQC et la Commission des services juridiques.

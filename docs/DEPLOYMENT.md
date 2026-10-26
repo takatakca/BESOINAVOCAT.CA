@@ -1,5 +1,15 @@
 # DEPLOYMENT — BESOINAVOCAT.CA
 
+## Portail Node.js — 26 octobre 2026
+
+Le pilote est préparé dans `platform/`, sur la branche `codex/espace-client-avocat`. Il n'est pas servi par le déploiement statique Render. Le site public besoinavocat.ca est un WordPress distinct chez MochaHost, confirmé par le propriétaire et ouvert dans le navigateur. Son panneau privé n'est pas encore connecté.
+
+Consulter [MOCHAHOST_WORDPRESS.md](MOCHAHOST_WORDPRESS.md) avant toute installation. Le pilote utilise Node 24.19.x et un disque persistant privé; ses valeurs d'exemple ne configurent ni comptes réels ni secrets. Il ne faut pas placer base, blobs ou manifestes dans `public/`, `site/` ou la bibliothèque média WordPress.
+
+Vérification locale : `node --test platform/test/*.test.mjs`. Le workflow `platform-checks.yml` l'exécute sur les branches de travail et les PR. Le pilote reste sans connexion privée tant que TAKATAK n'est pas raccordé. L'aperçu fictif ne crée aucune session et n'écrit aucun dossier.
+
+Le 26 octobre, les 7 ressources publiques Render contrôlées correspondaient aux blobs de `main` au commit `b56d027c4172ddde5e362497731ac1ae80805fe0`. L'identifiant du dernier déploiement privé n'a pas été revalidé : le connecteur n'avait pas d'espace sélectionné. Ne pas confondre ce contrôle HTTP réussi avec la validation du backend sur MochaHost.
+
 ## Production vérifiée
 - Plateforme : Render Static Site, nom `besoinavocat`.
 - URL provisoire publique : `https://besoinavocat.onrender.com`.

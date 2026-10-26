@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="same-origin">
+  <meta name="description" content="Espace de préparation de dossiers BesoinAvocat : pièces, provenance, échanges et suivi du temps.">
+  <title>Votre espace de travail · BesoinAvocat</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Aller au contenu</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Espace de travail">
+      <a class="brand" href="./" aria-label="BesoinAvocat — accueil du portail"><span class="brand-mark" aria-hidden="true">b<span>.</span></span><span>besoin<span class="brand-light">avocat</span><small>ESPACE DE TRAVAIL</small></span></a>
+      <div class="workspace-label"><span class="workspace-symbol" aria-hidden="true">§</span><div>Votre espace<small id="workspace-subtitle">Préparer. Comprendre. Avancer.</small></div></div>
+      <p class="nav-label">MON DOSSIER</p>
+      <nav class="primary-nav" aria-label="Navigation principale">
+        <button type="button" data-view="cases" aria-current="page"><span class="nav-icon" data-icon="folder"></span>Dossiers<span class="nav-count" id="case-count"></span></button>
+        <button type="button" data-view="documents"><span class="nav-icon" data-icon="document"></span>Pièces et sources</button>
+        <button type="button" data-view="messages"><span class="nav-icon" data-icon="message"></span>Échanges</button>
+        <button type="button" data-view="time"><span class="nav-icon" data-icon="clock"></span>Suivi du temps</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span data-icon="layers" aria-hidden="true"></span><p>Chaque pièce garde<br>son histoire.</p><small>Source, version et état de contrôle restent visibles.</small></div>
+        <div class="profile"><span class="avatar" id="profile-avatar" aria-hidden="true">BA</span><div><strong id="profile-name">Espace personnel</strong><small id="profile-state">Connexion non activée</small></div><button type="button" id="logout-button" class="icon-button" title="Fermer la session locale" aria-label="Fermer la session locale" hidden><span data-icon="logout"></span></button></div>
+      </div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><div class="breadcrumb"><span>BesoinAvocat</span><span aria-hidden="true">/</span><strong id="current-section">Dossiers</strong></div><div class="topbar-right"><span class="environment-badge" id="environment-badge"><span class="status-dot" aria-hidden="true"></span>Version pilote</span><button type="button" id="help-button" class="icon-button" aria-label="Comprendre cet espace" title="Comprendre cet espace"><span data-icon="info"></span></button></div></header>
+      <div id="demo-banner" class="demo-banner" hidden><div><strong>Aperçu — données fictives</strong><span>Explorez l’interface en lecture seule. Aucun dossier réel n’est chargé.</span></div><a href="./">Quitter l’aperçu <span aria-hidden="true">↗</span></a></div>
+      <main id="main-content" class="content" tabindex="-1"><div class="loading-state" role="status"><span class="loading-dot"></span>Ouverture de votre espace…</div></main>
+      <footer class="page-footer"><span>BesoinAvocat <span aria-hidden="true">·</span> besoinavocat.ca</span><span>Un espace de préparation, avec des sources à l’appui.</span></footer>
+    </div>
+  </div>
+  <dialog id="workspace-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><div class="noscript">Activez JavaScript pour utiliser le portail. Aucun fichier n’est transmis sans action dans un espace authentifié.</div></noscript>
+</body>
+</html>

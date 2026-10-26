@@ -6,3 +6,14 @@ node_modules/
 coverage/
 qa-artifacts/
 *.log
+
+# Données du pilote : jamais dans Git ou dans la vitrine publique.
+platform/data/
+platform/.data/
+platform/private-imports/
+platform/uploads/
+platform/.secrets/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*

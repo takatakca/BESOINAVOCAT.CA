@@ -1,7 +1,17 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
-**État : site public d'orientation (MVP fonctionnel), développement commercial avancé non encore approuvé.**  
-Révision : 16 octobre 2026.
+**État : site d'orientation conservé; nouveau pilote client/avocat en préparation locale.**
+Révision : 26 octobre 2026.
+
+## Nouveau mandat autorisé
+
+Le propriétaire confirme besoinavocat.ca et MochaHost. Le développement WordPress + application Node.js est demandé, avec identité TAKATAK. Le code du pilote est dans `platform/`; l'accès MochaHost attend une connexion. Aucune infrastructure payante, permission externe, invitation ou facturation n'a été créée.
+
+Le serveur local couvre dossiers/membres, dépôt et téléchargement contrôlé, versions immuables par API, SHA-256, provenance, recherche littérale, messages persistants, durée soumise/validée et journal. Tests API/identité/import : **32 cas réussis en local**. Les **12 tests du site existant** réussissent également. Le contrôle navigateur desktop de l'aperçu est réussi : quatre rubriques, recherche reliée à la provenance, changement de dossier, actions d'écriture désactivées et écran de connexion non activée. Aucune erreur ou alerte console observée. Voir [PLATFORM_QA.md](PLATFORM_QA.md).
+
+À terminer : contrat d'identité TAKATAK dédié et flux de connexion, hébergement confirmé, sauvegarde/restauration, quotas et protection des fichiers, import contrôlé puis parcours complet avec vrais comptes. IA, Twilio et crédits sont des modules futurs; l'indicateur de capacité reste désactivé.
+
+Les rubriques historiques ci-dessous décrivent la **production statique**, pas l'absence du nouveau code local.
 
 ## Dépôt et exécution
 - GitHub : `takatakca/BESOINAVOCAT.CA`, branche `main`.

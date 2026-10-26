@@ -2,6 +2,16 @@
 
 Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier.
 
+## D-009 — Nouveau mandat client/avocat (26 octobre 2026)
+
+Le propriétaire demande un vrai backend, l'espace client/avocat, ses pièces, une recherche, des échanges et un suivi du temps, puis IA/voix et crédits. Il confirme besoinavocat.ca et MochaHost. WordPress reste la vitrine; l'application Node.js est distincte. Ce mandat autorise le développement local du pilote, auparavant hors du périmètre d'orientation. Il ne nécessite pas de recréer le dépôt.
+
+## D-010 — Identité et périmètre du pilote
+
+Réutiliser l'autorité TAKATAK, mais ne pas confondre sa session avec une permission BesoinAvocat. Le contrat spécifique et le parcours navigateur sont encore à raccorder. Aucune autorité de mots de passe parallèle ni compte automatiquement créé. Les essais injectent des identités fictives en processus; aucun contournement d'authentification n'est exposé par HTTP.
+
+SQLite et stockage de blobs privés servent au pilote sur une seule instance. Pas de nouvelle infrastructure payante; le choix de production dépend du forfait et des contrôles. L'aperçu utilise uniquement des données fictives. Les pièces du maître restent hors du dépôt public et l'inventaire d'import n'effectue aucun transfert. Les minutes sont déclarées et validées par une autre personne habilitée, sans paiement automatique.
+
 ## D-001 — Dépôt ciblé
 - Date : 14 octobre 2026
 - Décision : utiliser `takatakca/BESOINAVOCAT.CA` (lien explicite), sans modifier le dépôt distinct AHMVERDUN malgré son apparition dans le premier message.

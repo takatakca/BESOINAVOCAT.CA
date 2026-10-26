@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BesoinAvocat — Expérience
  * Description: Présentation réversible de l’accueil et aperçu du futur tableau de bord. Aucun compte, dépôt, paiement ou contenu existant n’est modifié.
- * Version: 0.1.2
+ * Version: 0.2.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: BesoinAvocat
@@ -15,15 +15,43 @@ if (!defined('ABSPATH')) {
 }
 
 require_once __DIR__ . '/render-integrity.php';
+require_once __DIR__ . '/funnel.php';
 
 final class BesoinAvocat_Experience {
-    const VERSION = '0.1.2';
+    const VERSION = '0.2.0';
 
     public static function boot() {
         add_action('wp_enqueue_scripts', array(__CLASS__, 'assets'), 99);
         add_filter('body_class', array(__CLASS__, 'body_classes'));
         add_filter('the_content', array(__CLASS__, 'front_content'), 99);
         add_shortcode('besoinavocat_dashboard', array(__CLASS__, 'dashboard'));
+        add_shortcode('besoinavocat_intake', array(__CLASS__, 'intake'));
+        add_action('wp_footer', array(__CLASS__, 'intake_modal'));
+    }
+
+    private static function funnel_enabled() {
+        return defined('BESOINAVOCAT_FUNNEL_ENABLED') && BESOINAVOCAT_FUNNEL_ENABLED === true;
+    }
+
+    private static function has_intake() {
+        $post = get_post();
+        return is_singular() && $post && has_shortcode($post->post_content, 'besoinavocat_intake');
+    }
+
+    private static function intake_endpoint() {
+        // The page/shortcode cannot choose a recipient for contact data.
+        return defined('BESOINAVOCAT_INTAKE_ENDPOINT') && BESOINAVOCAT_INTAKE_ENDPOINT === 'https://portail.besoinavocat.ca/api/intake'
+            ? BESOINAVOCAT_INTAKE_ENDPOINT : '';
+    }
+
+    public static function intake($attributes = array()) {
+        $role = isset($attributes['role']) && $attributes['role'] === 'professional' ? 'professional' : 'client';
+        return ba_render_funnel($role, array('endpoint' => self::intake_endpoint()));
+    }
+
+    public static function intake_modal() {
+        if (is_admin() || !self::is_front() || !self::funnel_enabled()) { return; }
+        echo ba_render_funnel('client', array('mode' => 'modal', 'id' => 'ba-intake-modal', 'endpoint' => self::intake_endpoint()));
     }
 
     private static function is_dashboard() {
@@ -40,6 +68,10 @@ final class BesoinAvocat_Experience {
         $base = plugin_dir_url(__FILE__);
         wp_enqueue_style('besoinavocat-common', $base . 'assets/common.css', array(), self::VERSION);
         wp_enqueue_script('besoinavocat-common', $base . 'assets/common.js', array(), self::VERSION, true);
+        if (self::has_intake() || (self::is_front() && self::funnel_enabled())) {
+            wp_enqueue_style('besoinavocat-funnel', $base . 'assets/funnel.css', array(), self::VERSION);
+            wp_enqueue_script('besoinavocat-funnel', $base . 'assets/funnel.js', array(), self::VERSION, true);
+        }
         if (!self::is_front() && !self::is_dashboard()) { return; }
         wp_enqueue_style('besoinavocat-experience', $base . 'assets/experience.css', array(), self::VERSION);
         wp_enqueue_script('besoinavocat-experience', $base . 'assets/experience.js', array(), self::VERSION, true);
@@ -91,6 +123,7 @@ final class BesoinAvocat_Experience {
             <button class="ba-menu-toggle" type="button" aria-expanded="false" aria-controls="ba-navigation-links">Menu <span aria-hidden="true">☰</span></button>
             <div id="ba-navigation-links" class="ba-nav-links">
                 <a href="<?php echo self::url('/demande/'); ?>">Trouver un avocat</a>
+                <?php if (self::funnel_enabled()) : ?><button type="button" class="ba-text-link" data-ba-funnel-open="ba-intake-modal" data-ba-funnel-role="client">Préparer une demande · FR / EN</button><?php endif; ?>
                 <a href="<?php echo self::url('/professionnels/'); ?>">Professionnels</a>
                 <a href="<?php echo self::url('/faq/'); ?>">Questions</a>
                 <a class="ba-nav-dashboard" href="<?php echo self::dashboard_url(); ?>">Tableau de bord <?php echo self::arrow(); ?></a>
@@ -128,17 +161,17 @@ final class BesoinAvocat_Experience {
 
     private static function professional_offers() {
         $offers = array(
-            array('01', 'Présence', 'Présenter votre pratique.', array('Présentation professionnelle', 'Domaines et régions desservis', 'Modalités de mise en relation à définir')),
-            array('02', 'Collaboration', 'Préparer le travail ensemble.', array('Espace client et avocat prévu', 'Pièces, provenance et échanges', 'Accès aux dossiers à habiliter')),
-            array('03', 'Cabinet', 'Organiser le suivi en équipe.', array('Organisation par équipe envisagée', 'Permissions et suivi du temps', 'Accompagnement à définir')),
+            array('01', 'À la semaine', '100 $ CA', 'par semaine', array('Inscription professionnelle', 'Fonctions de collaboration en préparation', 'Crédits IA achetés séparément')),
+            array('02', 'Au mois', '300 $ CA', 'par mois', array('Inscription professionnelle', 'Fonctions de collaboration en préparation', 'Crédits IA achetés séparément')),
+            array('03', 'Crédits IA', 'En supplément', 'Tarif à définir', array('Consommation distincte de l’inscription', 'Services IA à raccorder', 'Achat de crédits non activé')),
         );
         ob_start(); ?>
         <section id="ba-offres-avocats" class="ba-component ba-offers-section" data-ba-slot="professional-offers" aria-labelledby="ba-offers-title">
             <div class="ba-section-inner">
-                <div class="ba-section-heading"><div><span class="ba-eyebrow">POUR LES AVOCATS ET LES CABINETS</span><h2 id="ba-offers-title">Trois pistes pour<br><em>votre façon de travailler.</em></h2></div><div><span class="ba-label">Forfaits en préparation</span><p>Présentation des offres envisagées.<br>Prix et conditions à définir avant toute souscription.</p></div></div>
+                <div class="ba-section-heading"><div><span class="ba-eyebrow">POUR LES AVOCATS ET LES CABINETS</span><h2 id="ba-offers-title">Choisissez votre rythme.<br><em>Préparez la suite.</em></h2></div><div><span class="ba-label">Tarifs annoncés</span><p>100 $ CA par semaine ou 300 $ CA par mois.<br>Souscription non ouverte. Taxes et conditions à préciser avant activation.</p></div></div>
                 <div class="ba-offers-grid">
                     <?php foreach ($offers as $index => $offer) : ?>
-                    <article class="ba-offer-card<?php echo $index === 1 ? ' ba-offer-featured' : ''; ?>"><span class="ba-offer-number"><?php echo esc_html($offer[0]); ?></span><h3><?php echo esc_html($offer[1]); ?></h3><p class="ba-offer-tagline"><?php echo esc_html($offer[2]); ?></p><p class="ba-offer-price">Prix à définir<small>Offre non ouverte à la souscription</small></p><ul><?php foreach ($offer[3] as $feature) : ?><li><?php echo self::icon('check'); ?><?php echo esc_html($feature); ?></li><?php endforeach; ?></ul><a class="ba-text-link" href="<?php echo self::url('/professionnels/'); ?>">Espace professionnels <?php echo self::arrow(); ?></a></article>
+                    <article class="ba-offer-card<?php echo $index === 1 ? ' ba-offer-featured' : ''; ?>"><span class="ba-offer-number"><?php echo esc_html($offer[0]); ?></span><h3><?php echo esc_html($offer[1]); ?></h3><p class="ba-offer-price"><?php echo esc_html($offer[2]); ?><small><?php echo esc_html($offer[3]); ?></small></p><ul><?php foreach ($offer[4] as $feature) : ?><li><?php echo self::icon('check'); ?><?php echo esc_html($feature); ?></li><?php endforeach; ?></ul><a class="ba-text-link" href="<?php echo self::url('/professionnels/'); ?>">Espace professionnels <?php echo self::arrow(); ?></a></article>
                     <?php endforeach; ?>
                 </div>
                 <div class="ba-voice-card"><span class="ba-voice-symbol"><?php echo self::icon('phone'); ?></span><div><span class="ba-eyebrow">OPTION ENVISAGÉE</span><h3>Un assistant téléphonique IA.</h3><p>Accueil des appels et orientation vers la bonne personne : un service à concevoir avec ses limites, ses consentements et ses modalités. Aucun appel ni enregistrement n’est activé ici.</p></div><span class="ba-label">En préparation</span></div>
@@ -170,7 +203,7 @@ final class BesoinAvocat_Experience {
                 </section>
                 <aside class="ba-access-card"><span class="ba-access-icon"><?php echo self::icon('lock'); ?></span><h3>Votre accès,<br>lors de l’ouverture.</h3><p>La connexion est en préparation. Les accès aux dossiers seront ouverts après validation.</p><button type="button" class="ba-button" disabled>Connexion en préparation</button><p class="ba-fine">Cet aperçu ne crée aucun compte et ne demande aucun document personnel.</p><div class="ba-access-services"><span>Assistant IA documentaire <em>À connecter</em></span><span>Crédits et paiements <em>À connecter</em></span><span>Assistant téléphonique <em>À connecter</em></span></div></aside>
             </div>
-            <div class="ba-audience-grid"><section><span class="ba-eyebrow">VOUS ÊTES CLIENT</span><h3>Une demande toujours gratuite.</h3><p>Publier une demande sera toujours gratuit pour les clients. Les honoraires de l’avocat et les options payantes sont distincts.</p><a class="ba-text-link" href="<?php echo self::url('/demande/'); ?>">Décrire mon besoin <?php echo self::arrow(); ?></a></section><section><span class="ba-eyebrow">VOUS ÊTES AVOCAT</span><h3>Un espace pour collaborer.</h3><p>Les offres Présence, Collaboration et Cabinet sont en préparation. Prix et conditions seront définis avant toute souscription.</p><a class="ba-text-link" href="<?php echo self::url('/professionnels/'); ?>">Consulter l’espace professionnels <?php echo self::arrow(); ?></a></section></div>
+            <div class="ba-audience-grid"><section><span class="ba-eyebrow">VOUS ÊTES CLIENT</span><h3>Une demande toujours gratuite.</h3><p>Publier une demande sera toujours gratuit pour les clients. Les honoraires de l’avocat et les options payantes sont distincts.</p><a class="ba-text-link" href="<?php echo self::url('/demande/'); ?>">Décrire mon besoin <?php echo self::arrow(); ?></a></section><section><span class="ba-eyebrow">VOUS ÊTES AVOCAT</span><h3>Un espace pour collaborer.</h3><p>Inscription proposée à 100 $ CA par semaine ou 300 $ CA par mois. Crédits IA en supplément. Souscription non ouverte; taxes et conditions à préciser avant activation.</p><a class="ba-text-link" href="<?php echo self::url('/professionnels/'); ?>">Consulter l’espace professionnels <?php echo self::arrow(); ?></a></section></div>
             <p class="ba-dashboard-contact">Nous joindre : <a href="tel:+15148252825">514 825-2825</a></p>
             <p class="ba-dashboard-footnote">Les sources, les déclarations et les analyses doivent rester distinctes. Une extraction OCR nécessite un contrôle sur l’original. Cet espace de préparation ne remplace pas l’analyse de votre avocat.</p>
         </div>

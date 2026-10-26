@@ -1,8 +1,8 @@
 # BesoinAvocat — Expérience WordPress
 
-Plugin préparé pour revue, **non activé par son auteur**. Il ne remplace ni le thème, ni Elementor, ni les 347 pages publiées.
+La version **0.1.2 est active** sur WordPress. La **0.2.0 préparée dans cette branche n’est pas déployée**. Elle ne remplace ni le thème, ni Elementor, ni les 347 pages publiées.
 
-## Périmètre de la version 0.1.2
+## Périmètre conservé de la version 0.1.2
 
 - Habillage complet limité à l’accueil Elementor 13 et à l’aperçu du tableau de bord. Un CSS/JS commun léger ajoute les liens de politiques et le libellé « Espace professionnels » sur les autres pages.
 - Aucun contenu WordPress, donnée Elementor, compte ou option n’est écrit. Les 347 pages et les originaux restent en base et dans l’export conservé par l’opérateur.
@@ -23,7 +23,7 @@ Plugin préparé pour revue, **non activé par son auteur**. Il ne remplace ni l
 5. Vérifier les liens `/demande/`, `/professionnels/`, `/faq/` ainsi que les trois politiques. Le chemin `/demande/` mène au parcours existant, pas à un nouveau dépôt de pièces. `/professionnels/` mène à une page de candidature, pas à la création instantanée d’un compte.
 6. Purger les caches Elementor et SpeedyCache après activation : un cache HTML déjà servi sans exécuter WordPress ne peut pas être corrigé par un filtre PHP. Aucun changement de base n’est exécuté par ce plugin.
 
-La page avec shortcode est uniquement un **aperçu fictif**. Ses onglets sont navigables au clavier (flèches, Début, Fin). Aucun formulaire, fichier à sélectionner, jeton, connexion ou requête réseau n’est créé par le JavaScript. La connexion TAKATAK et toute URL d’API restent hors de ce plugin en attendant un contrat réel.
+La page avec shortcode est uniquement un **aperçu fictif**. Ses onglets sont navigables au clavier (flèches, Début, Fin). Cet aperçu ne crée aucun fichier, jeton ou connexion. Le nouveau parcours de contact 0.2.0 est distinct et reste fermé sans configuration explicite; il ne donne jamais accès aux dossiers.
 
 ## Réversibilité
 
@@ -44,7 +44,7 @@ Ces références documentent les sélecteurs et destinations ; elles ne valident
 Depuis PowerShell :
 
 ```powershell
-./build-plugin.ps1 -Destination 'CHEMIN-ABSOLU/besoinavocat-experience-0.1.2.zip'
+./build-plugin.ps1 -Destination 'CHEMIN-ABSOLU/besoinavocat-experience-0.2.0.zip'
 ```
 
 Le script refuse d’écraser un fichier. Il ne déploie rien et n’inclut que PHP, CSS, JS et ce document, sous le répertoire racine attendu par WordPress. Tester le PHP dans l’environnement cible avant activation : aucun exécutable PHP local n’était disponible lors de la préparation initiale.
@@ -60,3 +60,21 @@ Le script non empaqueté `checks/check-render.php` peut être lancé avec PHP 7.
 - Quatre formulations exactes supplémentaires sont neutralisées uniquement sur l’accueil13 : tri automatique, mise en relation annoncée, augmentation des chances de gagner et promesse analogue du dernier paragraphe. Le lien FAQ est conservé.
 
 - Sur la page professionnelle151 uniquement : six intitulés statistiques exacts deviennent les noms/statuts des offres ; l’introductionf99fdfe est neutralisée et le widget FAQ9f15bdf est remplacé par trois réponses « offres/prix en préparation, aucun abonnement activé ». Le formulaire existant reste hors de ces transformations.
+
+## Préparation 0.2.0 — accès au dossier prioritaire
+
+Les tarifs annoncés sont **100 CAD/semaine ou 300 CAD/mois** pour les avocats. Les crédits IA sont séparés et leur prix reste à définir. Les demandes clients restent gratuites. Aucun abonnement, débit, compte ou habilitation ne résulte de cet affichage.
+
+`funnel.php` et ses deux assets apportent un parcours de contact FR/EN, avec étapes, récapitulatif, consentement et référence seulement après enregistrement par Node. La traduction porte sur ce parcours, pas sur les articles existants. Aucune description libre d’une affaire, pièce, notification ou paiement n’est collectée par ce module. Les montants et conditions applicables seront confirmés avant activation des abonnements.
+
+- Le shortcode `[besoinavocat_intake]` permet une intégration explicite dans une page de préparation; `role="professional"` sélectionne le parcours avocat. Il ne remplace aucun contenu ou formulaire historique.
+- La modale de l’accueil est **désactivée par défaut**. `BESOINAVOCAT_FUNNEL_ENABLED=true` permet de l’ajouter volontairement après contrôle; elle ne s’ouvre jamais automatiquement.
+- Le destinataire est absent par défaut. Seule la constante serveur `BESOINAVOCAT_INTAKE_ENDPOINT=https://portail.besoinavocat.ca/api/intake` est admise par l’intégration. Un attribut de shortcode ne peut pas changer ce destinataire.
+- Sans destinataire, l’interface explique que rien n’a été envoyé et propose le téléphone. Aucun succès fictif, aucune conservation des coordonnées dans le stockage du navigateur.
+- L’API Node doit être installée, sa base de contact privée configurée et ses origines autorisées explicitement avant tout raccordement. Voir [INTAKE_API.md](../../docs/INTAKE_API.md). La file de contacts n’est pas encore un workflow d’attribution à un avocat.
+
+**État réel :** le paquet Node v2 demeure refusé par MochaHost. Les nouveaux modules ne changent pas ce statut. Ne pas activer le parcours public pour masquer le blocage de connexion au dossier, ni remplacer le paquet v2 en attente de contrôle par une archive différente. Le formulaire MetForm historique reste à auditer avant le raccordement final pour éviter deux circuits de demandes.
+
+Contrôles : `checks/check-render.php`, `checks/check-funnel.php` et `checks/check-integration.php` vérifient le rendu ciblé, l’échappement, le défaut fermé, l’intégration explicite et la conservation du contenu. Les tests JavaScript du parcours complètent ces contrôles. La CI exécute PHP; l’activation publique nécessite ensuite une vérification visuelle sur le vrai WordPress.
+
+Les intitulés et phrases promotionnelles observés dans les articles 2186, 4663, 5009, 5082 et 5715 sont neutralisés au rendu dans la 0.2.0. Les noms cités, informations de fond, liens et références sont conservés; aucune suppression globale de mot-clé n’est appliquée. Voir [INTAKE_QA.md](../../docs/INTAKE_QA.md).

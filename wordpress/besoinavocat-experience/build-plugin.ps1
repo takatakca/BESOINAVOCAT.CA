@@ -4,7 +4,7 @@ $pluginBuildRoot = [IO.Path]::GetFullPath($PSScriptRoot)
 $pluginBuildDestination = [IO.Path]::GetFullPath($Destination)
 if ([IO.File]::Exists($pluginBuildDestination)) { throw 'Le fichier de destination existe déjà. Aucun écrasement.' }
 if (-not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($pluginBuildDestination))) { throw 'Le dossier de destination doit déjà exister.' }
-$pluginBuildFiles = @('besoinavocat-experience.php', 'render-integrity.php', 'render-rules.php', 'assets/experience.css', 'assets/experience.js', 'assets/common.css', 'assets/common.js', 'README.md')
+$pluginBuildFiles = @('besoinavocat-experience.php', 'render-integrity.php', 'render-rules.php', 'funnel.php', 'assets/funnel.css', 'assets/funnel.js', 'assets/experience.css', 'assets/experience.js', 'assets/common.css', 'assets/common.js', 'README.md')
 foreach ($pluginBuildRelative in $pluginBuildFiles) {
     $pluginBuildSource = [IO.Path]::GetFullPath((Join-Path $pluginBuildRoot $pluginBuildRelative))
     if (-not $pluginBuildSource.StartsWith($pluginBuildRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Source hors du plugin.' }

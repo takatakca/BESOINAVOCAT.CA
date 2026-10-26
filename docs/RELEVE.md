@@ -1,29 +1,35 @@
 # Relève — BESOINAVOCAT.CA
 
-Mise à jour du 26 octobre 2026. Cette page résume la reprise; les preuves détaillées et les limites figurent dans les documents liés.
+État de reprise du 26 octobre 2026. Lire [AGENTS.md](../AGENTS.md), [AGENT_HANDOFF](AGENT_HANDOFF.md), [PROJECT_STATUS](PROJECT_STATUS.md) et [TASK_QUEUE](TASK_QUEUE.md).
 
-**Reprise courante :** consulter d'abord [AGENTS.md](../AGENTS.md) et [docs/AGENT_HANDOFF.md](AGENT_HANDOFF.md).
+## Priorité du propriétaire
 
-L'état, les décisions, la file de tâches et le déploiement en vigueur sont documentés dans les cinq fichiers `PROJECT_STATUS.md`, `TASK_QUEUE.md`, `AGENT_HANDOFF.md`, `DEPLOYMENT.md`, `DECISIONS.md`.
+**Faire fonctionner le backend et son accès aux dossiers avant de poursuivre la vitrine.** WordPress reste sur besoinavocat.ca; le portail Node est distinct sur portail.besoinavocat.ca; Render conserve le site d'orientation indépendant.
 
-## État courant
+## État réellement acquis
 
-- **WordPress existant conservé** sur besoinavocat.ca, HTTPS vérifié chez MochaHost; forfait bolon.ca Ultimate actif. Le site Render besoinavocat.onrender.com reste indépendant. L'ancien raccordement BA-008 est obsolète.
-- **Sauvegarde et corrections contrôlées** : base privée 194 722 770 octets en mode 0600; WXR 348 pages dont 347 publiées. Douze mentions JuriGo corrigées sur neuf pages, avec conservation contrôlée des dates, URL et autres contenus. Aucun export privé dans Git.
-- **Plugin 0.1.2 installé et actif**, SHA vérifié, trois lint PHP et `check-render` réussis sur serveur. 800/839 absents de l'accueil contrôlé, footer/liens présents, trois onglets et touche Début fonctionnels, console sans erreur/alerte. **Chevauchement résolu et aucun débordement à 1 265 px**; QA mobile restante, voir [WORDPRESS_QA.md](WORDPRESS_QA.md).
-- Page 5820 `tableau-de-bord` **publiée comme aperçu**, shortcode seul; aucune page supprimée. Titre général harmonisé en **BesoinAvocat**, description « Préparez votre dossier et votre recherche d’avocat. ».
-- **Portail local préparé** : API, interface fictive, permissions, pièces/versions/provenance, recherche, échanges, temps et audit; connexion TAKATAK non raccordée. Node 24.22.1/Passenger disponibles chez l'hébergeur, mais aucune application BesoinAvocat créée. Le sous-domaine portail.besoinavocat.ca reste proposé.
-- **49 tests Node locaux réussis** (12 site, 32 pilote, 5 Passenger) et 3 tests Python du paquet. Ils ne prouvent pas encore un lancement Passenger distant.
-- **Droits GitHub admin/push confirmés par connecteur** et `push --dry-run` Git réussi vers `codex/espace-client-avocat`, sans push réel; `gh` local non authentifié. Ne jamais enregistrer un secret pour contourner cette distinction.
-- Demande client toujours gratuite; prix professionnels à définir; téléphone de contact **514-825-2825** publié et contrôlé dans header/footer. IA, voix et paiements non activés.
+- Branche locale/distante contrôlée : `codex/espace-client-avocat` à `ee278313707bbec608c15df11e402decce66f7ee`. `main` reste à `b56d027c4172ddde5e362497731ac1ae80805fe0`; trois commits d'avance, aucun retard. [PR 1](https://github.com/takatakca/BESOINAVOCAT.CA/pull/1) en brouillon.
+- CI Quality, Browser et Platform réussie au SHA `ee27831`; aucune extension de cette preuve aux modifications locales ultérieures. Les anciens comptes de tests décrivent des étapes antérieures.
+- WordPress 0.1.2 actif avec aperçu publié et contrôles ordinateur consignés. Articles, informations, URL et sauvegardes préservés; les contrôles mobiles/nouveaux parcours FR/EN restent à réaliser sur leur version livrée.
+- Portail Node technique créé chez MochaHost sous Passenger/Node 24.22.1. Le contrôle HTTP courant confirme health 200 (`mode: pilot`, `identityConfigured: false`) et dossiers anonymes 401. **La v2 connexion/corpus n'est pas installée : archive refusée par l'antivirus MochaHost.**
+- Corpus importé localement, sauvegarde vérifiée puis restaurée localement; copie privée distante avec empreinte concordante. **Aucune restauration ni activation du corpus dans le portail distant.** Originaux et paquet de 312 annexes inchangés.
+- Configuration privée préparée, mais **aucun test réel de connexion utilisateur ou de consultation du corpus en production**. Ne pas annoncer que son mot de passe a été configuré.
+- Render contrôlé par API : service `srv-db7srnmi0phs73ahkue0`, déploiement `dep-db8qsb6k1f9s73epefs0` live au SHA de `main`; publication de `site/`, autoDeploy actif. Le smoke public du 26 octobre réussit.
 
-**Architecture réaffirmée : WordPress uniquement pour la vitrine et l'aperçu; Node pour le vrai backend; TAKATAK pour l'identité. Le projet de plugin WordPress de dossiers est interrompu et ne doit pas être publié.**
+## Prochaine étape
 
-Prochain travail : compléter la QA mobile et la revue éditoriale restante, puis poursuivre le portail Node selon [CPANEL_NODE.md](CPANEL_NODE.md), confirmer stockage/processus/HTTPS et raccorder l'identité réelle. Les routes privées restent fermées sans identité valide. Les pièces réelles et le paquet de remise juridique restent hors du dépôt et du pilote non raccordé.
+Obtenir l'analyse du paquet v2 exact refusé par MochaHost, sans contourner l'antivirus. Après résolution documentée : installer la version validée, contrôler les protections, faire utiliser l'identité TAKATAK existante, restaurer le corpus en destination privée contrôlée puis vérifier les trois dossiers, pièces, citations et déconnexion. Raccorder ensuite la vitrine au portail réellement utilisable. Les détails et preuves sont dans [DEPLOYMENT](DEPLOYMENT.md) et [CPANEL_NODE](CPANEL_NODE.md).
 
-## Éléments historiques
+Les modules de parcours/formulaire `intake` / `funnel` sont **en cours localement, non déployés**. Aucun formulaire, paiement ou accès ne doit annoncer un succès qui n'a pas eu lieu. Pas de nouvelle permission ni autorité de mots de passe parallèle.
 
-- Dépôt initial limité à un README le 14 octobre 2026.
-- Premier site d'orientation statique français construit avec liens vers les institutions, sans collecte de dossiers juridiques.
-- Première publication Render confirmée `live` le 14 octobre 2026.
-- Les fonctionnalités futures d'annuaire professionnel, de comptes et de mise en relation n'ont pas été prétendues livrées.
+## Conditions de produit
+
+Demandes clients **toujours gratuites**. Avocats : **100 CAD/semaine ou 300 CAD/mois**, **crédits IA en supplément**; honoraires juridiques distincts. Ces conditions remplacent « prix à définir », sans activer souscription, facturation, IA ou voix. Téléphone de contact : **514-825-2825**, sans assistant automatisé annoncé.
+
+Préserver informations, articles, originaux, preuves contraires, URL et codes; corriger seulement les anciennes marques d'opérateur ou affiliations promotionnelles injustifiées. Les cabinets cités dans des articles ne deviennent pas des partenaires. Les doublons et versions ne s'additionnent pas; les OCR restent à contrôler sur les pièces.
+
+Aucun Git, déploiement, compte, mot de passe ou état du dossier juridique n'a été modifié par cette mise à jour des documents.
+
+## Lot local contact et WordPress 0.2.0
+
+Catalogue et réception privée, parcours FR/EN, tarifs 100 CAD/semaine ou 300 CAD/mois et corrections éditoriales ciblées préparés; 133 tests Node et 12 tests Python réussis. Aucun déploiement ni nouvel accès réel. PHP et contrôle visuel WordPress à confirmer avant publication. Voir [INTAKE_QA.md](INTAKE_QA.md) et [INTAKE_API.md](INTAKE_API.md). Les états du contrôle Git préalable ci-dessus ne décrivent pas le nouveau commit de ce lot.

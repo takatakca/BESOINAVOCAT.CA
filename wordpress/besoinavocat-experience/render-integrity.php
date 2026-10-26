@@ -49,15 +49,38 @@ final class BesoinAvocat_Render_Integrity {
         return preg_replace_callback('~(<h[1-6]\b[^>]*>)([\s\S]*?)(</h[1-6]\s*>)~i', function ($match) use ($page_id) {
             $text = self::plain($match[2]);
             $replacement = null;
+            // Observed editorial headings only. Keep the article, firm names,
+            // reference material and URLs; remove the site's ranking claim.
+            $editorial = array(
+                2186 => array(
+                    "Top 5 des meilleurs avocats en droit de l'immigration à Montréal" => 'Avocats en droit de l’immigration à Montréal : références documentaires',
+                    'Le top 5 des meilleurs avocats en droit de l’immigration à Montréal' => 'Professionnels cités en droit de l’immigration à Montréal'
+                ),
+                4663 => array(
+                    'Top 10 avocats fiscalistes à Montréal' => 'Avocats fiscalistes à Montréal : références documentaires',
+                    'Où trouver un avocat fiscaliste? Le top 10 des meilleurs cabinets à Montréal!' => 'Droit fiscal à Montréal : cabinets cités dans cet article'
+                ),
+                5009 => array(
+                    'Liste des meilleurs avocats au Québec par région 2025' => 'Avocats au Québec par région : références documentaires de 2025',
+                    'Besoinavocat.ca : la plateforme qui compare les meilleurs avocats de la province!' => 'BesoinAvocat : préparer votre recherche et votre consultation'
+                ),
+                5082 => array('Besoinavocat est là pour vous référer aux meilleurs avocats au Québec, partout en province!' => 'Préparez votre consultation juridique avec BesoinAvocat'),
+                5715 => array('Avocat Thetford Mines : Meilleurs cabinets et professionnels' => 'Avocats à Thetford Mines : références documentaires')
+            );
+            foreach (isset($editorial[$page_id]) ? $editorial[$page_id] : array() as $before => $after) {
+                if (preg_match('~^' . preg_quote($before, '~') . '$~iu', $text)) {
+                    return $match[1] . esc_html($after) . $match[3];
+                }
+            }
             if ($page_id === 151) {
                 $professional_headings = array(
-                    '75 000+' => 'Présence',
-                    'références / an' => 'Offre en préparation',
-                    '30 à 40%' => 'Collaboration',
-                    "d'ouverture de dossier" => 'Prix à définir',
-                    'd’ouverture de dossier' => 'Prix à définir',
-                    '8 à 12x' => 'Cabinet',
-                    'retour sur investissement' => 'Conditions à définir',
+                    '75 000+' => '100 $ CA',
+                    'références / an' => 'par semaine',
+                    '30 à 40%' => '300 $ CA',
+                    "d'ouverture de dossier" => 'par mois',
+                    'd’ouverture de dossier' => 'par mois',
+                    '8 à 12x' => 'Crédits IA',
+                    'retour sur investissement' => 'en supplément — tarif à définir',
                     'Besoinavocat.ca est une plateforme Web qui permet à des avocats de rencontrer des clients potentiels. En offrant un espace de réseautage bien pensé, Besoinavocat.ca permet de jumeler le bon professionnel/cabinet au bon client selon une correspondance de critères bien précis : budget, domaine d’expertise, spécialité (particulier ou entreprise), proximité, etc.' => 'BesoinAvocat prépare un espace de travail pour organiser les pièces et les échanges entre clients et professionnels. Les fonctions de collaboration, les accès et les offres sont en préparation ; aucun réseau de mise en relation ni abonnement n’est activé par cet aperçu.'
                 );
                 if (isset($professional_headings[$text])) {
@@ -112,6 +135,19 @@ final class BesoinAvocat_Render_Integrity {
             'Ne cherchez plus loin, Besoinavocat peut vous mettre en contact avec l’un de nos avocats partenaires!' => $neutral,
             'Nous pouvons vous mettre en contact avec l’un de nos avocats partenaires qualifiés en matière de bail commercial.' => 'Rassemblez votre bail commercial et les échanges utiles avant de consulter un avocat.'
         );
+        $editorial_text = array(
+            2186 => array(
+                'Maître Agostinho est l’une des meilleures options pour quiconque souhaitant implanter des aspects d’immigration dans sa stratégie d’affaires.' => 'Cet article présente la pratique de Maître Agostinho en immigration d’affaires, sans recommandation de BesoinAvocat.',
+                'Maître Agostinho est sans aucun doute une option à considérer pour quiconque souhaitant requérir l’aide d’un professionnel en droit de l’immigration dans le monde des affaires !' => 'Cette présentation est documentaire; le choix du professionnel et les conditions du mandat restent à vérifier directement.'
+            ),
+            4663 => array('Voici le top 10 des meilleurs cabinets d’avocats fiscalistes à Montréal:' => 'Cabinets cités dans cet article sur le droit fiscal à Montréal, sans classement ni recommandation de BesoinAvocat :'),
+            5082 => array('Remplissez notre formulaire en moins de 2 minutes, et Besoinavocat s’occupe de vous référer aux meilleurs avocats dans votre région.' => 'Rassemblez vos informations et vos questions pour préparer votre recherche d’un professionnel dans votre région.'),
+            5715 => array(
+                'Voici le TOP 3 des meilleurs avocats familialistes à Thetford Mines:' => 'Professionnels cités dans cet article en droit familial à Thetford Mines, sans recommandation :',
+                'voici les 3 meilleurs avocats pour vous:' => 'voici les professionnels cités dans cet article, sans recommandation de BesoinAvocat :'
+            )
+        );
+        if (isset($editorial_text[$page_id])) { $rules += $editorial_text[$page_id]; }
         if ($page_id === 13) {
             $rules += array(
                 'Notre système trie les avocats pour répondre à vos besoins et préférences.' => 'Préparez votre recherche en précisant votre besoin et les questions à poser.',
@@ -135,7 +171,7 @@ final class BesoinAvocat_Render_Integrity {
     }
 
     private static function professional_faq() {
-        return '<section class="ba-integrity-note ba-professional-faq" aria-labelledby="ba-professional-faq-title"><h2 id="ba-professional-faq-title">Les offres professionnelles se préparent</h2><h3>Quelles offres sont prévues ?</h3><p>Présence, Collaboration et Cabinet sont trois offres en préparation. Leurs fonctionnalités et leurs conditions restent à définir.</p><h3>Quels sont les prix ?</h3><p>Les prix sont à définir. Aucun volume de références, taux de conversion ou rendement n’est promis.</p><h3>Un abonnement est-il activé ?</h3><p>Non. Cette présentation ne crée aucun compte professionnel, mandat ou abonnement. Les honoraires d’un avocat sont convenus directement avec son client.</p></section>';
+        return '<section class="ba-integrity-note ba-professional-faq" aria-labelledby="ba-professional-faq-title"><h2 id="ba-professional-faq-title">Les offres professionnelles se préparent</h2><h3>Quels sont les tarifs annoncés ?</h3><p>L’inscription des avocats est proposée à 100 $ CA par semaine ou à 300 $ CA par mois. La souscription n’est pas ouverte; les taxes et les conditions seront précisées avant activation. Aucun volume de références, taux de conversion ou rendement n’est promis.</p><h3>Les crédits IA sont-ils inclus ?</h3><p>Les crédits IA seront achetés séparément. Leur prix et leur achat ne sont pas encore activés.</p><h3>Un abonnement est-il activé ?</h3><p>Non. Cette présentation ne crée aucun compte professionnel, mandat ou abonnement. Les honoraires d’un avocat sont convenus directement avec son client. La demande client reste gratuite.</p></section>';
     }
 
     public static function widget($html, $widget) {

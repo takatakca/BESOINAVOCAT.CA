@@ -1,0 +1,92 @@
+/* Optional, namespaced presentation. Existing articles and forms are unaffected. */
+.ba-funnel{--ba-ink:#102e36;--ba-muted:#456066;--ba-green:#19765d;--ba-green-dark:#10533f;--ba-cream:#faf8f1;--ba-line:#d2dfd9;--ba-soft:#eaf2e9;color:var(--ba-ink);font:400 16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;color-scheme:light;isolation:isolate}
+.ba-funnel *{box-sizing:border-box}
+.ba-funnel [hidden]{display:none!important}
+.ba-funnel button,.ba-funnel input,.ba-funnel select{font:inherit}
+.ba-funnel button{cursor:pointer;text-transform:none;letter-spacing:normal}
+.ba-funnel button:disabled{cursor:not-allowed;opacity:.6}
+.ba-funnel :where(button,a,input,select):focus-visible{outline:3px solid #d58b2d;outline-offset:4px}
+.ba-funnel a{color:var(--ba-green-dark);text-decoration:underline;text-underline-offset:3px}
+.ba-funnel p{margin:0 0 1rem}
+.ba-funnel h2,.ba-funnel h3{color:var(--ba-ink);text-transform:none;font-family:inherit;letter-spacing:-.035em;line-height:1.18}
+.ba-funnel h2{font-size:clamp(2rem,4vw,3.25rem);font-weight:720;max-width:21ch;margin:12px 0 16px}
+.ba-funnel h3{font-size:clamp(1.45rem,2.6vw,2rem);font-weight:680;margin:0 0 12px}
+.ba-funnel small{font-size:.79rem}
+.ba-funnel__panel{width:min(100%,1040px);border:1px solid var(--ba-line);border-radius:26px;background:radial-gradient(ellipse at top right,#dfece0 0,transparent 42%),var(--ba-cream);box-shadow:0 24px 75px #123b3612;padding:clamp(20px,4vw,48px);margin:0 auto;color:var(--ba-ink)}
+.ba-funnel--modal dialog.ba-funnel__panel{position:fixed;margin:auto;max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}
+.ba-funnel--modal dialog:not([open]){display:none}
+.ba-funnel--modal dialog::backdrop{background:#071f2aab;backdrop-filter:blur(5px)}
+.ba-funnel__header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-bottom:26px;border-bottom:1px solid var(--ba-line)}
+.ba-funnel__brand{display:flex;align-items:center;gap:12px}
+.ba-funnel__brand strong{font-size:1.25rem;font-weight:750;letter-spacing:-.035em}
+.ba-funnel__brand small{display:block;color:var(--ba-muted)}
+.ba-funnel__monogram{display:grid;place-items:center;background:var(--ba-ink);color:#ecf5df;width:48px;height:48px;font-weight:700;font-size:1.8rem;border-radius:15px}
+.ba-funnel__tools{display:flex;align-items:center;gap:12px}
+.ba-funnel__language{display:flex;padding:4px;border:1px solid #bdcfc6;border-radius:99px;background:#ffffff6e}
+.ba-funnel__language button{padding:7px 10px;border:0;border-radius:99px;background:transparent;color:var(--ba-muted);font-size:.8rem;line-height:1.2;font-weight:750}
+.ba-funnel__language button[aria-pressed=true]{background:var(--ba-ink);color:white}
+.ba-funnel__close{border:1px solid #bdcfc6;background:#fff7;color:var(--ba-ink);border-radius:50%;height:38px;width:38px;padding:0;font-size:1.7rem!important;line-height:1}
+.ba-funnel__intro{padding:30px 0 24px;max-width:730px}
+.ba-funnel__intro>p,.ba-funnel__hint{color:var(--ba-muted)}
+.ba-funnel__eyebrow{font-size:.72rem;letter-spacing:.14em;font-weight:750;color:var(--ba-green-dark)}
+.ba-funnel__view{padding:24px;border:1px solid var(--ba-line);border-radius:20px;background:#ffffffdf;box-shadow:0 7px 20px #18352b04}
+.ba-funnel__steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 0 25px;margin:0 0 25px;border-bottom:1px solid var(--ba-line);list-style:none}
+.ba-funnel__steps li{display:flex;gap:8px;align-items:center;color:#5d7176;font-size:.74rem;line-height:1.25;font-weight:600}
+.ba-funnel__steps li>span:first-child{display:grid;place-items:center;flex-shrink:0;width:27px;height:27px;background:#edf1ee;border-radius:50%;color:var(--ba-muted)}
+.ba-funnel__steps li[aria-current=step]{color:var(--ba-green-dark)}
+.ba-funnel__steps li[aria-current=step]>span:first-child,.ba-funnel__steps li.is-complete>span:first-child{color:white;background:var(--ba-green-dark)}
+.ba-funnel__step-label{color:var(--ba-green-dark);font-size:.75rem;font-weight:700;letter-spacing:.04em;margin-bottom:10px!important}
+.ba-funnel__choices{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:26px 0}
+.ba-funnel__choice{position:relative;display:flex;flex-direction:column;gap:10px;text-align:left;border:1px solid #bdcfc6;background:#fff;border-radius:16px;padding:24px;color:var(--ba-ink);box-shadow:none;transition:background .18s,border-color .18s,transform .18s}
+.ba-funnel__choice:hover{transform:translateY(-2px);border-color:var(--ba-green)}
+.ba-funnel__choice.is-selected{border-color:var(--ba-green);background:linear-gradient(120deg,#edf5e8,#f8fbf6);box-shadow:inset 0 0 0 1px var(--ba-green)}
+.ba-funnel__choice strong{font-size:1.12rem}
+.ba-funnel__choice>span:not(.ba-funnel__choice-icon){font-size:.88rem;color:var(--ba-muted)}
+.ba-funnel__choice-icon{font-size:1.5rem;color:var(--ba-green-dark)}
+.ba-funnel__choice i{position:absolute;right:18px;top:20px;font-style:normal;color:var(--ba-green-dark)}
+.ba-funnel__fields{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:24px 0}
+.ba-funnel label,.ba-funnel legend{color:var(--ba-ink);font-size:.88rem;font-weight:650;display:block;margin-bottom:8px}
+.ba-funnel label small{color:var(--ba-muted);font-size:.7rem;font-weight:400;margin-left:5px}
+.ba-funnel input:not([type=checkbox]),.ba-funnel select{display:block;width:100%;min-height:48px;border:1px solid #a9bfb4;border-radius:9px;padding:11px 12px;background:white;color:var(--ba-ink);box-shadow:none}
+.ba-funnel input[aria-invalid=true],.ba-funnel select[aria-invalid=true]{border-color:#9c3229;box-shadow:0 0 0 1px #9c3229}
+.ba-funnel__plans{border:0;padding:0;margin:26px 0}
+.ba-funnel__plans>div{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.ba-funnel__plans button{border:1px solid var(--ba-line);border-radius:10px;background:white;color:var(--ba-ink);padding:13px 19px;font-weight:650}
+.ba-funnel__plans button.is-selected{background:var(--ba-ink);border-color:var(--ba-ink);color:white}
+.ba-funnel__consent{display:flex!important;align-items:flex-start;gap:12px;margin-top:28px;font-weight:400!important}
+.ba-funnel__consent input{width:20px;height:20px;margin:3px 0 0;accent-color:var(--ba-green-dark);flex-shrink:0}
+.ba-funnel__privacy{font-size:.86rem}
+.ba-funnel__honeypot{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
+.ba-funnel__actions{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-top:24px;margin-top:26px;border-top:1px solid var(--ba-line)}
+.ba-funnel__button{display:inline-flex;align-items:center;justify-content:center;gap:18px;border:1px solid var(--ba-green-dark);border-radius:99px;background:var(--ba-green-dark);color:white;min-height:48px;padding:13px 25px;font-size:.9rem;font-weight:650;box-shadow:none}
+.ba-funnel__button:hover:not(:disabled){background:#0a4030;color:white}
+.ba-funnel__back{background:none;border:0;padding:12px 4px;color:var(--ba-muted);font-weight:600}
+.ba-funnel__text-button{background:transparent;border:0;border-bottom:1px solid currentColor;border-radius:0;padding:3px 0;box-shadow:none;color:var(--ba-green-dark);font-size:.86rem;font-weight:600}
+.ba-funnel__notice,.ba-funnel__error{padding:18px 20px;border-radius:12px;font-size:.87rem;margin-bottom:24px;overflow-wrap:anywhere}
+.ba-funnel__notice{background:#f8f1dd;border:1px solid #decda1;color:#59451b}
+.ba-funnel__notice p,.ba-funnel__error p{margin:7px 0}
+.ba-funnel__error{background:#fff1ee;border:1px solid #d9a298;color:#762d24}
+.ba-funnel__summary{margin:24px 0}
+.ba-funnel__summary>div{display:grid;grid-template-columns:minmax(130px,1fr) 2fr;gap:20px;padding:12px 0;border-bottom:1px solid #e2e9e4}
+.ba-funnel__summary dt{color:var(--ba-muted);font-size:.84rem}
+.ba-funnel__summary dd{margin:0;font-size:.91rem;font-weight:550;overflow-wrap:anywhere}
+.ba-funnel__received{text-align:center;padding:16px 8px}
+.ba-funnel__success-mark{display:grid;place-items:center;width:60px;height:60px;margin:0 auto 22px;border-radius:50%;background:var(--ba-soft);color:var(--ba-green-dark);font-size:1.8rem}
+.ba-funnel__reference{display:inline-block;font-family:ui-monospace,monospace;word-break:break-all;background:var(--ba-soft);padding:12px 16px;margin:0 0 20px;border-radius:9px;color:var(--ba-ink);font-size:.95rem}
+.ba-funnel__received>p{color:var(--ba-muted);max-width:580px;margin:0 auto 18px}
+.ba-funnel__pricing{padding-top:34px}
+.ba-funnel__pricing>h3{font-size:1.2rem;letter-spacing:-.02em}
+.ba-funnel__prices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+.ba-funnel__prices article{padding:19px 17px;border:1px solid var(--ba-line);border-radius:15px;background:#fff8}
+.ba-funnel__price-label{font-size:.74rem;font-weight:650;display:block;min-height:2.6em}
+.ba-funnel__price{font-size:2rem!important;font-weight:720;letter-spacing:-.04em;margin:8px 0 0!important;line-height:1.1}
+.ba-funnel__price>span{font-size:.7rem;letter-spacing:0}
+.ba-funnel__prices article>p:not(.ba-funnel__price){font-size:.8rem;margin:6px 0 12px}
+.ba-funnel__prices article>small{font-size:.72rem;line-height:1.4;color:var(--ba-muted);display:block}
+.ba-funnel__fine{font-size:.76rem!important;color:var(--ba-muted);line-height:1.5}
+.ba-funnel__footer{padding-top:22px;margin-top:26px;border-top:1px solid var(--ba-line);display:flex;align-items:start;gap:24px;justify-content:space-between}
+.ba-funnel__footer>a{white-space:nowrap;font-size:.9rem;font-weight:650}
+.ba-funnel__footer p{font-size:.72rem;color:var(--ba-muted);max-width:490px;margin:0}
+@media(max-width:650px){.ba-funnel__panel{padding:22px 16px;border-radius:18px}.ba-funnel__view{padding:20px 16px}.ba-funnel__header{gap:8px;padding-bottom:20px}.ba-funnel__brand small{display:none}.ba-funnel__brand strong{font-size:1.1rem}.ba-funnel__monogram{width:37px;height:37px;font-size:1.4rem;border-radius:11px}.ba-funnel__tools{gap:6px}.ba-funnel__close{width:33px;height:33px}.ba-funnel__choices,.ba-funnel__fields{grid-template-columns:1fr}.ba-funnel__choice{padding:19px}.ba-funnel__steps{gap:7px}.ba-funnel__steps li{display:block;font-size:.64rem}.ba-funnel__steps li>span:first-child{margin-bottom:7px}.ba-funnel__steps li>span:last-child{display:block}.ba-funnel__summary>div{grid-template-columns:1fr;gap:3px}.ba-funnel__prices{grid-template-columns:1fr}.ba-funnel__price-label{min-height:0}.ba-funnel__prices article{padding:17px}.ba-funnel__footer{display:block}.ba-funnel__footer p{margin-top:12px}.ba-funnel__actions{gap:12px}.ba-funnel__button{padding:12px 19px}.ba-funnel__intro{padding-top:24px}}
+@media(prefers-reduced-motion:reduce){.ba-funnel *,.ba-funnel *::before,.ba-funnel *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.ba-funnel__choice:hover{transform:none}}
+@media print{.ba-funnel--modal{display:none}.ba-funnel__panel{box-shadow:none;background:white}.ba-funnel button{display:none}.ba-funnel__view{break-inside:avoid}}

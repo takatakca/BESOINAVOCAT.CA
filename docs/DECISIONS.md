@@ -1,6 +1,26 @@
 # DECISIONS — BESOINAVOCAT.CA
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-018 ci-dessous priment sur les états historiques qu'elles remplacent.
+
+## D-016 — Backend et accès effectif en priorité (26 octobre 2026)
+
+Le propriétaire demande de faire fonctionner son backend et son accès aux dossiers **avant la vitrine**. WordPress demeure la présentation; Node porte l'application et TAKATAK l'identité. Le portail technique existe déjà, mais la v2 de connexion/corpus reste refusée par l'antivirus MochaHost. Les contrôles de code ne lèvent pas ce refus : demander l'analyse du paquet exact, sans désactiver la protection ou l'esquiver.
+
+Le corpus a été importé et restauré localement avec contrôles; une copie privée de sauvegarde est distante, sans activation dans le portail. Aucune connexion réelle de l'utilisateur ni consultation du corpus en production n'est validée. Ne pas dire que son mot de passe a été configuré. Aucun nouveau compte, permission implicite ou système d'identité parallèle n'est autorisé par cette note.
+
+Les modules de parcours/formulaire `intake` / `funnel` sont en cours localement, non déployés. Leur préparation ne doit pas retarder la résolution du parcours d'accès prioritaire ni être présentée comme une collecte ou soumission fonctionnelle.
+
+## D-017 — Prix professionnels et gratuité client (26 octobre 2026)
+
+Les prix décidés sont **100 CAD par semaine ou 300 CAD par mois**, avec **crédits IA en supplément**. Les demandes clients restent **toujours gratuites**, sans obligation d'engager un avocat; les honoraires juridiques sont distincts. Cette décision remplace les anciennes mentions « prix à définir » pour ces deux formules.
+
+L'affichage des prix n'active pas la facturation : aucun abonnement, débit, paiement, crédit IA ou service vocal n'est annoncé opérationnel sans raccordement et contrôle effectifs. Ne pas inventer un prix de crédit, un volume inclus, un engagement ou une condition fiscale non définis.
+
+## D-018 — Conserver les informations et corriger la promotion (26 octobre 2026)
+
+Préserver originaux, preuves contraires, articles, informations documentaires, dates, URL, médias et codes existants. Les corrections éditoriales visent les anciennes marques d'opérateur et affiliations promotionnelles injustifiées; elles ne doivent pas effacer les noms nécessaires à un article ou à une pièce. Un cabinet cité ne devient pas un partenaire. Les nouvelles présentations FR/EN doivent conserver cette distinction et éviter les promesses de résultat ou de disponibilité non établies.
+
+Les statuts documentaires restent explicites : original ou copie, déclaration, analyse, OCR à contrôler. Les versions et doublons ne s'additionnent pas et le paquet figé des 312 annexes ne change pas par le développement du portail.
 
 ## D-015 — WordPress uniquement pour la vitrine, Node pour le backend (26 octobre 2026)
 
@@ -10,7 +30,7 @@ Le propriétaire réaffirme cette séparation : **WordPress sert la vitrine et l
 
 L'inspection réelle confirme WordPress HTTPS sur besoinavocat.ca chez MochaHost, forfait bolon.ca Ultimate actif. Le site statique besoinavocat.onrender.com reste indépendant. **L'ancien projet BA-008 de raccordement du domaine à Render est obsolète** : aucun déplacement ou remplacement du WordPress existant n'en découle.
 
-Node 24.22.1 et Passenger sont disponibles dans cPanel; aucune application BesoinAvocat n'y est encore créée. La cible proposée pour le pilote est portail.besoinavocat.ca à sa racine, et non un montage `/espace`. Avant de l'annoncer disponible, contrôler création, stockage privé, processus Passenger, certificat et réponses HTTP. L'interface WordPress ne pointera vers ce portail qu'après vérification de son URL HTTPS.
+La première version technique Node 24.22.1/Passenger est désormais créée sur portail.besoinavocat.ca. L'ancienne mention « aucune application créée » est dépassée. La v2 connexion/corpus reste bloquée; une réponse HTTPS du pilote ne suffit pas pour annoncer l'accès aux dossiers. Voir D-016 et DEPLOYMENT.
 
 ## D-012 — Préserver le contenu existant et rendre l'habillage réversible (26 octobre 2026)
 
@@ -26,7 +46,7 @@ Neutraliser dans le nouvel habillage les affirmations « 800 » et les avis non 
 
 ## D-014 — Gratuité client et services futurs (26 octobre 2026)
 
-La publication d'une demande doit rester **toujours gratuite pour les clients**. Les honoraires de l'avocat et les éventuelles options payantes sont distincts. Les prix des offres professionnelles restent à définir; aucune formule affichée comme projet ne doit créer de souscription ou de facturation.
+La publication d'une demande doit rester **toujours gratuite pour les clients**. Les honoraires de l'avocat et les éventuelles options payantes sont distincts. D-017 fixe désormais les deux formules professionnelles à 100 CAD/semaine ou 300 CAD/mois, crédits IA en supplément. Leur présentation ne crée aucune souscription ni facturation.
 
 Le propriétaire a fourni le **514-825-2825** comme téléphone de contact, désormais publié et contrôlé dans le header/footer de la 0.1.2. Cette publication de coordonnées n'active aucun assistant ou service téléphonique. Les appels/enregistrements automatisés, l'IA documentaire, les crédits et paiements restent à raccorder et à vérifier. Ne pas présenter ces fonctions comme actives, ni créer un compte ou numéro payant par déduction.
 
@@ -36,9 +56,9 @@ Le propriétaire demande un vrai backend, l'espace client/avocat, ses pièces, u
 
 ## D-010 — Identité et périmètre du pilote
 
-Réutiliser l'autorité TAKATAK, mais ne pas confondre sa session avec une permission BesoinAvocat. Le contrat spécifique et le parcours navigateur sont encore à raccorder. Aucune autorité de mots de passe parallèle ni compte automatiquement créé. Les essais injectent des identités fictives en processus; aucun contournement d'authentification n'est exposé par HTTP.
+Réutiliser l'autorité TAKATAK, mais ne pas confondre sa session avec une permission BesoinAvocat. Le code de connexion navigateur et les grants explicites existent dans la v2; leur parcours réel sur l'hébergement n'est pas validé. Aucune autorité de mots de passe parallèle, permission implicite ou création automatique de compte. Les essais locaux ne constituent pas une connexion utilisateur distante.
 
-SQLite et stockage de blobs privés servent au pilote sur une seule instance. Pas de nouvelle infrastructure payante; le choix de production dépend du forfait et des contrôles. L'aperçu utilise uniquement des données fictives. Les pièces du maître restent hors du dépôt public et l'inventaire d'import n'effectue aucun transfert. Les minutes sont déclarées et validées par une autre personne habilitée, sans paiement automatique.
+SQLite et les blobs privés servent au pilote sur un même hôte; les sessions chiffrées partagées évitent de dépendre d'un worker unique non garanti par l'hébergeur. Aucune nouvelle infrastructure payante par déduction. L'aperçu conserve des données fictives. Les pièces du maître restent hors Git; l'import/restauration locaux vérifiés et la copie privée distante sont distincts d'une activation du corpus en production. Les minutes sont déclarées et validées par une autre personne habilitée, sans paiement automatique.
 
 ## D-001 — Dépôt ciblé
 - Date : 14 octobre 2026
@@ -65,7 +85,7 @@ SQLite et stockage de blobs privés servent au pilote sur une seule instance. Pa
 ## D-005 — Écosystème TAKATAK
 - Date : 15 octobre 2026
 - Règle d'architecture : si l'identification de clients est approuvée, utiliser TAKATAK comme autorité d'identité et isoler les permissions/données de BESOINAVOCAT par produit et tenant.
-- **État au 15 octobre** : pas de backend, SSO, base ni données clients. Le pilote local créé le 26 octobre est décrit par D-009/D-010; sa connexion TAKATAK reste non activée.
+- **État au 15 octobre** : pas de backend, SSO, base ni données clients. Le pilote créé le 26 octobre est décrit par D-009/D-010/D-016; le code de connexion existe, mais son usage réel sur l'hébergement reste non validé.
 
 ## D-006 — Conformité avant marketplace
 - Date : 15 octobre 2026

@@ -2,20 +2,24 @@
 
 Site d'orientation juridique généraliste pour le Québec et développement d'un espace client/avocat distinct.
 
-## Nouveau mandat — 26 octobre 2026
+## Priorité courante — accès réel au backend
 
-Le propriétaire a confirmé **besoinavocat.ca chez MochaHost** et demandé WordPress pour la vitrine, un backend Node.js et un portail de travail pour les dossiers. Le dépôt est conservé; `site/` contient le site d’orientation Render distinct. Les pages WordPress existantes sont conservées.
+Le propriétaire demande d'abord un accès effectif à ses dossiers dans le portail **Node.js**, puis l'amélioration des formulaires WordPress et de la présentation interactive en français et en anglais. **besoinavocat.ca reste la vitrine WordPress chez MochaHost**; `site/` conserve le site d'orientation Render distinct. Les pages, articles, URL, informations documentaires et travaux existants sont préservés. Les anciennes marques d'opérateur et affiliations promotionnelles injustifiées peuvent être corrigées sans effacer les noms nécessaires aux documents ou articles.
 
-L’habillage WordPress réversible et l’aperçu du tableau de bord sont versionnés dans [`wordpress/besoinavocat-experience/`](wordpress/besoinavocat-experience/README.md). Leur état réel de publication et les contrôles sont consignés dans [PROJECT_STATUS](docs/PROJECT_STATUS.md). Les archives de sauvegarde et exports privés ne sont pas inclus dans Git.
+Le pilote `platform/` contient l'identité TAKATAK, les habilitations par organisation/dossier, des sessions serveur partagées chiffrées, les pièces et versions avec provenance/SHA-256, la recherche et ses références par page, les échanges et le suivi du temps à valider. **Le sous-domaine `portail.besoinavocat.ca` répond avec une première version technique; la v2 avec connexion et corpus n'est pas installée.** MochaHost a rejeté son archive par l'antivirus. Il faut obtenir l'analyse du paquet exact avant installation, sans contourner cette protection.
 
-Le pilote `platform/` ajoute une API persistante, des contrôles par dossier et organisation, des pièces et versions avec empreintes/provenance, la recherche, les échanges et des déclarations de temps à valider. Son interface propose un aperçu explicitement fictif. **Ce pilote n'est pas encore installé chez MochaHost et le compte client n'est pas activé.** Le raccordement à l'identité TAKATAK et la connexion navigateur restent à effectuer; aucun mot de passe local n'est créé.
+Le corpus des trois dossiers a été importé, sauvegardé, vérifié et restauré localement. Une copie de sauvegarde privée a été transférée sur l'hébergement et son empreinte contrôlée; **elle n'est ni restaurée ni activée dans le portail distant**. Aucune connexion réelle de l'utilisateur ni consultation du corpus en production n'a été validée. Aucun mot de passe n'est annoncé comme configuré. Les originaux et le paquet de 312 annexes restent distincts et inchangés.
 
-- [Démarrage et tests du pilote](platform/README.md)
-- [Architecture et limites réelles](docs/PLATFORM_ARCHITECTURE.md)
-- [Raccordement WordPress / MochaHost](docs/MOCHAHOST_WORDPRESS.md)
-- [État de reprise](docs/AGENT_HANDOFF.md)
+Conditions commerciales décidées : publication des demandes **toujours gratuite pour les clients**; offre professionnelle **100 CAD par semaine ou 300 CAD par mois**, avec **crédits IA en supplément**. Les honoraires de l'avocat sont distincts. Ces montants sont une décision de produit : aucun abonnement, débit, crédit IA ou paiement n'est activé par leur mention. Les modules de parcours/formulaire (`intake` / `funnel`) sont en cours localement; ils ne sont pas déployés ni validés en production.
 
-Les crédits, paiements, Twilio, IA et accès à un disque distant ne sont pas actifs. La préparation d'import reste locale; aucune pièce du dossier maître n'est envoyée automatiquement dans un nouveau service.
+- [État précis et preuves](docs/PROJECT_STATUS.md)
+- [Ordre de reprise du backend](docs/AGENT_HANDOFF.md)
+- [Déploiement et blocage actuel](docs/DEPLOYMENT.md)
+- [Architecture du pilote](docs/PLATFORM_ARCHITECTURE.md)
+- [Démarrage et tests](platform/README.md)
+- [Habillage WordPress réversible](wordpress/besoinavocat-experience/README.md)
+
+L'IA, la voix, les paiements et les crédits restent à raccorder et à vérifier. Aucun dossier réel, sauvegarde, manifeste privé, mot de passe, clé ou jeton ne doit entrer dans le dépôt public.
 
 ## Site d'orientation conservé (livraison du 15 octobre 2026)
 
@@ -28,7 +32,7 @@ Les crédits, paiements, Twilio, IA et accès à un disque distant ne sont pas a
 - Hébergement Render **en ligne** : service statique `besoinavocat` relié à `main`, déploiement automatique à chaque push.
 - Workflow GitHub Pages facultatif, désactivé tant que `ENABLE_GITHUB_PAGES` n'est pas configurée à `true` et que Pages n'est pas activé.
 
-Le produit n'est **pas encore** un annuaire propriétaire, un réseau de mise en relation, un cabinet d'avocats ou une plateforme de traitement de dossiers.
+Le site statique n'est ni un cabinet d'avocats ni un réseau professionnel vérifié. Il ne traite pas les dossiers privés du pilote Node.
 
 ## Démarrage local
 

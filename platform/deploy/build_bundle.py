@@ -15,6 +15,8 @@ ALLOWLIST = {
     'lib/browser-session.mjs': 'platform/lib/browser-session.mjs',
     'lib/browser-session-store.mjs': 'platform/lib/browser-session-store.mjs',
     'lib/corpus.mjs': 'platform/lib/corpus.mjs',
+    'lib/catalog.mjs': 'platform/lib/catalog.mjs',
+    'lib/intake.mjs': 'platform/lib/intake.mjs',
     'lib/store.mjs': 'platform/lib/store.mjs',
     'lib/validation.mjs': 'platform/lib/validation.mjs',
     'tools/import-corpus.mjs': 'platform/tools/import-corpus.mjs',

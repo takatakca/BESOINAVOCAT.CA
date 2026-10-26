@@ -5,6 +5,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createStore } from './lib/store.mjs';
 import { authenticateRequest, createIntrospection, identityConfiguration, validIdentity } from './lib/identity.mjs';
 import { BROWSER_SESSION_COOKIE, createBrowserSessions, browserSessionConfiguration } from './lib/browser-session.mjs';
+import { publicCatalog } from './lib/catalog.mjs';
+import { createIntake, intakeConfiguration } from './lib/intake.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -13,6 +15,8 @@ const PUBLIC = join(HERE, 'public');
 // Bound body readers across every app instance in this Node process.
 let uploadsInFlight = 0;
 const MAX_CONCURRENT_UPLOADS = 1;
+let intakesInFlight = 0;
+const MAX_CONCURRENT_INTAKES = 4;
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -63,6 +67,8 @@ export function createApp({
   const insidePublic = path => { const rel = relative(PUBLIC, resolve(path)); return !rel || (!rel.startsWith('..') && !isAbsolute(rel)); };
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
   const store = createStore({ dbPath, blobDir });
+  const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
+    excludedPaths: [dbPath, env.BESOINAVOCAT_SESSION_DB_PATH, env.BESOINAVOCAT_SESSION_KEY_FILE, env.BESOINAVOCAT_GRANTS_FILE] });
 
   async function route(req, res) {
     if (!req.url || req.url.length > 4096 || !req.url.startsWith('/') || req.url.startsWith('//')) throw invalid('URL invalide.');
@@ -71,7 +77,7 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, intakeConfigured: intake.configured });
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       const asset = assets.get(path);
@@ -85,6 +91,31 @@ export function createApp({
         res.setHeader('Content-Length', data.length);
         return res.end(method === 'HEAD' ? undefined : data);
       } catch { throw new HttpError(404, 'NOT_FOUND', 'Page introuvable.'); }
+    }
+
+    // Public contact intake is isolated from client identity and case storage.
+    // CORS is confined to these two exact routes, never private dossier APIs.
+    if (path === '/api/catalog' || path === '/api/intake') {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      const expected = path === '/api/catalog' ? 'GET' : 'POST';
+      if (method !== expected && method !== 'OPTIONS') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (expected === 'POST') intake.requireReady();
+      const requestOrigin = intake.cors(req, res, { required: expected === 'POST' || method === 'OPTIONS' });
+      if (method === 'OPTIONS') {
+        intake.preflight(req, res, expected);
+        res.statusCode = 204; return res.end();
+      }
+      if (expected === 'GET') return json(res, 200, publicCatalog({ intakeConfigured: intake.configured }));
+      const key = intake.mutation(req);
+      intake.reserve(req.socket.remoteAddress || 'unknown');
+      if (intakesInFlight >= MAX_CONCURRENT_INTAKES) {
+        res.setHeader('Retry-After', '1');
+        throw new HttpError(429, 'INTAKE_RATE_LIMIT', 'Trop de demandes. Réessayez plus tard.');
+      }
+      intakesInFlight++;
+      try {
+        return json(res, 201, intake.receive(await readJson(req, 4096), key, requestOrigin));
+      } finally { intakesInFlight--; }
     }
 
     // Browser cookies and API bearer credentials are separate authentication paths.
@@ -203,7 +234,7 @@ export function createApp({
   });
   app.keepAliveTimeout = 5000;
   app.maxRequestsPerSocket = 100;
-  const dispose = () => { browserSessions.clear(); store.close(); };
+  const dispose = () => { intake.clear(); browserSessions.clear(); store.close(); };
   app.on('close', dispose);
   app.store = store;
   app.dispose = dispose;

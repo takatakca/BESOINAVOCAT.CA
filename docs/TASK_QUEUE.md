@@ -1,24 +1,26 @@
 # TASK_QUEUE — BESOINAVOCAT.CA
 
-Tâches ordonnées; les tâches bloquées ne doivent pas interrompre celles qui restent indépendantes.
+Ordre actuel demandé par le propriétaire : **backend et accès effectif aux dossiers avant la vitrine**. Les tâches documentaires et de préparation indépendantes peuvent avancer sans contourner un blocage de déploiement.
 
-## Mandat du 26 octobre — portail client/avocat
+## Travail courant
 
-| ID | Statut | Travail / preuve attendue |
+| ID | Priorité / état | Travail et preuve attendue |
 |---|---|---|
-| BA-015 | codé, tests locaux réussis | API Node/SQLite, permissions par dossier/organisation, pièces SHA/versions/provenance, recherche, messages, temps et audit. |
-| BA-016 | aperçu desktop contrôlé | Interface FR-CA, aperçu fictif, connexion non activée clairement annoncée. Tests de vrais comptes encore requis. |
-| BA-017 | manifeste local contrôlé | Inventaire d'import sans transfert, rapprochement des empreintes et versions du maître; aucun téléversement. |
-| BA-018 | inspection réelle effectuée; déploiement restant | WordPress HTTPS et forfait MochaHost bolon.ca Ultimate vérifiés; Node 24.22.1/Passenger disponibles. Aucune application BesoinAvocat créée. Confirmer stockage privé et processus unique puis démarrer le pilote sur le sous-domaine dédié, sans déplacer WordPress. |
-| BA-019 | contrat réel requis | Authentification TAKATAK spécifique à BesoinAvocat, flux navigateur, révocation et tests avec deux comptes. Aucun compte parallèle. |
-| BA-020 | à réaliser avant production | Sauvegarde/restauration, quotas, protection des téléversements, supervision, contrôle du stockage et du parcours complet. |
-| BA-021 | futur raccordement | IA sourcée, voix/Twilio et crédits : tarifs, compte, consentements, budgets et événements vérifiés. |
-| BA-022 | futur parcours | Collaboration à distance sur fichiers choisis; pas d'accès permanent au disque. |
-| BA-023 | sauvegarde et correction effectuées | Sauvegarde privée DB de 194 722 770 octets en mode 0600, export WXR 348 pages/347 publiées; 12 mentions JuriGo corrigées sur 9 pages par contrôles SHA et transaction. Dates, URL et autres contenus préservés sur les 347 pages contrôlées. |
-| BA-024 | 0.1.2 active; contrôle ordinateur réussi | Paquet SHA vérifié, trois lint PHP + `check-render` réussis; page 5820 publiée. Bandeau sans chevauchement ni débordement à 1 265 px, téléphone header/footer correct, trois onglets et touche Début fonctionnels, console sans erreur/alerte. Six articles avec une note chacun; compléter les contrôles mobiles et la revue éditoriale au-delà des cibles. Voir WORDPRESS_QA. |
-| BA-025 | paquet local contrôlé | Lanceur Passenger CommonJS/ESM et archive sans données privées. 5 tests Node dédiés et 3 tests Python réussis; le lancement réel sur cPanel reste à vérifier. |
+| BA-018 | P0 — v2 bloquée par l'antivirus | Faire examiner le paquet v2 exact refusé par MochaHost. Conserver le reçu et le SHA; aucun contournement ni désactivation de protection. La première version Node technique existe déjà. |
+| BA-025 | P0 — installation après résolution du blocage | Installer uniquement le paquet validé, comparer le manifeste et les empreintes, préserver le code précédent et la configuration privée. Vérifier HTTPS et les refus anonymes; pas de réinstallation aveugle. |
+| BA-019 | P0 — code raccordé, parcours réel non testé | Faire utiliser à l'utilisateur son identité TAKATAK existante; vérifier sa session et ses grants BesoinAvocat. Aucun mot de passe déclaré configuré, aucune permission nouvelle implicite. |
+| BA-017 | P0 — import/restauration locaux vérifiés | La sauvegarde privée distante est une copie seulement. Après contrôles d'accès, restaurer dans une nouvelle destination privée, vérifier les empreintes et basculer sans écraser une base active. |
+| BA-020 | P0 — preuve de fonctionnement réel requise | Vérifier les trois dossiers du propriétaire, recherche/citations, pièces téléchargées, refus inter-dossiers/organisations, déconnexion et absence de fichiers privés exposés. Distinguer essais locaux et résultats distants. |
+| BA-015 | code au SHA ee27831 contrôlé par CI | API, provenance/versions, recherche par page, échanges, temps soumis à validation et audit. Ne pas présenter ces fonctions comme actives avec le corpus réel tant que le parcours P0 n'est pas vérifié. |
+| BA-016 | après accès réel | Raccorder le lien WordPress vers le vrai portail vérifié; distinguer clairement l'aperçu fictif existant de l'application authentifiée. |
+| BA-026 | préparation locale en cours | Modules de parcours/formulaire `intake` / `funnel`, présentation interactive FR/EN; aucun déploiement, collecte réelle ou succès de formulaire confirmé par cette note. Contrôler champs, messages, consentements, langues et destinations réelles. |
+| BA-024 | 0.1.2 active; évolution après priorité backend | Préserver pages, articles, informations et URL. Améliorer WordPress FR/EN/mobile/clavier; retirer seulement anciennes marques d'opérateur ou affiliations promotionnelles injustifiées. |
+| BA-027 | conditions de produit décidées, facturation inactive | Présenter **100 CAD/semaine ou 300 CAD/mois** pour les avocats, **crédits IA en supplément**, demandes clients toujours gratuites, honoraires distincts. Vérifier l'affichage et le parcours avant toute souscription; aucun paiement activé par la seule copie. |
+| BA-021 | raccordements futurs | IA sourcée, crédits et voix : services, budgets, consentements et événements réels à raccorder puis tester; ne pas simuler leur activation. |
+| BA-022 | futur parcours distinct | Collaboration sur fichiers expressément choisis; aucun accès permanent au disque. |
+| BA-023 | acquis, conserver | Sauvegarde privée WordPress et export; corrections ciblées avec dates/URL préservées. Ne pas reprendre une extraction ou réécriture complète sans nouvel objectif. |
 
-Le nouveau mandat autorise le développement et les modifications WordPress expressément cadrées ci-dessus. **WordPress reste uniquement la vitrine; Node est le vrai backend et l'autorité d'identité reste TAKATAK. Aucun plugin WordPress de dossiers n'est retenu.** La suite locale combinée compte **49 tests Node réussis** sous Node 24.19.0 (12 site + 32 pilote + 5 Passenger). Prix professionnels à définir, demandes clients toujours gratuites; téléphone de contact **514-825-2825** publié en 0.1.2. Aucun service téléphonique automatisé activé.
+Le workflow Platform au SHA `ee27831` est réussi, dont les contrôles PHP et de restauration. Les travaux locaux ultérieurs demandent leurs propres contrôles. Aucun déploiement, changement de compte ou permission nouvelle n'est effectué par cette mise à jour.
 
 ## Historique du site d'orientation
 
@@ -39,6 +41,9 @@ Le nouveau mandat autorise le développement et les modifications WordPress expr
 | BA-013 | P2 | dépend de 010-012 | Demandes de consultation minimisées, sécurité, prévention d'abus, purge et traçabilité | tests E2E/sécurité |
 | BA-014 | P2 | après BA-013 | Observabilité, sauvegardes, reprise, conformité et monitoring applicatif | procédures et exercices |
 
-La validation humaine BA-007 reste ouverte. Le mandat du 26 octobre définit le nouveau travail exécutable ci-dessus; les accords et mesures applicables à l'ouverture commerciale demeurent à finaliser avant production.
 
-Ne pas présenter BA-011 à BA-014 comme des services ouverts en production; les composants locaux repris dans BA-015 ne constituent pas leur activation complète.
+Les lignes historiques décrivent le site d'orientation. Les décisions de prix et la priorité backend ci-dessus priment sur les anciennes mentions « à définir ». La partie humaine accessibilité demeure ouverte; aucune plateforme complète ni réseau professionnel vérifié n'est annoncé.
+
+## Lot local contact et WordPress 0.2.0
+
+Catalogue et réception privée, parcours FR/EN, tarifs 100 CAD/semaine ou 300 CAD/mois et corrections éditoriales ciblées préparés; 133 tests Node et 12 tests Python réussis. Aucun déploiement ni nouvel accès réel. PHP et contrôle visuel WordPress à confirmer avant publication. Voir [INTAKE_QA.md](INTAKE_QA.md) et [INTAKE_API.md](INTAKE_API.md). Les états du contrôle Git préalable ci-dessus ne décrivent pas le nouveau commit de ce lot.

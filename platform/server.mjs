@@ -3,11 +3,16 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createStore } from './lib/store.mjs';
-import { authenticateRequest, createIntrospection, identityConfiguration } from './lib/identity.mjs';
-import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES } from './lib/validation.mjs';
+import { authenticateRequest, createIntrospection, identityConfiguration, validIdentity } from './lib/identity.mjs';
+import { BROWSER_SESSION_COOKIE, createBrowserSessions, browserSessionConfiguration } from './lib/browser-session.mjs';
+import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(HERE, 'public');
+// A JSON/base64 upload temporarily needs several representations in memory.
+// Bound body readers across every app instance in this Node process.
+let uploadsInFlight = 0;
+const MAX_CONCURRENT_UPLOADS = 1;
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -45,11 +50,15 @@ export function createApp({
   dbPath = join(HERE, '.data', 'platform.sqlite'),
   blobDir = join(HERE, '.data', 'blobs'),
   authenticate,
+  env = process.env,
+  browserSessions = createBrowserSessions({ config: browserSessionConfiguration(env) }),
 } = {}) {
-  const config = identityConfiguration();
+  const config = identityConfiguration(env);
   const identityConfigured = Boolean(config);
   const verifyIdentity = authenticate ?? createIntrospection(config);
   if (typeof verifyIdentity !== 'function') throw new TypeError('authenticate must be a function');
+  if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
+  const loginConfigured = browserSessions.configured === true;
   // Neither configuration path may be placed within the public asset directory.
   const insidePublic = path => { const rel = relative(PUBLIC, resolve(path)); return !rel || (!rel.startsWith('..') && !isAbsolute(rel)); };
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
@@ -62,7 +71,7 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured });
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       const asset = assets.get(path);
@@ -78,10 +87,45 @@ export function createApp({
       } catch { throw new HttpError(404, 'NOT_FOUND', 'Page introuvable.'); }
     }
 
-    const user = await authenticateRequest(req, verifyIdentity);
-    if ([...url.searchParams.keys()].some(k => !(path.endsWith('/search') && k === 'q')) || url.searchParams.getAll('q').length > 1) throw invalid('Paramètre URL non autorisé.');
+    // Browser cookies and API bearer credentials are separate authentication paths.
+    // Never choose one silently when a request presents both.
+    const cookieHeader = req.headers.cookie;
+    const hasSessionCookie = typeof cookieHeader === 'string' && cookieHeader.split(';').some(part => part.trim().split('=', 1)[0].trim() === BROWSER_SESSION_COOKIE);
+    const hasAuthorization = Object.hasOwn(req.headers, 'authorization');
+    if (hasSessionCookie && hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Utilisez une seule méthode de connexion.');
+    if (path === '/api/auth/login' || path === '/api/auth/logout') {
+      if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Cette connexion utilise une session de navigateur.');
+      browserSessions.assertMutation(req);
+      if (path === '/api/auth/login') {
+        const body = fields(await readJson(req, 4096), ['email', 'password'], ['email', 'password']);
+        const email = text(body.email, 'Adresse courriel', 320).trim();
+        const password = text(body.password, 'Mot de passe', 4096);
+        // Only the socket address is trusted for rate limiting; forwarded client
+        // headers are arbitrary unless a separate proxy policy is configured.
+        const session = await browserSessions.login(email, password, { clientKey: req.socket.remoteAddress || 'unknown' });
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (hasSessionCookie) browserSessions.logout(cookieHeader);
+        res.setHeader('Set-Cookie', session.setCookie);
+        return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString() });
+      }
+      fields(await readJson(req, 128, { allowEmpty: true }), []);
+      const session = browserSessions.logout(cookieHeader);
+      res.setHeader('Set-Cookie', session.setCookie);
+      return json(res, 200, { loggedOut: true });
+    }
+    let user;
+    if (hasSessionCookie) {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) browserSessions.assertMutation(req);
+      user = await browserSessions.resolve(cookieHeader);
+      if (!validIdentity(user)) throw new HttpError(401, 'UNAUTHENTICATED', 'Session non valide pour ce produit.');
+    } else {
+      user = await authenticateRequest(req, verifyIdentity);
+    }
+    if ([...url.searchParams.keys()].some(k => !((path.endsWith('/search') && k === 'q') || (path.endsWith('/pages') && ['offset','limit'].includes(k)))) || [...url.searchParams.keys()].some(k => url.searchParams.getAll(k).length > 1)) throw invalid('Paramètre URL non autorisé.');
     if (path === '/api/me' && method === 'GET') return json(res, 200, { user });
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, twilio: false, payments: false });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, twilio: false, payments: false, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -92,7 +136,26 @@ export function createApp({
     store.access(user, caseId);
     if (!suffix && method === 'GET') return json(res, 200, store.details(user, caseId));
     if (suffix === '/documents' && method === 'POST') {
-      return json(res, 201, { document: store.addDocument(user, caseId, documentInput(await readJson(req, MAX_DOCUMENT_JSON_BYTES))) });
+      const declaredLength = req.headers['content-length'];
+      if (declaredLength !== undefined && (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > MAX_DOCUMENT_JSON_BYTES)) throw new HttpError(413, 'BODY_TOO_LARGE', 'La requête est trop volumineuse.');
+      if (uploadsInFlight >= MAX_CONCURRENT_UPLOADS) {
+        res.setHeader('Retry-After', '1');
+        throw new HttpError(429, 'UPLOAD_BUSY', 'Un fichier est déjà en cours de traitement. Réessayez dans un instant.');
+      }
+      uploadsInFlight++;
+      try {
+        return json(res, 201, { document: store.addDocument(user, caseId, documentInput(await readJson(req, MAX_DOCUMENT_JSON_BYTES))) });
+      } finally { uploadsInFlight--; }
+    }
+    const pages = /^\/documents\/([^/]+)\/pages$/u.exec(suffix);
+    if (pages && method === 'GET') {
+      const parsePage = (name, fallback) => {
+        const raw = url.searchParams.get(name);
+        if (raw === null) return fallback;
+        if (!/^[0-9]+$/u.test(raw)) throw invalid('Pagination invalide.');
+        return Number(raw);
+      };
+      return json(res,200,store.documentPages(user,caseId,identifier(pages[1]),{offset:parsePage('offset',0),limit:parsePage('limit',5)}));
     }
     const download = /^\/documents\/([^/]+)\/download$/u.exec(suffix);
     if (download && method === 'GET') {
@@ -140,9 +203,10 @@ export function createApp({
   });
   app.keepAliveTimeout = 5000;
   app.maxRequestsPerSocket = 100;
-  app.on('close', () => store.close());
+  const dispose = () => { browserSessions.clear(); store.close(); };
+  app.on('close', dispose);
   app.store = store;
-  app.dispose = () => store.close();
+  app.dispose = dispose;
   return app;
 }
 

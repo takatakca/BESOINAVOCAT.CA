@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, realpathSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { HttpError, externalIdentifier, identifier, invalid } from './validation.mjs';
+import { createCorpusSupport } from './corpus.mjs';
 
 const now = () => new Date().toISOString();
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -88,6 +89,7 @@ export function createStore({ dbPath, blobDir }) {
   function publicCase(row) {
     return { id: row.id, title: row.title, reference: row.reference, createdAt: row.createdAt, createdBy: row.createdBy, role: row.role };
   }
+  let corpus;
   function publicDocument(row) {
     const { tenantId, extractedText, ...rest } = row;
     const sameContent = sql('SELECT id FROM documents WHERE tenantId=? AND caseId=? AND sha256=? ORDER BY rowid').all(row.tenantId, row.caseId, row.sha256).map(item => item.id);
@@ -96,7 +98,7 @@ export function createStore({ dbPath, blobDir }) {
       reviewAssertedBy: row.createdBy, reviewIsCertification: false,
       duplicateOf: sameContent[0] === row.id ? null : (sameContent[0] || null),
       sameHashDocumentIds: sameContent.filter(id => id !== row.id),
-      deduplicationScope: 'same_bytes_in_this_case_only' };
+      deduplicationScope: 'same_bytes_in_this_case_only', ...corpus.metadata(row) };
   }
   const publicRow = row => { const { tenantId, ...value } = row; return value; };
   function filePath(tenantId, sha256, create = false) {
@@ -117,9 +119,10 @@ export function createStore({ dbPath, blobDir }) {
     const stored = readFileSync(path);
     if (stored.length !== data.length || digest(stored) !== hash) throw new Error('Stored blob integrity failure');
   }
+  corpus = createCorpusSupport({ db, access, audit, putBlob, publicDocument });
   let closed = false;
   return {
-    db, access,
+    db, access, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus,
     close() { if (!closed) { db.close(); closed = true; } },
     // Trusted deployment/test operation only. It is deliberately NOT an HTTP route.
     provisionMembership({ tenantId, caseId, subject, role }) {
@@ -164,6 +167,7 @@ export function createStore({ dbPath, blobDir }) {
           if (latest.n !== previous.versionNumber) throw new HttpError(409, 'VERSION_CONFLICT', 'Une version plus récente existe déjà.');
         }
         const id = randomUUID(), hash = digest(value.bytes), createdAt = now();
+        corpus.checkQuota(user, caseId, value.bytes.length, hash);
         putBlob(user.tenantId, value.bytes, hash);
         sql('INSERT INTO documents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
           id, user.tenantId, caseId, previous?.rootDocumentId || id, value.versionOf,
@@ -183,18 +187,7 @@ export function createStore({ dbPath, blobDir }) {
       audit(user, caseId, 'document.downloaded', documentId, { sha256: row.sha256 });
       return { document: publicDocument(row), content };
     },
-    search(user, caseId, query) {
-      access(user, caseId);
-      const pattern = `%${query.replace(/[\\%_]/gu, '\\$&')}%`;
-      const rows = sql(`SELECT * FROM documents WHERE tenantId=? AND caseId=? AND
-        (name LIKE ? ESCAPE '\\' OR extractedText LIKE ? ESCAPE '\\' OR sourceReference LIKE ? ESCAPE '\\')
-        ORDER BY createdAt,id LIMIT 100`).all(user.tenantId, caseId, pattern, pattern, pattern);
-      audit(user, caseId, 'documents.searched', null, { resultCount: rows.length });
-      return rows.map(row => {
-        const offset = row.extractedText.toLowerCase().indexOf(query.toLowerCase());
-        return { ...publicDocument(row), excerpt: row.extractedText.slice(Math.max(0, offset - 80), Math.max(0, offset - 80) + 320) };
-      });
-    },
+    search(user, caseId, query) { return corpus.searchPages(user, caseId, query); },
     addMessage(user, caseId, body) {
       access(user, caseId);
       return transaction(() => {

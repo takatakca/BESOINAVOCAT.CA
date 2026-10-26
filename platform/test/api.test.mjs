@@ -8,6 +8,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { createApp } from '../server.mjs';
 import { createIntrospection } from '../lib/identity.mjs';
+import {MAX_DOCUMENT_JSON_BYTES} from '../lib/validation.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const users = {
@@ -280,8 +281,29 @@ test('uploads reject malformed JSON/base64, disallowed MIME, extra authority fie
   assert.equal((await f.request(route, { method: 'POST', raw: '{"broken":', headers: { 'Content-Type': 'application/json' } })).status, 400);
   assert.equal((await f.request(route, { method: 'POST', raw: '{}', headers: { 'Content-Type': 'text/plain' } })).status, 415);
   assert.equal((await f.request(route, { method: 'POST', raw: '{}', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' } })).status, 415);
-  assert.equal((await f.upload(item.id, Buffer.alloc(5 * 1024 * 1024 + 1))).status, 413);
+  // Reject a declared oversized body before allocating or uploading it.
+  const oversized = await new Promise((resolve, reject) => {
+    const req=http.request(f.base+route,{method:'POST',headers:{Authorization:'Bearer alice','Content-Type':'application/json','Content-Length':String(MAX_DOCUMENT_JSON_BYTES+1)}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));});
+    req.on('error',reject);req.end();
+  });
+  assert.equal(oversized,413);
   assert.equal((await f.request(`/api/cases/${item.id}`)).json.documents.length, 0);
+});
+
+test('imported page citations require identity and case membership; pagination and cache rules apply',async t=>{
+  const f=await fixture(t),item=await f.createCase();
+  const bytes=Buffer.from('synthetic source only'),absolutePath=path.join(f.directory,'source.txt');await writeFile(absolutePath,bytes);
+  const plan={corpusSha256:hash('synthetic-corpus'),documents:[{sourceId:'DOC-TEST',sha256:hash(bytes),bytes:bytes.length,name:'source.txt',absolutePath,mimeType:'text/plain',sourceType:'ocr',category:'Synthetic category',metadata:{path:'source.txt',source_nature_code:'extraction_ou_transcription',ocr_pages_to_verify:[7],missing_text_pages_unresolved:[8]},pages:[{page:7,text:'Réparation de test <script>untrusted</script>',method:'ocr_a_controler',visual_review_note:'Synthetic visual check'}]}]};
+  f.app.store.importCorpus(users.alice,item.id,plan);
+  const doc=(await f.request(`/api/cases/${item.id}`)).json.documents[0];
+  const route=`/api/cases/${item.id}/documents/${doc.id}/pages`;
+  for(const [token,status] of [[null,401],['stranger',404],['otherTenant',404]]){
+    const result=await f.request(route,{token});assert.equal(result.status,status);assert.match(result.headers.get('cache-control'),/no-store/);assert.doesNotMatch(result.text,/Réparation|source\.txt/);
+  }
+  for(const query of ['?offset=-1','?limit=11','?offset=1.5','?offset=0&offset=1','?path=source.txt'])assert.equal((await f.request(route+query)).status,400);
+  const result=await f.request(route+'?offset=0&limit=1');assert.equal(result.status,200);assert.equal(result.json.pages[0].page,7);assert.equal(result.json.pages[0].extractionVerified,false);assert.match(result.headers.get('cache-control'),/no-store/);assert.match(result.headers.get('content-type'),/^application\/json/);
+  const search=await f.request(`/api/cases/${item.id}/search?q=reparation`);assert.equal(search.json.results[0].citation.page,7);assert.equal(search.json.results[0].citation.ocrToVerify,true);
+  assert.equal((await f.request(route+'?offset=1&limit=1')).json.pages.length,0);
 });
 
 test('time durations are bounded integers and only an independent owner/lawyer may approve', async t => {

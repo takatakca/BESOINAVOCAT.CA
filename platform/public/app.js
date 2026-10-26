@@ -1,9 +1,8 @@
 'use strict';
 
 (() => {
-  const SESSION_KEY = 'besoinavocat.sessionToken';
-  const MAX_FILE_BYTES = 5 * 1024 * 1024;
-  const SOURCE_LABELS = { original: 'Original', declaration: 'Déclaration', analyse: 'Analyse', ocr: 'Extraction OCR' };
+  const MAX_FILE_BYTES = 64 * 1024 * 1024;
+  const SOURCE_LABELS = { original: 'Pièce source ou copie', declaration: 'Déclaration', analyse: 'Analyse', ocr: 'Extraction ou transcription' };
   const VIEW_LABELS = { cases: 'Dossiers', documents: 'Pièces et sources', messages: 'Échanges', time: 'Suivi du temps' };
   const PATHS = {
     folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
@@ -31,8 +30,8 @@
   const state = {
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
     mode: 'loading', view: 'cases', cases: [], selectedId: null, detail: null,
-    capabilities: null, health: null, user: null, token: null,
-    searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
+    capabilities: null, health: null, user: null,
+    documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
   };
   const main = document.getElementById('main-content');
   const dialog = document.getElementById('workspace-dialog');
@@ -70,24 +69,27 @@
     window.clearTimeout(toastTimer); toastTimer = window.setTimeout(() => { node.hidden = true; }, 6500);
   }
   function clearSession() {
-    state.token = null;
     state.sessionVersion += 1;
     state.requestVersion += 1;
+    state.pageRequest += 1;
     state.caseLoading = false;
-    try { window.sessionStorage.removeItem(SESSION_KEY); } catch { /* Storage can be disabled. */ }
+    state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null;
+    state.selectedId = null; state.capabilities = null; state.searchResults = null; state.searchQuery = '';
+    if (dialog.open) dialog.close();
   }
   async function api(path, options = {}) {
     // Preview never falls through to a real API, including read-only requests.
     if (state.demo) throw new Error('L’aperçu utilise uniquement des données fictives locales.');
-    if (!state.token) throw new Error('Une session TAKATAK autorisée est nécessaire.');
     const sessionVersion = state.sessionVersion;
-    const headers = { Authorization: `Bearer ${state.token}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}) };
-    const response = await fetch(path, { credentials: 'omit', cache: 'no-store', ...options, headers });
+    const method = options.method || 'GET';
+    const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
+    const response = await fetch(path, { cache: 'no-store', ...options, credentials: 'same-origin', headers });
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
     if (response.status === 401) {
-      clearSession(); state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null; render();
-      if (dialog.open) dialog.close();
-      throw new Error('La session a expiré. La connexion TAKATAK doit être rétablie.');
+      clearSession(); render();
+      const error = new Error(path === '/api/auth/login' ? 'Connexion non valide. Vérifiez vos accès TAKATAK.' : 'La session a expiré. Reconnectez-vous avec TAKATAK.');
+      error.status = 401;
+      throw error;
     }
     if (options.asBlob && response.ok) {
       const blob = await response.blob();
@@ -101,23 +103,14 @@
   }
   async function publicHealth() {
     try {
-      const response = await fetch('/api/health', { credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(10000) });
+      const response = await fetch('/api/health', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) });
       if (!response.ok) return null;
       return await response.json();
     } catch { return null; }
   }
-  function approvedLoginUrl() {
-    const candidate = state.capabilities?.identity?.loginUrl ?? state.capabilities?.loginUrl;
-    if (!candidate || !state.health?.identityConfigured) return null;
-    try {
-      const url = new URL(candidate, window.location.origin);
-      if (url.protocol !== 'https:' || url.username || url.password) return null;
-      return url.href;
-    } catch { return null; }
-  }
   function currentCase() { return state.detail?.case || state.cases.find((item) => item.id === state.selectedId) || null; }
   function canApprove() { return canMutate() && ['owner', 'lawyer'].includes(currentCase()?.role); }
-  function canMutate() { return state.mode === 'authenticated' && !state.demo && !state.caseLoading && Boolean(state.token); }
+  function canMutate() { return state.mode === 'authenticated' && !state.demo && !state.caseLoading && Boolean(state.user?.active); }
   function duplicateIds(doc) { return [...new Set([doc.duplicateOf, ...(doc.sameHashDocumentIds || [])].filter(Boolean))]; }
   function duplicateNote(doc) {
     const ids = duplicateIds(doc);
@@ -157,7 +150,7 @@
     document.getElementById('demo-banner').hidden = !state.demo;
     document.getElementById('environment-badge').innerHTML = `<span class="status-dot" aria-hidden="true"></span>${state.demo ? 'Aperçu fictif' : state.mode === 'authenticated' ? 'Session active' : 'Version pilote'}`;
     document.getElementById('profile-name').textContent = state.demo ? 'Compte de démonstration' : state.mode === 'authenticated' ? 'Session TAKATAK' : 'Espace personnel';
-    document.getElementById('profile-state').textContent = state.demo ? 'Lecture seule · données fictives' : state.mode === 'authenticated' ? 'Droits par dossier' : 'Connexion non activée';
+    document.getElementById('profile-state').textContent = state.demo ? 'Lecture seule · données fictives' : state.mode === 'authenticated' ? 'Droits par dossier' : state.health?.loginConfigured ? 'Connexion disponible' : 'Connexion non activée';
     document.getElementById('workspace-subtitle').textContent = state.demo ? 'Aperçu en lecture seule' : 'Préparer. Comprendre. Avancer.';
     document.getElementById('logout-button').hidden = state.mode !== 'authenticated';
   }
@@ -175,9 +168,10 @@
     return `<div class="note-panel"><div class="note-icon">${icon('layers')}</div><h2>Des pièces.<br>Une provenance.</h2><p>Un dossier lisible permet de retrouver le document et de comprendre ce qu’il établit.</p><ol class="principles"><li><span>01</span><span><strong>Garder la source</strong><br>Original, déclaration, analyse ou OCR.</span></li><li><span>02</span><span><strong>Conserver les versions</strong><br>Un doublon n’est pas une nouvelle perte.</span></li><li><span>03</span><span><strong>Rendre les limites visibles</strong><br>Une extraction reste à contrôler.</span></li></ol></div>`;
   }
   function signedOut() {
-    const login = approvedLoginUrl();
+    const login = state.health?.loginConfigured === true;
     const unavailable = state.health === null;
-    return `${intro('VOTRE ESPACE, EN CLAIR', 'Chaque dossier mérite de la clarté.', 'Rassemblez vos pièces. Préparez vos échanges. Gardez le fil.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU SUIVI</span><h2>Tout retrouver.<br>Mieux se préparer.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? `<a class="button" href="${esc(login)}">Se connecter avec TAKATAK ${icon('arrow')}</a>` : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>Aucun mot de passe ni jeton à saisir ici. Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot"><p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
+    const loginForm = `<form id="login-form"><label for="login-email">Adresse courriel TAKATAK</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" required><label for="login-password">Mot de passe</label><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="2048" required><button class="button" type="submit"${state.busy ? ' disabled' : ''}>${state.busy ? 'Connexion en cours…' : 'Se connecter avec TAKATAK'} ${icon('arrow')}</button></form>`;
+    return `${intro('VOTRE ESPACE, EN CLAIR', 'Chaque dossier mérite de la clarté.', 'Rassemblez vos pièces. Préparez vos échanges. Gardez le fil.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU SUIVI</span><h2>Tout retrouver.<br>Mieux se préparer.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${login ? 'La session est conservée dans un cookie sécurisé. Aucun jeton n’est à copier. Aucun compte n’est créé depuis ce formulaire.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot"><p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
   }
   function noCase() {
     return `${intro('VOTRE ESPACE DE TRAVAIL', VIEW_LABELS[state.view], 'Chaque pièce et chaque échange sont rattachés à un dossier.')}<section class="panel empty-state">${icon('folder')}<h2>Commencez par un dossier.</h2><p>Ouvrez un dossier existant ou créez-en un depuis la page Dossiers.</p><button class="button" data-action="go-cases">Voir mes dossiers ${icon('arrow')}</button></section>`;
@@ -194,14 +188,17 @@
     return `${intro('L’ESSENTIEL, AU MÊME ENDROIT', 'Vos dossiers, en ordre.', 'Un point de départ clair pour préparer la prochaine étape.', `<button class="button" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button>`)}<div class="metrics">${metric('Dossiers accessibles', state.cases.length, state.demo ? 'Exemples fictifs' : 'Selon vos habilitations', 'folder')}${metric('Pièces du dossier sélectionné', docs.length, `${docs.filter((doc) => doc.reviewStatus !== 'controle_visuel').length} à vérifier`, 'document')}${metric('Temps soumis du dossier', duration(pending), 'Aucune facturation automatique', 'clock')}</div><div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Votre bibliothèque de dossiers</h2><p>Ouvrez un dossier pour retrouver ses pièces et son suivi.</p></div><span class="badge outline">${state.cases.length} dossier${state.cases.length > 1 ? 's' : ''}</span></div><div class="panel-body"><label class="searchbox" for="case-filter">${icon('search')}<input id="case-filter" type="search" placeholder="Rechercher un titre ou une référence…" autocomplete="off" aria-label="Rechercher un dossier"></label><div class="case-list">${cards || '<div class="empty-state"><h2>Votre premier dossier commence ici.</h2><p>Créez un dossier pour y classer les pièces et leurs sources.</p></div>'}</div><p id="case-filter-empty" class="table-empty" hidden>Aucun dossier ne correspond à cette recherche.</p>${readOnlyNote()}</div></section><aside class="section-stack" aria-label="Repères de travail">${principles()}${connections()}</aside></div>`;
   }
   function documentsView() {
-    const documents = state.detail.documents || [];
-    const rows = documents.map((doc) => `<tr><td><div class="document-name">${icon('document')}<div><button data-action="preview" data-id="${esc(doc.id)}">${esc(doc.name)}</button><small>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Document fictif' : esc(bytes(doc.bytes))}</small></div></div></td><td>${sourceBadge(doc.sourceType)}${duplicateNote(doc)}<small class="table-subtext">${esc(date(doc.createdAt))}</small></td><td>${reviewBadge(doc.reviewStatus)}</td><td><button class="icon-button" data-action="preview" data-id="${esc(doc.id)}" aria-label="${esc(`Voir la provenance de ${doc.name}`)}">${icon('eye')}</button></td></tr>`).join('');
-    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Retrouvez un passage. Contrôlez le document auquel il se rapporte.', `<button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter une pièce</button>`)}${context()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel"><div class="panel-heading"><div><h2>Rechercher dans les pièces</h2><p>Recherche littérale dans les noms, références et textes disponibles.</p></div></div><div class="panel-body"><form id="search-form" class="search-toolbar"><label class="searchbox" for="document-query">${icon('search')}<input id="document-query" name="query" type="search" required maxlength="200" value="${esc(state.searchQuery)}" placeholder="Un mot, un nom, une référence…" aria-label="Rechercher dans le dossier"></label><button class="button secondary" type="submit">Rechercher ${icon('arrow')}</button></form><div id="search-results" aria-live="polite">${searchResults()}</div></div></section><section class="panel"><div class="panel-heading"><div><h2>Registre des pièces</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''} dans ce dossier${state.demo ? ' fictif' : ''}.</p></div></div>${documents.length ? `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ajoutée à ce dossier.</p>'}</section></div><aside class="section-stack" aria-label="Repères sur les pièces">${principles()}${connections()}</aside></div>${readOnlyNote()}`;
+    const allDocuments = state.detail.documents || [];
+    const categories = [...new Set(allDocuments.map(doc => doc.category).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
+    const documents = allDocuments.filter(doc => (!state.documentCategory || doc.category === state.documentCategory) && (!state.onlyUnresolved || (doc.missingTextPages?.length || doc.ocrPagesToVerify?.length || doc.lowTextPagesToVerify?.length)));
+    const filters = `<div class="document-filters"><label for="document-category">Catégorie<select id="document-category"><option value="">Toutes les catégories (${allDocuments.length})</option>${categories.map(category => `<option value="${esc(category)}"${category === state.documentCategory ? ' selected' : ''}>${esc(category)}</option>`).join('')}</select></label><label class="checkbox-filter"><input id="document-unresolved" type="checkbox"${state.onlyUnresolved ? ' checked' : ''}> Texte manquant ou extraction à contrôler</label></div>`;
+    const rows = documents.map((doc) => `<tr><td><div class="document-name">${icon('document')}<div><button data-action="preview" data-id="${esc(doc.id)}">${esc(doc.name)}</button><small>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Document fictif' : esc(bytes(doc.bytes))}${doc.pageCount ? ` · ${doc.pageCount} pages/unités` : ''}</small>${doc.category ? `<small>${esc(doc.category)}</small>` : ''}</div></div></td><td>${sourceBadge(doc.sourceType)}${duplicateNote(doc)}<small class="table-subtext">${esc(date(doc.createdAt))}</small></td><td>${reviewBadge(doc.reviewStatus)}${(doc.missingTextPages?.length || doc.ocrPagesToVerify?.length) ? `<small class="table-subtext">${doc.missingTextPages?.length || 0} sans texte · ${doc.ocrPagesToVerify?.length || 0} OCR à contrôler</small>` : ""}</td><td><button class="icon-button" data-action="preview" data-id="${esc(doc.id)}" aria-label="${esc(`Voir la provenance de ${doc.name}`)}">${icon('eye')}</button></td></tr>`).join('');
+    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Retrouvez un passage. Contrôlez le document auquel il se rapporte.', `<button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter une pièce</button>`)}${context()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel"><div class="panel-heading"><div><h2>Rechercher dans les pièces</h2><p>Recherche littérale dans les noms, références et textes disponibles.</p></div></div><div class="panel-body"><form id="search-form" class="search-toolbar"><label class="searchbox" for="document-query">${icon('search')}<input id="document-query" name="query" type="search" required maxlength="200" value="${esc(state.searchQuery)}" placeholder="Un mot, un nom, une référence…" aria-label="Rechercher dans le dossier"></label><button class="button secondary" type="submit">Rechercher ${icon('arrow')}</button></form><div id="search-results" aria-live="polite">${searchResults()}</div></div></section><section class="panel"><div class="panel-heading"><div><h2>Registre des pièces</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''} dans ce dossier${state.demo ? ' fictif' : ''}.</p></div></div>${filters}${documents.length ? `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>'}</section></div><aside class="section-stack" aria-label="Repères sur les pièces">${principles()}${connections()}</aside></div>${readOnlyNote()}`;
   }
   function searchResults() {
     if (state.searchResults === null) return '<p class="table-subtext">La recherche retrouve du texte ; elle ne produit pas d’avis juridique. L’assistant IA reste à connecter.</p>';
     if (!state.searchResults.length) return '<p class="table-empty">Aucun passage retrouvé. Une pièce sans texte saisi peut ne pas apparaître dans la recherche.</p>';
-    return `<p class="table-subtext">${state.searchResults.length} résultat${state.searchResults.length > 1 ? 's' : ''}${state.demo ? ' dans les exemples fictifs' : ''} · contrôlez chaque passage sur sa source.</p><div class="search-results">${state.searchResults.map((result, i) => `<article class="result"><div class="result-header"><button class="result-title" data-action="preview" data-id="${esc(result.id)}">[${i + 1}] ${esc(result.name)}</button>${sourceBadge(result.sourceType)}</div><p>${esc(result.excerpt || 'Aucun extrait textuel fourni.')}</p><div class="result-foot">${reviewBadge(result.reviewStatus)}<span>${state.demo ? 'Aucune empreinte réelle' : result.sha256 ? `SHA-256 ${esc(result.sha256.slice(0, 14))}…` : 'Empreinte non fournie'}</span><button class="text-button" data-action="preview" data-id="${esc(result.id)}">Voir la source ${icon('arrow')}</button></div></article>`).join('')}</div>`;
+    return `<p class="table-subtext">${state.searchResults.length} résultat${state.searchResults.length > 1 ? 's' : ''}${state.demo ? ' dans les exemples fictifs' : ''} · au plus 100 correspondances ; contrôlez chaque passage sur sa source.</p><div class="search-results">${state.searchResults.map((result, i) => `<article class="result"><div class="result-header"><button class="result-title" data-action="preview" data-id="${esc(result.id)}" data-page="${esc(result.citation?.ordinal || 1)}">[${i + 1}] ${esc(result.name)}</button>${sourceBadge(result.sourceType)}</div>${result.citation ? `<p class="citation-line">${esc(result.citation.sourceDocumentId || result.id)} · ${result.citation.page ? `page ${esc(result.citation.page)}` : `unité ${esc(result.citation.ordinal)}`}${result.citation.label ? ` · ${esc(result.citation.label)}` : ''}${result.citation.ocrToVerify ? ' · OCR à contrôler' : ''}</p>` : ''}<p>${esc(result.excerpt || 'Aucun extrait textuel fourni.')}</p><div class="result-foot">${reviewBadge(result.reviewStatus)}<span>${state.demo ? 'Aucune empreinte réelle' : result.sha256 ? `SHA-256 ${esc(result.sha256.slice(0, 14))}…` : 'Empreinte non fournie'}</span><button class="text-button" data-action="preview" data-id="${esc(result.id)}" data-page="${esc(result.citation?.ordinal || 1)}">Voir la source ${icon('arrow')}</button></div></article>`).join('')}</div>`;
   }
   function messagesView() {
     const messages = state.detail.messages || [];
@@ -237,18 +234,35 @@
   function openUpload() {
     if (!canMutate() || !state.selectedId) return;
     const options = (state.detail.documents || []).map((doc) => `<option value="${esc(doc.id)}">${esc(doc.name)} — v${esc(doc.versionNumber || 1)}</option>`).join('');
-    showDialog('Ajouter une pièce', 'Le fichier est conservé avec son empreinte et sa provenance.', `<form id="upload-form"><div class="field"><label for="document-file">Fichier original</label><input id="document-file" class="file-input" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.txt,.csv,.json,.eml,.doc,.docx,.xls,.xlsx" required><small>Un fichier à la fois · 5 Mo maximum. PDF, images, texte, courriel et documents bureautiques.</small></div><div class="form-grid"><div class="field"><label for="source-type">Nature de la source</label><select id="source-type" name="sourceType"><option value="original">Original</option><option value="declaration">Déclaration</option><option value="analyse">Analyse</option><option value="ocr">Extraction OCR</option></select></div><div class="field"><label for="version-of">Lien à une version antérieure</label><select id="version-of" name="versionOf"><option value="">Nouvelle pièce</option>${options}</select></div></div><div class="field"><label for="source-reference">Provenance et référence</label><textarea id="source-reference" name="sourceReference" rows="2" maxlength="2048" placeholder="Origine, auteur, date, référence du courriel ou de la pièce…"></textarea><small>Décrivez ce qui est connu ; signalez ce qui reste à établir.</small></div><div class="field"><label for="extracted-text">Texte saisi ou extrait — facultatif</label><textarea id="extracted-text" name="extractedText" maxlength="200000" placeholder="Texte de travail destiné à la recherche, à comparer au fichier original…"></textarea><small>Aucun OCR automatique n’est lancé. Ce texte reste marqué « À vérifier », même si vous l’avez relu.</small></div><div class="callout warning">${icon('info')}<p>Le serveur calcule l’empreinte du fichier. Une empreinte identique permet de repérer un doublon ; elle ne prouve ni l’authenticité du document ni la véracité de son contenu.</p></div>${formFooter('Ajouter au dossier')}</form>`);
+    showDialog('Ajouter une pièce', 'Le fichier est conservé avec son empreinte et sa provenance.', `<form id="upload-form"><div class="field"><label for="document-file">Fichier original</label><input id="document-file" class="file-input" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.txt,.csv,.json,.eml,.doc,.docx,.xls,.xlsx" required><small>Un fichier à la fois · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} maximum. PDF, images, texte, courriel et documents bureautiques.</small></div><div class="form-grid"><div class="field"><label for="source-type">Nature de la source</label><select id="source-type" name="sourceType"><option value="original">Original</option><option value="declaration">Déclaration</option><option value="analyse">Analyse</option><option value="ocr">Extraction OCR</option></select></div><div class="field"><label for="version-of">Lien à une version antérieure</label><select id="version-of" name="versionOf"><option value="">Nouvelle pièce</option>${options}</select></div></div><div class="field"><label for="source-reference">Provenance et référence</label><textarea id="source-reference" name="sourceReference" rows="2" maxlength="2048" placeholder="Origine, auteur, date, référence du courriel ou de la pièce…"></textarea><small>Décrivez ce qui est connu ; signalez ce qui reste à établir.</small></div><div class="field"><label for="extracted-text">Texte saisi ou extrait — facultatif</label><textarea id="extracted-text" name="extractedText" maxlength="200000" placeholder="Texte de travail destiné à la recherche, à comparer au fichier original…"></textarea><small>Aucun OCR automatique n’est lancé. Ce texte reste marqué « À vérifier », même si vous l’avez relu.</small></div><div class="callout warning">${icon('info')}<p>Le serveur calcule l’empreinte du fichier. Une empreinte identique permet de repérer un doublon ; elle ne prouve ni l’authenticité du document ni la véracité de son contenu.</p></div>${formFooter('Ajouter au dossier')}</form>`);
   }
   function openTime() {
     if (!canMutate()) return;
     showDialog('Soumettre du temps', 'Une entrée déclarée, à valider séparément.', `<form id="time-form"><div class="field"><label for="time-description">Travail effectué</label><textarea id="time-description" name="description" required maxlength="2000" placeholder="Décrivez précisément l’intervention…"></textarea></div><div class="field"><label for="time-minutes">Durée en minutes</label><input id="time-minutes" name="minutes" type="number" min="1" max="1440" step="1" required inputmode="numeric"><small>De 1 à 1 440 minutes. Aucun montant n’est calculé ni débité.</small></div>${formFooter('Soumettre pour validation')}</form>`);
   }
-  function preview(id) {
+  function preview(id, ordinal = 1) {
     const doc = state.detail?.documents.find((item) => item.id === id) || state.searchResults?.find((item) => item.id === id);
     if (!doc) return;
-    const searchHit = state.searchResults?.find((item) => item.id === id);
+    const searchHit = state.searchResults?.find((item) => item.id === id && (item.citation?.ordinal || 1) === ordinal);
     const text = doc.extractedText || searchHit?.excerpt || '';
     showDialog('Pièce et provenance', doc.name, `<dl class="metadata-grid"><div><dt>Nature</dt><dd>${sourceBadge(doc.sourceType)}</dd></div><div><dt>État</dt><dd>${reviewBadge(doc.reviewStatus)}</dd></div><div><dt>Ajoutée le</dt><dd>${esc(date(doc.createdAt))}</dd></div><div><dt>Version et taille</dt><dd>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Exemple fictif' : esc(bytes(doc.bytes))}</dd></div><div class="full-width"><dt>Provenance déclarée</dt><dd>${esc(doc.sourceReference || 'Non précisée dans les données disponibles.')}</dd></div><div class="full-width"><dt>Empreinte SHA-256</dt><dd class="hash-value">${esc(state.demo ? 'Aucune empreinte réelle — document fictif.' : doc.sha256 || 'Non fournie.')}</dd></div>${duplicateDetails(doc)}${doc.versionOf ? `<div class="full-width"><dt>Version précédente</dt><dd>${esc(doc.versionOf)}</dd></div>` : ''}</dl><div class="callout warning">${icon('info')}<p>La nature et le contrôle sont des informations déclarées. Une lecture visuelle ou un texte saisi ne constitue pas une authentification de la pièce.</p></div><h3 class="transcription-title">${doc.extractedText ? 'Texte saisi ou extrait — à contrôler' : text ? 'Extrait retrouvé par la recherche — à contrôler' : 'Texte de recherche'}</h3><div class="transcription">${esc(text || 'Aucun texte fourni dans cette vue. Recherchez un passage ou téléchargez le fichier versé pour le consulter.')}</div><div class="form-actions"><button class="button secondary" type="button" data-action="close-dialog">Fermer</button><button class="button" type="button" data-action="download" data-id="${esc(doc.id)}"${canMutate() ? '' : ' disabled'}>${icon('download')}${state.demo ? 'Exemple sans original réel' : 'Télécharger le fichier versé'}</button></div>`);
+    if (!state.demo && doc.pageCount) {
+      const panel = document.createElement('section'); panel.id = 'document-page-reader'; panel.className = 'document-page-reader';
+      const actions = dialog.querySelector('.form-actions'); actions.before(panel);
+      dialog.dataset.pageDocument = id;
+      void loadPage(id, Math.max(0, ordinal - 1));
+    } else { delete dialog.dataset.pageDocument; }
+  }
+  async function loadPage(id, offset) {
+    const caseId=state.selectedId, session=state.sessionVersion, request=++state.pageRequest;
+    const panel=document.getElementById('document-page-reader'); if(!panel || state.demo)return;
+    panel.textContent='Chargement de la page…';
+    try {
+      const result=await api(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(id)}/pages?offset=${offset}&limit=1`);
+      if(caseId!==state.selectedId || session!==state.sessionVersion || request!==state.pageRequest || !dialog.open || dialog.dataset.pageDocument!==id)return;
+      const page=result.pages[0], doc=result.document;
+      panel.innerHTML=`<h3>Lecture référencée</h3><p class="citation-line">${esc(doc.sourceDocumentId || doc.id)} · ${page?.page !== null && page?.page !== undefined ? `page source ${esc(page.page)}` : 'unité sans numéro de page'} · extrait ${offset+1} / ${esc(doc.pageCount)} · ${esc(page?.label || '')}</p><p class="table-subtext">${esc(page?.method || 'Méthode non précisée')} · texte à comparer au fichier versé.</p><div class="transcription">${esc(page?.text || 'Aucun texte disponible pour cette page/unité. Consulter le fichier versé.')}</div>${page?.visual_review_note ? `<p class="callout">${esc(page.visual_review_note)}</p>` : ''}<details><summary>Provenance de cette page</summary><pre class="page-provenance">${esc(JSON.stringify(page ? Object.fromEntries(Object.entries(page).filter(([key])=>key!=='text')) : {},null,2))}</pre></details><p class="table-subtext">Pages sans texte restant à obtenir : ${esc((doc.missingTextPages || []).join(', ') || 'aucune signalée dans cet index')}. OCR à contrôler : ${esc((doc.ocrPagesToVerify || []).join(', ') || 'aucun signalé dans cet index')}.</p><div class="page-controls"><button class="button secondary small" data-action="page" data-id="${esc(id)}" data-offset="${offset-1}"${offset===0?' disabled':''}>Précédente</button><span>${offset+1} / ${esc(doc.pageCount)}</span><button class="button secondary small" data-action="page" data-id="${esc(id)}" data-offset="${offset+1}"${offset+1>=doc.pageCount?' disabled':''}>Suivante</button></div>`;
+    } catch(error) {if(caseId===state.selectedId && session===state.sessionVersion && request===state.pageRequest && dialog.open)panel.textContent=error.message;}
   }
   async function loadCase(id, newView = state.view, focus = false) {
     const version = ++state.requestVersion;
@@ -257,7 +271,7 @@
     try {
       const detail = state.demo ? examples[id] : await api(`/api/cases/${encodeURIComponent(id)}`);
       if (version !== state.requestVersion || sessionVersion !== state.sessionVersion || !detail) return;
-      state.selectedId = id; state.detail = detail; state.view = newView; state.searchResults = null; state.searchQuery = '';
+      state.selectedId = id; state.detail = detail; state.view = newView; state.searchResults = null; state.searchQuery = ''; state.documentCategory = ''; state.onlyUnresolved = false;
     } catch (error) { if (sessionVersion === state.sessionVersion) notify(error.message, true); }
     finally {
       if (version === state.requestVersion && sessionVersion === state.sessionVersion) { state.caseLoading = false; render(focus); }
@@ -337,7 +351,7 @@
       } else if (form.id === 'upload-form') {
         const file = data.get('file');
         if (!(file instanceof File) || !file.size) throw new Error('Sélectionnez un fichier non vide.');
-        if (file.size > MAX_FILE_BYTES) throw new Error('Ce fichier dépasse la limite de 5 Mo.');
+        if (file.size > (state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES)) throw new Error('Ce fichier dépasse la limite de taille du serveur.');
         if (file.name.length > 240 || /[\\/\u0000-\u001f]/.test(file.name)) throw new Error('Le nom du fichier doit être court et sans caractère de contrôle.');
         const payload = { name: file.name, mimeType: mimeFor(file), contentBase64: await fileBase64(file), sourceType: data.get('sourceType'), sourceReference: String(data.get('sourceReference')).trim(), extractedText: String(data.get('extractedText')), reviewStatus: 'a_verifier' };
         if (data.get('versionOf')) payload.versionOf = data.get('versionOf');
@@ -382,22 +396,26 @@
     if (action === 'new-case') openNewCase();
     if (action === 'upload') openUpload();
     if (action === 'new-time') openTime();
-    if (action === 'preview') preview(button.dataset.id);
+    if (action === 'preview') preview(button.dataset.id, Number(button.dataset.page || 1));
+    if (action === 'page') void loadPage(button.dataset.id, Number(button.dataset.offset));
     if (action === 'close-dialog') dialog.close();
     if (action === 'download') void download(button.dataset.id, button);
     if (action === 'approve-time') void approveTime(button.dataset.id, button);
     if (button.id === 'help-button') help();
-    if (button.id === 'logout-button') { clearSession(); state.mode = 'signedout'; state.cases = []; state.detail = null; state.user = null; state.capabilities = null; state.selectedId = null; render(true); notify('La session locale a été fermée.'); }
+    if (button.id === 'logout-button') void logout(button);
   });
   document.addEventListener('submit', (event) => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;
     event.preventDefault();
-    if (form.id === 'search-form') void submitSearch(form);
+    if (form.id === 'login-form') void login(form);
+    else if (form.id === 'search-form') void submitSearch(form);
     else if (['case-form', 'upload-form', 'message-form', 'time-form'].includes(form.id)) void submitMutation(form);
   });
   document.addEventListener('change', (event) => {
     if (event.target.id === 'case-select') void loadCase(event.target.value);
+    if (event.target.id === 'document-category') { state.documentCategory=event.target.value; render(); }
+    if (event.target.id === 'document-unresolved') { state.onlyUnresolved=event.target.checked; render(); }
   });
   document.addEventListener('input', (event) => {
     if (event.target.id !== 'case-filter') return;
@@ -408,26 +426,57 @@
   });
   dialog.addEventListener('click', (event) => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
 
+  async function loadSession() {
+    const me = await api('/api/me');
+    if (!me.user?.active) throw new Error('Cette identité ne dispose pas d’un accès actif.');
+    state.user = me.user;
+    state.capabilities = await api('/api/capabilities');
+    state.cases = (await api('/api/cases')).cases || [];
+    state.mode = 'authenticated';
+    if (state.cases.length) { state.selectedId = state.cases[0].id; await refreshDetail(); }
+  }
+  async function login(form) {
+    if (state.demo || state.health?.loginConfigured !== true || state.busy) return;
+    state.busy = true;
+    const button = form.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    const email = form.elements.email.value.trim();
+    let password = form.elements.password.value;
+    form.elements.password.value = '';
+    clearSession();
+    try {
+      const pending = api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      password = '';
+      await pending;
+      await loadSession();
+      notify('Vous êtes connecté à votre espace.');
+    } catch (error) {
+      clearSession(); notify(error.message, true);
+    } finally {
+      password = ''; state.busy = false; render(true);
+    }
+  }
+  async function logout(button) {
+    if (state.demo || state.busy) return;
+    state.busy = true; button.disabled = true;
+    // Invalidate in-flight reads before closing the server session.
+    state.sessionVersion += 1; state.requestVersion += 1; state.pageRequest += 1; state.caseLoading = true;
+    try {
+      await api('/api/auth/logout', { method: 'POST', body: '{}' });
+      clearSession(); render(true); notify('La session a été fermée.');
+    } catch (error) {
+      state.caseLoading = false;
+      notify(`La fermeture de session n’a pas pu être confirmée. ${error.message}`, true);
+    } finally { state.busy = false; button.disabled = false; }
+  }
   async function start() {
     fillIcons();
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
-    // A trusted future exchange or an integration test may seed this session key.
-    // The interface never collects a token, reads one from a URL, or creates one.
-    try { state.token = window.sessionStorage.getItem(SESSION_KEY); } catch { state.token = null; }
     state.health = await publicHealth();
-    if (!state.token) { state.mode = 'signedout'; render(); return; }
-    try {
-      const me = await api('/api/me');
-      if (!me.user?.active) throw new Error('Cette identité ne dispose pas d’un accès actif.');
-      state.user = me.user;
-      state.capabilities = await api('/api/capabilities');
-      state.cases = (await api('/api/cases')).cases || [];
-      state.mode = 'authenticated';
-      if (state.cases.length) { state.selectedId = state.cases[0].id; await refreshDetail(); }
-      render();
-    } catch (error) {
-      clearSession(); state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null;
-      render(); notify(error.message, true);
+    try { await loadSession(); render(); }
+    catch (error) {
+      clearSession(); render();
+      if (error.status !== 401) notify(error.message, true);
     }
   }
   void start();

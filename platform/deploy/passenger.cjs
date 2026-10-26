@@ -63,12 +63,14 @@ function listenOptions(env, passenger) {
 }
 
 async function boot({ appRoot = __dirname, env = process.env, passenger = globalThis.PhusionPassenger } = {}) {
+  // SQLite, WAL, uploads and runtime files inherit private permissions.
+  process.umask(0o077);
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major !== 24 || minor < 19) throw configurationError('NODE_24_19_OR_NEWER_REQUIRED');
   const options = storageOptions(env, appRoot);
   const target = listenOptions(env, passenger);
   const { createApp } = await import(pathToFileURL(path.join(appRoot, 'server.mjs')).href);
-  const app = createApp(options);
+  const app = createApp({ ...options, env });
   try {
     await new Promise((resolve, reject) => {
       const failed = error => reject(error);

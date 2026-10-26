@@ -27,12 +27,12 @@ class BundleTests(unittest.TestCase):
             file.write_text('SYNTHETIC PRIVATE SENTINEL', encoding='utf-8')
         output = self.root / 'bundle.zip'
         receipt = build_bundle(output, self.project)
-        self.assertEqual(receipt['files'], 11)
+        self.assertEqual(receipt['files'], len(ALLOWLIST) + 1)
         self.assertFalse(receipt['private_files_included'])
         with zipfile.ZipFile(output) as archive:
             self.assertEqual(set(archive.namelist()), set(ALLOWLIST) | {'DEPLOYMENT-MANIFEST.json'})
             manifest = json.loads(archive.read('DEPLOYMENT-MANIFEST.json'))
-            self.assertEqual(len(manifest['files']), 10)
+            self.assertEqual(len(manifest['files']), len(ALLOWLIST))
             for item in manifest['files']:
                 content = archive.read(item['path'])
                 self.assertNotIn(b'SYNTHETIC PRIVATE SENTINEL', content)

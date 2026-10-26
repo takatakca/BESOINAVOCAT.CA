@@ -75,7 +75,8 @@ test('CommonJS launcher loads the real ESM backend with no identity or secret an
   t.after(async () => {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = once(child, 'exit');
-      child.kill();
+      if (child.connected) child.send('stop');
+      else child.kill('SIGKILL');
       await exited;
     }
   });
@@ -84,7 +85,7 @@ test('CommonJS launcher loads the real ESM backend with no identity or secret an
   const base = `http://127.0.0.1:${ready.port}`;
   const health = await fetch(base + '/api/health');
   assert.equal(health.status, 200);
-  assert.deepEqual(await health.json(), { status: 'ok', mode: 'pilot', identityConfigured: false });
+  assert.deepEqual(await health.json(), { status: 'ok', mode: 'pilot', identityConfigured: false, loginConfigured: false });
   assert.equal((await fetch(base + '/api/cases')).status, 401);
   const rejected = await fetch(base + '/api/cases', { headers: { Authorization: 'Bearer synthetic-no-identity' } });
   assert.equal(rejected.status, 503);

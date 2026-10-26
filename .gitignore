@@ -6,6 +6,7 @@ node_modules/
 coverage/
 qa-artifacts/
 *.log
+__pycache__/
 
 # Données du pilote : jamais dans Git ou dans la vitrine publique.
 platform/data/

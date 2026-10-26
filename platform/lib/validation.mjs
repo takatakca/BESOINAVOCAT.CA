@@ -6,8 +6,15 @@ export class HttpError extends Error {
   }
 }
 
-export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
-export const MAX_DOCUMENT_JSON_BYTES = 8 * 1024 * 1024;
+function configuredLimit(name, fallback, maximum) {
+  const value = process.env[name];
+  if (value === undefined || value === '') return fallback;
+  if (!/^[0-9]+$/u.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1024 || Number(value) > maximum) throw new Error(`Invalid ${name}`);
+  return Number(value);
+}
+export const MAX_DOCUMENT_BYTES = configuredLimit('BA_MAX_DOCUMENT_BYTES',64*1024*1024,128*1024*1024);
+export const CASE_STORAGE_QUOTA_BYTES = configuredLimit('BA_CASE_STORAGE_QUOTA_BYTES',1024*1024*1024,10*1024*1024*1024);
+export const MAX_DOCUMENT_JSON_BYTES = 4*Math.ceil(MAX_DOCUMENT_BYTES/3)+1024*1024;
 export const MIME_TYPES = new Set([
   'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/tiff',
   'text/plain', 'text/csv', 'application/json', 'message/rfc822',
@@ -62,11 +69,16 @@ export function documentInput(body) {
   if (!['a_verifier', 'controle_visuel'].includes(body.reviewStatus)) throw invalid('État de lecture invalide.');
   const encoded = body.contentBase64;
   if (typeof encoded !== 'string' || encoded.length === 0) throw invalid('Contenu du fichier absent.');
-  if (encoded.length > 4 * Math.ceil(MAX_DOCUMENT_BYTES / 3)) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse 5 Mio.');
+  if (encoded.length > 4 * Math.ceil(MAX_DOCUMENT_BYTES / 3)) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
   if (encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/u.test(encoded)) throw invalid('Encodage base64 invalide.');
+  // Canonical padding requires unused low bits to be zero. Check the last
+  // sextet instead of allocating a second full-size base64 string.
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  if ((encoded.endsWith('==') && (alphabet.indexOf(encoded.at(-3)) & 15) !== 0) ||
+      (encoded.endsWith('=') && !encoded.endsWith('==') && (alphabet.indexOf(encoded.at(-2)) & 3) !== 0)) throw invalid('Encodage base64 non canonique.');
   const bytes = Buffer.from(encoded, 'base64');
-  if (!bytes.length || bytes.toString('base64') !== encoded) throw invalid('Encodage base64 non canonique.');
-  if (bytes.length > MAX_DOCUMENT_BYTES) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse 5 Mio.');
+  if (!bytes.length) throw invalid('Encodage base64 non canonique.');
+  if (bytes.length > MAX_DOCUMENT_BYTES) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
   return {
     name, mimeType: body.mimeType, bytes, sourceType: body.sourceType,
     sourceReference: text(body.sourceReference, 'Référence de provenance', 2048, { optional: true }),

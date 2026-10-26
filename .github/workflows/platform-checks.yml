@@ -30,3 +30,5 @@ jobs:
         run: node --test platform/test/*.test.mjs platform/deploy/passenger.test.cjs
       - name: Verify the deployment archive excludes private data
         run: python3 platform/deploy/test_build_bundle.py
+      - name: Verify corpus backup and restore
+        run: python3 platform/test/test_backup_corpus.py

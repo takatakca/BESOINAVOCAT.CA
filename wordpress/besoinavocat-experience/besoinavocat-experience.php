@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BesoinAvocat — Expérience
  * Description: Présentation réversible de l’accueil et aperçu du futur tableau de bord. Aucun compte, dépôt, paiement ou contenu existant n’est modifié.
- * Version: 0.2.0
+ * Version: 0.2.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: BesoinAvocat
@@ -18,7 +18,7 @@ require_once __DIR__ . '/render-integrity.php';
 require_once __DIR__ . '/funnel.php';
 
 final class BesoinAvocat_Experience {
-    const VERSION = '0.2.0';
+    const VERSION = '0.2.1';
 
     public static function boot() {
         add_action('wp_enqueue_scripts', array(__CLASS__, 'assets'), 99);

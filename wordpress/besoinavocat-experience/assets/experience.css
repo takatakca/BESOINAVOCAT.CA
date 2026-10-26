@@ -27,3 +27,27 @@ body.ba-experience-front .elementor-13 .elementor-element-6f536fd>:is(.elementor
 @media(max-width:760px){body.ba-experience-front .elementor-13 .elementor-element-6f536fd>:is(.elementor-element-f3d3b1a,.elementor-element-668388d,.elementor-element-afc1c63,.elementor-element-b25d663){width:100%!important;max-width:600px!important}.ba-hero-card{align-self:flex-start!important}}
 .ba-dashboard-contact{margin:24px 0 0!important;padding:16px 0;border-top:1px solid var(--ba-line)}
 .ba-dashboard-contact a{font-weight:600;text-underline-offset:.2em}
+
+/* Keep the existing Elementor CTA after the content instead of over price cards.
+   Scoped to the observed home-page popup; no page, link or Elementor data removed. */
+body.ba-experience-front #elementor-popup-modal-1839 {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  pointer-events: auto;
+}
+body.ba-experience-front #elementor-popup-modal-1839 .dialog-widget-content {
+  position: relative !important;
+  inset: auto !important;
+  width: min(560px, calc(100% - 32px)) !important;
+  height: auto !important;
+  margin: 24px auto !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+body.ba-experience-front #elementor-popup-modal-1839 [data-id="6f00df5"] {
+  max-width: 100%;
+  margin: 0 auto;
+}

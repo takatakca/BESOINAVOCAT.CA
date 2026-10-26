@@ -137,7 +137,7 @@ final class BesoinAvocat_Render_Integrity {
         );
         $editorial_text = array(
             2186 => array(
-                'Maître Agostinho est l’une des meilleures options pour quiconque souhaitant implanter des aspects d’immigration dans sa stratégie d’affaires.' => 'Cet article présente la pratique de Maître Agostinho en immigration d’affaires, sans recommandation de BesoinAvocat.',
+                'Maître Agostinho est l’une des meilleures options pour quiconque souhaitant implanter des aspects d’immigration dans sa stratégie d’affaires.' => 'Maître Agostinho est présentée dans cet article pour sa pratique en immigration d’affaires, sans recommandation de BesoinAvocat.',
                 'Maître Agostinho est sans aucun doute une option à considérer pour quiconque souhaitant requérir l’aide d’un professionnel en droit de l’immigration dans le monde des affaires !' => 'Cette présentation est documentaire; le choix du professionnel et les conditions du mandat restent à vérifier directement.'
             ),
             4663 => array('Voici le top 10 des meilleurs cabinets d’avocats fiscalistes à Montréal:' => 'Cabinets cités dans cet article sur le droit fiscal à Montréal, sans classement ni recommandation de BesoinAvocat :'),

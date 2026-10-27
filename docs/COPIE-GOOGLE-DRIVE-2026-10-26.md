@@ -17,6 +17,10 @@ Le connecteur Google Drive de la session du 27 octobre permet de lire, de créer
 - Markdown, 4 062 octets, SHA-256 `1afb5a864783f6545f985bdd1308054b8c97bacde9e4b7100a8bb383a12d7706`. **Contenu téléchargé depuis Drive et comparé octet par octet : identique.** Aucune permission modifiée; aucun secret, mot de passe ou pièce.
 - **Tâche en attente** : dès qu'un outil permet d'écrire sous l'ID `1jJxjVbk-mPzN9RHO0KfO-1rIH7ZbsR6k`, y copier la relève complète courante, la relire, puis signaler ici que le complément peut être retiré par le propriétaire. Ne pas supprimer le complément avant cette fusion vérifiée.
 
+## ZIP 0.2.2 déposé dans Drive — 27 octobre 2026
+
+Sur demande du propriétaire, pour l'installation par une session du navigateur : [besoinavocat-experience-0.2.2.zip](https://drive.google.com/file/d/1bKgBZfw7RUnA83ZbI15Cs0may_py70nQ/view?usp=drivesdk), ID `1bKgBZfw7RUnA83ZbI15Cs0may_py70nQ`, dossier « 00 — Opérations TAKATAK », `application/zip`, 47 635 octets. Le fichier a été retéléchargé depuis Drive : identique octet par octet au ZIP local, SHA-256 `78e659673ee82efb6ed60d4f5ca8119835bdf33765131457f76737e727eb53ac`. Il contient le code public du plugin, sans secret.
+
 ## Instruction au prochain agent
 
 Lire la relève et les documents d'état de GitHub. À toute reprise autorisée, maintenir la copie Google Drive des notes en cohérence avec les changements GitHub. Ne pas multiplier les fichiers identiques : retrouver d'abord ce fichier par son ID, vérifier le dossier et la version, puis effectuer la mise à jour appropriée. Consigner le commit source et vérifier le contenu après écriture. Si l'accès Drive manque, laisser dans GitHub une tâche explicite de copie en attente avec les fichiers concernés; ne pas annoncer une synchronisation accomplie.

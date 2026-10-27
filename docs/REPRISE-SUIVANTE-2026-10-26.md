@@ -19,7 +19,9 @@ Contrôles faits le 27 octobre vers 03 h UTC (26 octobre, 23 h, heure de Montré
 
 **Correctif 0.2.2 préparé, non installé** : `assets/experience.js` neutralise uniquement ces comportements modaux pour le popup 1839 de l'accueil (pas de focus programmatique, Tab normal, retrait de `aria-modal` et du `tabindex` vide). Contenu, lien et position du CTA inchangés. Vérifié sur le site réel en remplaçant `experience.js` dans le navigateur de test seulement : plus de saut, plus de piège, prix intacts, aucune erreur. Nouveau contrôle reproductible : `node scripts/wordpress-cta-qa.mjs` (10 échecs sur la 0.2.1 installée, tout réussi avec `--inject-experience`). Lint et trois suites PHP réussis localement, 31 tests Node site/funnel réussis.
 
-**Action du propriétaire requise** : installer `besoinavocat-experience-0.2.2.zip` par l'administration WordPress (empreinte dans [WORDPRESS_QA](WORDPRESS_QA.md)), purger les caches SpeedyCache et Elementor, puis relancer `node scripts/wordpress-cta-qa.mjs` sans option : la version servie doit être 0.2.2 et tous les contrôles réussis. Ne pas déclarer le correctif publié avant ce contrôle.
+**0.2.2 installée** ensuite par une session du navigateur pour le propriétaire, depuis la copie Drive `1bKgBZfw7RUnA83ZbI15Cs0may_py70nQ` (SHA vérifié), caches SpeedyCache et Elementor vidés. Contrôle officiel `node scripts/wordpress-cta-qa.mjs` sur le site réel : **24/24 réussis** ([WORDPRESS_QA](WORDPRESS_QA.md)).
+
+**Décision du propriétaire, 27 octobre (D-020)** : le questionnaire de demande sera servi par le portail Node (`/demande`), et non par un formulaire WordPress. WordPress garde tout son contenu et ne fait que diriger les CTA vers le portail. Le contrat serveur de demande détaillée est livré et désactivé par défaut (`08d370b`). L'inventaire des CTA ([WORDPRESS_CTA_INVENTORY](WORDPRESS_CTA_INVENTORY.md)) montre que le parcours « Trouver mon avocat » actuel tourne en boucle sans formulaire.
 
 Suite prévue, dans l'ordre du mandat ci-dessous : BA-018 reste bloquée; le lot suivant non bloqué est BA-028 (parcours « Besoin d'un avocat » en étapes et contrat serveur étendu), à développer désactivé par défaut.
 

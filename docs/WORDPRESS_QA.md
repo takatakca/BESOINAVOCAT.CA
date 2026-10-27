@@ -2,6 +2,14 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
+## 0.2.2 installée et contrôlée — 27 octobre 2026
+
+Installation par une session Claude du navigateur, pour le propriétaire : Extensions › Téléverser › « Remplacer », message « Plugin updated successfully ». ZIP utilisé : copie Google Drive `1bKgBZfw7RUnA83ZbI15Cs0may_py70nQ`, SHA-256 `78e659673ee82efb6ed60d4f5ca8119835bdf33765131457f76737e727eb53ac` vérifié avant installation. Caches vidés : SpeedyCache « Delete Cache and Minified », Elementor « Clear Files & Data ».
+
+**Preuve officielle, 27 octobre vers 04 h 13 UTC** : `node scripts/wordpress-cta-qa.mjs` sans option sur le site réel, **24 contrôles réussis sur 24** à 1440 et 375 px. Version servie 0.2.2; prix présents et non recouverts; ouverture du CTA sans saut (2 752 → 2 752 px, 5 002 → 5 002 px); focus non déplacé; plus de `aria-modal`; Tab et Maj+Tab quittent le bouton; lien `/demande` conservé; aucune erreur JavaScript. `experience.js` servi en `?ver=0.2.2` est identique à celui du commit `1464640` (SHA-256 `e22b07180da3733906b70acb5dcf9b99b690d1556e809e54b89f85a86f1f3100`).
+
+Limite : ce correctif ne vise que l'accueil. Sur les 346 autres pages, le popup 1839 garde son piège clavier d'origine ([inventaire](WORDPRESS_CTA_INVENTORY.md)); la version suivante du plugin déplace le correctif dans `common.js`.
+
 ## Contrôle du 27 octobre 2026 — 0.2.1 réelle, 0.2.2 préparée
 
 Contrôle Chromium du site réel, lecture seule, vers 03 h UTC :
@@ -23,7 +31,7 @@ Cause, lue dans Elementor Pro 3.32.1 : `showModal` appelle `handleKeyboardA11y`,
 - Contrôles locaux : `php -l` des quatre fichiers PHP et les trois suites `checks/*.php` réussis (PHP 8.3.6 disponible dans cette session); 31 tests Node site/funnel réussis; `node --check` des trois assets.
 - Script reproductible : `node scripts/wordpress-cta-qa.mjs` (10 échecs sur la 0.2.1 installée) et `--inject-experience wordpress/besoinavocat-experience/assets/experience.js` (tous réussis).
 
-**Non fait** : installation de la 0.2.2 (accès administrateur WordPress non disponible dans cette session), purge des caches, contrôle après installation, lecteur d'écran réel. Après installation par le propriétaire, relancer le script sans option : la version servie doit être 0.2.2 et tous les contrôles réussis.
+Installation, purge des caches et contrôle officiel faits ensuite : voir la section « 0.2.2 installée et contrôlée » ci-dessus. Le lecteur d'écran réel n'a pas été testé.
 
 ## État au 26 octobre — 0.2.1 installée, contrôle final alors ouvert
 

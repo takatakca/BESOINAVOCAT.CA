@@ -2,7 +2,13 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-019 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-020 ci-dessous priment sur les états historiques qu'elles remplacent.
+
+## D-020 — Questionnaire sur le portail Node, WordPress pour le contenu (27 octobre 2026)
+
+Décision du propriétaire. Les appels à l'action « Trouver mon avocat » mènent au portail Node, `portail.besoinavocat.ca/demande`. Ce portail sert le questionnaire et enregistre la demande avec notre propre backend. WordPress reste la vitrine : aucun texte, article ou page n'est supprimé; seules la propreté et la présentation sont corrigées. Le module de formulaire WordPress (`funnel`) n'est plus étendu et reste désactivé.
+
+Message produit voulu : demande toujours gratuite pour le client, l'équipe se charge de trouver l'avocat, des outils d'IA aideront à préparer le dossier pour réduire les frais. Ces services sont présentés comme en préparation tant qu'ils ne sont pas raccordés et testés. L'ouverture de la réception reste conditionnée au déploiement contrôlé du portail (BA-018, BA-025) et aux préalables de D-006.
 
 ## D-019 — Clôturer sans confondre installation et validation (26 octobre 2026)
 

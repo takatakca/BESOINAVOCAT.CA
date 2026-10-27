@@ -23,7 +23,7 @@ Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md
 
 ### Prochaine action exacte
 
-0. **Vitrine (27 oct., D-021 et D-022)** : refonte « plateforme IA », relecture ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)) et Ontario ajoutés à la demande. Ne pas annoncer une fonction d'IA comme active avant son raccordement et son test. le site complet est prêt dans `www/` (CI verte sur `adde5c2`). La suite revient au développeur du propriétaire, dans l'ordre de [STOREFRONT](STOREFRONT.md) :
+0. **Vitrine (27 oct., D-021 et D-022)** : la PR 1 a été fusionnée par le propriétaire (`a27f70f`), puis `main` a avancé en avance rapide jusqu'à `050653c`. Ce commit contient la refonte, avec CI verte sur `main` (Quality, Browser QA, Platform, Storefront, smoke de production). Le déploiement Coolify automatique reste désactivé. Suite de la vitrine : refonte « plateforme IA », relecture ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)) et Ontario ajoutés à la demande. Ne pas annoncer une fonction d'IA comme active avant son raccordement et son test. le site complet est prêt dans `www/` (CI verte sur `adde5c2`). La suite revient au développeur du propriétaire, dans l'ordre de [STOREFRONT](STOREFRONT.md) :
    1. détacher le courriel, car le MX pointe sur le domaine;
    2. déployer le portail sur Coolify et basculer `portail`;
    3. déployer la vitrine et basculer l'enregistrement A du domaine;

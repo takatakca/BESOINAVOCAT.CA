@@ -17,6 +17,14 @@ Le connecteur Google Drive de la session du 27 octobre permet de lire, de créer
 - Markdown, 4 062 octets, SHA-256 `1afb5a864783f6545f985bdd1308054b8c97bacde9e4b7100a8bb383a12d7706`. **Contenu téléchargé depuis Drive et comparé octet par octet : identique.** Aucune permission modifiée; aucun secret, mot de passe ou pièce.
 - **Tâche en attente** : dès qu'un outil permet d'écrire sous l'ID `1jJxjVbk-mPzN9RHO0KfO-1rIH7ZbsR6k`, y copier la relève complète courante, la relire, puis signaler ici que le complément peut être retiré par le propriétaire. Ne pas supprimer le complément avant cette fusion vérifiée.
 
+## Complément n° 4 — refonte IA, relecture et Ontario, 27 octobre 2026
+
+[BesoinAvocat — addenda 4 relève 2026-10-27 (refonte IA, relecture, Ontario).md](https://drive.google.com/file/d/1GFxLO4TnU3t-E8Bwz2SdkY_cbQ6WkdTa/view?usp=drivesdk), ID `1GFxLO4TnU3t-E8Bwz2SdkY_cbQ6WkdTa`, même dossier. Il résume D-022 et ses preuves, au commit `050653c` de `main`.
+
+- Markdown, 2 146 octets, SHA-256 `e20e1e219c5d28c29960e448d7a54909cf6858835bf4c4d3c788f6e9df490fa2`.
+- **Retéléchargé depuis Drive : identique octet par octet.**
+- Aucune permission modifiée; aucun secret.
+
 ## Complément n° 3 — vitrine `www/` et DNS, 27 octobre 2026
 
 [BesoinAvocat — addenda 3 relève 2026-10-27 (vitrine www, DNS).md](https://drive.google.com/file/d/1HG9eV2LV8oRhta4EOblYUyJTKCCSDwC2/view?usp=drivesdk), ID `1HG9eV2LV8oRhta4EOblYUyJTKCCSDwC2`, même dossier. Il résume D-021 et l'ordre de bascule DNS (courriel d'abord), au commit `5656697`.

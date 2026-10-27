@@ -21,3 +21,6 @@ platform/.secrets/
 
 # Installation archives are generated from reviewed source.
 wordpress/**/*.zip
+
+# Static storefront build output (www/build.mjs).
+www/dist/

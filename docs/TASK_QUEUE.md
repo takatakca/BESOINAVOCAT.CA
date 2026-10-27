@@ -9,6 +9,7 @@ Ordre actuel demandé par le propriétaire : **backend et accès effectif aux do
 | ID | Priorité / état | Travail et preuve attendue |
 |---|---|---|
 | BA-018 | P0 — v2 bloquée par l'antivirus | Faire examiner le paquet v2 exact refusé par MochaHost. Conserver le reçu et le SHA; aucun contournement ni désactivation de protection. La première version Node technique existe déjà. |
+| BA-030 | P0 — image prête, déploiement à faire par le propriétaire | Héberger le portail Node sur le serveur Coolify du propriétaire au lieu de MochaHost (supprime le blocage BA-018). `platform/Dockerfile` testé localement : healthy, `/demande` 200, demande reçue 201, données conservées après redémarrage. Réglages exacts dans [COOLIFY](COOLIFY.md); prouver ensuite les mêmes contrôles sur le serveur réel. |
 | BA-025 | P0 — installation après résolution du blocage | Installer uniquement le paquet validé, comparer le manifeste et les empreintes, préserver le code précédent et la configuration privée. Vérifier HTTPS et les refus anonymes; pas de réinstallation aveugle. |
 | BA-019 | P0 — code raccordé, parcours réel non testé | Faire utiliser à l'utilisateur son identité TAKATAK existante; vérifier sa session et ses grants BesoinAvocat. Aucun mot de passe déclaré configuré, aucune permission nouvelle implicite. |
 | BA-017 | P0 — import/restauration locaux vérifiés | La sauvegarde privée distante est une copie seulement. Après contrôles d'accès, restaurer dans une nouvelle destination privée, vérifier les empreintes et basculer sans écraser une base active. |

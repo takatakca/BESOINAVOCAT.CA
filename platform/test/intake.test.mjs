@@ -358,3 +358,14 @@ test('detailed request keeps idempotent retries and fits a full multibyte summar
   assert.equal(oversized.status, 413);
   assert.equal(inspect(f.file).length, 1);
 });
+
+test('behind one trusted proxy each visitor has its own budget; without the option the header is ignored', async t => {
+  const trusted = await fixture(t, { BESOINAVOCAT_TRUST_PROXY: '1' });
+  const from = (address, i) => trusted.post({ ...contact(), email: `proxy${address.length}-${i}@example.test` }, { headers: { ...headers(), 'X-Forwarded-For': `203.0.113.250, ${address}` } });
+  for (let i = 0; i < 20; i++) assert.equal((await from('198.51.100.7', i)).status, 201);
+  assert.equal((await from('198.51.100.7', 20)).status, 429);
+  assert.equal((await from('2001:db8::17', 0)).status, 201);
+  const direct = await fixture(t);
+  for (let i = 0; i < 20; i++) assert.equal((await direct.post({ ...contact(), email: `direct${i}@example.test` }, { headers: { ...headers(), 'X-Forwarded-For': `198.51.100.${i}` } })).status, 201);
+  assert.equal((await direct.post({ ...contact(), email: 'direct-last@example.test' }, { headers: { ...headers(), 'X-Forwarded-For': '198.51.100.99' } })).status, 429);
+});

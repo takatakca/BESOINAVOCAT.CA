@@ -47,6 +47,18 @@ function json(res, status, value) {
   res.end(JSON.stringify(value));
 }
 
+// Behind exactly one trusted reverse proxy (Coolify's Traefik), the visitor is the rightmost
+// X-Forwarded-For entry: the proxy appends it; anything to its left is supplied by the client.
+// Only enable when the container is reachable through that proxy alone.
+function clientAddress(req, trustProxy) {
+  const peer = req.socket.remoteAddress || 'unknown';
+  if (!trustProxy) return peer;
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded !== 'string' || forwarded.length > 2048) return peer;
+  const last = forwarded.split(',').pop().trim();
+  return /^[0-9A-Fa-f:.]{2,45}$/u.test(last) ? last : peer;
+}
+
 function pathOutside(parent, child) {
   const rel = relative(parent, child);
   return !rel || rel.startsWith('..') || isAbsolute(rel);
@@ -66,6 +78,7 @@ export function createApp({
 } = {}) {
   const config = identityConfiguration(env);
   const identityConfigured = Boolean(config);
+  const trustProxy = env.BESOINAVOCAT_TRUST_PROXY === '1';
   const verifyIdentity = authenticate ?? createIntrospection(config);
   if (typeof verifyIdentity !== 'function') throw new TypeError('authenticate must be a function');
   if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
@@ -114,7 +127,7 @@ export function createApp({
       }
       if (expected === 'GET') return json(res, 200, publicCatalog({ intakeConfigured: intake.configured, requestEnabled: intake.requestEnabled }));
       const key = intake.mutation(req);
-      intake.reserve(req.socket.remoteAddress || 'unknown');
+      intake.reserve(clientAddress(req, trustProxy));
       if (intakesInFlight >= MAX_CONCURRENT_INTAKES) {
         res.setHeader('Retry-After', '1');
         throw new HttpError(429, 'INTAKE_RATE_LIMIT', 'Trop de demandes. Réessayez plus tard.');
@@ -142,7 +155,7 @@ export function createApp({
         const password = text(body.password, 'Mot de passe', 4096);
         // Only the socket address is trusted for rate limiting; forwarded client
         // headers are arbitrary unless a separate proxy policy is configured.
-        const session = await browserSessions.login(email, password, { clientKey: req.socket.remoteAddress || 'unknown' });
+        const session = await browserSessions.login(email, password, { clientKey: clientAddress(req, trustProxy) });
         if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);

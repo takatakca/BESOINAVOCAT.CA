@@ -23,6 +23,8 @@ Contrôles faits le 27 octobre vers 03 h UTC (26 octobre, 23 h, heure de Montré
 
 **Décision du propriétaire, 27 octobre (D-020)** : le questionnaire de demande sera servi par le portail Node (`/demande`), et non par un formulaire WordPress. WordPress garde tout son contenu et ne fait que diriger les CTA vers le portail. Le contrat serveur de demande détaillée est livré et désactivé par défaut (`08d370b`). L'inventaire des CTA ([WORDPRESS_CTA_INVENTORY](WORDPRESS_CTA_INVENTORY.md)) montre que le parcours « Trouver mon avocat » actuel tourne en boucle sans formulaire.
 
+**Hébergement proposé par le propriétaire, 27 octobre** : son serveur Coolify. `platform/Dockerfile` et [COOLIFY.md](COOLIFY.md) sont prêts et testés localement. Le déploiement sur Coolify remplacerait MochaHost pour le portail et lèverait le blocage antivirus, sans contournement. Une option `BESOINAVOCAT_TRUST_PROXY=1` donne à chaque visiteur sa propre limite anti-abus derrière le proxy.
+
 Suite prévue, dans l'ordre du mandat ci-dessous : BA-018 reste bloquée; le lot suivant non bloqué est BA-028 (parcours « Besoin d'un avocat » en étapes et contrat serveur étendu), à développer désactivé par défaut.
 
 ## Priorité et périmètre

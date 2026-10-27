@@ -60,7 +60,9 @@ function extract() {
     if (!inner.replace(/<br>/g, '').trim() && !['TD', 'TH'].includes(tag)) return '';
     return `<${tag.toLowerCase()}${attrs}>${inner}</${tag.toLowerCase()}>`;
   }
-  const tidy = (html) => html.replace(/\s+/g, ' ').replace(/> </g, '><').replace(/<p>\s*<\/p>/g, '').trim();
+  // Whitespace is dropped around block tags only: between inline tags it separates words.
+  const BLOCK = /\s*(<\/?(?:p|h[1-6]|li|ul|ol|div|table|thead|tbody|tr|td|th|figure|figcaption|blockquote|details|summary|aside|hr|br)\b[^>]*>)\s*/g;
+  const tidy = (html) => html.replace(/\s+/g, ' ').replace(BLOCK, '$1').replace(/<p>\s*<\/p>/g, '').trim();
   function widget(node) {
     const type = (node.getAttribute('data-widget_type') || '').replace(/\.default$/, '');
     if (type === 'heading') {

@@ -12,7 +12,7 @@ Décision du propriétaire, 27 octobre 2026 (D-021) : la vitrine besoinavocat.ca
 
 ## Ce qui a changé par rapport à WordPress
 
-- Un seul gabarit, avec la palette du portail : en-tête avec le vrai logo, navigation, fil d'Ariane et carte « Trouver mon avocat » sur chaque article. Le pied de page reprend tous les liens de WordPress, les domaines étant regroupés en sections dépliables.
+- Un seul gabarit (voir la refonte ci-dessous) : navigation, fil d'Ariane et panneau « Trouver mon avocat » sur chaque article. Le pied de page reprend tous les liens de WordPress, les domaines étant regroupés en sections dépliables.
 - **« Trouver mon avocat » mène à la page de demande du portail** (`https://portail.besoinavocat.ca/demande`), avec le domaine de droit de la page présélectionné (D-020). Les boutons « Parler à un avocat » et « Obtenir des offres », sans destination sur WordPress, affichent et composent le 514 825-2825.
 - Pages réécrites à la main dans `www/content/overrides/`, en conservant leurs textes :
   - l'accueil et `/tableau-de-bord/` : leurs blocs (prix 100/300 $ CA, crédits IA, assistant téléphonique « en préparation », aperçu fictif) venaient de l'extension et non d'Elementor;
@@ -21,6 +21,37 @@ Décision du propriétaire, 27 octobre 2026 (D-021) : la vitrine besoinavocat.ca
 - **Pages vides sur WordPress, aucun texte juridique inventé** : `/politique-de-confidentialite/`, `/conditions-dutilisation-des-professionnels/`, `/find-a-lawyer/` et `/rediger-un-contrat-de-service/`. Elles annoncent un texte « en cours de rédaction », sauf la dernière, qui renvoie vers l'article complet `/rediger-un-contrat-de-service-2/`. `/log-in/` explique que la connexion est en préparation.
 - Liens réparés : six liens du pied de page sans barre oblique. Le lien « Avocat aide juridique » menait, sur WordPress, à une image; il mène maintenant à l'article `/avocat-aide-juridique-2/`. `/contact/` répondait 404; il devient une page « Nous joindre ». Les deux PDF Complianz (conditions et formulaire de rétractation) sont copiés tels quels.
 - Plus de bannière de témoins : le site ne dépose aucun témoin et n'a ni outil d'analyse ni script. Le site WordPress n'avait aucune balise Google Analytics, Tag Manager ou de vérification Search Console.
+
+## Refonte « plateforme IA » du 27 octobre 2026 (D-022)
+
+Demande du propriétaire : un site premium et futuriste, qui présente BesoinAvocat comme une plateforme juridique propulsée par l'IA pour le Québec et l'Ontario, raccordée à TAKATAK, sans rien retirer du contenu.
+
+- **Design** :
+  - fond marine et lumière bleue de la marque TAKATAK (`BRAND.md` de takatak-v1), orange BesoinAvocat pour les actions;
+  - polices Montserrat, Inter et JetBrains Mono, servies par le site lui-même (licence OFL) : aucune requête vers un tiers;
+  - aucun script : tous les effets sont en CSS et respectent « réduire les animations »;
+  - même design sur la page de demande du portail (`platform/public/demande.css`).
+- **Articles** :
+  - l'ouverture commune (titre, « Répondez à quelques questions… », bouton) devient un en-tête avec le domaine et le temps de lecture;
+  - les sections reçoivent une ancre, et une table « Sur cette page » accompagne un panneau de demande fixe.
+  - Les niveaux de titre ne sautent plus de niveau (accessibilité). Le texte et l'ordre ne changent pas.
+- **Accueil** : tous les textes précédents sont conservés. S'ajoutent :
+  - des chiffres réels (292 guides, 16 domaines, 38 villes et régions, 0 $ pour publier une demande);
+  - le « moteur BesoinAvocat » avec l'état de chaque fonction : questionnaire *Disponible*; structuration par IA, recherche dans les documents et connexion TAKATAK *En déploiement*; assistant téléphonique *En préparation*;
+  - une comparaison « Payez pour le conseil, pas pour la paperasse »;
+  - l'annuaire des domaines et un bandeau TAKATAK.
+- **Limites volontaires du texte** (lois sur le Barreau et sur la protection du consommateur) :
+  - BesoinAvocat prépare le dossier, l'avocat conseille : aucune consultation juridique ni économie chiffrée n'est promise;
+  - les fonctions d'IA ne sont pas présentées comme actives avant d'être raccordées et testées.
+- **Ontario** :
+  - la page de demande propose maintenant l'Ontario;
+  - l'ancien choix « Hors Québec » devient « Autre province ou territoire », avec le même identifiant;
+  - catalogue `2026-10-27.2`.
+- **Image de partage** `assets/og-image.png` (1200 × 630) et nouvelle icône. L'adresse de la feuille de style change avec son contenu, ce qui évite qu'un ancien design reste en cache après un déploiement.
+- **Contrôles** :
+  - `check-site` : 350 pages, 0 erreur;
+  - axe-core (WCAG 2.1 AA) sur les 350 pages à 390 px, sans erreur ni débordement : voir la section des preuves de [PROJECT_STATUS](PROJECT_STATUS.md);
+  - relecture du contenu : [CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md).
 
 ## Modifier le site
 

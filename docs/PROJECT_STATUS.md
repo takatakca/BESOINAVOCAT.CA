@@ -9,9 +9,26 @@
 | Surface | Fait vérifié | Ce qui reste ouvert |
 |---|---|---|
 | `besoinavocat.ca` | WordPress HTTPS chez MochaHost; installation 0.2.1 réussie par l'interface WP, après contrôle visuel de la 0.2.0; aperçu `tableau-de-bord` conservé | **0.2.2 installée** le 27 oct. : bloc prix non recouvert, CTA 1839 sans saut ni piège clavier sur l'accueil, contrôle officiel 24/24. Parcours « Trouver mon avocat » en boucle sans formulaire ([inventaire](WORDPRESS_CTA_INVENTORY.md)); funnel désactivé |
-| `www/` (future vitrine) | **Copie complète du site WordPress dans GitHub**, le 27 oct. : 348 pages, mêmes adresses, aucun script. Contrôle 0 erreur; 36 741 / 36 835 phrases en ligne retrouvées; image nginx testée; CI « Storefront checks » verte sur `adde5c2` ([STOREFRONT](STOREFRONT.md)) | Pas encore servie. Application Coolify et bascule DNS par le développeur du propriétaire, courriel détaché d'abord. Politique de confidentialité à rédiger |
+| `www/` (future vitrine) | **Copie complète du site WordPress dans GitHub**, le 27 oct. : 348 pages, mêmes adresses, aucun script. Contrôle 0 erreur; 36 741 / 36 835 phrases en ligne retrouvées; image nginx testée; CI « Storefront checks » verte sur `adde5c2` ([STOREFRONT](STOREFRONT.md)) | Pas encore servie. Application Coolify et bascule DNS par le développeur du propriétaire, courriel détaché d'abord. Politique de confidentialité à rédiger. **Refonte « plateforme IA » et relecture faites le 27 oct. (D-022)** : voir la section « Preuves de la refonte » ci-dessous |
 | `portail.besoinavocat.ca` | Première version technique Node/Passenger joignable; contrôle HTTP courant health 200 (`mode: pilot`, `identityConfigured: false`), dossiers anonymes 401 | Archive v2 avec connexion/corpus refusée par antivirus; pas de connexion utilisateur réelle ni de corpus distant actif validé |
 | `besoinavocat.onrender.com` | Site d'orientation statique distinct, service Render actif sur `main` | Ne fournit pas le backend ni les dossiers; ne pas déplacer le domaine WordPress vers Render |
+
+## Preuves de la refonte du 27 octobre (D-022)
+
+Contrôles faits sur la construction finale, localement, avant le push :
+
+- `node www/tools/check-site.mjs` : 350 pages, **0 erreur** (titres, h1, descriptions, liens internes, images, texte importé présent).
+- **Les 349 pages** rendues dans Chromium à 390 px :
+  - HTTP 200, aucune erreur de console ni ressource en échec;
+  - aucun débordement horizontal, et aucun non plus à 320 px sur les pages les plus chargées;
+  - **0 violation axe-core 4.10 WCAG 2.1 A/AA** (les avertissements de bonnes pratiques signalés ont aussi été corrigés).
+- Conteneur nginx réel, sous sa CSP stricte : aucune violation, les trois polices chargées, en-têtes et redirections vérifiés, accueil de 14 Ko compressé.
+- Conteneur du portail : `healthy`, polices servies, catalogue `2026-10-27.2`. Une demande synthétique avec la région `ontario` reçoit 201 et une référence; renvoyée avec la même clé, elle redonne la même référence, avec une seule ligne en base.
+- Tests : 12 Node du site, 132 Node portail et module WordPress, 3 suites PHP, tests Python du paquet et de la sauvegarde.
+  - Le test du lanceur Passenger exige Node 24.19 et passe en CI, pas sur le Node 22 local.
+  - Le contrôle des 27 liens externes est consigné dans [CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md).
+- Comparaison au site WordPress en ligne : 36 587 phrases sur 36 835 sont identiques; l'écart correspond aux 141 corrections documentées.
+- Ce n'est pas une certification WCAG ni un test avec lecteur d'écran physique.
 
 ## Backend : réalisé et restant
 

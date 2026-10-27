@@ -2,6 +2,24 @@
 
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 
+## 27 octobre 2026, refonte — plateforme IA, relecture, Ontario (D-022)
+
+Demande du propriétaire : tout vérifier page par page, rendre le site premium et futuriste, et présenter BesoinAvocat comme une plateforme juridique propulsée par l'IA pour le Québec et l'Ontario, raccordée à TAKATAK, sans rien retirer du contenu.
+
+- **Relecture** : 141 corrections sur 102 pages ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)), toutes confirmées dans le HTML WordPress en ligne. Elles comprennent :
+  - un titre erroné sur `/logement/`;
+  - un passage collé dans le mauvais article;
+  - des listes collées en une ligne;
+  - un lien officiel mort;
+  - six titres en double.
+- **Design** : marine et bleu de TAKATAK, orange BesoinAvocat, polices hébergées sur le site, aucun script. Les articles ont un en-tête, une table des matières et un panneau de demande. La page de demande du portail reprend le même design.
+- **Message** :
+  - « On prépare votre dossier. L'avocat se concentre sur l'essentiel. »;
+  - un moteur dont chaque fonction affiche son état réel;
+  - aucune consultation juridique ni économie chiffrée promise.
+- **Ontario** : ajouté au formulaire et au module WordPress (catalogue `2026-10-27.2`).
+- **Preuves** : section « Preuves de la refonte » de [PROJECT_STATUS](PROJECT_STATUS.md) (349 pages sans violation WCAG 2.1 AA ni débordement).
+
 ## 27 octobre 2026, suite — vitrine copiée dans GitHub (D-021)
 
 Demande du propriétaire : copier tout le site WordPress dans GitHub, le servir depuis son serveur Coolify, puis faire refaire le DNS par son développeur. Il suit les conventions de takatak-v1 (`docs/COOLIFY_DIRECT_PRODUCTION.md`), lu sans modification.

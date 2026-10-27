@@ -2,7 +2,13 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-021 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-022 ci-dessous priment sur les états historiques qu'elles remplacent.
+
+## D-022 — Plateforme IA premium, Québec et Ontario, raccordée à TAKATAK (27 octobre 2026)
+
+Décision du propriétaire. BesoinAvocat se présente comme une plateforme juridique propulsée par l'IA, pour le Québec et l'Ontario. Elle reste une marque indépendante, mais son identité, ses API et ses outils d'IA sont conçus sur l'infrastructure TAKATAK (D-005, D-010). Le design suit la marque TAKATAK (marine et bleu électrique) avec l'orange BesoinAvocat. Le contenu est conservé et relu ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)).
+
+Cadre du message : la demande est gratuite et l'équipe trouve l'avocat. L'IA prépare le dossier pour réduire le temps facturé, mais BesoinAvocat ne donne pas de consultation juridique. Aucune économie chiffrée, aucun résultat garanti, aucune fonction d'IA annoncée comme active avant d'être raccordée et testée : chaque fonction affiche son état (*Disponible*, *En déploiement*, *En préparation*). L'Ontario est ajouté au formulaire de demande (catalogue `2026-10-27.2`). Aucun réseau d'avocats ontariens n'est annoncé.
 
 ## D-021 — Vitrine statique dans GitHub, servie par Coolify (27 octobre 2026)
 

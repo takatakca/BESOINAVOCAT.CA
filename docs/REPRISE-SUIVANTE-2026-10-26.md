@@ -6,6 +6,33 @@
 
 Rendre réellement utilisable l'accès personnel au dossier juridique avant d'ajouter des effets à la vitrine. WordPress reste la présentation sur `besoinavocat.ca`; Node.js reste le portail métier distinct sur `portail.besoinavocat.ca`. Réutiliser TAKATAK pour l'identité et Facturations pour la facturation. Ne pas reconstruire ces services ni déplacer WordPress vers Render. Préserver les articles, informations, références, URL, codes et dossiers; seules les marques d'opérateur et recommandations promotionnelles injustifiées sont corrigées.
 
+## Mandat à confier au prochain agent — terminer les parcours réels
+
+**Reprendre le travail existant et terminer BesoinAvocat de bout en bout, sans repartir de zéro.** Lire cette relève, le reçu Google Drive et les notes GitHub citées avant de modifier quoi que ce soit. Examiner l'état réel des services et du code; ne pas confondre une interface, un test local ou un document de conception avec une fonctionnalité utilisable.
+
+### Ce qui est déjà fait
+
+- WordPress conservé, plugin d'habillage 0.2.1 installé, prix professionnels décidés et affichés; corrections éditoriales ciblées. Les articles et leurs références restent présents.
+- Portail Node, import du corpus, provenance, recherche, sessions et habilitations développés et testés localement. Le serveur public exécute encore la première version technique; la vraie connexion reste désactivée.
+- Module de contact FR/EN préparé dans WordPress et API de réception préparée dans Node; **ils ne constituent pas encore le parcours public complet de demande et d'inscription**. Le funnel est désactivé, l'API n'est pas activée à distance, la file d'opérateur et l'attribution restent à développer.
+- Dossier maître public utilisable immédiatement pour consulter les trois catégories; notes techniques sur GitHub, copie centrale dans Google Drive et copie locale dans OneDrive.
+
+### Ce qui reste à livrer, dans cet ordre
+
+1. **Accès réel du propriétaire et corpus.** Résoudre le refus MochaHost sur le paquet exact, installer la version validée, raccorder l'identité TAKATAK et les droits explicites, restaurer le corpus dans un stockage privé puis prouver connexion, trois catégories, recherche, citations, téléchargements et déconnexion. Aucun mot de passe à coder ou à conserver dans les notes.
+2. **Bouton « Besoin d'un avocat » et formulaire guidé.** Recenser tous les boutons concernés de WordPress, conserver le contenu informatif et les faire aboutir au même parcours fonctionnel. Le propriétaire demande un questionnaire détaillé : concevoir plusieurs étapes conditionnelles, avec progression et retour, plutôt qu'une longue liste indistincte de questions. Prévoir langue FR/EN, domaine juridique, ville/région, urgence et échéance, situation et objectif de la demande, moyen de contact et consentement, puis récapitulatif modifiable. Ne demander que les informations utiles à la branche choisie. Séparer la demande gratuite de contact, la création/connexion du compte et le dépôt ultérieur de pièces.
+3. **Étendre réellement le contrat de réception.** L'API actuelle n'accepte ni récit libre, ni échéance, ni pièce jointe. Ne pas ajouter ces champs seulement dans la page : prévoir et valider le modèle serveur, les limites, le stockage et les accès avant de les activer. Prévoir une référence après enregistrement réussi, les erreurs lisibles, la reprise sans doublon et le retour au formulaire sans perdre les champs non sensibles. Aucun succès simulé. Pour la sauvegarde d'un brouillon contenant des informations de dossier, utiliser le compte et le serveur appropriés, pas un stockage local partagé du navigateur.
+4. **Traitement de la demande et espace client.** Créer une file d'opérateur avec droits explicites, statuts compréhensibles, suivi des demandes et réponse de l'équipe. Une demande de soumission ne vaut pas mandat accepté ni avocat attribué. Prévoir les notifications du produit et leurs essais avec destinataires de test; ne pas envoyer de messages réels pendant une simple vérification. Après connexion, le client retrouve ses demandes, dossiers, pièces et échanges, selon ses accès. Aucun raccordement automatique des anciens dossiers sur la seule correspondance d'une adresse courriel.
+5. **Parcours avocat.** Inscription volontaire, informations professionnelles, contrôles nécessaires et habilitations explicites. Afficher 100 CAD/semaine ou 300 CAD/mois, crédits IA séparés; clients toujours gratuits. Le choix « avocat » dans un formulaire ne donne aucun accès aux dossiers. Raccorder Facturations selon son contrat existant, d'abord en lecture seule et brouillons; abonnement, émission et paiement exigent leurs propres raccordements et preuves.
+6. **Vitrine, qualité et liens.** Préserver la structure déjà montée, les articles, codes et URL; retirer seulement les anciennes marques d'opérateur ou recommandations promotionnelles injustifiées. Vérifier le CTA orange corrigé en 0.2.1, le mobile, le clavier, les deux langues du parcours, le retour aux étapes précédentes, les champs requis, les erreurs réseau et tous les liens des appels à l'action. Ne pas annoncer que tous les articles sont traduits ou revus.
+7. **Services ultérieurs.** Chat client/avocat, temps et validation, facturation, crédits IA, recherche assistée avec citations, téléphone, Fieldy, visioconférence et signatures restent des lots distincts. Montrer leur état réel et leurs dépendances; ne pas les vendre comme déjà actifs. Aucun achat, débit, signature ou permission nouvelle implicite.
+
+### Définition de « terminé » pour la première livraison
+
+Depuis la page publique, une personne peut choisir « Besoin d'un avocat », parcourir le formulaire sur ordinateur ou mobile, corriger ses réponses et obtenir une référence seulement après sauvegarde réelle. L'opérateur autorisé retrouve la demande exacte. Le propriétaire peut se connecter et consulter ses trois dossiers, avec recherche et pièces contrôlées. Les accès indus sont refusés, la déconnexion fonctionne, les erreurs sont compréhensibles et les tests de bout en bout sont documentés. Les fonctions encore absentes sont indiquées explicitement. Un écran démonstratif ou un message de confirmation seul ne remplit pas ces critères.
+
+À la fin de chaque lot : noter ce qui a changé, ce qui a été testé, ce qui est effectivement publié et ce qui bloque; mettre GitHub, la copie centrale Google Drive et OneDrive en cohérence. Garder l'automatisation en pause tant que le propriétaire ne demande pas sa reprise. La présente session ne réalise que cette passation.
+
 ## Faits acquis, limites explicites
 
 | Élément | État au point d'arrêt |

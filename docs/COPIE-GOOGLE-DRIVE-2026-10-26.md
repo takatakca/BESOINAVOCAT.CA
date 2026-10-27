@@ -5,7 +5,7 @@
 - Fichier : [BesoinAvocat — Reprise et instructions — 2026-10-26.md](https://drive.google.com/file/d/1jJxjVbk-mPzN9RHO0KfO-1rIH7ZbsR6k/view?usp=drivesdk).
 - Dossier existant : [00 — Opérations TAKATAK](https://drive.google.com/drive/folders/11B5CeNU_lZgO2VFA_fzejoLJNkSZdnv-).
 - Source : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md), version contenue dans le même commit documentaire que ce reçu, branche `codex/espace-client-avocat`.
-- Fichier transféré : Markdown, 14 342 octets. SHA-256 local avant transfert : `9ba858d2a6bbdea3bdb6862891c345929862c8e7b35d5217f5eeb4b1ff522323`. Git peut normaliser les fins de ligne; cette empreinte identifie les octets locaux transférés.
+- Fichier transféré et mis à jour sous le même ID : Markdown, 20 515 octets. SHA-256 local avant mise à jour : `d495c68d35b75f50a9835f28ced9380d924ee1bc5e616ca87b62a7d16db653b7`. Git peut normaliser les fins de ligne; cette empreinte identifie les octets locaux transférés. La nouvelle version inclut le mandat détaillé pour terminer le formulaire, les workflows et l'accès réel; ce mandat a été relu dans Drive après mise à jour.
 - Vérification : métadonnées relues (nom, format, taille et dossier parent), puis contenu relu avec les références TAKATAK-V1 et Facturations, l'instruction de copie pour le prochain agent, le lien d'accès public et le maintien de la pause. Aucune comparaison d'empreinte distante n'est revendiquée.
 - Aucun mot de passe, secret, original juridique ou sauvegarde du corpus n'a été ajouté à ce fichier. Aucune permission Drive modifiée.
 

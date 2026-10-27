@@ -25,6 +25,11 @@ const assets = new Map([
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
+  // Public request page; it posts only to the same-origin /api/intake.
+  ['/demande', ['demande.html', 'text/html; charset=utf-8']],
+  ['/demande/', ['demande.html', 'text/html; charset=utf-8']],
+  ['/demande.js', ['demande.js', 'text/javascript; charset=utf-8']],
+  ['/demande.css', ['demande.css', 'text/css; charset=utf-8']],
 ]);
 
 function securityHeaders(res) {

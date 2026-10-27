@@ -25,6 +25,9 @@ ALLOWLIST = {
     'public/index.html': 'platform/public/index.html',
     'public/app.js': 'platform/public/app.js',
     'public/styles.css': 'platform/public/styles.css',
+    'public/demande.html': 'platform/public/demande.html',
+    'public/demande.js': 'platform/public/demande.js',
+    'public/demande.css': 'platform/public/demande.css',
     'CPANEL-NODE.md': 'docs/CPANEL_NODE.md',
 }
 

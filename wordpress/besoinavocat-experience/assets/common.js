@@ -29,4 +29,31 @@
     while (label.firstChild) link.append(label.firstChild);
     label.append(link);
   });
+  // Elementor popup 1839 ("Trouver mon avocat") is shown on every page except /demande/.
+  // It is not a modal dialog for the visitor: on the home page it sits after the footer
+  // (since 0.2.1), elsewhere in a fixed corner. Elementor still runs its modal behaviour:
+  // it focuses the button 250 ms after opening (on the home page this scrolls to the end
+  // of the page), loops Tab on that single button, and keeps aria-modal. Only these
+  // behaviours are neutralised, for this popup only; its content, link and position are unchanged.
+  const ctaPopup = '#elementor-popup-modal-1839';
+  window.addEventListener('elementor/popup/show', (event) => {
+    if (String(event.detail && event.detail.id) !== '1839') return;
+    const popup = document.querySelector(ctaPopup);
+    if (!popup) return;
+    // Elementor calls element.focus() from a timer; keyboard navigation does not use it.
+    popup.querySelectorAll('[data-elementor-type="popup"], a[href], button, input, select, textarea, [tabindex]').forEach((element) => {
+      element.focus = () => {};
+    });
+    setTimeout(() => {
+      // Without focusable content Elementor sets tabindex="0" and blocks every Tab key.
+      const wrapper = popup.querySelector('[data-elementor-type="popup"][tabindex="0"]');
+      if (wrapper) wrapper.removeAttribute('tabindex');
+      popup.removeAttribute('aria-modal');
+      popup.removeAttribute('tabindex');
+    }, 0);
+  });
+  document.addEventListener('keydown', (event) => {
+    const active = document.activeElement;
+    if (event.key === 'Tab' && active && active.closest && active.closest(ctaPopup)) event.stopPropagation();
+  });
 })();

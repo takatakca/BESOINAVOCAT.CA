@@ -21,6 +21,10 @@ Le connecteur Google Drive de la session du 27 octobre permet de lire, de créer
 
 Sur demande du propriétaire, pour l'installation par une session du navigateur : [besoinavocat-experience-0.2.2.zip](https://drive.google.com/file/d/1bKgBZfw7RUnA83ZbI15Cs0may_py70nQ/view?usp=drivesdk), ID `1bKgBZfw7RUnA83ZbI15Cs0may_py70nQ`, dossier « 00 — Opérations TAKATAK », `application/zip`, 47 635 octets. Le fichier a été retéléchargé depuis Drive : identique octet par octet au ZIP local, SHA-256 `78e659673ee82efb6ed60d4f5ca8119835bdf33765131457f76737e727eb53ac`. Il contient le code public du plugin, sans secret.
 
+## Complément n° 2 — 27 octobre 2026
+
+[BesoinAvocat — Complément de reprise n° 2 — 2026-10-27.md](https://drive.google.com/file/d/1Z7LtImIt1ngh-Nq1EIFKZ0kDM4GLLByk/view?usp=drivesdk), ID `1Z7LtImIt1ngh-Nq1EIFKZ0kDM4GLLByk`, même dossier. Contenu : 0.2.2 installée et prouvée 24/24, inventaire des CTA, décision D-020, état au commit `ff1eaef`. Markdown, 3 255 octets, SHA-256 `65296e1377a275a20363c00637960e567be8d7f0f63e09a0170f0b5618199c52`; retéléchargé et **identique octet par octet**. La fusion dans le fichier central reste en attente (voir plus haut).
+
 ## Instruction au prochain agent
 
 Lire la relève et les documents d'état de GitHub. À toute reprise autorisée, maintenir la copie Google Drive des notes en cohérence avec les changements GitHub. Ne pas multiplier les fichiers identiques : retrouver d'abord ce fichier par son ID, vérifier le dossier et la version, puis effectuer la mise à jour appropriée. Consigner le commit source et vérifier le contenu après écriture. Si l'accès Drive manque, laisser dans GitHub une tâche explicite de copie en attente avec les fichiers concernés; ne pas annoncer une synchronisation accomplie.

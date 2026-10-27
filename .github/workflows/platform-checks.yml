@@ -1,0 +1,38 @@
+name: Platform pilot checks
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Verify server and browser syntax
+        run: |
+          node --check platform/server.mjs
+          node --check platform/public/app.js
+          node --check platform/tools/import-corpus.mjs
+          node --check platform/deploy/passenger.cjs
+          node --check wordpress/besoinavocat-experience/assets/experience.js
+          node --check wordpress/besoinavocat-experience/assets/common.js
+          node --check wordpress/besoinavocat-experience/assets/funnel.js
+          php -l wordpress/besoinavocat-experience/besoinavocat-experience.php
+          php -l wordpress/besoinavocat-experience/render-integrity.php
+          php -l wordpress/besoinavocat-experience/render-rules.php
+          php -l wordpress/besoinavocat-experience/funnel.php
+          php wordpress/besoinavocat-experience/checks/check-render.php
+          php wordpress/besoinavocat-experience/checks/check-funnel.php
+          php wordpress/besoinavocat-experience/checks/check-integration.php
+      - name: Test isolation, documents and import preparation
+        run: node --test platform/test/*.test.mjs platform/deploy/passenger.test.cjs wordpress/besoinavocat-experience/checks/funnel.test.mjs
+      - name: Verify the deployment archive excludes private data
+        run: python3 platform/deploy/test_build_bundle.py
+      - name: Verify corpus backup and restore
+        run: python3 platform/test/test_backup_corpus.py

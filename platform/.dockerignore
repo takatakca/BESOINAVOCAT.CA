@@ -1,0 +1,17 @@
+# Only the files copied by the Dockerfile belong in the build context.
+.data
+data
+private-imports
+uploads
+.secrets
+.env
+.env.*
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+test
+deploy
+node_modules
+README.md
+tools/backup-corpus.py

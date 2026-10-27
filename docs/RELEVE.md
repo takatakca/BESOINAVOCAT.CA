@@ -1,14 +1,35 @@
-# Relève historique
+# Relève — BESOINAVOCAT.CA
 
-Ce document est conservé comme historique de la livraison du 14 octobre 2026.
+État de fin de session du 26 octobre 2026 : notes seulement, puis arrêt. **Lire en premier [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md)**, puis [AGENTS.md](../AGENTS.md), [AGENT_HANDOFF](AGENT_HANDOFF.md), [PROJECT_STATUS](PROJECT_STATUS.md) et [TASK_QUEUE](TASK_QUEUE.md).
 
-**Reprise courante :** consulter d'abord [AGENTS.md](../AGENTS.md) et [docs/AGENT_HANDOFF.md](AGENT_HANDOFF.md).
+## Priorité du propriétaire
 
-L'état, les décisions, la file de tâches et le déploiement en vigueur sont documentés dans les cinq fichiers `PROJECT_STATUS.md`, `TASK_QUEUE.md`, `AGENT_HANDOFF.md`, `DEPLOYMENT.md`, `DECISIONS.md`.
+**Faire fonctionner le backend et son accès aux dossiers avant de poursuivre la vitrine.** WordPress reste sur besoinavocat.ca; le portail Node est distinct sur portail.besoinavocat.ca; Render conserve le site d'orientation indépendant.
 
-## Éléments historiques
+## État réellement acquis
 
-- Dépôt initial limité à un README le 14 octobre 2026.
-- Premier site d'orientation statique français construit avec liens vers les institutions, sans collecte de dossiers juridiques.
-- Première publication Render confirmée `live` le 14 octobre 2026.
-- Les fonctionnalités futures d'annuaire professionnel, de comptes et de mise en relation n'ont pas été prétendues livrées.
+- Code CI `5a230e52c758a626f31be24abeef2cce5242b3c1` : quatre runs verts, 133 tests Node, 12 Python et trois suites PHP; liens dans [PROJECT_STATUS](PROJECT_STATUS.md).
+- Les anciens pointeurs `codex/espace-client-avocat` à `ee27831` et `main` à `b56d027` sont conservés comme historique du contrôle précédent, pas comme état courant du nouveau code.
+- **WordPress 0.2.1 installé avec succès via l'interface WP.** La 0.2.0 avait été contrôlée visuellement pour les prix 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 remet le CTA orange dans le flux normal; **contrôle visuel final du bloc prix à faire**. Funnel désactivé. Articles, informations, URL et sauvegardes conservés.
+- Portail Node technique créé chez MochaHost sous Passenger/Node 24.22.1. Le contrôle HTTP courant confirme health 200 (`mode: pilot`, `identityConfigured: false`) et dossiers anonymes 401. **La v2 connexion/corpus n'est pas installée : archive refusée par l'antivirus MochaHost.**
+- Corpus importé localement, sauvegarde vérifiée puis restaurée localement; copie privée distante avec empreinte concordante. **Aucune restauration ni activation du corpus dans le portail distant.** Originaux et paquet de 312 annexes inchangés.
+- Configuration privée préparée, mais **aucun test réel de connexion utilisateur ou de consultation du corpus en production**. Ne pas annoncer que son mot de passe a été configuré.
+- Render contrôlé par API : service `srv-db7srnmi0phs73ahkue0`, déploiement `dep-db8qsb6k1f9s73epefs0` live au SHA de `main`; publication de `site/`, autoDeploy actif. Le smoke public du 26 octobre réussit.
+
+## Prochaine étape
+
+Obtenir l'analyse du paquet v2 exact refusé par MochaHost, sans contourner l'antivirus. Après résolution documentée : installer la version validée, contrôler les protections, faire utiliser l'identité TAKATAK existante, restaurer le corpus en destination privée contrôlée puis vérifier les trois dossiers, pièces, citations et déconnexion. Raccorder ensuite la vitrine au portail réellement utilisable. Les détails et preuves sont dans [DEPLOYMENT](DEPLOYMENT.md) et [CPANEL_NODE](CPANEL_NODE.md).
+
+Le module WordPress `funnel` est installé mais **désactivé**; la réception Node n'est pas activée. Le contrôle visuel final des prix 0.2.1 reste à reprendre. Aucun formulaire, paiement ou accès ne doit annoncer un succès qui n'a pas eu lieu. Pas de nouvelle permission ni autorité de mots de passe parallèle.
+
+## Conditions de produit
+
+Demandes clients **toujours gratuites**. Avocats : **100 CAD/semaine ou 300 CAD/mois**, **crédits IA en supplément**; honoraires juridiques distincts. Ces conditions remplacent « prix à définir », sans activer souscription, facturation, IA ou voix. Téléphone de contact : **514-825-2825**, sans assistant automatisé annoncé.
+
+Préserver informations, articles, originaux, preuves contraires, URL et codes; corriger seulement les anciennes marques d'opérateur ou affiliations promotionnelles injustifiées. Les cabinets cités dans des articles ne deviennent pas des partenaires. Les doublons et versions ne s'additionnent pas; les OCR restent à contrôler sur les pièces.
+
+Aucun Git, déploiement, compte, mot de passe ou état du dossier juridique n'a été modifié par cette mise à jour des documents.
+
+## Clôture du lot contact et WordPress 0.2.1
+
+Installation WordPress réussie et CI du code verte, y compris PHP; contrôle visuel final 0.2.1 ouvert. Node v1 reste à `identityConfigured: false`, v2 bloquée par l'antivirus, sans contournement. Aucun accès réel au corpus validé. Voir [INTAKE_QA.md](INTAKE_QA.md) et [WORDPRESS_QA.md](WORDPRESS_QA.md).

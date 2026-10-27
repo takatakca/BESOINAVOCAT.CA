@@ -1,0 +1,39 @@
+name: Storefront checks
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  storefront:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Build every page and check titles, links, images and imported text
+        run: |
+          node --check www/build.mjs
+          node --check www/tools/check-site.mjs
+          node --check www/tools/import-wordpress.mjs
+          node www/build.mjs
+          node www/tools/check-site.mjs
+      - name: Build the Coolify image and smoke-test it
+        run: |
+          docker build -t besoinavocat-www:ci www
+          docker run -d --name www -p 8080:80 besoinavocat-www:ci
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:8080/healthz && break; sleep 1; done
+          check() { code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080$1"); echo "$code $1"; [ "$code" = "$2" ]; }
+          check / 200
+          check /famille-et-jeunesse/ 200
+          check /professionnels/ 200
+          check /famille-et-jeunesse 301
+          check /n-existe-pas/ 404
+          check /wp-login.php 404
+          check /.env 404
+          check /sitemap.xml 200
+          curl -sI http://127.0.0.1:8080/ | grep -qi '^content-security-policy:'
+          curl -s http://127.0.0.1:8080/ | grep -q 'portail.besoinavocat.ca/demande'

@@ -1,6 +1,60 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
-**Date : 16 octobre 2026** · Dépôt `takatakca/BESOINAVOCAT.CA` · Branche `main`.
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** L'utilisateur termine la session : cette passe ne modifie que les notes, puis s'arrête.
+
+## Reprise courante — 26 octobre 2026
+
+**Faire fonctionner le backend et l'accès du propriétaire avant de poursuivre la vitrine.** Préserver le travail existant : WordPress sur besoinavocat.ca, portail Node distinct sur portail.besoinavocat.ca, orientation Render sur besoinavocat.onrender.com. Ne pas reconstruire l'application ou déplacer WordPress vers Render.
+
+### État de référence vérifié
+
+- Code de référence CI : `5a230e52c758a626f31be24abeef2cce5242b3c1`; Quality 40421216083, Platform PR 40421216013, Browser 40421215940 et Platform push 40421210422 verts. 133 tests Node, 12 Python et trois suites PHP réussis; liens dans [PROJECT_STATUS](PROJECT_STATUS.md).
+- Historique Git préalable conservé : `main` était à `b56d027c4172ddde5e362497731ac1ae80805fe0` et `codex/espace-client-avocat` à `ee278313707bbec608c15df11e402decce66f7ee`, trois commits d'avance, sans retard, avec [PR 1](https://github.com/takatakca/BESOINAVOCAT.CA/pull/1) en brouillon. Ces anciens pointeurs ne décrivent pas le nouveau code CI; relire l'état courant à la reprise.
+- Render réel : service `srv-db7srnmi0phs73ahkue0`, dernier déploiement `dep-db8qsb6k1f9s73epefs0` live au SHA de `main`, publication de `site/`, autoDeploy actif. Le smoke du 26 octobre réussit.
+- WordPress : **0.2.1 installée avec succès via l'interface WP**. La 0.2.0 avait été contrôlée visuellement pour les tarifs 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 corrige la superposition du CTA orange aux prix par un CSS dans le flux normal; **contrôle visuel final du bloc prix à faire**. Funnel désactivé; aperçu et contenus/URL conservés. Le téléphone 514-825-2825 est un contact, pas une voix automatisée.
+- **Portail Node créé** chez MochaHost, Node 24.22.1/Passenger/HTTPS. Le recontrôle HTTP courant obtient health 200 (`mode: pilot`, `identityConfigured: false`) et dossiers anonymes 401. Les anciens contrôles `/.env` et `/server.mjs` étaient 404. Cela ne prouve pas l'exploitation des dossiers réels.
+- **V2 connexion/corpus non installée** : archive refusée avec `Sanesecurity.Foxhole.JS_Zip_11.UNOFFICIAL FOUND`. SHA exact `6593ad7db2028e63f22809a1d23f1334d1fb3c3f4283786730738c2e9923c71c`. Aucun contournement ou validation de l'hébergeur n'est constaté dans les preuves lues; la recherche courriel ciblée n'a pas retrouvé de réponse concernant l'archive.
+- Corpus des trois dossiers importé localement; sauvegarde vérifiée et restaurée localement. Copie de sauvegarde privée distante reçue avec empreinte concordante, **sans restauration/activation distante**. Les originaux et 312 annexes restent inchangés.
+- Configuration d'identité et stockage privé préparée selon les reçus; **aucun test réel de connexion utilisateur ni de consultation du corpus en production**. Ne pas dire que le mot de passe a été configuré. Réutiliser l'identité TAKATAK et les habilitations explicites, pas un compte WordPress parallèle.
+
+### Sources à lire avant action
+
+Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md`, `docs/TASK_QUEUE.md`, `docs/DEPLOYMENT.md`, `docs/CPANEL_NODE.md`, `docs/BROWSER_AUTH.md`, `docs/PLATFORM_QA.md` et `docs/DECISIONS.md`. Dans l'espace de travail privé autorisé, le reçu `scripts/.build-livrables/node-portal-2026-10-26/ETAT-PORTAIL-2026-10-26.md` détaille le refus MochaHost, l'import local, la copie distante et les contrôles HTTPS. Il n'est pas un fichier du dépôt public; ne pas y copier ses sauvegardes, grants, clés ou pièces.
+
+### Prochaine action exacte
+
+0. **Vitrine (27 oct., D-021)** : le site complet est prêt dans `www/` (CI verte sur `adde5c2`). La suite revient au développeur du propriétaire, dans l'ordre de [STOREFRONT](STOREFRONT.md) :
+   1. détacher le courriel, car le MX pointe sur le domaine;
+   2. déployer le portail sur Coolify et basculer `portail`;
+   3. déployer la vitrine et basculer l'enregistrement A du domaine;
+   4. vérifier.
+   Un agent ne modifie ni le DNS ni WordPress. Il contrôle les adresses après la bascule et met à jour le contenu dans `www/content/`. Relancer `node www/build.mjs && node www/tools/check-site.mjs` après toute modification.
+1. Lire la note de reprise, dont la section du 27 octobre, et vérifier l'état courant du code sans remplacer les travaux d'autres agents. La 0.2.2 est installée et réussit `node scripts/wordpress-cta-qa.mjs` (24/24); relancer ce contrôle après toute nouvelle version du plugin. Funnel toujours désactivé. Les tests de code ne prouvent pas le circuit de réception réel.
+2. Obtenir la résolution documentée du refus antivirus sur le paquet exact. Ne pas désactiver la protection, changer de format pour l'esquiver ou installer autrement un paquet refusé.
+3. Après résolution, installer le code validé en conservant la version précédente. Relire manifeste/SHA et configuration privée, puis vérifier health, assets, HTTPS, refus anonymes et inaccessibilité des fichiers privés.
+4. Faire connecter le propriétaire avec son compte TAKATAK existant. Ne pas conserver ni afficher son mot de passe, cookie ou jeton; ne pas déduire des permissions de son email. Vérifier les grants et l'accès réellement autorisé.
+5. Restaurer la sauvegarde vérifiée dans une nouvelle destination privée et contrôler l'état de la base technique avant bascule. Vérifier tailles/SHA, SQLite, dossiers, citations et téléchargements; ne pas écraser une base active ou copier une base WAL seule.
+6. Contrôler déconnexion, refus d'accès indu et limites de périmètre. Ensuite seulement, raccorder la vitrine au portail réellement utilisable et poursuivre les formulaires/FR-EN.
+
+### Conditions et préservation
+
+Demandes clients toujours gratuites. Tarifs professionnels décidés : **100 CAD/semaine ou 300 CAD/mois**, **crédits IA en supplément**; honoraires juridiques distincts. Aucun paiement, abonnement, crédit ou assistant vocal actif n'est établi. L'affichage ne doit pas simuler une souscription.
+
+Préserver originaux, preuves contraires, articles, informations documentaires, URL et codes. Retirer seulement les anciennes marques d'opérateur ou affiliations promotionnelles injustifiées, sans effacer les noms utiles aux pièces ou articles. Les OCR et déclarations gardent leur provenance et leurs réserves; les doublons ne s'additionnent pas.
+
+### Contrôles de livraison
+
+Suivre AGENTS.md et les tests des fichiers réellement modifiés. La CI au SHA `5a230e52c758a626f31be24abeef2cce5242b3c1` est verte : 133 tests Node, 12 Python et trois suites PHP. Elle ne remplace pas le contrôle visuel final des prix 0.2.1, les essais du funnel désactivé ou l'accès distant réel. Les anciens comptes de 49 tests et le stade « import préparatoire seulement » sont historiques.
+
+Aucun Git, déploiement, envoi, compte, mot de passe ou nouvelle permission n'a été modifié par cette reprise documentaire.
+
+## Historique conservé — 16 octobre 2026
+
+Les statuts et instructions de cette archive décrivent le site statique à cette date. La reprise courante ci-dessus prévaut; ne pas réexécuter une ancienne tâche déjà réalisée.
+
+Les instructions et statuts ci-dessous décrivent l'ancienne livraison d'orientation. Pour le nouveau mandat, appliquer la reprise courante ci-dessus.
+
+**Date historique : 16 octobre 2026** · Dépôt `takatakca/BESOINAVOCAT.CA` · Branche `main`.
 
 ## Dernière tâche terminée
 - BA-007 (partie automatisée) : tests Chromium mobile, clavier, formulaire, erreurs, impression, captures et revue visuelle.
@@ -18,7 +72,7 @@
 
 ## Tâche actuellement en cours
 - BA-007 reste ouverte uniquement pour une validation humaine NVDA/VoiceOver, appareils physiques, Safari/Firefox et audit d'accessibilité complet.
-- BA-008 domaine `besoinavocat.ca` : bloqué faute de confirmation de contrôle DNS et certificat pour ce domaine.
+- BA-008 était bloquée le 16 octobre; elle est **obsolète depuis le 26 octobre**. Le WordPress HTTPS confirmé chez MochaHost doit rester en place.
 - BA-009/BA-010 : décisions métier et conformité avant comptes, annuaire ou traitement de dossiers.
 
 ## Fichiers modifiés
@@ -27,7 +81,7 @@
 
 ## Blocages et accès nécessaires
 - GitHub push `main` et Render lecture/déploiement fonctionnent; hébergement Render `https://besoinavocat.onrender.com` avec autoDeploy.
-- Accès DNS/registrar du domaine final non confirmés, aucun secret requis pour le site statique.
+- Constat historique du 16 octobre : accès DNS/registrar non confirmé. Il ne doit plus conduire à proposer un raccordement du domaine WordPress à Render.
 - Définition et approbation du périmètre juridique et de la protection des données obligatoires avant profils professionnels, comptes TAKATAK ou mise en relation.
 - Ne pas créer de faux professionnels, de collecte de données confidentielles, de backend payant ou de seconde identité.
 
@@ -35,5 +89,9 @@
 1. Lire `AGENTS.md`, ce fichier, `docs/TASK_QUEUE.md`, `docs/QA_REPORT.md`.
 2. Lire SHA HEAD, CI, Browser QA, smoke et Render du dernier commit; distinguer commit de code et commit documentaire.
 3. Réaliser la partie humaine BA-007 sur NVDA/VoiceOver et appareils réels, corriger les défauts prouvés.
-4. Confirmer les informations DNS nécessaires avant de raccorder `besoinavocat.ca` sur Render.
+4. Instruction historique annulée le 26 octobre : ne pas raccorder `besoinavocat.ca` à Render; suivre la reprise courante pour le portail distinct.
 5. Conserver en attente BA-009/BA-010 avant de commencer annuaire, comptes ou dossiers juridiques.
+
+## Clôture du lot contact et WordPress 0.2.1
+
+WordPress 0.2.1 installé avec succès; contrôle visuel final du bloc prix ouvert et funnel désactivé. Backend v1 à `identityConfigured: false`; v2 bloquée par l'antivirus, sans contournement. Aucun accès réel au corpus validé. Voir [INTAKE_QA.md](INTAKE_QA.md) et [WORDPRESS_QA.md](WORDPRESS_QA.md).

@@ -23,6 +23,12 @@ Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md
 
 ### Prochaine action exacte
 
+0. **Vitrine (27 oct., D-021)** : le site complet est prêt dans `www/` (CI verte sur `adde5c2`). La suite revient au développeur du propriétaire, dans l'ordre de [STOREFRONT](STOREFRONT.md) :
+   1. détacher le courriel, car le MX pointe sur le domaine;
+   2. déployer le portail sur Coolify et basculer `portail`;
+   3. déployer la vitrine et basculer l'enregistrement A du domaine;
+   4. vérifier.
+   Un agent ne modifie ni le DNS ni WordPress. Il contrôle les adresses après la bascule et met à jour le contenu dans `www/content/`. Relancer `node www/build.mjs && node www/tools/check-site.mjs` après toute modification.
 1. Lire la note de reprise, dont la section du 27 octobre, et vérifier l'état courant du code sans remplacer les travaux d'autres agents. La 0.2.2 est installée et réussit `node scripts/wordpress-cta-qa.mjs` (24/24); relancer ce contrôle après toute nouvelle version du plugin. Funnel toujours désactivé. Les tests de code ne prouvent pas le circuit de réception réel.
 2. Obtenir la résolution documentée du refus antivirus sur le paquet exact. Ne pas désactiver la protection, changer de format pour l'esquiver ou installer autrement un paquet refusé.
 3. Après résolution, installer le code validé en conservant la version précédente. Relire manifeste/SHA et configuration privée, puis vérifier health, assets, HTTPS, refus anonymes et inaccessibilité des fichiers privés.

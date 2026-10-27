@@ -1,6 +1,8 @@
 # Déployer le portail Node sur Coolify
 
-Décision du 27 octobre 2026 : le portail Node peut être hébergé sur le serveur Coolify du propriétaire au lieu de MochaHost. Ce choix supprime le blocage antivirus du paquet v2 (BA-018) et permet un déploiement automatique à chaque push GitHub. Ce document décrit les réglages; **aucun déploiement Coolify n'a encore été fait par un agent**, faute d'accès au serveur.
+Décision du 27 octobre 2026 : le portail Node peut être hébergé sur le serveur Coolify du propriétaire au lieu de MochaHost. Ce choix supprime le blocage antivirus du paquet v2 (BA-018) et permet un déploiement automatique depuis GitHub. Ce document décrit les réglages; **aucun déploiement Coolify n'a encore été fait par un agent**, faute d'accès au serveur.
+
+La vitrine besoinavocat.ca, reconstruite sans WordPress, est une seconde application Coolify. Ses réglages et **l'ordre de bascule DNS sont décrits dans [STOREFRONT](STOREFRONT.md)**. Il faut d'abord détacher le courriel, car le MX pointe sur le domaine, puis déployer le portail et enfin la vitrine.
 
 ## Ce qui a été vérifié localement (27 octobre)
 
@@ -20,12 +22,12 @@ Le serveur Coolify réel, son proxy, son certificat et ses sauvegardes restent �
 |---|---|
 | Source | GitHub `takatakca/BESOINAVOCAT.CA`, via l'application GitHub de Coolify |
 | Branche | `codex/espace-client-avocat` pour l'essai, puis `main` après fusion de la PR 1 |
-| Déploiement automatique | activé (chaque push déploie) |
+| Déploiement automatique | pour l'essai, celui de Coolify à chaque push; en production, le flux `coolify-deploy.yml` après CI verte sur `main`, comme dans takatak-v1 ([STOREFRONT](STOREFRONT.md#déploiement-automatique-comme-dans-takatak-v1)) |
 | Build pack | Dockerfile |
 | Base directory | `/platform` |
 | Dockerfile | `/Dockerfile` |
 | Port exposé | `8787` (ne pas le publier sur l'hôte : seul le proxy Coolify doit y accéder) |
-| Domaine | d'abord un domaine d'essai (domaine `sslip.io` proposé par Coolify, ou un nouveau sous-domaine), puis `https://portail.besoinavocat.ca` quand MochaHost est retiré |
+| Domaine | d'abord un domaine d'essai (domaine `sslip.io` proposé par Coolify), puis `https://portail.besoinavocat.ca`. L'enregistrement `portail` est aujourd'hui un A vers MochaHost (`209.42.24.127`, la v1 bloquée); le passer à `31.220.96.134`. |
 | Stockage persistant | un volume monté sur `/data`; ne jamais monter `/app` |
 
 Variables d'environnement (les chemins privés sont déjà fixés dans l'image) :

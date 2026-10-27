@@ -2,7 +2,22 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-020 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-021 ci-dessous priment sur les états historiques qu'elles remplacent.
+
+## D-021 — Vitrine statique dans GitHub, servie par Coolify (27 octobre 2026)
+
+Décision du propriétaire : copier tout le contenu publié de WordPress dans le dépôt (`www/`) et servir besoinavocat.ca depuis son serveur Coolify. Il n'y a plus d'extension, de thème ni de base de données. Cette décision remplace la partie « WordPress reste la vitrine » de D-020. Le questionnaire reste sur le portail Node.
+
+Conditions retenues :
+
+- mêmes adresses et mêmes textes;
+- corrections limitées aux fautes et défauts constatés;
+- aucun texte juridique inventé pour les pages vides;
+- aucun script, témoin ou outil d'analyse;
+- chaque construction est vérifiée;
+- WordPress reste intact chez MochaHost comme retour arrière.
+
+La bascule DNS est faite par le développeur du propriétaire, dans l'ordre de [STOREFRONT](STOREFRONT.md) : courriel détaché d'abord (le MX pointe sur le domaine), portail, puis vitrine. Le déploiement automatique suit la CI verte sur `main`, comme dans takatak-v1.
 
 ## D-020 — Questionnaire sur le portail Node, WordPress pour le contenu (27 octobre 2026)
 

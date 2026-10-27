@@ -2,6 +2,25 @@
 
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 
+## 27 octobre 2026, suite — vitrine copiée dans GitHub (D-021)
+
+Demande du propriétaire : copier tout le site WordPress dans GitHub, le servir depuis son serveur Coolify, puis faire refaire le DNS par son développeur. Il suit les conventions de takatak-v1 (`docs/COOLIFY_DIRECT_PRODUCTION.md`), lu sans modification.
+
+- **Fait** : `www/` contient les 348 pages, aux mêmes adresses.
+  - « Trouver mon avocat » mène au portail `/demande` avec le domaine présélectionné.
+  - L'accueil, le tableau de bord, le choix des domaines et la page Professionnels sont réécrits proprement, avec leurs textes.
+  - Les quatre pages vides sur WordPress sont publiées honnêtement « en cours de rédaction ».
+  - Les liens cassés sont réparés.
+- **Preuves** :
+  - `check-site` : 350 pages, 0 erreur;
+  - comparaison au site en ligne : 36 741 / 36 835 phrases;
+  - Chromium à 1440 et 375 px : aucun débordement;
+  - image Docker nginx `healthy`, avec en-têtes et redirections contrôlés;
+  - CI verte sur `adde5c2` (six runs, dont « Storefront checks »).
+- **Constat DNS (lecture seule)** : le MX est `0 besoinavocat.ca.` Changer seulement l'enregistrement A couperait le courriel. L'ordre exact est dans [STOREFRONT](STOREFRONT.md) : courriel, portail, vitrine, retour arrière.
+- **Non fait** : aucune application Coolify créée et aucun DNS modifié; l'agent n'a pas accès au serveur. WordPress n'a pas été touché.
+- **À fournir par le propriétaire** : la politique de confidentialité et les conditions des professionnels (BA-032).
+
 ## Reprise du 27 octobre 2026 — contrôle 0.2.1 et correctif 0.2.2 préparé
 
 Contrôles faits le 27 octobre vers 03 h UTC (26 octobre, 23 h, heure de Montréal), sur demande du propriétaire, par lecture seule des services :

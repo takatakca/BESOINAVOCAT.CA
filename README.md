@@ -16,6 +16,9 @@ Conditions commerciales décidées : publication des demandes **toujours gratuit
 
 **WordPress 0.2.1 a été installé avec succès par l'interface WordPress.** La 0.2.0 avait été contrôlée visuellement pour les tarifs 100/300 CAD et les corrections des articles 2186, 4663, 5082 et 5715. La 0.2.1 remet le CTA orange dans le flux normal pour corriger sa superposition aux prix; **le contrôle visuel final du bloc prix reste à faire**. Le parcours de contact (`funnel`) reste désactivé; le backend Node v1 répond toujours avec `identityConfigured: false`, et la v2 reste bloquée par l'antivirus, sans contournement. Le code `5a230e52c758a626f31be24abeef2cce5242b3c1` a ses quatre contrôles CI verts : 133 tests Node, 12 Python et trois suites PHP. Voir les preuves dans [PROJECT_STATUS](docs/PROJECT_STATUS.md).
 
+**27 octobre 2026 — vitrine sans WordPress prête (D-021).** `www/` contient tout le contenu publié de besoinavocat.ca : 348 pages, mêmes adresses. `node www/build.mjs` en fait un site statique, et `www/Dockerfile` le sert sur Coolify. La bascule DNS reste à faire dans l'ordre de [STOREFRONT](docs/STOREFRONT.md) : le courriel d'abord, car le MX pointe sur le domaine. WordPress n'est pas modifié.
+
+- [Vitrine `www/` et bascule DNS](docs/STOREFRONT.md)
 - [État précis et preuves](docs/PROJECT_STATUS.md)
 - [Ordre de reprise du backend](docs/AGENT_HANDOFF.md)
 - [Déploiement et blocage actuel](docs/DEPLOYMENT.md)

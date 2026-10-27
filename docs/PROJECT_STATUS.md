@@ -9,6 +9,7 @@
 | Surface | Fait vérifié | Ce qui reste ouvert |
 |---|---|---|
 | `besoinavocat.ca` | WordPress HTTPS chez MochaHost; installation 0.2.1 réussie par l'interface WP, après contrôle visuel de la 0.2.0; aperçu `tableau-de-bord` conservé | **0.2.2 installée** le 27 oct. : bloc prix non recouvert, CTA 1839 sans saut ni piège clavier sur l'accueil, contrôle officiel 24/24. Parcours « Trouver mon avocat » en boucle sans formulaire ([inventaire](WORDPRESS_CTA_INVENTORY.md)); funnel désactivé |
+| `www/` (future vitrine) | **Copie complète du site WordPress dans GitHub**, le 27 oct. : 348 pages, mêmes adresses, aucun script. Contrôle 0 erreur; 36 741 / 36 835 phrases en ligne retrouvées; image nginx testée; CI « Storefront checks » verte sur `adde5c2` ([STOREFRONT](STOREFRONT.md)) | Pas encore servie. Application Coolify et bascule DNS par le développeur du propriétaire, courriel détaché d'abord. Politique de confidentialité à rédiger |
 | `portail.besoinavocat.ca` | Première version technique Node/Passenger joignable; contrôle HTTP courant health 200 (`mode: pilot`, `identityConfigured: false`), dossiers anonymes 401 | Archive v2 avec connexion/corpus refusée par antivirus; pas de connexion utilisateur réelle ni de corpus distant actif validé |
 | `besoinavocat.onrender.com` | Site d'orientation statique distinct, service Render actif sur `main` | Ne fournit pas le backend ni les dossiers; ne pas déplacer le domaine WordPress vers Render |
 

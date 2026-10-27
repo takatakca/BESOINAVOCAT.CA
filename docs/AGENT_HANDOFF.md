@@ -23,7 +23,7 @@ Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md
 
 ### Prochaine action exacte
 
-1. Lire la note de reprise et vérifier l'état courant du code sans remplacer les travaux d'autres agents. Contrôler visuellement le bloc prix 0.2.1 installé, en conservant le funnel désactivé. Les tests de code ne prouvent pas le circuit de réception réel.
+1. Lire la note de reprise, dont la section du 27 octobre, et vérifier l'état courant du code sans remplacer les travaux d'autres agents. Le bloc prix 0.2.1 a été contrôlé; si le propriétaire a installé la 0.2.2, lancer `node scripts/wordpress-cta-qa.mjs` et consigner le résultat (version servie 0.2.2, tous contrôles réussis). Funnel toujours désactivé. Les tests de code ne prouvent pas le circuit de réception réel.
 2. Obtenir la résolution documentée du refus antivirus sur le paquet exact. Ne pas désactiver la protection, changer de format pour l'esquiver ou installer autrement un paquet refusé.
 3. Après résolution, installer le code validé en conservant la version précédente. Relire manifeste/SHA et configuration privée, puis vérifier health, assets, HTTPS, refus anonymes et inaccessibilité des fichiers privés.
 4. Faire connecter le propriétaire avec son compte TAKATAK existant. Ne pas conserver ni afficher son mot de passe, cookie ou jeton; ne pas déduire des permissions de son email. Vérifier les grants et l'accès réellement autorisé.

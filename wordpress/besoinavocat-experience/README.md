@@ -2,7 +2,9 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](../../docs/REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-La **0.2.1 a été installée avec succès via l'interface WordPress**. La 0.2.0 avait été contrôlée visuellement pour les prix 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 remet le CTA orange dans le flux normal pour corriger sa superposition aux prix; **le contrôle visuel final du bloc prix reste à faire**. Le funnel reste **désactivé**. Le plugin ne remplace ni le thème, ni Elementor, ni les 347 pages publiées.
+La **0.2.1 a été installée avec succès via l'interface WordPress**. La 0.2.0 avait été contrôlée visuellement pour les prix 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 remet le CTA orange dans le flux normal pour corriger sa superposition aux prix; ce bloc prix a été contrôlé sur le site réel le 27 octobre 2026, sans recouvrement de 320 à 1440 px.
+
+**0.2.2 — préparée, pas encore installée.** Le CTA Elementor 1839 de l'accueil conservait son comportement modal : à l'ouverture (30 % de défilement), le focus sur son bouton faisait sauter la page jusqu'au pied de page, Tab/Maj+Tab restaient bloqués sur ce bouton et `aria-modal` restait présent. `assets/experience.js` neutralise ces seuls comportements pour ce popup; contenu, lien `/demande` et position inchangés. Contrôle : `node scripts/wordpress-cta-qa.mjs` depuis la racine du dépôt, après installation et purge des caches. Le funnel reste **désactivé**. Le plugin ne remplace ni le thème, ni Elementor, ni les 347 pages publiées.
 
 CI du code `5a230e52c758a626f31be24abeef2cce5242b3c1` entièrement verte : 133 tests Node, 12 Python et trois suites PHP; [preuves](../../docs/PROJECT_STATUS.md). Le backend v1 reste à `identityConfigured: false`, v2 refusée par l'antivirus, sans contournement. Cette installation WordPress ne valide aucun accès aux dossiers.
 
@@ -48,10 +50,10 @@ Ces références documentent les sélecteurs et destinations ; elles ne valident
 Depuis PowerShell :
 
 ```powershell
-./build-plugin.ps1 -Destination 'CHEMIN-ABSOLU/besoinavocat-experience-0.2.0.zip'
+./build-plugin.ps1 -Destination 'CHEMIN-ABSOLU/besoinavocat-experience-0.2.2.zip'
 ```
 
-L'exemple de construction 0.2.0 ci-dessus est historique. Le script refuse d’écraser un fichier, ne déploie rien et n’inclut que PHP, CSS, JS et ce document sous le répertoire attendu. Aucun PHP CLI n'était disponible localement; les trois suites PHP ont depuis réussi en CI. Les contrôles du code ne dispensent pas de vérifier visuellement la version réellement installée.
+Le ZIP 0.2.2 a été produit sans PowerShell, avec la même liste de fichiers et les mêmes chemins d'entrée; son empreinte figure dans `docs/WORDPRESS_QA.md`. Le script refuse d’écraser un fichier, ne déploie rien et n’inclut que PHP, CSS, JS et ce document sous le répertoire attendu. Aucun PHP CLI n'était disponible localement; les trois suites PHP ont depuis réussi en CI. Les contrôles du code ne dispensent pas de vérifier visuellement la version réellement installée.
 
 ## Contrôle ciblé
 

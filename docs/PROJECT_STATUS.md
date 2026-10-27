@@ -1,6 +1,6 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
-**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md)**, dont la section du 27 octobre.
 
 **Priorité : rendre l'accès personnel au backend réellement utilisable avant de poursuivre la vitrine.** État documentaire vérifié le 26 octobre 2026; aucun nouveau déploiement réalisé par cette mise à jour.
 
@@ -8,7 +8,7 @@
 
 | Surface | Fait vérifié | Ce qui reste ouvert |
 |---|---|---|
-| `besoinavocat.ca` | WordPress HTTPS chez MochaHost; installation 0.2.1 réussie par l'interface WP, après contrôle visuel de la 0.2.0; aperçu `tableau-de-bord` conservé | Contrôle visuel final du bloc prix 0.2.1 à faire; funnel désactivé |
+| `besoinavocat.ca` | WordPress HTTPS chez MochaHost; installation 0.2.1 réussie par l'interface WP, après contrôle visuel de la 0.2.0; aperçu `tableau-de-bord` conservé | Bloc prix 0.2.1 contrôlé le 27 oct. (non recouvert). Correctif 0.2.2 du CTA 1839 (saut de page, piège clavier) préparé, **à installer** puis contrôler; funnel désactivé |
 | `portail.besoinavocat.ca` | Première version technique Node/Passenger joignable; contrôle HTTP courant health 200 (`mode: pilot`, `identityConfigured: false`), dossiers anonymes 401 | Archive v2 avec connexion/corpus refusée par antivirus; pas de connexion utilisateur réelle ni de corpus distant actif validé |
 | `besoinavocat.onrender.com` | Site d'orientation statique distinct, service Render actif sur `main` | Ne fournit pas le backend ni les dossiers; ne pas déplacer le domaine WordPress vers Render |
 
@@ -48,7 +48,7 @@ Ces contrôles ne valident ni une connexion réelle au portail ni le rendu final
 
 L'export WordPress préalable comportait 348 pages, dont 347 publiées; il précède la création de l'aperçu. La sauvegarde privée et l'export restent hors Git. Les corrections ciblées ont porté sur les anciennes marques d'opérateur et des promesses promotionnelles injustifiées, sans supprimer les articles, URL ou informations documentaires. Les noms de cabinets cités à titre éditorial ne deviennent pas des partenaires.
 
-Historiquement, le plugin 0.1.2 et la page 5820 avaient été contrôlés sur ordinateur, avec trois lint PHP et `check-render.php` réussis. La 0.2.0 a ensuite été installée et contrôlée visuellement : tarifs 100/300 CAD et corrections des articles 2186, 4663, 5082 et 5715. **La 0.2.1 est maintenant installée avec succès par l'interface WP**; elle remet le CTA orange dans le flux normal pour corriger sa superposition aux prix. **Le contrôle visuel final de ce bloc prix reste à faire.** Le funnel reste désactivé. Les contrôles mobiles, clavier et FR/EN ne sont pas déduits des tests CI. Téléphone de contact : **514-825-2825**, sans service automatisé activé. Yan Romanowski est le seul partenaire déclaré par le propriétaire; cette déclaration n'est pas une vérification professionnelle indépendante.
+Historiquement, le plugin 0.1.2 et la page 5820 avaient été contrôlés sur ordinateur, avec trois lint PHP et `check-render.php` réussis. La 0.2.0 a ensuite été installée et contrôlée visuellement : tarifs 100/300 CAD et corrections des articles 2186, 4663, 5082 et 5715. **La 0.2.1 est maintenant installée avec succès par l'interface WP**; elle remet le CTA orange dans le flux normal pour corriger sa superposition aux prix. Le bloc prix a été contrôlé sur le site réel le 27 octobre : non recouvert de 320 à 1440 px. Le CTA 1839 provoque en revanche un saut en fin de page et un piège clavier; le correctif 0.2.2 est préparé et vérifié par injection, pas installé ([WORDPRESS_QA](WORDPRESS_QA.md)). Le funnel reste désactivé. Les contrôles mobiles, clavier et FR/EN ne sont pas déduits des tests CI. Téléphone de contact : **514-825-2825**, sans service automatisé activé. Yan Romanowski est le seul partenaire déclaré par le propriétaire; cette déclaration n'est pas une vérification professionnelle indépendante.
 
 ## Conditions commerciales et limites
 

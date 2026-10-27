@@ -2,7 +2,30 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-## État actuel — 0.2.1 installée, contrôle final ouvert
+## Contrôle du 27 octobre 2026 — 0.2.1 réelle, 0.2.2 préparée
+
+Contrôle Chromium du site réel, lecture seule, vers 03 h UTC :
+
+| Contrôle | 0.2.1 installée | 0.2.2 injectée dans le navigateur de test |
+|---|---|---|
+| Version servie | 0.2.1 | 0.2.1 sur le serveur; seul `experience.js` remplacé localement |
+| Prix 100 $ CA / 300 $ CA / crédits IA, 1440-1265-768-375-320 px | lisibles, non recouverts, sans débordement horizontal | identique |
+| Ouverture du CTA 1839 à 30 % de défilement | **saut en fin de page** : 2 750 → 9 433 px (1440), 5 000 → 16 613 px (375) | aucune variation : 2 752 → 2 752 et 5 000 → 5 000 px |
+| Focus à l'ouverture | déplacé sur « Trouver mon avocat » | inchangé |
+| Tab / Maj+Tab depuis le bouton | **bloqués sur le bouton** (Échap et fermeture désactivés) | quittent le bouton normalement |
+| `aria-modal` sur le conteneur dans le flux | `true` | retiré |
+| Lien du CTA | `https://besoinavocat.ca/demande` | identique |
+| Erreurs JavaScript | aucune | aucune |
+
+Cause, lue dans Elementor Pro 3.32.1 : `showModal` appelle `handleKeyboardA11y`, qui fait `focus()` sur le premier élément après 250 ms et ajoute un gestionnaire `keydown` sur `window` qui reboucle Tab sur le premier/dernier élément. Le correctif 0.2.2 rend `focus()` inopérant pour les éléments de ce popup seulement, arrête la propagation de Tab vers ce gestionnaire quand le focus est dans le popup, et retire `aria-modal` et `tabindex` du conteneur. Aucune autre page ni aucun autre popup n'est visé.
+
+- ZIP : `besoinavocat-experience-0.2.2.zip`, **47 635 octets**, SHA-256 `78e659673ee82efb6ed60d4f5ca8119835bdf33765131457f76737e727eb53ac`. Onze entrées, mêmes fichiers et chemins que `build-plugin.ps1`, relues contre les sources. Produit sous `wordpress/dist/` (ignoré par Git), hors du dépôt public.
+- Contrôles locaux : `php -l` des quatre fichiers PHP et les trois suites `checks/*.php` réussis (PHP 8.3.6 disponible dans cette session); 31 tests Node site/funnel réussis; `node --check` des trois assets.
+- Script reproductible : `node scripts/wordpress-cta-qa.mjs` (10 échecs sur la 0.2.1 installée) et `--inject-experience wordpress/besoinavocat-experience/assets/experience.js` (tous réussis).
+
+**Non fait** : installation de la 0.2.2 (accès administrateur WordPress non disponible dans cette session), purge des caches, contrôle après installation, lecteur d'écran réel. Après installation par le propriétaire, relancer le script sans option : la version servie doit être 0.2.2 et tous les contrôles réussis.
+
+## État au 26 octobre — 0.2.1 installée, contrôle final alors ouvert
 
 **BesoinAvocat — Expérience 0.2.1 a été installé avec succès via l'interface WordPress.** La 0.2.0 avait été contrôlée visuellement pour les tarifs **100 CAD/semaine et 300 CAD/mois** et les corrections des articles **2186, 4663, 5082 et 5715**. Un CTA orange se superposait aux prix; la 0.2.1 le remet dans le flux normal par CSS. **Le contrôle visuel final du bloc prix 0.2.1 RESTE À FAIRE.** Le succès d'installation n'est pas cette validation visuelle.
 

@@ -53,6 +53,37 @@
     document.body.classList.add('ba-experience-ready');
   }
 
+  // Since 0.2.1 the home-page Elementor popup 1839 ("Trouver mon avocat") sits in the
+  // normal flow after the footer. Elementor still runs its modal behaviour on it: it
+  // focuses the button 250 ms after opening, which scrolls the visitor to the end of
+  // the page, its window keydown handler loops Tab on that single button, and the
+  // container keeps aria-modal. Only these modal behaviours are neutralised, for this
+  // popup only; its content and link are unchanged.
+  if (front) {
+    const ctaPopup = '#elementor-popup-modal-1839';
+    window.addEventListener('elementor/popup/show', (event) => {
+      if (String(event.detail && event.detail.id) !== '1839') return;
+      const popup = document.querySelector(ctaPopup);
+      if (!popup) return;
+      // Elementor calls element.focus() from a timer; keyboard navigation does not use it.
+      popup.querySelectorAll('[data-elementor-type="popup"], a[href], button, input, select, textarea, [tabindex]').forEach((element) => {
+        element.focus = () => {};
+      });
+      // Without focusable content Elementor sets tabindex="0" and blocks every Tab key.
+      setTimeout(() => {
+        const wrapper = popup.querySelector('[data-elementor-type="popup"][tabindex="0"]');
+        if (wrapper) wrapper.removeAttribute('tabindex');
+        // In-flow content: not a modal for assistive technology, no empty tab stop.
+        popup.removeAttribute('aria-modal');
+        popup.removeAttribute('tabindex');
+      }, 0);
+    });
+    document.addEventListener('keydown', (event) => {
+      const active = document.activeElement;
+      if (event.key === 'Tab' && active && active.closest && active.closest(ctaPopup)) event.stopPropagation();
+    });
+  }
+
   document.querySelectorAll('.ba-menu-toggle').forEach((button) => {
     const menu = document.getElementById(button.getAttribute('aria-controls'));
     if (!menu) return;

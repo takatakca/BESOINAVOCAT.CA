@@ -2,6 +2,27 @@
 
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 
+## Reprise du 27 octobre 2026 — contrôle 0.2.1 et correctif 0.2.2 préparé
+
+Contrôles faits le 27 octobre vers 03 h UTC (26 octobre, 23 h, heure de Montréal), sur demande du propriétaire, par lecture seule des services :
+
+- GitHub : `main` à `b56d027`, branche au commit documentaire `835c6ee` avant ce lot, PR 1 toujours en brouillon. Quality, Browser QA et Platform (PR et push) verts sur `835c6ee`. Aucune issue ouverte hors PR 1.
+- Portail : `/api/health` 200 avec `identityConfigured:false`; `/api/cases` anonyme 401; `/.env` et `/server.mjs` 404. Render `health.json` 200. **Rien de changé sur l'accès réel.**
+- MochaHost : aucune réponse trouvée dans la boîte Gmail connectée à cette session (recherche MochaHost, Foxhole, Sanesecurity). Cela ne prouve pas l'absence de réponse sur une autre boîte ou par le portail du support. BA-018 reste bloquée.
+
+**Contrôle visuel du bloc prix 0.2.1 fait sur le site réel** (Chromium, 1440, 1265, 768, 375 et 320 px) : version 0.2.1 servie; prix 100 $ CA, 300 $ CA et crédits IA lisibles; aucun élément de la page ne recouvre les prix (seule la bannière cookies, fixe et fermable, peut passer devant); aucun débordement horizontal ni erreur JavaScript.
+
+**Deux défauts constatés sur le CTA orange « Trouver mon avocat » (popup Elementor 1839, lien `/demande`)**, conséquences de sa remise dans le flux par la 0.2.1 :
+
+1. Le popup s'ouvre à 30 % de défilement. Elementor Pro 3.32.1 donne alors le focus au bouton, désormais placé après le pied de page : **la page saute à la fin** (2 750 → 9 433 px sur ordinateur, 5 000 → 16 613 px sur mobile). Le visiteur passe au-delà du bloc prix sans le voir.
+2. **Piège clavier** : Tab et Maj+Tab restent sur ce bouton; Échap et le bouton de fermeture sont désactivés. Le conteneur garde aussi `aria-modal="true"`.
+
+**Correctif 0.2.2 préparé, non installé** : `assets/experience.js` neutralise uniquement ces comportements modaux pour le popup 1839 de l'accueil (pas de focus programmatique, Tab normal, retrait de `aria-modal` et du `tabindex` vide). Contenu, lien et position du CTA inchangés. Vérifié sur le site réel en remplaçant `experience.js` dans le navigateur de test seulement : plus de saut, plus de piège, prix intacts, aucune erreur. Nouveau contrôle reproductible : `node scripts/wordpress-cta-qa.mjs` (10 échecs sur la 0.2.1 installée, tout réussi avec `--inject-experience`). Lint et trois suites PHP réussis localement, 31 tests Node site/funnel réussis.
+
+**Action du propriétaire requise** : installer `besoinavocat-experience-0.2.2.zip` par l'administration WordPress (empreinte dans [WORDPRESS_QA](WORDPRESS_QA.md)), purger les caches SpeedyCache et Elementor, puis relancer `node scripts/wordpress-cta-qa.mjs` sans option : la version servie doit être 0.2.2 et tous les contrôles réussis. Ne pas déclarer le correctif publié avant ce contrôle.
+
+Suite prévue, dans l'ordre du mandat ci-dessous : BA-018 reste bloquée; le lot suivant non bloqué est BA-028 (parcours « Besoin d'un avocat » en étapes et contrat serveur étendu), à développer désactivé par défaut.
+
 ## Priorité et périmètre
 
 Rendre réellement utilisable l'accès personnel au dossier juridique avant d'ajouter des effets à la vitrine. WordPress reste la présentation sur `besoinavocat.ca`; Node.js reste le portail métier distinct sur `portail.besoinavocat.ca`. Réutiliser TAKATAK pour l'identité et Facturations pour la facturation. Ne pas reconstruire ces services ni déplacer WordPress vers Render. Préserver les articles, informations, références, URL, codes et dossiers; seules les marques d'opérateur et recommandations promotionnelles injustifiées sont corrigées.

@@ -52,7 +52,7 @@ test('public versioned catalogue has exact CAD prices, free clients and separate
   assert.equal(result.headers.get('access-control-allow-credentials'), null);
   assert.equal(result.headers.get('cache-control'), 'no-store');
   const value = result.json;
-  assert.equal(value.version, '2026-10-27.1'); assert.equal(value.currency, 'CAD'); assert.equal(value.amountUnit, 'minor');
+  assert.equal(value.version, '2026-10-27.2'); assert.equal(value.currency, 'CAD'); assert.equal(value.amountUnit, 'minor');
   assert.equal(value.purchaseAvailable, false); assert.equal(value.client.amountMinor, 0);
   assert.deepEqual(value.professional.plans.map(item => [item.id,item.amountMinor,item.interval]), [['weekly',10000,'week'],['monthly',30000,'month']]);
   assert.equal(value.professional.subscriptionActive, false);
@@ -61,7 +61,7 @@ test('public versioned catalogue has exact CAD prices, free clients and separate
   for (const group of ['domains','regions','roles']) for (const choice of value.choices[group]) {
     assert.ok(choice.label.fr); assert.ok(choice.label.en);
   }
-  assert.equal(value.choices.domains.length, 8); assert.equal(value.choices.regions.length, 18);
+  assert.equal(value.choices.domains.length, 8); assert.equal(value.choices.regions.length, 19);
   assert.ok(value.intake.consent.text.fr); assert.ok(value.intake.consent.text.en);
   assert.equal(value.intake.request.enabled, false); assert.equal(value.intake.request.consent.version, '2026-10-27.1');
   assert.equal((await f.request('/api/catalog?price=1')).status, 400);
@@ -121,7 +121,7 @@ test('client receipt is emitted only after separate private storage with consent
   const stored = JSON.parse(rows[0].payloadJson); assert.equal(stored.consent,true); assert.equal(stored.consentVersion,'2026-10-26.1');
   assert.equal(stored.name,body.name); assert.equal(stored.phone,body.phone); assert.equal(stored.website,undefined);
   assert.match(rows[0].createdAt,/Z$/u); assert.match(rows[0].consentText,/ni abonnement/u);
-  assert.equal(JSON.parse(rows[0].priceJson).amountMinor,0); assert.equal(rows[0].catalogVersion,'2026-10-27.1');
+  assert.equal(JSON.parse(rows[0].priceJson).amountMinor,0); assert.equal(rows[0].catalogVersion,'2026-10-27.2');
   assert.equal(f.app.store.db.prepare('SELECT COUNT(*) AS n FROM cases').get().n,0);
   assert.equal(f.app.store.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'ba_intake%'").get().n,0);
   const limits = inspect(f.file,'SELECT * FROM ba_intake_limits');
@@ -308,7 +308,7 @@ test('enabled detailed request is received only after storage, with its own cons
   assert.equal(stored.summary, 'Première ligne.\nDeuxième ligne\tavec tabulation.');
   assert.equal(stored.deadline, body.deadline); assert.equal(stored.contactPreference, 'phone'); assert.equal(stored.website, undefined);
   assert.equal(stored.consentVersion, '2026-10-27.1'); assert.match(row.consentText, /summary of my situation/u);
-  assert.equal(JSON.parse(row.priceJson).amountMinor, 0); assert.equal(row.catalogVersion, '2026-10-27.1');
+  assert.equal(JSON.parse(row.priceJson).amountMinor, 0); assert.equal(row.catalogVersion, '2026-10-27.2');
   assert.equal(f.app.store.db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, 0);
 });
 

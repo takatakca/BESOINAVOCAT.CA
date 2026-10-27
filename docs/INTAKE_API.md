@@ -69,7 +69,7 @@ Le nom, l'adresse et le téléphone refusent contrôles et balises. Corps JSON l
 
 Domaines : `family`, `employment`, `housing`, `civil`, `criminal`, `business`, `immigration`, `other`.
 
-Régions : `montreal`, `laval`, `monteregie`, `capitale-nationale`, `outaouais`, `laurentides`, `lanaudiere`, `estrie`, `mauricie`, `chaudiere-appalaches`, `centre-du-quebec`, `saguenay-lac-saint-jean`, `bas-saint-laurent`, `abitibi-temiscamingue`, `cote-nord`, `nord-du-quebec`, `gaspesie-iles-de-la-madeleine`, `outside-quebec`.
+Régions : `montreal`, `laval`, `monteregie`, `capitale-nationale`, `outaouais`, `laurentides`, `lanaudiere`, `estrie`, `mauricie`, `chaudiere-appalaches`, `centre-du-quebec`, `saguenay-lac-saint-jean`, `bas-saint-laurent`, `abitibi-temiscamingue`, `cote-nord`, `nord-du-quebec`, `gaspesie-iles-de-la-madeleine`, `ontario`, `outside-quebec` (autre province ou territoire). Catalogue `2026-10-27.2` depuis l’ajout de l’Ontario.
 
 Après commit SQLite seulement : **201**, JSON exact `{ "reference": "BA-…", "status": "received" }`. La référence suit `^BA-[A-Za-z0-9_-]{24}$`, avec 18 octets aléatoires; elle n'autorise aucune consultation. Une reprise avec la même clé, le même corps normalisé et la même origine retourne le même reçu sans seconde ligne. Un changement de corps ou d'origine avec cette clé renvoie **409**.
 

@@ -1,6 +1,6 @@
 // Prices are an expression of interest, not an activated checkout or contract.
 // Publish a new version when amounts, consent or the selection schema change.
-export const CATALOG_VERSION = '2026-10-27.1';
+export const CATALOG_VERSION = '2026-10-27.2';
 export const CONSENT_VERSION = '2026-10-26.1';
 // Detailed client request (situation, urgency, deadline). Separate consent; disabled unless configured.
 export const REQUEST_CONSENT_VERSION = '2026-10-27.1';
@@ -26,7 +26,8 @@ export const REGIONS = [
   labels('abitibi-temiscamingue', 'Abitibi-Témiscamingue', 'Abitibi-Témiscamingue'),
   labels('cote-nord', 'Côte-Nord', 'Côte-Nord'), labels('nord-du-quebec', 'Nord-du-Québec', 'Nord-du-Québec'),
   labels('gaspesie-iles-de-la-madeleine', 'Gaspésie–Îles-de-la-Madeleine', 'Gaspésie–Îles-de-la-Madeleine'),
-  labels('outside-quebec', 'Hors Québec', 'Outside Québec'),
+  labels('ontario', 'Ontario', 'Ontario'),
+  labels('outside-quebec', 'Autre province ou territoire', 'Other province or territory'),
 ];
 export const STAGES = [
   labels('none', 'Aucune procédure en cours', 'No proceeding under way'),

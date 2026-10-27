@@ -25,7 +25,8 @@
     'abitibi-temiscamingue': ['Abitibi-Témiscamingue', 'Abitibi-Témiscamingue'], 'cote-nord': ['Côte-Nord', 'Côte-Nord'],
     'nord-du-quebec': ['Nord-du-Québec', 'Nord-du-Québec'],
     'gaspesie-iles-de-la-madeleine': ['Gaspésie–Îles-de-la-Madeleine', 'Gaspésie–Îles-de-la-Madeleine'],
-    'outside-quebec': ['Hors Québec', 'Outside Québec']
+    ontario: ['Ontario', 'Ontario'],
+    'outside-quebec': ['Autre province ou territoire', 'Other province or territory']
   };
   const STAGES = {
     none: ['Aucune procédure en cours', 'No proceeding under way'], considering: ['Une procédure est envisagée', 'A proceeding is being considered'],

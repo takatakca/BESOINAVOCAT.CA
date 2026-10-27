@@ -151,7 +151,7 @@ test('the page is static, script-free in markup and served with the strict CSP',
   t.after(async () => { if (app.listening) await new Promise((resolve) => app.close(resolve)); await rm(root, { recursive: true, force: true }); });
   app.listen(0, '127.0.0.1'); await once(app, 'listening');
   const base = `http://127.0.0.1:${app.address().port}`;
-  for (const [route, type] of [['/demande', 'text/html'], ['/demande/', 'text/html'], ['/demande.js', 'text/javascript'], ['/demande.css', 'text/css']]) {
+  for (const [route, type] of [['/demande', 'text/html'], ['/demande/', 'text/html'], ['/demande.js', 'text/javascript'], ['/demande.css', 'text/css'], ['/fonts/inter-latin.woff2', 'font/woff2'], ['/fonts/montserrat-latin.woff2', 'font/woff2'], ['/fonts/jetbrains-mono-latin.woff2', 'font/woff2']]) {
     const response = await fetch(base + route);
     assert.equal(response.status, 200, route);
     assert.match(response.headers.get('content-type'), new RegExp(type));

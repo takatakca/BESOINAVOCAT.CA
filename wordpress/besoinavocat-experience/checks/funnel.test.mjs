@@ -66,8 +66,8 @@ test('staged validation allows exploration without collecting contact details', 
   assert.equal(api.validate(state, 2).field, 'name');
 });
 
-test('choice enums reject arbitrary and inherited properties; catalogue has eight domains and eighteen regions', () => {
-  assert.equal(Object.keys(api.DOMAINS).length, 8); assert.equal(Object.keys(api.REGIONS).length, 18);
+test('choice enums reject arbitrary and inherited properties; catalogue has eight domains and nineteen regions (Ontario included)', () => {
+  assert.equal(Object.keys(api.DOMAINS).length, 8); assert.equal(Object.keys(api.REGIONS).length, 19);
   const state = valid(); state.domain = '__proto__'; assert.equal(api.validate(state).key, 'missingDomain');
   state.domain = 'civil'; state.region = 'constructor'; assert.equal(api.validate(state).key, 'missingRegion');
 });

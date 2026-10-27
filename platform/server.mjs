@@ -30,6 +30,10 @@ const assets = new Map([
   ['/demande/', ['demande.html', 'text/html; charset=utf-8']],
   ['/demande.js', ['demande.js', 'text/javascript; charset=utf-8']],
   ['/demande.css', ['demande.css', 'text/css; charset=utf-8']],
+  // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
+  ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
+  ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
+  ['/fonts/jetbrains-mono-latin.woff2', ['fonts/jetbrains-mono-latin.woff2', 'font/woff2']],
 ]);
 
 function securityHeaders(res) {

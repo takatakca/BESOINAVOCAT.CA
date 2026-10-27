@@ -28,6 +28,10 @@ ALLOWLIST = {
     'public/demande.html': 'platform/public/demande.html',
     'public/demande.js': 'platform/public/demande.js',
     'public/demande.css': 'platform/public/demande.css',
+    'public/fonts/inter-latin.woff2': 'platform/public/fonts/inter-latin.woff2',
+    'public/fonts/montserrat-latin.woff2': 'platform/public/fonts/montserrat-latin.woff2',
+    'public/fonts/jetbrains-mono-latin.woff2': 'platform/public/fonts/jetbrains-mono-latin.woff2',
+    'public/fonts/LICENSE.txt': 'platform/public/fonts/LICENSE.txt',
     'CPANEL-NODE.md': 'docs/CPANEL_NODE.md',
 }
 

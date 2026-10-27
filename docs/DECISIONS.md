@@ -1,6 +1,14 @@
 # DECISIONS — BESOINAVOCAT.CA
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-018 ci-dessous priment sur les états historiques qu'elles remplacent.
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-019 ci-dessous priment sur les états historiques qu'elles remplacent.
+
+## D-019 — Clôturer sans confondre installation et validation (26 octobre 2026)
+
+Le propriétaire termine la session : mettre les notes à jour puis arrêter. WordPress **0.2.1 installé avec succès via l'interface WP**; la 0.2.0 avait été contrôlée visuellement pour les tarifs 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 corrige le CTA orange superposé aux prix par un CSS dans le flux normal; **son contrôle visuel final reste à faire**. Le funnel demeure désactivé.
+
+Le code `5a230e52c758a626f31be24abeef2cce5242b3c1` a ses quatre runs CI verts, 133 tests Node, 12 Python et trois suites PHP (preuves dans [PROJECT_STATUS](PROJECT_STATUS.md)). Cela ne valide ni le rendu final WordPress ni l'accès aux dossiers. Node v1 reste à `identityConfigured: false`; la v2 demeure bloquée par l'antivirus, sans contournement. Aucun nouveau code, commit, push, compte ou déploiement pendant cette clôture documentaire.
 
 ## D-016 — Backend et accès effectif en priorité (26 octobre 2026)
 
@@ -8,7 +16,7 @@ Le propriétaire demande de faire fonctionner son backend et son accès aux doss
 
 Le corpus a été importé et restauré localement avec contrôles; une copie privée de sauvegarde est distante, sans activation dans le portail. Aucune connexion réelle de l'utilisateur ni consultation du corpus en production n'est validée. Ne pas dire que son mot de passe a été configuré. Aucun nouveau compte, permission implicite ou système d'identité parallèle n'est autorisé par cette note.
 
-Les modules de parcours/formulaire `intake` / `funnel` sont en cours localement, non déployés. Leur préparation ne doit pas retarder la résolution du parcours d'accès prioritaire ni être présentée comme une collecte ou soumission fonctionnelle.
+Les modules `intake` / `funnel` sont préparés et testés. Le module WordPress est inclus dans la 0.2.1 installée, mais le funnel reste désactivé et la réception Node non activée. Cette préparation ne doit pas être présentée comme une collecte fonctionnelle ni retarder l'accès prioritaire.
 
 ## D-017 — Prix professionnels et gratuité client (26 octobre 2026)
 
@@ -36,7 +44,7 @@ La première version technique Node 24.22.1/Passenger est désormais créée sur
 
 Conserver les pages, dates et URL WordPress. La sauvegarde privée de base réussie (194 722 770 octets, mode 0600) et l'export WXR (348 pages, dont 347 publiées) sont exclus du dépôt. Les 12 mentions JuriGo corrigées dans 9 pages ont fait l'objet de gardes SHA et d'une transaction; la comparaison des 347 pages publiées confirme la conservation des autres contenus, des dates et URL.
 
-Le nouvel habillage est un plugin distinct. Après l'installation inactive de la 0.1.0 puis l'activation de la 0.1.1, la **0.1.2 est active**, avec empreinte, trois lint PHP et `check-render` vérifiés sur serveur; la page 5820 est publiée comme aperçu. Le chevauchement constaté en 0.1.1 est résolu dans le contrôle à 1 265 px; les autres tailles restent à contrôler. Les états d'installation, d'activation, de contrôle visuel et de publication sont rapportés séparément. Les sauvegardes, secrets, cookies, URL de session et exports privés ne sont jamais ajoutés à Git.
+Le nouvel habillage est un plugin distinct. Historiquement, l'installation inactive de la 0.1.0 a été suivie de la 0.1.1 puis de la **0.1.2**, alors active avec empreinte, trois lint PHP et `check-render` vérifiés sur serveur; la page 5820 a été publiée comme aperçu. Le chevauchement 0.1.1 avait été résolu au contrôle à 1 265 px. **D-019 consigne désormais l'installation 0.2.1.** Les états d'installation, de contrôle visuel et d'activation du funnel restent distincts. Les sauvegardes, secrets, cookies, URL de session et exports privés ne sont jamais ajoutés à Git.
 
 ## D-013 — Partenaire déclaré et affirmations publiques (26 octobre 2026)
 

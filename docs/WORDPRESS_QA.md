@@ -1,6 +1,18 @@
 # Contrôle WordPress — 26 octobre 2026
 
-**Version vérifiée : BesoinAvocat — Expérience 0.1.2, installée et active sur https://besoinavocat.ca.** WordPress sert la vitrine et l'aperçu du tableau de bord; le vrai backend Node et sa connexion TAKATAK ne sont pas déployés par ce plugin.
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+
+## État actuel — 0.2.1 installée, contrôle final ouvert
+
+**BesoinAvocat — Expérience 0.2.1 a été installé avec succès via l'interface WordPress.** La 0.2.0 avait été contrôlée visuellement pour les tarifs **100 CAD/semaine et 300 CAD/mois** et les corrections des articles **2186, 4663, 5082 et 5715**. Un CTA orange se superposait aux prix; la 0.2.1 le remet dans le flux normal par CSS. **Le contrôle visuel final du bloc prix 0.2.1 RESTE À FAIRE.** Le succès d'installation n'est pas cette validation visuelle.
+
+Le **funnel reste désactivé**. WordPress sert la vitrine et l'aperçu; le portail Node v1 répond toujours avec `identityConfigured: false` et la v2 reste bloquée par l'antivirus, sans contournement. Aucun accès réel au corpus, abonnement ou paiement n'est validé.
+
+Le code `5a230e52c758a626f31be24abeef2cce5242b3c1` a ses quatre runs CI verts : Quality 40421216083, Platform PR 40421216013, Browser 40421215940 et Platform push 40421210422. **133 tests Node, 12 Python et trois suites PHP réussis**; liens dans [PROJECT_STATUS](PROJECT_STATUS.md). Browser QA concerne le site Render; les tests de code ne couvrent pas le rendu réel du bloc prix WordPress.
+
+## Historique conservé — contrôle de la 0.1.2
+
+La version 0.1.2 était installée et active lors des observations ci-dessous; elle a été remplacée depuis. Ses preuves de paquet, dimensions et contrôle serveur ne sont pas attribuées à la 0.2.1.
 
 Les observations de serveur et de navigateur ci-dessous proviennent des contrôles directs de l'agent principal. La revue indépendante a porté sur les sources PHP/JS/CSS, le WXR conservé, les limites des transformations et la concordance du ZIP. Elle ne prétend pas avoir reproduit le contrôle visuel dans un second navigateur.
 
@@ -40,4 +52,4 @@ Le ZIP ne contient ni test, export, sauvegarde, dossier juridique, secret ou con
 
 La sauvegarde privée de la base et le WXR précèdent les modifications; leurs détails figurent dans [DEPLOYMENT.md](DEPLOYMENT.md). Les corrections JuriGo en base, les réglages généraux et la création de la page d'aperçu sont des opérations distinctes du plugin. Désactiver celui-ci retire son rendu mais n'annule pas ces opérations en base.
 
-Restent à effectuer : contrôle mobile sur plusieurs largeurs et appareils, lecteur d'écran, revue éditoriale au-delà des expressions ciblées, puis contrôles propres au futur portail Node. Le résultat local des 49 tests Node ne remplace pas ces validations WordPress ou le démarrage Passenger réel. Aucun plugin WordPress de gestion du corpus privé ne doit être installé : la séparation vitrine WordPress/backend Node a été réaffirmée par le propriétaire.
+Restent à effectuer : **contrôle visuel final du bloc prix 0.2.1**, contrôle mobile sur plusieurs largeurs/appareils, lecteur d'écran, revue éditoriale au-delà des expressions ciblées et contrôles du portail Node. Les 49 tests Node de l'étape historique ne décrivent pas la suite actuelle; les 133 tests Node, 12 Python et trois suites PHP réussis ne remplacent pas ces validations réelles. Aucun plugin WordPress de gestion du corpus privé ne doit être installé : la séparation vitrine WordPress/backend Node demeure.

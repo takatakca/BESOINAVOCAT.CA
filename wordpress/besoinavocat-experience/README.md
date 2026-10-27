@@ -1,8 +1,12 @@
 # BesoinAvocat — Expérience WordPress
 
-La version **0.1.2 est active** sur WordPress. La **0.2.0 préparée dans cette branche n’est pas déployée**. Elle ne remplace ni le thème, ni Elementor, ni les 347 pages publiées.
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](../../docs/REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-## Périmètre conservé de la version 0.1.2
+La **0.2.1 a été installée avec succès via l'interface WordPress**. La 0.2.0 avait été contrôlée visuellement pour les prix 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 remet le CTA orange dans le flux normal pour corriger sa superposition aux prix; **le contrôle visuel final du bloc prix reste à faire**. Le funnel reste **désactivé**. Le plugin ne remplace ni le thème, ni Elementor, ni les 347 pages publiées.
+
+CI du code `5a230e52c758a626f31be24abeef2cce5242b3c1` entièrement verte : 133 tests Node, 12 Python et trois suites PHP; [preuves](../../docs/PROJECT_STATUS.md). Le backend v1 reste à `identityConfigured: false`, v2 refusée par l'antivirus, sans contournement. Cette installation WordPress ne valide aucun accès aux dossiers.
+
+## Périmètre hérité de la version 0.1.2 — historique conservé
 
 - Habillage complet limité à l’accueil Elementor 13 et à l’aperçu du tableau de bord. Un CSS/JS commun léger ajoute les liens de politiques et le libellé « Espace professionnels » sur les autres pages.
 - Aucun contenu WordPress, donnée Elementor, compte ou option n’est écrit. Les 347 pages et les originaux restent en base et dans l’export conservé par l’opérateur.
@@ -47,7 +51,7 @@ Depuis PowerShell :
 ./build-plugin.ps1 -Destination 'CHEMIN-ABSOLU/besoinavocat-experience-0.2.0.zip'
 ```
 
-Le script refuse d’écraser un fichier. Il ne déploie rien et n’inclut que PHP, CSS, JS et ce document, sous le répertoire racine attendu par WordPress. Tester le PHP dans l’environnement cible avant activation : aucun exécutable PHP local n’était disponible lors de la préparation initiale.
+L'exemple de construction 0.2.0 ci-dessus est historique. Le script refuse d’écraser un fichier, ne déploie rien et n’inclut que PHP, CSS, JS et ce document sous le répertoire attendu. Aucun PHP CLI n'était disponible localement; les trois suites PHP ont depuis réussi en CI. Les contrôles du code ne dispensent pas de vérifier visuellement la version réellement installée.
 
 ## Contrôle ciblé
 
@@ -61,7 +65,7 @@ Le script non empaqueté `checks/check-render.php` peut être lancé avec PHP 7.
 
 - Sur la page professionnelle151 uniquement : six intitulés statistiques exacts deviennent les noms/statuts des offres ; l’introductionf99fdfe est neutralisée et le widget FAQ9f15bdf est remplacé par trois réponses « offres/prix en préparation, aucun abonnement activé ». Le formulaire existant reste hors de ces transformations.
 
-## Préparation 0.2.0 — accès au dossier prioritaire
+## Parcours préparé en 0.2.0, inclus dans la 0.2.1 — désactivé
 
 Les tarifs annoncés sont **100 CAD/semaine ou 300 CAD/mois** pour les avocats. Les crédits IA sont séparés et leur prix reste à définir. Les demandes clients restent gratuites. Aucun abonnement, débit, compte ou habilitation ne résulte de cet affichage.
 
@@ -75,6 +79,6 @@ Les tarifs annoncés sont **100 CAD/semaine ou 300 CAD/mois** pour les avocats. 
 
 **État réel :** le paquet Node v2 demeure refusé par MochaHost. Les nouveaux modules ne changent pas ce statut. Ne pas activer le parcours public pour masquer le blocage de connexion au dossier, ni remplacer le paquet v2 en attente de contrôle par une archive différente. Le formulaire MetForm historique reste à auditer avant le raccordement final pour éviter deux circuits de demandes.
 
-Contrôles : `checks/check-render.php`, `checks/check-funnel.php` et `checks/check-integration.php` vérifient le rendu ciblé, l’échappement, le défaut fermé, l’intégration explicite et la conservation du contenu. Les tests JavaScript du parcours complètent ces contrôles. La CI exécute PHP; l’activation publique nécessite ensuite une vérification visuelle sur le vrai WordPress.
+Contrôles : `checks/check-render.php`, `checks/check-funnel.php` et `checks/check-integration.php` ont réussi en CI pour le rendu ciblé, l’échappement, le défaut fermé, l’intégration explicite et la conservation du contenu. Les 19 tests JavaScript du parcours complètent ces contrôles. L'activation du funnel nécessite encore la validation du backend et du circuit des demandes, puis une vérification sur le vrai WordPress.
 
-Les intitulés et phrases promotionnelles observés dans les articles 2186, 4663, 5009, 5082 et 5715 sont neutralisés au rendu dans la 0.2.0. Les noms cités, informations de fond, liens et références sont conservés; aucune suppression globale de mot-clé n’est appliquée. Voir [INTAKE_QA.md](../../docs/INTAKE_QA.md).
+Les intitulés et phrases promotionnelles ciblés des articles 2186, 4663, 5009, 5082 et 5715 ont été neutralisés au rendu en 0.2.0. Les articles **2186, 4663, 5082 et 5715** ont ensuite été contrôlés visuellement. Les noms cités, informations de fond, liens et références sont conservés; aucune suppression globale de mot-clé n'est appliquée. Voir [INTAKE_QA.md](../../docs/INTAKE_QA.md) et [WORDPRESS_QA.md](../../docs/WORDPRESS_QA.md).

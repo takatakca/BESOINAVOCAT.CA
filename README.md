@@ -1,5 +1,7 @@
 # BESOINAVOCAT.CA
 
+**À lire en premier à la reprise : [REPRISE-SUIVANTE-2026-10-26.md](docs/REPRISE-SUIVANTE-2026-10-26.md).** La session est arrêtée après cette mise à jour des notes.
+
 Site d'orientation juridique généraliste pour le Québec et développement d'un espace client/avocat distinct.
 
 ## Priorité courante — accès réel au backend
@@ -10,7 +12,9 @@ Le pilote `platform/` contient l'identité TAKATAK, les habilitations par organi
 
 Le corpus des trois dossiers a été importé, sauvegardé, vérifié et restauré localement. Une copie de sauvegarde privée a été transférée sur l'hébergement et son empreinte contrôlée; **elle n'est ni restaurée ni activée dans le portail distant**. Aucune connexion réelle de l'utilisateur ni consultation du corpus en production n'a été validée. Aucun mot de passe n'est annoncé comme configuré. Les originaux et le paquet de 312 annexes restent distincts et inchangés.
 
-Conditions commerciales décidées : publication des demandes **toujours gratuite pour les clients**; offre professionnelle **100 CAD par semaine ou 300 CAD par mois**, avec **crédits IA en supplément**. Les honoraires de l'avocat sont distincts. Ces montants sont une décision de produit : aucun abonnement, débit, crédit IA ou paiement n'est activé par leur mention. Les modules de parcours/formulaire (`intake` / `funnel`) sont en cours localement; ils ne sont pas déployés ni validés en production.
+Conditions commerciales décidées : publication des demandes **toujours gratuite pour les clients**; offre professionnelle **100 CAD par semaine ou 300 CAD par mois**, avec **crédits IA en supplément**. Les honoraires de l'avocat sont distincts. Ces montants n'activent aucun abonnement, débit, crédit IA ou paiement.
+
+**WordPress 0.2.1 a été installé avec succès par l'interface WordPress.** La 0.2.0 avait été contrôlée visuellement pour les tarifs 100/300 CAD et les corrections des articles 2186, 4663, 5082 et 5715. La 0.2.1 remet le CTA orange dans le flux normal pour corriger sa superposition aux prix; **le contrôle visuel final du bloc prix reste à faire**. Le parcours de contact (`funnel`) reste désactivé; le backend Node v1 répond toujours avec `identityConfigured: false`, et la v2 reste bloquée par l'antivirus, sans contournement. Le code `5a230e52c758a626f31be24abeef2cce5242b3c1` a ses quatre contrôles CI verts : 133 tests Node, 12 Python et trois suites PHP. Voir les preuves dans [PROJECT_STATUS](docs/PROJECT_STATUS.md).
 
 - [État précis et preuves](docs/PROJECT_STATUS.md)
 - [Ordre de reprise du backend](docs/AGENT_HANDOFF.md)
@@ -88,7 +92,7 @@ Voir [docs/RELEVE.md](docs/RELEVE.md). Le périmètre réel d'une plateforme de 
 
 ## Pilotage et reprise des agents
 
-Lire [AGENTS.md](AGENTS.md) puis [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md),
+Lire d'abord [la note de reprise](docs/REPRISE-SUIVANTE-2026-10-26.md), puis [AGENTS.md](AGENTS.md) et [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md),
 [docs/TASK_QUEUE.md](docs/TASK_QUEUE.md), [docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md),
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) et [docs/DECISIONS.md](docs/DECISIONS.md).
 Ces fichiers distinguent livrables réels, décisions encore nécessaires et tâches futures.

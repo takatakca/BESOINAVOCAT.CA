@@ -1,5 +1,7 @@
 # TASK_QUEUE — BESOINAVOCAT.CA
 
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+
 Ordre actuel demandé par le propriétaire : **backend et accès effectif aux dossiers avant la vitrine**. Les tâches documentaires et de préparation indépendantes peuvent avancer sans contourner un blocage de déploiement.
 
 ## Travail courant
@@ -11,16 +13,16 @@ Ordre actuel demandé par le propriétaire : **backend et accès effectif aux do
 | BA-019 | P0 — code raccordé, parcours réel non testé | Faire utiliser à l'utilisateur son identité TAKATAK existante; vérifier sa session et ses grants BesoinAvocat. Aucun mot de passe déclaré configuré, aucune permission nouvelle implicite. |
 | BA-017 | P0 — import/restauration locaux vérifiés | La sauvegarde privée distante est une copie seulement. Après contrôles d'accès, restaurer dans une nouvelle destination privée, vérifier les empreintes et basculer sans écraser une base active. |
 | BA-020 | P0 — preuve de fonctionnement réel requise | Vérifier les trois dossiers du propriétaire, recherche/citations, pièces téléchargées, refus inter-dossiers/organisations, déconnexion et absence de fichiers privés exposés. Distinguer essais locaux et résultats distants. |
-| BA-015 | code au SHA ee27831 contrôlé par CI | API, provenance/versions, recherche par page, échanges, temps soumis à validation et audit. Ne pas présenter ces fonctions comme actives avec le corpus réel tant que le parcours P0 n'est pas vérifié. |
+| BA-015 | code au SHA 5a230e5 contrôlé par CI | 133 tests Node, 12 Python et trois suites PHP réussis. API, provenance/versions, recherche par page, échanges, temps soumis à validation et audit restent distincts d'un accès distant réellement validé. |
 | BA-016 | après accès réel | Raccorder le lien WordPress vers le vrai portail vérifié; distinguer clairement l'aperçu fictif existant de l'application authentifiée. |
-| BA-026 | préparation locale en cours | Modules de parcours/formulaire `intake` / `funnel`, présentation interactive FR/EN; aucun déploiement, collecte réelle ou succès de formulaire confirmé par cette note. Contrôler champs, messages, consentements, langues et destinations réelles. |
-| BA-024 | 0.1.2 active; évolution après priorité backend | Préserver pages, articles, informations et URL. Améliorer WordPress FR/EN/mobile/clavier; retirer seulement anciennes marques d'opérateur ou affiliations promotionnelles injustifiées. |
+| BA-026 | module WP installé, funnel désactivé | Code `intake` / `funnel` testé; réception Node non activée. Aucun envoi réel ou succès de formulaire confirmé. Garder le funnel fermé avant validation du backend, du circuit des demandes et des contrôles FR/EN/clavier. |
+| BA-024 | 0.2.1 installée; contrôle visuel final ouvert | Vérifier à la reprise le bloc prix et le CTA orange remis dans le flux normal. La 0.2.0 avait été contrôlée pour les tarifs 100/300 et les articles 2186/4663/5082/5715. Préserver pages, articles, informations et URL. |
 | BA-027 | conditions de produit décidées, facturation inactive | Présenter **100 CAD/semaine ou 300 CAD/mois** pour les avocats, **crédits IA en supplément**, demandes clients toujours gratuites, honoraires distincts. Vérifier l'affichage et le parcours avant toute souscription; aucun paiement activé par la seule copie. |
 | BA-021 | raccordements futurs | IA sourcée, crédits et voix : services, budgets, consentements et événements réels à raccorder puis tester; ne pas simuler leur activation. |
 | BA-022 | futur parcours distinct | Collaboration sur fichiers expressément choisis; aucun accès permanent au disque. |
 | BA-023 | acquis, conserver | Sauvegarde privée WordPress et export; corrections ciblées avec dates/URL préservées. Ne pas reprendre une extraction ou réécriture complète sans nouvel objectif. |
 
-Le workflow Platform au SHA `ee27831` est réussi, dont les contrôles PHP et de restauration. Les travaux locaux ultérieurs demandent leurs propres contrôles. Aucun déploiement, changement de compte ou permission nouvelle n'est effectué par cette mise à jour.
+Les quatre runs CI du code `5a230e52c758a626f31be24abeef2cce5242b3c1` sont verts; liens dans [PROJECT_STATUS](PROJECT_STATUS.md). Ils ne remplacent pas le contrôle visuel final WordPress ni l'accès distant. Aucun déploiement, compte ou permission n'est modifié par cette mise à jour des notes.
 
 ## Historique du site d'orientation
 
@@ -44,6 +46,6 @@ Le workflow Platform au SHA `ee27831` est réussi, dont les contrôles PHP et de
 
 Les lignes historiques décrivent le site d'orientation. Les décisions de prix et la priorité backend ci-dessus priment sur les anciennes mentions « à définir ». La partie humaine accessibilité demeure ouverte; aucune plateforme complète ni réseau professionnel vérifié n'est annoncé.
 
-## Lot local contact et WordPress 0.2.0
+## Clôture du lot contact et WordPress 0.2.1
 
-Catalogue et réception privée, parcours FR/EN, tarifs 100 CAD/semaine ou 300 CAD/mois et corrections éditoriales ciblées préparés; 133 tests Node et 12 tests Python réussis. Aucun déploiement ni nouvel accès réel. PHP et contrôle visuel WordPress à confirmer avant publication. Voir [INTAKE_QA.md](INTAKE_QA.md) et [INTAKE_API.md](INTAKE_API.md). Les états du contrôle Git préalable ci-dessus ne décrivent pas le nouveau commit de ce lot.
+WordPress 0.2.1 installé; funnel désactivé. Reprendre le contrôle visuel final du bloc prix puis la priorité backend : v1 `identityConfigured: false`, v2 bloquée par antivirus, sans contournement. Les trois suites PHP de la CI sont réussies; aucun accès réel au corpus n'est validé. Voir [INTAKE_QA.md](INTAKE_QA.md).

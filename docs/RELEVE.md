@@ -1,6 +1,6 @@
 # Relève — BESOINAVOCAT.CA
 
-État de reprise du 26 octobre 2026. Lire [AGENTS.md](../AGENTS.md), [AGENT_HANDOFF](AGENT_HANDOFF.md), [PROJECT_STATUS](PROJECT_STATUS.md) et [TASK_QUEUE](TASK_QUEUE.md).
+État de fin de session du 26 octobre 2026 : notes seulement, puis arrêt. **Lire en premier [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md)**, puis [AGENTS.md](../AGENTS.md), [AGENT_HANDOFF](AGENT_HANDOFF.md), [PROJECT_STATUS](PROJECT_STATUS.md) et [TASK_QUEUE](TASK_QUEUE.md).
 
 ## Priorité du propriétaire
 
@@ -8,9 +8,9 @@
 
 ## État réellement acquis
 
-- Branche locale/distante contrôlée : `codex/espace-client-avocat` à `ee278313707bbec608c15df11e402decce66f7ee`. `main` reste à `b56d027c4172ddde5e362497731ac1ae80805fe0`; trois commits d'avance, aucun retard. [PR 1](https://github.com/takatakca/BESOINAVOCAT.CA/pull/1) en brouillon.
-- CI Quality, Browser et Platform réussie au SHA `ee27831`; aucune extension de cette preuve aux modifications locales ultérieures. Les anciens comptes de tests décrivent des étapes antérieures.
-- WordPress 0.1.2 actif avec aperçu publié et contrôles ordinateur consignés. Articles, informations, URL et sauvegardes préservés; les contrôles mobiles/nouveaux parcours FR/EN restent à réaliser sur leur version livrée.
+- Code CI `5a230e52c758a626f31be24abeef2cce5242b3c1` : quatre runs verts, 133 tests Node, 12 Python et trois suites PHP; liens dans [PROJECT_STATUS](PROJECT_STATUS.md).
+- Les anciens pointeurs `codex/espace-client-avocat` à `ee27831` et `main` à `b56d027` sont conservés comme historique du contrôle précédent, pas comme état courant du nouveau code.
+- **WordPress 0.2.1 installé avec succès via l'interface WP.** La 0.2.0 avait été contrôlée visuellement pour les prix 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 remet le CTA orange dans le flux normal; **contrôle visuel final du bloc prix à faire**. Funnel désactivé. Articles, informations, URL et sauvegardes conservés.
 - Portail Node technique créé chez MochaHost sous Passenger/Node 24.22.1. Le contrôle HTTP courant confirme health 200 (`mode: pilot`, `identityConfigured: false`) et dossiers anonymes 401. **La v2 connexion/corpus n'est pas installée : archive refusée par l'antivirus MochaHost.**
 - Corpus importé localement, sauvegarde vérifiée puis restaurée localement; copie privée distante avec empreinte concordante. **Aucune restauration ni activation du corpus dans le portail distant.** Originaux et paquet de 312 annexes inchangés.
 - Configuration privée préparée, mais **aucun test réel de connexion utilisateur ou de consultation du corpus en production**. Ne pas annoncer que son mot de passe a été configuré.
@@ -20,7 +20,7 @@
 
 Obtenir l'analyse du paquet v2 exact refusé par MochaHost, sans contourner l'antivirus. Après résolution documentée : installer la version validée, contrôler les protections, faire utiliser l'identité TAKATAK existante, restaurer le corpus en destination privée contrôlée puis vérifier les trois dossiers, pièces, citations et déconnexion. Raccorder ensuite la vitrine au portail réellement utilisable. Les détails et preuves sont dans [DEPLOYMENT](DEPLOYMENT.md) et [CPANEL_NODE](CPANEL_NODE.md).
 
-Les modules de parcours/formulaire `intake` / `funnel` sont **en cours localement, non déployés**. Aucun formulaire, paiement ou accès ne doit annoncer un succès qui n'a pas eu lieu. Pas de nouvelle permission ni autorité de mots de passe parallèle.
+Le module WordPress `funnel` est installé mais **désactivé**; la réception Node n'est pas activée. Le contrôle visuel final des prix 0.2.1 reste à reprendre. Aucun formulaire, paiement ou accès ne doit annoncer un succès qui n'a pas eu lieu. Pas de nouvelle permission ni autorité de mots de passe parallèle.
 
 ## Conditions de produit
 
@@ -30,6 +30,6 @@ Préserver informations, articles, originaux, preuves contraires, URL et codes; 
 
 Aucun Git, déploiement, compte, mot de passe ou état du dossier juridique n'a été modifié par cette mise à jour des documents.
 
-## Lot local contact et WordPress 0.2.0
+## Clôture du lot contact et WordPress 0.2.1
 
-Catalogue et réception privée, parcours FR/EN, tarifs 100 CAD/semaine ou 300 CAD/mois et corrections éditoriales ciblées préparés; 133 tests Node et 12 tests Python réussis. Aucun déploiement ni nouvel accès réel. PHP et contrôle visuel WordPress à confirmer avant publication. Voir [INTAKE_QA.md](INTAKE_QA.md) et [INTAKE_API.md](INTAKE_API.md). Les états du contrôle Git préalable ci-dessus ne décrivent pas le nouveau commit de ce lot.
+Installation WordPress réussie et CI du code verte, y compris PHP; contrôle visuel final 0.2.1 ouvert. Node v1 reste à `identityConfigured: false`, v2 bloquée par l'antivirus, sans contournement. Aucun accès réel au corpus validé. Voir [INTAKE_QA.md](INTAKE_QA.md) et [WORDPRESS_QA.md](WORDPRESS_QA.md).

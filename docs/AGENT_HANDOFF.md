@@ -1,15 +1,17 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** L'utilisateur termine la session : cette passe ne modifie que les notes, puis s'arrête.
+
 ## Reprise courante — 26 octobre 2026
 
 **Faire fonctionner le backend et l'accès du propriétaire avant de poursuivre la vitrine.** Préserver le travail existant : WordPress sur besoinavocat.ca, portail Node distinct sur portail.besoinavocat.ca, orientation Render sur besoinavocat.onrender.com. Ne pas reconstruire l'application ou déplacer WordPress vers Render.
 
 ### État de référence vérifié
 
-- Dépôt `takatakca/BESOINAVOCAT.CA`; `main` à `b56d027c4172ddde5e362497731ac1ae80805fe0`; branche locale/distante `codex/espace-client-avocat` à `ee278313707bbec608c15df11e402decce66f7ee` lors du contrôle. Trois commits d'avance, aucun retard, `site/` inchangé. [PR 1](https://github.com/takatakca/BESOINAVOCAT.CA/pull/1) en brouillon.
-- Les contrôles GitHub Quality, Browser QA et Platform passent pour `ee27831`. Ils ne valident pas les modifications locales suivantes ni une connexion utilisateur distante.
+- Code de référence CI : `5a230e52c758a626f31be24abeef2cce5242b3c1`; Quality 40421216083, Platform PR 40421216013, Browser 40421215940 et Platform push 40421210422 verts. 133 tests Node, 12 Python et trois suites PHP réussis; liens dans [PROJECT_STATUS](PROJECT_STATUS.md).
+- Historique Git préalable conservé : `main` était à `b56d027c4172ddde5e362497731ac1ae80805fe0` et `codex/espace-client-avocat` à `ee278313707bbec608c15df11e402decce66f7ee`, trois commits d'avance, sans retard, avec [PR 1](https://github.com/takatakca/BESOINAVOCAT.CA/pull/1) en brouillon. Ces anciens pointeurs ne décrivent pas le nouveau code CI; relire l'état courant à la reprise.
 - Render réel : service `srv-db7srnmi0phs73ahkue0`, dernier déploiement `dep-db8qsb6k1f9s73epefs0` live au SHA de `main`, publication de `site/`, autoDeploy actif. Le smoke du 26 octobre réussit.
-- WordPress : plugin d'habillage 0.1.2 actif, aperçu `tableau-de-bord` publié; contenus/URL conservés. QA ordinateur obtenue; nouveaux parcours FR/EN/mobile restant à contrôler. Le téléphone 514-825-2825 est un contact, pas une voix automatisée.
+- WordPress : **0.2.1 installée avec succès via l'interface WP**. La 0.2.0 avait été contrôlée visuellement pour les tarifs 100/300 CAD et les articles 2186/4663/5082/5715. La 0.2.1 corrige la superposition du CTA orange aux prix par un CSS dans le flux normal; **contrôle visuel final du bloc prix à faire**. Funnel désactivé; aperçu et contenus/URL conservés. Le téléphone 514-825-2825 est un contact, pas une voix automatisée.
 - **Portail Node créé** chez MochaHost, Node 24.22.1/Passenger/HTTPS. Le recontrôle HTTP courant obtient health 200 (`mode: pilot`, `identityConfigured: false`) et dossiers anonymes 401. Les anciens contrôles `/.env` et `/server.mjs` étaient 404. Cela ne prouve pas l'exploitation des dossiers réels.
 - **V2 connexion/corpus non installée** : archive refusée avec `Sanesecurity.Foxhole.JS_Zip_11.UNOFFICIAL FOUND`. SHA exact `6593ad7db2028e63f22809a1d23f1334d1fb3c3f4283786730738c2e9923c71c`. Aucun contournement ou validation de l'hébergeur n'est constaté dans les preuves lues; la recherche courriel ciblée n'a pas retrouvé de réponse concernant l'archive.
 - Corpus des trois dossiers importé localement; sauvegarde vérifiée et restaurée localement. Copie de sauvegarde privée distante reçue avec empreinte concordante, **sans restauration/activation distante**. Les originaux et 312 annexes restent inchangés.
@@ -17,11 +19,11 @@
 
 ### Sources à lire avant action
 
-`docs/PROJECT_STATUS.md`, `docs/TASK_QUEUE.md`, `docs/DEPLOYMENT.md`, `docs/CPANEL_NODE.md`, `docs/BROWSER_AUTH.md`, `docs/PLATFORM_QA.md` et `docs/DECISIONS.md`. Dans l'espace de travail privé autorisé, le reçu `scripts/.build-livrables/node-portal-2026-10-26/ETAT-PORTAIL-2026-10-26.md` du dossier maître détaille le refus MochaHost, l'import local, la copie distante et les contrôles HTTPS. Il n'est pas un fichier du dépôt public; ne pas y copier ses sauvegardes, grants, clés ou pièces.
+Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md`, `docs/TASK_QUEUE.md`, `docs/DEPLOYMENT.md`, `docs/CPANEL_NODE.md`, `docs/BROWSER_AUTH.md`, `docs/PLATFORM_QA.md` et `docs/DECISIONS.md`. Dans l'espace de travail privé autorisé, le reçu `scripts/.build-livrables/node-portal-2026-10-26/ETAT-PORTAIL-2026-10-26.md` détaille le refus MochaHost, l'import local, la copie distante et les contrôles HTTPS. Il n'est pas un fichier du dépôt public; ne pas y copier ses sauvegardes, grants, clés ou pièces.
 
 ### Prochaine action exacte
 
-1. Vérifier l'état courant de Git et les travaux des autres agents; aucun remplacement de leurs modifications. Les modules locaux `intake` / `funnel` sont préparés et testés localement, non déployés et non validés en production.
+1. Lire la note de reprise et vérifier l'état courant du code sans remplacer les travaux d'autres agents. Contrôler visuellement le bloc prix 0.2.1 installé, en conservant le funnel désactivé. Les tests de code ne prouvent pas le circuit de réception réel.
 2. Obtenir la résolution documentée du refus antivirus sur le paquet exact. Ne pas désactiver la protection, changer de format pour l'esquiver ou installer autrement un paquet refusé.
 3. Après résolution, installer le code validé en conservant la version précédente. Relire manifeste/SHA et configuration privée, puis vérifier health, assets, HTTPS, refus anonymes et inaccessibilité des fichiers privés.
 4. Faire connecter le propriétaire avec son compte TAKATAK existant. Ne pas conserver ni afficher son mot de passe, cookie ou jeton; ne pas déduire des permissions de son email. Vérifier les grants et l'accès réellement autorisé.
@@ -36,7 +38,7 @@ Préserver originaux, preuves contraires, articles, informations documentaires, 
 
 ### Contrôles de livraison
 
-Suivre AGENTS.md et les tests des fichiers réellement modifiés. La CI au SHA `ee27831` couvre les contrôles du site, du pilote, du PHP WordPress, des paquets et de la sauvegarde/restauration; consulter les résultats sans attribuer leurs réussites à des modifications ultérieures. Les anciens comptes de 49 tests et le stade « import préparatoire seulement » précèdent cette version. Les résultats locaux ne remplacent pas les essais réels d'accès distant.
+Suivre AGENTS.md et les tests des fichiers réellement modifiés. La CI au SHA `5a230e52c758a626f31be24abeef2cce5242b3c1` est verte : 133 tests Node, 12 Python et trois suites PHP. Elle ne remplace pas le contrôle visuel final des prix 0.2.1, les essais du funnel désactivé ou l'accès distant réel. Les anciens comptes de 49 tests et le stade « import préparatoire seulement » sont historiques.
 
 Aucun Git, déploiement, envoi, compte, mot de passe ou nouvelle permission n'a été modifié par cette reprise documentaire.
 
@@ -84,6 +86,6 @@ Les instructions et statuts ci-dessous décrivent l'ancienne livraison d'orienta
 4. Instruction historique annulée le 26 octobre : ne pas raccorder `besoinavocat.ca` à Render; suivre la reprise courante pour le portail distinct.
 5. Conserver en attente BA-009/BA-010 avant de commencer annuaire, comptes ou dossiers juridiques.
 
-## Lot local contact et WordPress 0.2.0
+## Clôture du lot contact et WordPress 0.2.1
 
-Catalogue et réception privée, parcours FR/EN, tarifs 100 CAD/semaine ou 300 CAD/mois et corrections éditoriales ciblées préparés; 133 tests Node et 12 tests Python réussis. Aucun déploiement ni nouvel accès réel. PHP et contrôle visuel WordPress à confirmer avant publication. Voir [INTAKE_QA.md](INTAKE_QA.md) et [INTAKE_API.md](INTAKE_API.md). Les états du contrôle Git préalable ci-dessus ne décrivent pas le nouveau commit de ce lot.
+WordPress 0.2.1 installé avec succès; contrôle visuel final du bloc prix ouvert et funnel désactivé. Backend v1 à `identityConfigured: false`; v2 bloquée par l'antivirus, sans contournement. Aucun accès réel au corpus validé. Voir [INTAKE_QA.md](INTAKE_QA.md) et [WORDPRESS_QA.md](WORDPRESS_QA.md).

@@ -1,12 +1,14 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+
 **Priorité : rendre l'accès personnel au backend réellement utilisable avant de poursuivre la vitrine.** État documentaire vérifié le 26 octobre 2026; aucun nouveau déploiement réalisé par cette mise à jour.
 
 ## État des trois surfaces
 
 | Surface | Fait vérifié | Ce qui reste ouvert |
 |---|---|---|
-| `besoinavocat.ca` | WordPress HTTPS chez MochaHost; plugin d'habillage 0.1.2 actif et page `tableau-de-bord` publiée comme aperçu | Nouvelle présentation FR/EN et parcours de formulaires en travail local; aucune activation annoncée |
+| `besoinavocat.ca` | WordPress HTTPS chez MochaHost; installation 0.2.1 réussie par l'interface WP, après contrôle visuel de la 0.2.0; aperçu `tableau-de-bord` conservé | Contrôle visuel final du bloc prix 0.2.1 à faire; funnel désactivé |
 | `portail.besoinavocat.ca` | Première version technique Node/Passenger joignable; contrôle HTTP courant health 200 (`mode: pilot`, `identityConfigured: false`), dossiers anonymes 401 | Archive v2 avec connexion/corpus refusée par antivirus; pas de connexion utilisateur réelle ni de corpus distant actif validé |
 | `besoinavocat.onrender.com` | Site d'orientation statique distinct, service Render actif sur `main` | Ne fournit pas le backend ni les dossiers; ne pas déplacer le domaine WordPress vers Render |
 
@@ -20,9 +22,20 @@ MochaHost a refusé le paquet `besoinavocat-cpanel-2026-10-26-v2.zip` avec `Sane
 
 Les paramètres serveur et fichiers privés ont été préparés selon les reçus, mais la première version technique n'exploite pas encore le nouveau raccordement. **Aucune connexion réelle de l'utilisateur, consultation de ses dossiers en production ou configuration de son mot de passe n'est déclarée effectuée.** Les futurs essais doivent utiliser son identité TAKATAK existante et ses habilitations, sans nouvelle autorité d'identité ou permission implicite.
 
-Les modules locaux de parcours/formulaire (`intake` / `funnel`) sont préparés et testés localement. Aucun état de déploiement, collecte réelle, paiement ou succès de formulaire n'en découle. Voir [TASK_QUEUE](TASK_QUEUE.md) pour l'ordre des tâches.
+Le code du parcours/formulaire (`intake` / `funnel`) est préparé et testé; son module WordPress est inclus dans la 0.2.1 installée, mais **le funnel reste désactivé** et le service de réception Node n'est pas activé. Aucune collecte réelle, paiement ou réussite de formulaire n'en découle. Voir [TASK_QUEUE](TASK_QUEUE.md).
 
-## GitHub et Render contrôlés
+## Dernier contrôle CI du code
+
+Code `5a230e52c758a626f31be24abeef2cce5242b3c1` : les quatre runs sont réussis, avec **133 tests Node, 12 tests Python et trois suites PHP**.
+
+- [Quality — 40421216083](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40421216083).
+- [Platform PR — 40421216013](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40421216013).
+- [Browser — 40421215940](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40421215940).
+- [Platform push — 40421210422](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40421210422).
+
+Ces contrôles ne valident ni une connexion réelle au portail ni le rendu final du bloc prix 0.2.1. La mise à jour documentaire présente ne crée aucun commit ou déploiement.
+
+## Contrôle GitHub et Render préalable — historique conservé
 
 - `main` : `b56d027c4172ddde5e362497731ac1ae80805fe0`.
 - Branche `codex/espace-client-avocat` : `ee278313707bbec608c15df11e402decce66f7ee`, identique entre copie locale et distante lors de la lecture; trois commits d'avance, aucun retard, 57 fichiers différents et aucun changement dans `site/`.
@@ -35,7 +48,7 @@ Les modules locaux de parcours/formulaire (`intake` / `funnel`) sont préparés 
 
 L'export WordPress préalable comportait 348 pages, dont 347 publiées; il précède la création de l'aperçu. La sauvegarde privée et l'export restent hors Git. Les corrections ciblées ont porté sur les anciennes marques d'opérateur et des promesses promotionnelles injustifiées, sans supprimer les articles, URL ou informations documentaires. Les noms de cabinets cités à titre éditorial ne deviennent pas des partenaires.
 
-Le plugin 0.1.2 et sa page 5820 ont été contrôlés sur ordinateur; trois lint PHP et `check-render.php` ont réussi lors de l'installation. Le chevauchement de l'accueil a été corrigé à 1 265 px; cette preuve ne vaut pas contrôle de toutes les tailles. Les tests mobiles, le parcours FR/EN et les nouveaux formulaires restent à effectuer sur leur version livrée. Le téléphone de contact fourni est le **514-825-2825**, sans service automatisé activé. Yan Romanowski est le seul partenaire déclaré par le propriétaire; cette déclaration n'est pas une vérification professionnelle indépendante.
+Historiquement, le plugin 0.1.2 et la page 5820 avaient été contrôlés sur ordinateur, avec trois lint PHP et `check-render.php` réussis. La 0.2.0 a ensuite été installée et contrôlée visuellement : tarifs 100/300 CAD et corrections des articles 2186, 4663, 5082 et 5715. **La 0.2.1 est maintenant installée avec succès par l'interface WP**; elle remet le CTA orange dans le flux normal pour corriger sa superposition aux prix. **Le contrôle visuel final de ce bloc prix reste à faire.** Le funnel reste désactivé. Les contrôles mobiles, clavier et FR/EN ne sont pas déduits des tests CI. Téléphone de contact : **514-825-2825**, sans service automatisé activé. Yan Romanowski est le seul partenaire déclaré par le propriétaire; cette déclaration n'est pas une vérification professionnelle indépendante.
 
 ## Conditions commerciales et limites
 
@@ -46,6 +59,6 @@ Le plugin 0.1.2 et sa page 5820 ont été contrôlés sur ordinateur; trois lint
 
 Les anciens nombres de tests et mentions « aucune application créée » présents dans les états antérieurs décrivent des étapes précédant `ee27831`; ils ne doivent plus guider la reprise. La clôture du prochain lot exige une connexion réelle, des accès correctement isolés, des téléchargements et citations vérifiés, puis un contrôle de déconnexion, sans exposer de secrets ou de pièces dans les journaux.
 
-## Lot local contact et WordPress 0.2.0
+## Clôture du lot contact et WordPress 0.2.1
 
-Catalogue et réception privée, parcours FR/EN, tarifs 100 CAD/semaine ou 300 CAD/mois et corrections éditoriales ciblées préparés; 133 tests Node et 12 tests Python réussis. Aucun déploiement ni nouvel accès réel. PHP et contrôle visuel WordPress à confirmer avant publication. Voir [INTAKE_QA.md](INTAKE_QA.md) et [INTAKE_API.md](INTAKE_API.md). Les états du contrôle Git préalable ci-dessus ne décrivent pas le nouveau commit de ce lot.
+Installation WordPress 0.2.1 réussie; funnel désactivé; contrôle visuel final des prix ouvert. Le Node v1 reste à `identityConfigured: false`; v2 refusée par l'antivirus, sans contournement. Aucun accès réel au corpus n'est validé. CI du code verte, y compris PHP; voir [INTAKE_QA.md](INTAKE_QA.md) et [WORDPRESS_QA.md](WORDPRESS_QA.md).

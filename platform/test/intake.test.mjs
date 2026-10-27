@@ -52,7 +52,7 @@ test('public versioned catalogue has exact CAD prices, free clients and separate
   assert.equal(result.headers.get('access-control-allow-credentials'), null);
   assert.equal(result.headers.get('cache-control'), 'no-store');
   const value = result.json;
-  assert.equal(value.version, '2026-10-26.1'); assert.equal(value.currency, 'CAD'); assert.equal(value.amountUnit, 'minor');
+  assert.equal(value.version, '2026-10-27.1'); assert.equal(value.currency, 'CAD'); assert.equal(value.amountUnit, 'minor');
   assert.equal(value.purchaseAvailable, false); assert.equal(value.client.amountMinor, 0);
   assert.deepEqual(value.professional.plans.map(item => [item.id,item.amountMinor,item.interval]), [['weekly',10000,'week'],['monthly',30000,'month']]);
   assert.equal(value.professional.subscriptionActive, false);
@@ -63,6 +63,7 @@ test('public versioned catalogue has exact CAD prices, free clients and separate
   }
   assert.equal(value.choices.domains.length, 8); assert.equal(value.choices.regions.length, 18);
   assert.ok(value.intake.consent.text.fr); assert.ok(value.intake.consent.text.en);
+  assert.equal(value.intake.request.enabled, false); assert.equal(value.intake.request.consent.version, '2026-10-27.1');
   assert.equal((await f.request('/api/catalog?price=1')).status, 400);
   assert.equal((await f.request('/api/catalog', { method:'POST', body:{} })).status, 405);
   assert.deepEqual(inspect(f.file), []);
@@ -120,7 +121,7 @@ test('client receipt is emitted only after separate private storage with consent
   const stored = JSON.parse(rows[0].payloadJson); assert.equal(stored.consent,true); assert.equal(stored.consentVersion,'2026-10-26.1');
   assert.equal(stored.name,body.name); assert.equal(stored.phone,body.phone); assert.equal(stored.website,undefined);
   assert.match(rows[0].createdAt,/Z$/u); assert.match(rows[0].consentText,/ni abonnement/u);
-  assert.equal(JSON.parse(rows[0].priceJson).amountMinor,0); assert.equal(rows[0].catalogVersion,'2026-10-26.1');
+  assert.equal(JSON.parse(rows[0].priceJson).amountMinor,0); assert.equal(rows[0].catalogVersion,'2026-10-27.1');
   assert.equal(f.app.store.db.prepare('SELECT COUNT(*) AS n FROM cases').get().n,0);
   assert.equal(f.app.store.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'ba_intake%'").get().n,0);
   const limits = inspect(f.file,'SELECT * FROM ba_intake_limits');
@@ -173,7 +174,7 @@ test('no narratives, files, permissions, prices or client subscription fields ar
 
 test('transport bounds and strict JSON reject oversized, malformed and compressed bodies before storage', async t => {
   const f=await fixture(t);
-  const tooLarge=await f.post({...contact(),name:'x'.repeat(5000)}); assert.equal(tooLarge.status,413);
+  const tooLarge=await f.post({...contact(),name:'x'.repeat(13000)}); assert.equal(tooLarge.status,413);
   const malformed=await f.request('/api/intake',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},raw:'{"oops"'}); assert.equal(malformed.status,400);
   const compressed=await f.post(contact(),{headers:{...headers(),'Content-Encoding':'gzip'}}); assert.equal(compressed.status,415);
   const nonJson=await f.request('/api/intake',{method:'POST',headers:{...headers(),'Content-Type':'text/plain'},raw:'x'}); assert.equal(nonJson.status,415);
@@ -270,4 +271,90 @@ test('expiry clears only rate counters and never deletes stored interest request
   time+=86_400_001;
   const result=service.receive(contact(),randomUUID(),WP); assert.equal(result.status,'received'); assert.equal(inspect(f.file).length,4);
   service.clear(); assert.throws(()=>service.receive(contact(),randomUUID(),WP),error=>error.status===503);
+});
+
+// Detailed client request: separate consent, bounded summary, disabled unless explicitly enabled.
+const REQUEST = { BESOINAVOCAT_INTAKE_REQUEST_ENABLED: 'true' };
+const day = offset => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+const request = () => ({ name: 'Personne Synthétique', email: 'synthetic@example.test', role: 'client', language: 'fr',
+  domain: 'housing', region: 'laval', contactPreference: 'email', stage: 'considering', objective: 'understand',
+  summary: 'Situation synthétique de test : un avis reçu, sans document joint.', urgency: 'week',
+  consent: true, consentVersion: '2026-10-27.1', website: '' });
+
+test('detailed request stays closed by default and stores nothing, even with a valid body', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.request('/api/catalog')).json.intake.request.enabled, false);
+  const result = await f.post(request());
+  assert.equal(result.status, 503); assert.equal(result.json.error.code, 'INTAKE_UNAVAILABLE');
+  assert.doesNotMatch(result.text, /Situation synthétique|BA-|received/);
+  assert.equal(inspect(f.file).length, 0);
+  for (const value of ['1', 'TRUE', 'yes', ' true']) assert.equal(intakeConfiguration({ BESOINAVOCAT_INTAKE_ALLOWED_ORIGINS: JSON.stringify([WP]), BESOINAVOCAT_INTAKE_REQUEST_ENABLED: value }).requestEnabled, false);
+});
+
+test('enabled detailed request is received only after storage, with its own consent text and no case', async t => {
+  const f = await fixture(t, REQUEST);
+  const catalog = (await f.request('/api/catalog')).json;
+  assert.equal(catalog.intake.request.enabled, true); assert.equal(catalog.intake.request.audience, 'client');
+  assert.deepEqual([catalog.intake.request.summary.minLength, catalog.intake.request.summary.maxLength], [20, 1500]);
+  for (const [group, size] of [['stages', 5], ['objectives', 5], ['urgencies', 5], ['contactPreferences', 2]]) {
+    assert.equal(catalog.choices[group].length, size);
+    for (const item of catalog.choices[group]) { assert.ok(item.label.fr); assert.ok(item.label.en); }
+  }
+  const body = { ...request(), summary: '  Première ligne.\r\nDeuxième ligne\tavec tabulation.  ', deadline: day(30), phone: '+1 514 555 0100', contactPreference: 'phone', language: 'en' };
+  const result = await f.post(body);
+  assert.equal(result.status, 201, result.text); assert.deepEqual(Object.keys(result.json).sort(), ['reference', 'status']);
+  assert.doesNotMatch(result.text, /Première|synthetic@|555/);
+  const [row] = inspect(f.file); const stored = JSON.parse(row.payloadJson);
+  assert.equal(stored.summary, 'Première ligne.\nDeuxième ligne\tavec tabulation.');
+  assert.equal(stored.deadline, body.deadline); assert.equal(stored.contactPreference, 'phone'); assert.equal(stored.website, undefined);
+  assert.equal(stored.consentVersion, '2026-10-27.1'); assert.match(row.consentText, /summary of my situation/u);
+  assert.equal(JSON.parse(row.priceJson).amountMinor, 0); assert.equal(row.catalogVersion, '2026-10-27.1');
+  assert.equal(f.app.store.db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, 0);
+});
+
+test('detailed request rejects lawyers, plans, files, unknown choices, unsafe or out-of-bounds summaries', async t => {
+  const f = await fixture(t, REQUEST);
+  // Validation matrix through the service: the HTTP per-client limit (20 / 15 min) is tested elsewhere.
+  const service = createIntake({ config: { origins: [WP], dbPath: f.file, requestEnabled: true } });
+  t.after(() => service.clear());
+  const missing = request(); delete missing.summary;
+  const noStage = request(); delete noStage.stage;
+  for (const body of [missing, noStage, { ...request(), role: 'professional' }, { ...request(), periodicity: 'monthly' },
+    { ...request(), file: 'base64' }, { ...request(), story: 'extra' }, { ...request(), tenantId: 'forged' },
+    { ...request(), stage: 'invented' }, { ...request(), objective: 'win' }, { ...request(), urgency: 'yesterday' },
+    { ...request(), contactPreference: 'fax' }, { ...request(), contactPreference: 'phone' },
+    { ...request(), summary: 'x'.repeat(19) }, { ...request(), summary: '   ' + 'x'.repeat(15) + '   ' }, { ...request(), summary: 'x'.repeat(1501) },
+    { ...request(), summary: 'Texte suffisamment long <script>alert(1)</script>' }, { ...request(), summary: 'Texte suffisamment long\u0000 avec nul' },
+    { ...request(), summary: 42 }, { ...request(), website: 'https://spam.test' }, { ...contact(), summary: 'Un récit ne passe pas par le contrat de contact.' }]) {
+    assert.throws(() => service.receive(body, randomUUID(), WP), error => error.status === 400 && error.code === 'INTAKE_INVALID_INPUT', JSON.stringify(body).slice(0, 120));
+  }
+  for (const delta of [{ consent: false }, { consent: 'true' }]) assert.throws(() => service.receive({ ...request(), ...delta }, randomUUID(), WP), error => error.code === 'INTAKE_CONSENT_REQUIRED');
+  const unsafe = await f.post({ ...request(), summary: 'Texte suffisamment long <script>alert(1)</script>' });
+  assert.equal(unsafe.status, 400); assert.doesNotMatch(unsafe.text, /alert\(1\)|received|BA-/);
+  assert.equal(inspect(f.file).length, 0);
+});
+
+test('deadline must be a real calendar date from yesterday up to five years ahead', async t => {
+  const f = await fixture(t); let time = Date.parse('2026-10-27T03:00:00Z');
+  const service = createIntake({ config: { origins: [WP], dbPath: f.file, requestEnabled: true }, now: () => time });
+  t.after(() => service.clear());
+  for (const deadline of ['2026-10-26', '2026-10-27', '2031-10-31']) {
+    assert.equal(service.receive({ ...request(), deadline, email: `ok-${deadline}@example.test` }, randomUUID(), WP).status, 'received');
+  }
+  for (const deadline of ['2026-10-25', '2031-11-01', '2026-02-30', '27/10/2026', '2026-10-27T00:00:00Z', '', null, 20261027]) {
+    assert.throws(() => service.receive({ ...request(), deadline }, randomUUID(), WP), error => error.status === 400, String(deadline));
+  }
+  assert.equal(inspect(f.file).length, 3);
+});
+
+test('detailed request keeps idempotent retries and fits a full multibyte summary in the body limit', async t => {
+  const f = await fixture(t, REQUEST), key = randomUUID(), h = headers(key);
+  const body = { ...request(), summary: 'é'.repeat(1500) };
+  const first = await f.post(body, { headers: h }), retry = await f.post(body, { headers: h });
+  assert.equal(first.status, 201, first.text); assert.deepEqual(retry.json, first.json);
+  const changed = await f.post({ ...body, summary: 'Autre résumé synthétique assez long.' }, { headers: h });
+  assert.equal(changed.status, 409); assert.equal(inspect(f.file).length, 1);
+  const oversized = await f.post({ ...request(), summary: '🙂'.repeat(3100) });
+  assert.equal(oversized.status, 413);
+  assert.equal(inspect(f.file).length, 1);
 });

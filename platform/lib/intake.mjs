@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { HttpError } from './validation.mjs';
-import { CATALOG_VERSION, CONSENT_VERSION, CONSENT_TEXT, DOMAINS, REGIONS, interestPrice } from './catalog.mjs';
+import { CATALOG_VERSION, CONSENT_VERSION, CONSENT_TEXT, DOMAINS, REGIONS, interestPrice,
+  REQUEST_CONSENT_VERSION, REQUEST_CONSENT_TEXT, SUMMARY_LIMITS, DEADLINE_MAX_DAYS, STAGES, OBJECTIVES, URGENCIES, CONTACT_PREFERENCES } from './catalog.mjs';
 
 const APP_ROOT = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const REPO_ROOT = path.dirname(APP_ROOT);
@@ -16,6 +17,9 @@ const unavailable = () => new HttpError(503, 'INTAKE_UNAVAILABLE', 'Le formulair
 const forbidden = () => new HttpError(403, 'INTAKE_FORBIDDEN', 'Origine ou en-têtes du formulaire non autorisés.');
 const invalid = () => new HttpError(400, 'INTAKE_INVALID_INPUT', 'Vérifiez les champs du formulaire.');
 const limited = () => new HttpError(429, 'INTAKE_RATE_LIMIT', 'Trop de demandes. Réessayez plus tard.');
+const requestClosed = () => new HttpError(503, 'INTAKE_UNAVAILABLE', 'La demande détaillée n’est pas ouverte.');
+const consentRequired = () => new HttpError(400, 'INTAKE_CONSENT_REQUIRED', 'Le consentement explicite à la version actuelle est requis.');
+const choice = (list, value) => list.some(item => item.id === value);
 const inside = (root, target) => { const rel = path.relative(root, target); return !rel || (rel !== '..' && !rel.startsWith('..' + path.sep) && !path.isAbsolute(rel)); };
 
 function origin(value) {
@@ -31,7 +35,8 @@ export function intakeConfiguration(env = process.env) {
     const origins = JSON.parse(raw);
     if (!Array.isArray(origins) || origins.length < 1 || origins.length > 8 || origins.some(value => !origin(value)) || new Set(origins).size !== origins.length) return null;
     const dbPath = env.BESOINAVOCAT_INTAKE_DB_PATH;
-    return { origins, dbPath: typeof dbPath === 'string' && dbPath ? dbPath : null };
+    // The detailed request stores a free-text summary; it stays closed unless explicitly enabled.
+    return { origins, dbPath: typeof dbPath === 'string' && dbPath ? dbPath : null, requestEnabled: env.BESOINAVOCAT_INTAKE_REQUEST_ENABLED === 'true' };
   } catch { return null; }
 }
 
@@ -63,23 +68,77 @@ function privateDatabase(file, excludedPaths, excludedDirs) {
   return target;
 }
 
-function input(body) {
-  const allowed = ['name','email','phone','role','language','domain','region','periodicity','consent','consentVersion','website'];
-  const required = ['name','email','role','language','domain','region','consent','consentVersion'];
-  if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !allowed.includes(key)) || required.some(key => !Object.hasOwn(body, key))) throw invalid();
-  const clean = (value, max) => {
-    if (typeof value !== 'string' || value.length > max || !value.isWellFormed() || /[\u0000-\u001f\u007f<>]/u.test(value)) throw invalid();
-    return value.trim().normalize('NFC');
-  };
+function clean(value, max) {
+  if (typeof value !== 'string' || value.length > max || !value.isWellFormed() || /[\u0000-\u001f\u007f<>]/u.test(value)) throw invalid();
+  return value.trim().normalize('NFC');
+}
+
+function contactFields(body) {
   const name = clean(body.name, 120), email = clean(body.email, 254), phone = body.phone === undefined ? '' : clean(body.phone, 32);
   if (!name || !/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/u.test(email) || email.split('@')[0].length > 64) throw invalid();
   if (phone && (!/^[+0-9(). -]+$/u.test(phone) || phone.replace(/\D/gu, '').length < 7 || phone.replace(/\D/gu, '').length > 15)) throw invalid();
-  if (!['client','professional'].includes(body.role) || !['fr','en'].includes(body.language) || !DOMAINS.some(item => item.id === body.domain) || !REGIONS.some(item => item.id === body.region)) throw invalid();
-  if (body.consent !== true || body.consentVersion !== CONSENT_VERSION) throw new HttpError(400, 'INTAKE_CONSENT_REQUIRED', 'Le consentement explicite à la version actuelle est requis.');
-  if ((body.role === 'professional' && !['weekly','monthly'].includes(body.periodicity)) || (body.role === 'client' && body.periodicity !== undefined)) throw invalid();
+  if (!['fr','en'].includes(body.language) || !choice(DOMAINS, body.domain) || !choice(REGIONS, body.region)) throw invalid();
   if (body.website !== undefined && (typeof body.website !== 'string' || body.website !== '')) throw invalid();
-  return { name, email, phone, role: body.role, language: body.language, domain: body.domain, region: body.region,
+  return { name, email, phone, language: body.language, domain: body.domain, region: body.region };
+}
+
+function shape(body, allowed, required) {
+  if (Object.keys(body).some(key => !allowed.includes(key)) || required.some(key => !Object.hasOwn(body, key))) throw invalid();
+}
+
+function contactInput(body) {
+  shape(body, ['name','email','phone','role','language','domain','region','periodicity','consent','consentVersion','website'],
+    ['name','email','role','language','domain','region','consent','consentVersion']);
+  const contact = contactFields(body);
+  if (!['client','professional'].includes(body.role)) throw invalid();
+  if (body.consent !== true || body.consentVersion !== CONSENT_VERSION) throw consentRequired();
+  if ((body.role === 'professional' && !['weekly','monthly'].includes(body.periodicity)) || (body.role === 'client' && body.periodicity !== undefined)) throw invalid();
+  const { name, email, phone, language, domain, region } = contact;
+  return { name, email, phone, role: body.role, language, domain, region,
     ...(body.role === 'professional' ? { periodicity: body.periodicity } : {}), consent: true, consentVersion: CONSENT_VERSION };
+}
+
+function summaryText(value) {
+  if (typeof value !== 'string' || value.length > SUMMARY_LIMITS.max * 2 || !value.isWellFormed()) throw invalid();
+  // Line breaks and tabs are kept; other controls and markup characters are refused.
+  const text = value.replace(/\r\n?/gu, '\n');
+  if (/[\u0000-\u0008\u000b-\u001f\u007f<>]/u.test(text)) throw invalid();
+  const summary = text.trim().normalize('NFC');
+  if (summary.length < SUMMARY_LIMITS.min || summary.length > SUMMARY_LIMITS.max) throw invalid();
+  return summary;
+}
+
+function deadlineDate(value, time) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(value)) throw invalid();
+  const [year, month, day] = value.split('-').map(Number), date = Date.UTC(year, month - 1, day);
+  if (new Date(date).toISOString().slice(0, 10) !== value) throw invalid();
+  const today = Math.floor(time / 86_400_000), target = date / 86_400_000;
+  // One day of tolerance for time zones west of UTC; no past or far-future deadlines.
+  if (target < today - 1 || target > today + DEADLINE_MAX_DAYS) throw invalid();
+  return value;
+}
+
+function requestInput(body, time) {
+  shape(body, ['name','email','phone','role','language','domain','region','contactPreference','stage','objective','summary','urgency','deadline','consent','consentVersion','website'],
+    ['name','email','role','language','domain','region','contactPreference','stage','objective','summary','urgency','consent','consentVersion']);
+  const contact = contactFields(body);
+  if (body.role !== 'client') throw invalid();
+  if (body.consent !== true || body.consentVersion !== REQUEST_CONSENT_VERSION) throw consentRequired();
+  if (!choice(CONTACT_PREFERENCES, body.contactPreference) || (body.contactPreference === 'phone' && !contact.phone)) throw invalid();
+  if (!choice(STAGES, body.stage) || !choice(OBJECTIVES, body.objective) || !choice(URGENCIES, body.urgency)) throw invalid();
+  const summary = summaryText(body.summary), deadline = body.deadline === undefined ? null : deadlineDate(body.deadline, time);
+  const { name, email, phone, language, domain, region } = contact;
+  return { name, email, phone, role: 'client', language, domain, region, contactPreference: body.contactPreference,
+    stage: body.stage, objective: body.objective, summary, urgency: body.urgency, ...(deadline ? { deadline } : {}),
+    consent: true, consentVersion: REQUEST_CONSENT_VERSION };
+}
+
+// The consent version selects the contract: contact only, or the detailed client request.
+function input(body, { requestEnabled, time }) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw invalid();
+  if (body.consentVersion !== REQUEST_CONSENT_VERSION) return contactInput(body);
+  if (!requestEnabled) throw requestClosed();
+  return requestInput(body, time);
 }
 
 // No list/read endpoint or role provisioning is exposed. The operator owns this
@@ -87,6 +146,7 @@ function input(body) {
 export function createIntake({ config, excludedPaths = [], excludedDirs = [], now = Date.now } = {}) {
   let db = null;
   const origins = new Set(Array.isArray(config?.origins) ? config.origins.filter(value => origin(value)) : []);
+  const requestEnabled = config?.requestEnabled === true;
   try {
     if (!config || origins.size !== config.origins.length || origins.size < 1 || origins.size > 8) throw unavailable();
     const file = privateDatabase(config.dbPath, excludedPaths, excludedDirs);
@@ -130,6 +190,7 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
   }
   return {
     get configured() { return Boolean(db); },
+    get requestEnabled() { return Boolean(db) && requestEnabled; },
     requireReady: ready,
     cors(req, res, { required = false } = {}) {
       const supplied = uniqueHeader(req, 'origin');
@@ -160,7 +221,7 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
     reserve: safe(client => transaction(() => consume([[`client:${hash(String(client))}`,20,900_000],['global',120,60_000]], now()))),
     receive: safe((body, key, requestOrigin) => {
       if (!origins.has(requestOrigin)) throw forbidden();
-      const data = input(body), payload = JSON.stringify(data);
+      const data = input(body, { requestEnabled, time: now() }), payload = JSON.stringify(data);
       const digest = hash(payload), keyHash = hash(key);
       return transaction(() => {
         const prior = db.prepare('SELECT reference,payloadHash,origin FROM ba_intakes WHERE idempotencyHash=?').get(keyHash);
@@ -173,7 +234,8 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
         consume([[`email:${hash(data.email.toLowerCase())}`,3,86_400_000]], time);
         const reference = 'BA-' + randomBytes(18).toString('base64url');
         const price = interestPrice(data.role, data.periodicity);
-        db.prepare('INSERT INTO ba_intakes VALUES(?,?,?,?,?,?,?,?,?,?)').run(reference,keyHash,digest,payload,requestOrigin,CATALOG_VERSION,CONSENT_TEXT[data.language],JSON.stringify(price),new Date(time).toISOString(),'received');
+        const consentText = (data.consentVersion === REQUEST_CONSENT_VERSION ? REQUEST_CONSENT_TEXT : CONSENT_TEXT)[data.language];
+        db.prepare('INSERT INTO ba_intakes VALUES(?,?,?,?,?,?,?,?,?,?)').run(reference,keyHash,digest,payload,requestOrigin,CATALOG_VERSION,consentText,JSON.stringify(price),new Date(time).toISOString(),'received');
         return { reference, status:'received' };
       });
     }),

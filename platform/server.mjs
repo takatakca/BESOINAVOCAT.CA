@@ -16,6 +16,8 @@ const PUBLIC = join(HERE, 'public');
 let uploadsInFlight = 0;
 const MAX_CONCURRENT_UPLOADS = 1;
 let intakesInFlight = 0;
+// Contact fields plus the detailed request's bounded summary (1 500 characters, UTF-8 and JSON escapes).
+const MAX_INTAKE_JSON_BYTES = 12288;
 const MAX_CONCURRENT_INTAKES = 4;
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
@@ -105,7 +107,7 @@ export function createApp({
         intake.preflight(req, res, expected);
         res.statusCode = 204; return res.end();
       }
-      if (expected === 'GET') return json(res, 200, publicCatalog({ intakeConfigured: intake.configured }));
+      if (expected === 'GET') return json(res, 200, publicCatalog({ intakeConfigured: intake.configured, requestEnabled: intake.requestEnabled }));
       const key = intake.mutation(req);
       intake.reserve(req.socket.remoteAddress || 'unknown');
       if (intakesInFlight >= MAX_CONCURRENT_INTAKES) {
@@ -114,7 +116,7 @@ export function createApp({
       }
       intakesInFlight++;
       try {
-        return json(res, 201, intake.receive(await readJson(req, 4096), key, requestOrigin));
+        return json(res, 201, intake.receive(await readJson(req, MAX_INTAKE_JSON_BYTES), key, requestOrigin));
       } finally { intakesInFlight--; }
     }
 

@@ -2,6 +2,7 @@
 //   node www/build.mjs            BA_REQUEST_URL overrides the request page (default: portal /demande)
 // Content: content/pages/*.html (imported from WordPress, see tools/import-wordpress.mjs),
 // content/overrides/*.html (hand-written, take precedence) and content/site.json (logo, site map).
+import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 
 const ROOT = new URL('./', import.meta.url);
@@ -19,6 +20,9 @@ const DOMAIN_IDS = { 'Criminel et pénal': 'criminal', 'Affaires': 'business', '
 // Live links whose target is not a page (WordPress attachment, plugin script): same text, working destination.
 const LINK_FIXES = { '/avocat-aide-juridique': '/avocat-aide-juridique-2/', '/avocat-aide-juridique/': '/avocat-aide-juridique-2/',
   '/wp-content/plugins/complianz-terms-conditions/download.php': '/wp-content/uploads/complianz/terms-and-conditions.pdf' };
+
+// The stylesheet is cached for a week; its address changes with its content so a deploy is seen at once.
+const CSS_VERSION = createHash('sha256').update(readFileSync(new URL('public/assets/site.css', ROOT))).digest('hex').slice(0, 10);
 
 const escape = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const plain = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -87,6 +91,9 @@ function rewrite(body, page, paths, report) {
       return m;
     })
     .replace(/href="(\/[^"]*)"/g, (m, href) => `href="${internal(href, paths)}"`)
+    // Notes sit inside the article, not as separate landmarks; wide tables scroll with the keyboard too.
+    .replace(/<aside class="note">([\s\S]*?)<\/aside>/g, '<div class="note">$1</div>')
+    .replace(/<table>/g, '<table tabindex="0">')
     .replace(/<div data-ba-form="professional-interest"><\/div>/g, () => `<div class="card card--accent"><h2>Signaler votre intérêt</h2><p>Inscription professionnelle proposée à 100 $ CA par semaine ou 300 $ CA par mois, crédits IA en supplément. Souscription non ouverte : laissez vos coordonnées sur le portail, nous vous recontactons.</p><p class="cta"><a class="button" href="${escape(new URL('/demande?role=professional', PORTAL).href)}">Signaler mon intérêt</a></p></div>`);
 }
 
@@ -95,31 +102,87 @@ function description(body, title) {
   return first.length > 158 ? first.slice(0, 155).replace(/\s+\S*$/, '') + '…' : first;
 }
 
-function header(page, logo) {
-  const links = [['Domaines de droit', '/demande/'], ['Consultation', '/consultations/'], ['Professionnels', '/professionnels/'], ['Questions', '/faq/'], ['Trouver mon avocat', REQUEST_URL, true]];
-  const nav = links.map(([label, href, primary]) => `<a${primary ? ' class="nav-primary"' : ''}${href === page.path ? ' aria-current="page"' : ''} href="${escape(href)}">${label}</a>`).join('');
-  const brand = logo ? `<img src="${escape(logo)}" alt="BesoinAvocat.ca" width="1024" height="181">` : '<span class="brand-text">Besoin<strong>avocat</strong>.ca</span>';
-  return `<header class="site-header"><div class="wrap header-inner"><a class="brand" href="/" aria-label="BesoinAvocat.ca — accueil">${brand}</a><nav class="nav-desktop" aria-label="Navigation principale">${nav}</nav><a class="header-phone" href="${PHONE.href}">${PHONE.label}</a><details class="nav-mobile"><summary>Menu</summary><nav aria-label="Navigation principale">${nav}<a href="${PHONE.href}">${PHONE.label}</a></nav></details></div></header>`;
+// The BesoinAvocat arrow, drawn inline so the header needs no image request.
+const MARK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 17.5 17 7M9.5 6.5H17.5V14.5" fill="none" stroke="#ff751f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const WORDMARK = `<span class="brand-mark">${MARK}</span><span class="brand-word">Besoin<b>avocat</b><small>.ca</small></span>`;
+
+function header(page) {
+  const links = [['Domaines de droit', '/demande/'], ['Consultation', '/consultations/'], ['Professionnels', '/professionnels/'], ['Questions', '/faq/']];
+  const nav = links.map(([label, href]) => `<a${href === page.path ? ' aria-current="page"' : ''} href="${escape(href)}">${label}</a>`).join('');
+  const primary = `<a class="nav-primary" href="${escape(REQUEST_URL)}">Trouver mon avocat</a>`;
+  return `<header class="site-header"><div class="wrap header-inner"><a class="brand" href="/" aria-label="BesoinAvocat.ca — accueil">${WORDMARK}</a><nav class="nav-desktop" aria-label="Navigation principale">${nav}${primary}</nav><a class="header-phone" href="${PHONE.href}">${PHONE.label}</a><details class="nav-mobile"><summary>Menu</summary><nav aria-label="Navigation principale">${nav}<a href="${PHONE.href}">${PHONE.label}</a>${primary}</nav></details></div></header>`;
 }
 
 function footer(map, paths) {
   const list = (links) => `<ul>${links.map((link) => `<li><a href="${escape(/^https?:/.test(link.href) ? link.href : internal(link.href, paths))}">${escape(link.label)}</a></li>`).join('')}</ul>`;
   const domains = map.domains.map((group) => `<details><summary>${escape(group.title)}</summary>${list(group.links)}</details>`).join('');
-  return `<footer class="site-footer"><div class="wrap"><div class="footer-top"><div><p><a class="brand-text" href="/">Besoin<strong>avocat</strong>.ca</a></p><p>Des repères pour préparer votre dossier et trouver l’avocat qui correspond à votre situation. Demande toujours gratuite pour les clients.</p><p><a class="button button--light" href="${escape(REQUEST_URL)}">Trouver mon avocat</a></p><p><a href="${PHONE.href}">${PHONE.label}</a></p></div><nav aria-label="Liens principaux">${list(map.top.map((link) => (/^\/demande\/?$/.test(link.href) ? { ...link, href: REQUEST_URL } : link)))}</nav></div><h2 class="footer-title">Domaines de droit</h2><div class="footer-domains">${domains}</div>${map.regions ? `<h2 class="footer-title">${escape(map.regions.title)}</h2>${list(map.regions.links).replace('<ul>', '<ul class="footer-regions">')}` : ''}<div class="footer-bottom"><p>BesoinAvocat est un service de préparation et d’orientation, pas un cabinet d’avocats. Les renseignements du site sont généraux et ne remplacent pas l’avis d’un avocat. En cas de danger immédiat, composez le 911.</p><nav aria-label="Politiques">${POLICIES.map(([label, href]) => `<a href="${href}">${label}</a>`).join('')}</nav><p>© BesoinAvocat.ca</p></div></div></footer>`;
+  const top = map.top.map((link) => (/^\/demande\/?$/.test(link.href) ? { ...link, href: REQUEST_URL } : link));
+  return `<footer class="site-footer"><div class="wrap"><div class="footer-top"><div><p><a class="brand" href="/" aria-label="BesoinAvocat.ca — accueil">${WORDMARK}</a></p><p>Des repères pour préparer votre dossier et trouver l’avocat qui correspond à votre situation. Demande toujours gratuite pour les clients.</p><p class="cta"><a class="button" href="${escape(REQUEST_URL)}">Trouver mon avocat</a> <a class="phone-link" href="${PHONE.href}">${PHONE.label}</a></p></div><nav aria-label="Liens principaux">${list(top)}</nav></div><h2 class="footer-title">Domaines de droit</h2><div class="footer-domains">${domains}</div>${map.regions ? `<h2 class="footer-title">${escape(map.regions.title)}</h2>${list(map.regions.links).replace('<ul>', '<ul class="footer-regions">')}` : ''}<div class="footer-bottom"><p class="footer-legal">BesoinAvocat est un service de préparation et d’orientation, pas un cabinet d’avocats. Les renseignements du site sont généraux et ne remplacent pas l’avis d’un avocat. En cas de danger immédiat, composez le 911.</p><nav aria-label="Politiques">${POLICIES.map(([label, href]) => `<a href="${href}">${label}</a>`).join('')}</nav><p>© BesoinAvocat.ca · Plateforme indépendante, raccordée à la technologie <a href="https://takatak.ca/">TAKATAK</a></p></div></div></footer>`;
 }
 
-function layout(page, body, map, logo, paths) {
+const slug = (text) => plain(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'section';
+const isEnglish = (body) => { const t = ` ${plain(body).toLowerCase()} `; return (t.match(/ the /g) || []).length > (t.match(/ (le|la|les|des) /g) || []).length; };
+
+// Article pages: the opening (title, "Répondez à quelques questions…", short line, buttons) becomes a header block,
+// section titles get anchors for the table of contents. Text and order are unchanged.
+function enhance(body, page) {
+  const used = new Set();
+  const toc = [];
+  // A heading never skips a level (h2 then h4 becomes h2 then h3), so the outline stays valid for screen readers.
+  let previous = 1;
+  body = body.replace(/<(\/?)h([1-6])\b/g, (m, closing, digit) => {
+    let level = Number(digit);
+    if (!closing) { if (level > previous + 1) level = previous + 1; previous = level; return `<h${level}`; }
+    return `</h${previous}`;
+  });
+  let out = body.replace(/<h2>([\s\S]*?)<\/h2>/g, (m, inner) => {
+    let id = slug(inner); for (let n = 2; used.has(id); n++) id = `${slug(inner)}-${n}`;
+    used.add(id);
+    toc.push({ id, label: plain(inner) });
+    return `<h2 id="${id}">${inner}</h2>`;
+  });
+  const words = plain(body).split(' ').length;
+  const minutes = Math.max(1, Math.round(words / 220));
+  const opening = out.match(/^(\s*<figure>[\s\S]*?<\/figure>\s*)?(<span class="eyebrow">[^<]*<\/span>\s*)?<h1>([\s\S]*?)<\/h1>\s*(?:<h2 id="[^"]*">((?:Répondez|Answer)[\s\S]*?)<\/h2>\s*)?(?:<p( class="lead")?>([^<]{0,240})<\/p>\s*)?((?:<p class="cta">[\s\S]*?<\/p>\s*)*)/);
+  let hero = '';
+  if (opening) {
+    const [whole, figure = '', eyebrow = '', h1, sub, lead, line, ctas = ''] = opening;
+    if (sub) toc.shift();
+    const english = page.lang === 'en';
+    // Guides (an article of a law domain, or the usual opening) show their domain and reading time.
+    const guide = Boolean(page.domain || sub);
+    const chips = guide ? `<div class="article-meta">${[page.domain ? `<span class="chip chip--info">${escape(page.domain.title)}</span>` : '', `<span class="chip">${english ? 'Reading' : 'Lecture'} · ${minutes} min</span>`, `<span class="chip chip--ok">${english ? 'Free request' : 'Demande gratuite'}</span>`].join('')}</div>` : '';
+    hero = `${figure}<header class="article-hero">${eyebrow}<h1>${h1}</h1>${sub ? `<p class="article-sub">${sub}</p>` : ''}${line ? `<p${lead ? ' class="lead"' : ''}>${line}</p>` : ''}${ctas}${chips}</header>`;
+    out = out.slice(whole.length);
+  }
+  return { hero, body: out, toc: toc.filter((item) => item.label.length > 2).slice(0, 14) };
+}
+
+function rail(page, toc) {
+  const domainId = page.domain ? DOMAIN_IDS[page.domain.title] : undefined;
+  const english = page.lang === 'en';
+  const contents = toc.length >= 3 ? `<nav class="toc" aria-label="${english ? 'On this page' : 'Sur cette page'}"><h2>${english ? 'On this page' : 'Sur cette page'}</h2><ol>${toc.map((item) => `<li><a href="#${item.id}">${escape(item.label)}</a></li>`).join('')}</ol></nav>` : '';
+  return `<aside class="rail"><div class="rail-cta"><div class="rail-cta-inner"><span class="eyebrow">Demande gratuite</span><h2>Besoin d’un avocat${page.domain ? ` en ${escape(page.domain.title.toLowerCase())}` : ''} ?</h2><p>Décrivez votre situation en quelques minutes. La demande est gratuite; les honoraires de l’avocat restent distincts.</p><ul class="check-list"><li>Questionnaire guidé, en français ou en anglais</li><li>Faits, dates et questions organisés pour l’avocat</li><li>Aucun mandat créé par la demande</li></ul><a class="button" href="${escape(requestHref(domainId))}">Trouver mon avocat</a><a class="phone-link" href="${PHONE.href}">ou appelez le ${PHONE.label}</a></div></div>${contents}</aside>`;
+}
+
+function layout(page, body, map, paths) {
   const isHome = page.path === '/';
   const title = isHome ? page.title : `${page.title} – BesoinAvocat`;
-  const hasH1 = /<h1[\s>]/.test(body);
-  const crumbs = page.domain && !isHome ? `<nav class="crumbs" aria-label="Fil d’Ariane"><a href="/">Accueil</a><span aria-hidden="true">›</span>${page.domain.home !== page.path ? `<a href="${escape(page.domain.home)}">${escape(page.domain.title)}</a><span aria-hidden="true">›</span>` : ''}<span>${escape(page.title)}</span></nav>` : '';
-  const domainId = page.domain ? DOMAIN_IDS[page.domain.title] : undefined;
   const full = page.layout === 'full';
-  const aside = full || page.aside === 'none' ? '' : `<aside class="card card--cta"><h2>Besoin d’un avocat${page.domain ? ` en ${escape(page.domain.title.toLowerCase())}` : ''} ?</h2><p>Décrivez votre situation en quelques minutes. La demande est gratuite; les honoraires de l’avocat restent distincts.</p><p class="cta"><a class="button" href="${escape(requestHref(domainId))}">Trouver mon avocat</a> <a class="text-link" href="${PHONE.href}">ou appelez le ${PHONE.label}</a></p></aside>`;
+  const crumbs = page.domain && !isHome ? `<nav class="crumbs" aria-label="Fil d’Ariane"><a href="/">Accueil</a><span aria-hidden="true">/</span>${page.domain.home !== page.path ? `<a href="${escape(page.domain.home)}">${escape(page.domain.title)}</a><span aria-hidden="true">/</span>` : ''}<span>${escape(page.title)}</span></nav>` : '';
+  let main;
+  if (full) main = body;
+  else {
+    const withTitle = /<h1[\s>]/.test(body) ? body : `<h1>${escape(page.title)}</h1>${body}`;
+    const { hero, body: rest, toc } = enhance(withTitle, page);
+    const side = page.aside === 'none' ? '' : rail(page, toc);
+    main = `<div class="wrap">${crumbs}${hero}<div class="page-grid${side ? '' : ' page-grid--single'}"><article class="prose">${rest}</article>${side}</div></div>`;
+  }
   const desc = description(body, page.title);
   const canonical = SITE + page.path;
+  const english = page.lang === 'en';
   return `<!doctype html>
-<html lang="${page.lang === 'en' ? 'en-CA' : 'fr-CA'}">
+<html lang="${english ? 'en-CA' : 'fr-CA'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -127,20 +190,25 @@ function layout(page, body, map, logo, paths) {
 <meta name="description" content="${escape(desc)}">
 <link rel="canonical" href="${canonical}">
 <meta property="og:type" content="${isHome ? 'website' : 'article'}">
-<meta property="og:locale" content="fr_CA">
+<meta property="og:locale" content="${english ? 'en_CA' : 'fr_CA'}">
 <meta property="og:site_name" content="BesoinAvocat">
 <meta property="og:title" content="${escape(title)}">
 <meta property="og:description" content="${escape(desc)}">
 <meta property="og:url" content="${canonical}">
-${logo ? `<meta property="og:image" content="${SITE}${logo}">` : ''}
-<meta name="theme-color" content="#172d38">
+<meta property="og:image" content="${SITE}/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#050b18">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css?v=${CSS_VERSION}">
 </head>
 <body${full ? ' class="full"' : ''}>
 <a class="skip-link" href="#contenu">Aller au contenu</a>
-${header(page, logo)}
-<main id="contenu"${full ? '' : ' class="page"'}>${full ? body : `<div class="wrap page-grid${aside ? '' : ' page-grid--single'}"><article class="prose">${crumbs}${hasH1 ? '' : `<h1>${escape(page.title)}</h1>`}${body}</article>${aside}</div>`}</main>
+${header(page)}
+<main id="contenu"${full ? '' : ' class="page"'}>${main}</main>
 ${footer(map, paths)}
 </body>
 </html>
@@ -166,10 +234,11 @@ cpSync(new URL('public/', ROOT), DIST, { recursive: true });
 for (const page of pages.values()) {
   const out = new URL('.' + page.path, DIST);
   mkdirSync(out, { recursive: true });
-  writeFileSync(new URL('index.html', out), layout(page, rewrite(page.body, page, paths, report), map, site.logo, paths));
+  if (!page.lang && isEnglish(page.body)) page.lang = 'en';
+  writeFileSync(new URL('index.html', out), layout(page, rewrite(page.body, page, paths, report), map, paths));
 }
-const notFound = { path: '/404/', title: 'Page introuvable', aside: 'none' };
-writeFileSync(new URL('404.html', DIST), layout(notFound, `<h1>Page introuvable</h1><p>Cette page n’existe pas ou a été déplacée.</p><p class="cta"><a class="button" href="/">Retour à l’accueil</a> <a class="text-link" href="${escape(REQUEST_URL)}">Trouver mon avocat</a></p>`, map, site.logo, paths));
+const notFound = { path: '/404/', title: 'Page introuvable', aside: 'none', layout: '' };
+writeFileSync(new URL('404.html', DIST), layout(notFound, `<h1>Page introuvable</h1><p>Cette page n’existe pas ou a été déplacée.</p><p class="cta"><a class="button" href="/">Retour à l’accueil</a> <a class="text-link" href="${escape(REQUEST_URL)}">Trouver mon avocat</a></p>`, map, paths));
 const today = new Date().toISOString().slice(0, 10);
 writeFileSync(new URL('sitemap.xml', DIST), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths].sort().map((path) => `<url><loc>${SITE}${path}</loc><lastmod>${today}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 writeFileSync(new URL('robots.txt', DIST), `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`);

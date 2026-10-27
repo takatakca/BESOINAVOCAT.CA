@@ -9,6 +9,14 @@
 - Vérification : métadonnées relues (nom, format, taille et dossier parent), puis contenu relu avec les références TAKATAK-V1 et Facturations, l'instruction de copie pour le prochain agent, le lien d'accès public et le maintien de la pause. Aucune comparaison d'empreinte distante n'est revendiquée.
 - Aucun mot de passe, secret, original juridique ou sauvegarde du corpus n'a été ajouté à ce fichier. Aucune permission Drive modifiée.
 
+## Complément du 27 octobre 2026 — copie partielle, fusion en attente
+
+Le connecteur Google Drive de la session du 27 octobre permet de lire, de créer un fichier et de modifier des métadonnées, **mais pas de remplacer le contenu d'un fichier existant**. Le fichier central ci-dessus **n'a donc pas été mis à jour** : il reflète encore le commit `835c6ee` (relu, 20 515 octets, modifié le 27 octobre à 02:58 UTC).
+
+- Complément créé dans le même dossier : [BesoinAvocat — Complément de reprise — 2026-10-27.md](https://drive.google.com/file/d/1PI-GhFxbeApx0UjSGce7bg_pNgMgKXlH/view?usp=drivesdk), ID `1PI-GhFxbeApx0UjSGce7bg_pNgMgKXlH`. Il contient seulement la section « Reprise du 27 octobre » de la relève au commit `1464640`, avec des liens absolus vers GitHub.
+- Markdown, 4 062 octets, SHA-256 `1afb5a864783f6545f985bdd1308054b8c97bacde9e4b7100a8bb383a12d7706`. **Contenu téléchargé depuis Drive et comparé octet par octet : identique.** Aucune permission modifiée; aucun secret, mot de passe ou pièce.
+- **Tâche en attente** : dès qu'un outil permet d'écrire sous l'ID `1jJxjVbk-mPzN9RHO0KfO-1rIH7ZbsR6k`, y copier la relève complète courante, la relire, puis signaler ici que le complément peut être retiré par le propriétaire. Ne pas supprimer le complément avant cette fusion vérifiée.
+
 ## Instruction au prochain agent
 
 Lire la relève et les documents d'état de GitHub. À toute reprise autorisée, maintenir la copie Google Drive des notes en cohérence avec les changements GitHub. Ne pas multiplier les fichiers identiques : retrouver d'abord ce fichier par son ID, vérifier le dossier et la version, puis effectuer la mise à jour appropriée. Consigner le commit source et vérifier le contenu après écriture. Si l'accès Drive manque, laisser dans GitHub une tâche explicite de copie en attente avec les fichiers concernés; ne pas annoncer une synchronisation accomplie.

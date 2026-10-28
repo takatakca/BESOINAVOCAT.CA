@@ -1,5 +1,7 @@
 # Validation — recherche, dictée et corpus local
 
+**Code validé et publié : `aaf64efec669aac769d7b23d8c26644ec67b5459`.** Contrôles GitHub réussis : [portail](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400373), [vitrine](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400430), [qualité](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400332), [QA navigateur du site d’orientation](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400336). Les deux contrôles au push sont également verts. La PR reste ouverte pour intégration et déploiement coordonnés avec Mike.
+
 Ce second lot complète la [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2), à la demande explicite du propriétaire de poursuivre son tableau de bord et le travail juridique en parallèle. Il ne redessine pas la vitrine. La validation du premier lot est conservée dans [VALIDATION-LOT](VALIDATION-LOT-2026-10-28.md).
 
 ## Résultats de code

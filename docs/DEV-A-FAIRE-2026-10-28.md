@@ -4,7 +4,7 @@
 
 Mandat du propriétaire, 28 octobre 2026 : remplacer WordPress par nos solutions versionnées dans GitHub, préserver le contenu et les adresses existantes, rendre le compte et les trois dossiers utilisables avant les ajouts visuels.
 
-**Code à intégrer : [PR 2 — portail et préservation](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2).** Le code `212e8d7` a ses contrôles GitHub verts. Cette PR reste ouverte pour coordonner la bascule avec Mike; `main` ne contient pas encore ce nouveau lot. Relire [la validation](VALIDATION-LOT-2026-10-28.md), intégrer la PR, puis déployer le SHA résultant. Ne pas confondre le SHA de l'ancienne base avec celui du code livré.
+**Code à intégrer : [PR 2 — portail et préservation](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2).** Le code `aaf64ef` inclut maintenant la recherche et la dictée; ses six contrôles GitHub sont verts. `212e8d7` désigne seulement le premier lot. Cette PR reste ouverte pour coordonner la bascule avec Mike; `main` ne contient pas encore ce nouveau lot. Relire [la validation](VALIDATION-LOT-2026-10-28.md), intégrer la PR, puis déployer le SHA résultant. Ne pas confondre le SHA de l'ancienne base avec celui du code livré.
 
 **Coordination avec Mike et l'autre session (28 octobre)** : les notes de `main` `fb992d6` refusent la refonte visuelle IA et réservent la vitrine au propriétaire. Ne pas déployer automatiquement son design actuel comme une copie fidèle : les textes et liens ont été importés, pas la mise en page WordPress exacte. La bascule de la vitrine dépend de la version visuelle validée par le propriétaire. Le lot présent se concentre sur le backend, les formulaires fonctionnels et les contrôles; aucune modification de WordPress ou du DNS par l'agent.
 

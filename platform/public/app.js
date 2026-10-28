@@ -173,7 +173,7 @@
     if (Array.isArray(addons)) {
       const status = { available_pilot: 'Pilote interne', external_link_only: 'Lien externe', planned: 'À connecter' };
       const symbol = { internal_chat: 'message', zoom: 'video', phone: 'phone' };
-      return `<div class="connection-panel"><h3>Services complémentaires</h3>${addons.map(item => `<div class="integration-row"><span>${icon(symbol[item.id] || 'layers')}${esc(item.label)}</span><span class="badge">${esc(status[item.availability] || 'À vérifier')}</span></div><p class="addon-description">${esc(item.description)}</p>`).join('')}<p class="addon-description">Options payantes à venir. Aucun achat ni connexion fournisseur depuis cette liste.</p></div>`;
+      return `<div class="connection-panel"><h3>Services complémentaires</h3>${addons.map(item => `<div class="integration-row"><span>${icon(symbol[item.id] || 'layers')}${esc(item.label)}</span><span class="badge">${esc(status[item.availability] || 'À vérifier')}</span></div><p class="addon-description">${esc(item.description)}</p>`).join('')}<p class="addon-description">Tarifs des options payantes à définir. Aucun achat ni connexion fournisseur depuis cette liste.</p></div>`;
     }
     return `<div class="connection-panel"><h3>Services complémentaires</h3><div class="integration-row"><span>${icon('spark')}Assistant IA</span><span class="badge">À connecter</span></div><div class="integration-row"><span>${icon('credit')}Crédits et paiements</span><span class="badge">À connecter</span></div><div class="integration-row"><span>${icon('phone')}Appels et voix</span><span class="badge">À connecter</span></div></div>`;
   }

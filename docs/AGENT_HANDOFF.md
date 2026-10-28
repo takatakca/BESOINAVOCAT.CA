@@ -1,12 +1,22 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
+> **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
+> - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
+> - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
+> - **Direction du propriétaire (28 octobre)** : c'est un site juridique, il doit garder un **ton juridique**. Les couleurs sont sobres et professionnelles, propres à un service juridique. Les textes sont formels et rigoureux. Proportion voulue : **99 % réel et juridique, 1 % d'IA**. L'IA est la touche discrète qui distingue la plateforme et en fait l'avenir des plateformes juridiques; elle n'est jamais le thème visuel ni le ton général. Pas d'esthétique futuriste ou robotique.
+> - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
+> - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
+> - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
+
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+
 **Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
 
 ## Reprise prioritaire — 28 octobre 2026
 
 Le propriétaire a repris le travail : la consigne historique d'arrêt ci-dessous est levée. **Plus de WordPress dans la cible**; contenus importés dans `www/` et portail Node dans `platform/`. Le développeur humain est disponible pour Coolify/DNS : [sa liste](DEV-A-FAIRE-2026-10-28.md), avec contrôles live du 28 octobre et restauration détaillée [COOLIFY](COOLIFY.md).
 
-`main` synchronisé au SHA `e59a9e084966a649d260ff917d756823ff4558c4`; ne pas réutiliser l'ancienne PR 1, fusionnée. Nouvelle branche `codex/workspaces-appels-2026-10-28`, questionnaires et communications en cours. Lire les résultats du lot avant d'intégrer; aucun déploiement de ce lot n'est revendiqué.
+`main` synchronisé au SHA `e59a9e084966a649d260ff917d756823ff4558c4`; ne pas réutiliser l'ancienne PR 1, fusionnée. Nouvelle branche `codex/workspaces-appels-2026-10-28`, questionnaires et communications contrôlés localement. Lire les résultats du lot avant d'intégrer; aucun déploiement de ce lot n'est revendiqué.
 
 Le portail actuel renvoie health 200 mais `/demande` 404 et identité Bearer non configurée. Tester `loginConfigured`, puis la vraie connexion : ne jamais annoncer le compte prêt sur un aperçu fictif. Préserver la sauvegarde/corpus privés hors Git et la remise figée des 312 annexes.
 

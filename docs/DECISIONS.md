@@ -14,9 +14,22 @@ Chaque connexion fournisseur utilise son flux officiel OAuth et ses habilitation
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-022 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-023 ci-dessous priment sur les états historiques qu'elles remplacent.
 
-## D-022 — Plateforme IA premium, Québec et Ontario, raccordée à TAKATAK (27 octobre 2026)
+## D-023 — Refonte D-022 refusée; le propriétaire reprend la vitrine (28 octobre 2026)
+
+Le propriétaire refuse la refonte « plateforme IA » de D-022. Il ne voulait pas un nouveau design : il voulait la reproduction fidèle de son site WordPress, construit à la main détail par détail, avec seulement d'autres couleurs pour ne pas ressembler à un autre de ses sites. Il reprend lui-même la vitrine, en ce moment.
+
+L'erreur de l'agent : il a lu la demande « premium, futuriste » du 27 octobre comme une permission de tout redessiner, alors que la consigne antérieure était de garder ce qui existe et seulement de nettoyer. Il aurait dû poser la question avant de remplacer un design fait à la main. Dès la première copie (D-021), il n'a d'ailleurs repris que les textes et les liens dans son propre gabarit, sans le dire assez clairement.
+
+Direction précisée le même jour : c'est un site juridique, qui doit garder un ton juridique. Les couleurs sont sobres et professionnelles, propres à un service juridique; les textes sont formels et rigoureux; proportion voulue : 99 % réel et juridique, 1 % d'IA. L'IA est la touche discrète qui distingue la plateforme et en fait l'avenir des plateformes juridiques; elle n'est jamais le thème visuel ni le ton général. Pas d'esthétique futuriste ou robotique.
+
+Conséquences :
+
+- aucun agent ne modifie `www/`, `platform/public/demande.*`, WordPress ou le DNS sans instruction écrite du propriétaire;
+- rien n'est annulé d'office. Références si le propriétaire le demande : état avant la refonte `a27f70f`; commits de la refonte `0e457cd` (vitrine) et `c00ead5` (page de demande et Ontario); relecture du contenu `ac80fef`, détaillée dans [CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md).
+
+## D-022 — Plateforme IA premium, Québec et Ontario, raccordée à TAKATAK (27 octobre 2026) — refusée le 28 octobre, voir D-023
 
 Décision du propriétaire. BesoinAvocat se présente comme une plateforme juridique propulsée par l'IA, pour le Québec et l'Ontario. Elle reste une marque indépendante, mais son identité, ses API et ses outils d'IA sont conçus sur l'infrastructure TAKATAK (D-005, D-010). Le design suit la marque TAKATAK (marine et bleu électrique) avec l'orange BesoinAvocat. Le contenu est conservé et relu ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)).
 

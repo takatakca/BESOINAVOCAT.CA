@@ -4,7 +4,7 @@ Décision de travail du 28 octobre 2026 : un client pourra ajouter des connecteu
 
 ## Catalogue réellement livré
 
-`platform/lib/addon-catalog.mjs` exporte `publicAddonCatalog()`. Le serveur peut l'exposer par `GET /api/addons` après authentification TAKATAK. Malgré son nom, « public » signifie ici sans secrets; cette fonction ne choisit pas la politique d'accès de la route.
+`platform/lib/addon-catalog.mjs` exporte `publicAddonCatalog()`. Le serveur l'expose par `GET /api/addons` après authentification TAKATAK. Malgré son nom, « public » signifie ici sans secrets; cette fonction ne choisit pas la politique d'accès de la route.
 
 | ID | Nature | État réel | Connexion |
 |---|---|---|---|

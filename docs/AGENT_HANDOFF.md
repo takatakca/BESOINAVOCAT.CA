@@ -1,5 +1,7 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+
 > **28 octobre 2026 — VITRINE : `www/` est maintenant la copie exacte du site WordPress; seules les couleurs changent (D-026). En attente de la validation du propriétaire.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) a été **refusée** par le propriétaire (D-023). Son design n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé de `www/content/` est conservé, sans être lu par la construction ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)).
 > - Le 28 octobre, le propriétaire a choisi de reconstruire `www/` comme **copie exacte** de son site WordPress, fait à la main détail par détail : mêmes mises en page, sections, images et boutons, textes mot pour mot. **Seules les couleurs changent**, pour ne pas ressembler à un autre de ses sites : l'orange devient bordeaux, les bleus et les verts deviennent marine; le blanc, les crèmes et le charbon restent.
@@ -9,6 +11,22 @@
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Vitrine : copie exacte livrée le 28 octobre, en attente de la validation du propriétaire (BA-034, D-026).
+
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## Reprise prioritaire — 28 octobre 2026
+
+Le propriétaire a repris le travail : la consigne historique d'arrêt ci-dessous est levée. **Plus de WordPress dans la cible**; contenus importés dans `www/` et portail Node dans `platform/`. Le développeur humain est disponible pour Coolify/DNS : [sa liste](DEV-A-FAIRE-2026-10-28.md), avec contrôles live du 28 octobre et restauration détaillée [COOLIFY](COOLIFY.md).
+
+`main` synchronisé au SHA `e59a9e084966a649d260ff917d756823ff4558c4`; ne pas réutiliser l'ancienne PR 1, fusionnée. Nouvelle branche `codex/workspaces-appels-2026-10-28`, questionnaires et communications contrôlés localement. Lire les résultats du lot avant d'intégrer; aucun déploiement de ce lot n'est revendiqué.
+
+Le portail actuel renvoie health 200 mais `/demande` 404 et identité Bearer non configurée. Tester `loginConfigured`, puis la vraie connexion : ne jamais annoncer le compte prêt sur un aperçu fictif. Préserver la sauvegarde/corpus privés hors Git et la remise figée des 312 annexes.
+
+Le tri courriel a été effectué séparément dans le OneDrive privé le 28 octobre : 22 messages classés, 9 promotions mises à la corbeille de façon réversible, deux exports avec distinction envoyé/brouillon. Un seul compte accessible; deuxième compte et ChatGPT non contrôlés dans ce lot. Manifestes privés dans `00_DOSSIER_MAITRE/99_Travail_et_collecte/Reprise_2026-10-28`, pas de nouvelle preuve de pertes affirmée.
+
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** L'utilisateur termine la session : cette passe ne modifie que les notes, puis s'arrête.
 
 ## Reprise courante — 26 octobre 2026
 

@@ -119,6 +119,59 @@ class BackupCorpusTests(unittest.TestCase):
         with closing(sqlite3.connect(self.root / "wal-restored/platform.sqlite")) as restored:
             self.assertEqual(restored.execute("SELECT body FROM messages WHERE id='message-wal'").fetchone()[0], "Committed in WAL")
 
+    def test_real_communications_schema_round_trip_preserves_approved_usage_and_triggers(self):
+        # Build the fixture through the real Node modules, not a second copy of
+        # their schema. CI sets up Node 24 before this Python suite.
+        node = os.environ.get("BESOINAVOCAT_TEST_NODE") or shutil.which("node")
+        if not node:
+            self.skipTest("Node 24 is required for the real communications integration fixture")
+        script = r"""
+          import {pathToFileURL} from 'node:url';
+          import path from 'node:path';
+          const [project, directory] = process.argv.slice(1);
+          const {createStore} = await import(pathToFileURL(path.join(project,'platform/lib/store.mjs')));
+          const {createCommunications} = await import(pathToFileURL(path.join(project,'platform/lib/communications.mjs')));
+          const store = createStore({dbPath:path.join(directory,'actual-platform.sqlite'),blobDir:path.join(directory,'actual-blobs')});
+          const client={tenantId:'synthetic-backup-tenant',subject:'synthetic-client'};
+          const owner={tenantId:client.tenantId,subject:'synthetic-owner'};
+          const item=store.createCase(client,{title:'Synthetic backup fixture',reference:'SYNTHETIC'});
+          store.provisionMembership({...owner,caseId:item.id,role:'owner'});
+          let clock=Date.parse('2026-11-01T18:00:00Z');
+          const api=createCommunications({db:store.db,access:store.access,audit:store.audit,clock:()=>clock,rates:{videoCentsPerMinute:100}});
+          const session=api.schedule(owner,item.id,{title:'Synthetic appointment',kind:'video',scheduledAt:'2026-11-01T18:00:00Z'},'synthetic-backup-session');
+          api.start(client,item.id,session.id); clock+=61000; api.end(client,item.id,session.id);
+          const usage=api.listUsage(client,item.id).entries[0];
+          api.approveUsage(owner,item.id,usage.id);
+          store.close();
+          console.log(JSON.stringify({caseId:item.id,sessionId:session.id,usageId:usage.id}));
+        """
+        result = subprocess.run([node, "--input-type=module", "-e", script, str(PROJECT), str(self.root)], capture_output=True, text=True, timeout=30, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        ids = json.loads(result.stdout)
+        manifest = backup.create_backup(self.root / "actual-platform.sqlite", self.root / "actual-blobs", self.archive)
+        for table in ("communication_sessions", "communication_timers", "communication_usage", "communication_usage_approvals"):
+            self.assertEqual(manifest["counts"][table], 1)
+        self.assertEqual(backup.verify_archive(self.archive), manifest)
+        destination = self.root / "restored-communications"
+        self.assertEqual(backup.restore_archive(self.archive, destination), manifest)
+        with closing(sqlite3.connect(destination / "platform.sqlite")) as restored:
+            self.assertEqual(restored.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+            self.assertEqual(restored.execute("PRAGMA foreign_key_check").fetchall(), [])
+            self.assertEqual(restored.execute("SELECT seconds,rateCentsPerMinute,estimateCents,durationSource FROM communication_usage WHERE id=?", (ids["usageId"],)).fetchone(), (61, 100, 102, "manual_server_timer"))
+            self.assertEqual(restored.execute("SELECT approvedBy FROM communication_usage_approvals WHERE usageId=?", (ids["usageId"],)).fetchone()[0], "synthetic-owner")
+            for statement in ("UPDATE communication_usage SET seconds=1", "DELETE FROM communication_usage",
+                              "UPDATE communication_usage_approvals SET approvedBy='changed'", "DELETE FROM communication_usage_approvals"):
+                with self.assertRaisesRegex(sqlite3.IntegrityError, "append_only"):
+                    restored.execute(statement)
+                restored.rollback()
+
+    def test_unrecognized_tables_remain_rejected(self):
+        self.db.execute("CREATE TABLE communication_unrecognized(id TEXT)")
+        self.db.commit()
+        with self.assertRaisesRegex(backup.BackupError, "Unsupported corpus schema"):
+            self.create()
+        self.assertFalse(self.archive.exists())
+
     def test_same_content_in_two_tenants_has_two_blobs_and_unreferenced_orphans_are_excluded(self):
         tenant = "other-synthetic-tenant"
         other = self.blobs / sha(tenant.encode()) / self.digest

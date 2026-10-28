@@ -1,6 +1,7 @@
 // Prices are an expression of interest, not an activated checkout or contract.
 // Publish a new version when amounts, consent or the selection schema change.
-export const CATALOG_VERSION = '2026-10-27.2';
+import { publicQuestionnaire } from './questionnaire.mjs';
+export const CATALOG_VERSION = '2026-10-28.1';
 export const CONSENT_VERSION = '2026-10-26.1';
 // Detailed client request (situation, urgency, deadline). Separate consent; disabled unless configured.
 export const REQUEST_CONSENT_VERSION = '2026-10-27.1';
@@ -70,7 +71,9 @@ export function interestPrice(role, periodicity) {
 export function publicCatalog({ intakeConfigured = false, requestEnabled = false } = {}) {
   return {
     version: CATALOG_VERSION, currency: 'CAD', amountUnit: 'minor', purchaseAvailable: false,
-    client: { amountMinor: 0, label: { fr: 'Demande client gratuite', en: 'Free client request' } },
+    client: { amountMinor: 0, label: { fr: 'Demande initiale de contact gratuite', en: 'Free initial contact request' },
+      paidServices: { pricingStatus: 'not_configured', purchaseAvailable: false, chargingBasis: 'usage_volume',
+        label: { fr: 'Les futurs services du dossier et de l’IA pourront être payants selon le volume; tarifs et conditions à définir avant toute activation.', en: 'Future case and AI services may be paid according to usage volume; prices and terms must be defined before activation.' } } },
     professional: {
       audience: 'lawyer', pricingStatus: 'announced', subscriptionActive: false, taxTreatment: 'not_configured',
       plans: [
@@ -84,7 +87,8 @@ export function publicCatalog({ intakeConfigured = false, requestEnabled = false
       consent: { version: CONSENT_VERSION, text: { ...CONSENT_TEXT } },
       request: { enabled: intakeConfigured === true && requestEnabled === true, audience: 'client', status: 'request_only',
         consent: { version: REQUEST_CONSENT_VERSION, text: { ...REQUEST_CONSENT_TEXT } },
-        summary: { minLength: SUMMARY_LIMITS.min, maxLength: SUMMARY_LIMITS.max }, deadline: { format: 'YYYY-MM-DD', maxDays: DEADLINE_MAX_DAYS } } },
+        summary: { minLength: SUMMARY_LIMITS.min, maxLength: SUMMARY_LIMITS.max }, deadline: { format: 'YYYY-MM-DD', maxDays: DEADLINE_MAX_DAYS },
+        questionnaire: publicQuestionnaire() } },
     choices: { roles: [labels('client', 'Client', 'Client'), labels('professional', 'Avocat', 'Lawyer')],
       languages: ['fr', 'en'], domains: structuredClone(DOMAINS), regions: structuredClone(REGIONS),
       stages: structuredClone(STAGES), objectives: structuredClone(OBJECTIVES), urgencies: structuredClone(URGENCIES),

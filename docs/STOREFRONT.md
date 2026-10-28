@@ -132,7 +132,7 @@ Après la bascule, le domaine ne mène plus à WordPress, et la reprise de la co
 
 | Réglage | Valeur |
 |---|---|
-| Source | GitHub `takatakca/BESOINAVOCAT.CA`, branche `main` après fusion (la branche `codex/espace-client-avocat` pour un essai) |
+| Source | GitHub `takatakca/BESOINAVOCAT.CA`, branche `main` (PR 1 fusionnée); nouvelles branches réservées aux préversions |
 | Build pack | Dockerfile |
 | Base directory | `/www` |
 | Dockerfile | `/Dockerfile` |
@@ -169,14 +169,14 @@ Zone DNS lue le 27 octobre, en lecture seule. Les serveurs de noms sont ceux de 
    - remplacer les CNAME `mail` et `ftp` par des A `209.42.24.127`;
    - dans cPanel › Routage du courriel, choisir « Échangeur de courriel local ».
    Attendre l'ancien TTL (2 h), puis envoyer et recevoir un courriel de test. Ne pas toucher aux enregistrements DKIM (`default._domainkey`), DMARC, SPF, `autodiscover`, `webmail` et `cpanel` : ce sont déjà des A ou des TXT vers MochaHost. Le SPF liste déjà les IP de MochaHost; son `+a` pourra être retiré plus tard.
-3. **Portail avant vitrine** : les boutons de la vitrine mènent à `portail.besoinavocat.ca/demande`. Déployer le portail Node sur Coolify ([COOLIFY](COOLIFY.md)), puis basculer `portail` A vers `31.220.96.134`. Vérifier `/api/health` et `/demande`. Le portail actuel chez MochaHost est la v1 bloquée : rien à perdre.
+3. **Portail avant vitrine** : les boutons de la vitrine mènent à `portail.besoinavocat.ca/demande`. Sauvegarder l'état privé et relever l'A antérieur du portail. Déployer le portail Node sur Coolify ([COOLIFY](COOLIFY.md)), puis basculer `portail` A vers `31.220.96.134` après confirmation de l'IP du serveur. Vérifier `/api/health`, `/demande` et la connexion réelle.
 4. **Essai de la vitrine avant DNS** : `curl --resolve besoinavocat.ca:80:31.220.96.134 http://besoinavocat.ca/healthz`, puis quelques adresses du plan du site. Le certificat Let's Encrypt de Coolify (défi HTTP) ne peut être obtenu qu'après la bascule. Juste après, il faut donc s'attendre à quelques minutes sans certificat valide, ou utiliser d'abord un domaine d'essai `sslip.io`.
 5. **Bascule** : changer seulement `besoinavocat.ca` A en `31.220.96.134`; `www` suit par son CNAME. Vérifier ensuite :
    - `https://besoinavocat.ca/` et le certificat;
    - un échantillon d'anciennes adresses : `/famille-et-jeunesse/`, `/faq/`, `/professionnels/`, une adresse sans barre oblique et `/wp-sitemap.xml`;
    - un bouton « Trouver mon avocat » de bout en bout;
    - un courriel reçu.
-6. **Retour arrière** : remettre `besoinavocat.ca` A à `209.42.24.127`. WordPress est intact chez MochaHost. Pendant la bascule, son administration n'est plus joignable par le domaine; c'est normal.
+6. **Retour arrière** : remettre `besoinavocat.ca` A à sa valeur relevée (`209.42.24.127` au 28 octobre). Si la bascule du portail échoue, restaurer aussi son A antérieur et sa configuration sauvegardée. Garder le courrier sur ses hôtes dédiés. WordPress reste une sauvegarde chez MochaHost. Pendant la bascule, son administration n'est plus joignable par le domaine.
 7. Après la bascule : soumettre `https://besoinavocat.ca/sitemap.xml` dans la Search Console, si elle est utilisée.
 
 ## Déploiement automatique, comme dans takatak-v1

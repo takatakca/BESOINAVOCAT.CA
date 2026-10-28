@@ -13,7 +13,7 @@
 - Actualiser les cinq documents de statut et surtout `docs/AGENT_HANDOFF.md` avant d'arrêter. Ne jamais marquer « terminé » sans preuves.
 
 ## Produit et limites
-- Le site publié dans `site/` est **un parcours d'orientation public**, exécuté localement dans le navigateur. Le mandat du 26 octobre autorise désormais le développement d'un portail client/avocat distinct dans `platform/`, en conservant WordPress sur besoinavocat.ca (MochaHost). Voir `docs/PLATFORM_ARCHITECTURE.md`.
+- Le site publié dans `site/` est **un parcours d'orientation public**, exécuté localement dans le navigateur. Le mandat confirmé le 28 octobre remplace WordPress par la vitrine `www/` et le portail Node `platform/` sur Coolify, contenus et sauvegardes conservés. La bascule appartient au développeur du propriétaire : lire `docs/DEV-A-FAIRE-2026-10-28.md`. Ne plus développer WordPress; conserver son code historique sans l'effacer.
 - Le backend local est un pilote; l'autorité TAKATAK, la connexion navigateur, le serveur MochaHost et les services payants ne sont pas encore raccordés. Ne pas annoncer une activation en production sur la seule base du code ou de tests injectant une identité fictive.
 - Exécuter aussi `node --test platform/test/*.test.mjs` avec Node 24.19.x avant livraison du pilote. Ne jamais publier les données `.data/`, les manifestes privés, secrets ou dossiers réels dans ce dépôt public.
 - Ne pas inventer d'avocats, de profils « vérifiés », d'avis, de disponibilité ou de recommandations professionnelles.

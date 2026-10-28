@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { HttpError } from './validation.mjs';
+import { QUESTIONNAIRE_CONSENT_VERSION, QUESTIONNAIRE_CONSENT_TEXT, validateQuestionnaire, QuestionnaireError } from './questionnaire.mjs';
 import { CATALOG_VERSION, CONSENT_VERSION, CONSENT_TEXT, DOMAINS, REGIONS, interestPrice,
   REQUEST_CONSENT_VERSION, REQUEST_CONSENT_TEXT, SUMMARY_LIMITS, DEADLINE_MAX_DAYS, STAGES, OBJECTIVES, URGENCIES, CONTACT_PREFERENCES } from './catalog.mjs';
 
@@ -118,27 +119,35 @@ function deadlineDate(value, time) {
   return value;
 }
 
-function requestInput(body, time) {
-  shape(body, ['name','email','phone','role','language','domain','region','contactPreference','stage','objective','summary','urgency','deadline','consent','consentVersion','website'],
-    ['name','email','role','language','domain','region','contactPreference','stage','objective','summary','urgency','consent','consentVersion']);
+function requestInput(body, time, withQuestionnaire = false) {
+  const extra = withQuestionnaire ? ['questionnaire'] : [];
+  shape(body, ['name','email','phone','role','language','domain','region','contactPreference','stage','objective','summary','urgency','deadline','consent','consentVersion','website', ...extra],
+    ['name','email','role','language','domain','region','contactPreference','stage','objective','summary','urgency','consent','consentVersion', ...extra]);
   const contact = contactFields(body);
   if (body.role !== 'client') throw invalid();
-  if (body.consent !== true || body.consentVersion !== REQUEST_CONSENT_VERSION) throw consentRequired();
+  const consentVersion = withQuestionnaire ? QUESTIONNAIRE_CONSENT_VERSION : REQUEST_CONSENT_VERSION;
+  if (body.consent !== true || body.consentVersion !== consentVersion) throw consentRequired();
   if (!choice(CONTACT_PREFERENCES, body.contactPreference) || (body.contactPreference === 'phone' && !contact.phone)) throw invalid();
   if (!choice(STAGES, body.stage) || !choice(OBJECTIVES, body.objective) || !choice(URGENCIES, body.urgency)) throw invalid();
   const summary = summaryText(body.summary), deadline = body.deadline === undefined ? null : deadlineDate(body.deadline, time);
   const { name, email, phone, language, domain, region } = contact;
+  let questionnaire;
+  if (withQuestionnaire) {
+    try { questionnaire = validateQuestionnaire(domain, body.questionnaire); }
+    catch (error) { if (error instanceof QuestionnaireError) throw new HttpError(error.status, error.code, error.message); throw error; }
+  }
   return { name, email, phone, role: 'client', language, domain, region, contactPreference: body.contactPreference,
     stage: body.stage, objective: body.objective, summary, urgency: body.urgency, ...(deadline ? { deadline } : {}),
-    consent: true, consentVersion: REQUEST_CONSENT_VERSION };
+    ...(withQuestionnaire ? { questionnaire } : {}), consent: true, consentVersion };
 }
 
 // The consent version selects the contract: contact only, or the detailed client request.
 function input(body, { requestEnabled, time }) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw invalid();
-  if (body.consentVersion !== REQUEST_CONSENT_VERSION) return contactInput(body);
+  const withQuestionnaire = body.consentVersion === QUESTIONNAIRE_CONSENT_VERSION;
+  if (!withQuestionnaire && body.consentVersion !== REQUEST_CONSENT_VERSION) return contactInput(body);
   if (!requestEnabled) throw requestClosed();
-  return requestInput(body, time);
+  return requestInput(body, time, withQuestionnaire);
 }
 
 // No list/read endpoint or role provisioning is exposed. The operator owns this
@@ -234,7 +243,7 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
         consume([[`email:${hash(data.email.toLowerCase())}`,3,86_400_000]], time);
         const reference = 'BA-' + randomBytes(18).toString('base64url');
         const price = interestPrice(data.role, data.periodicity);
-        const consentText = (data.consentVersion === REQUEST_CONSENT_VERSION ? REQUEST_CONSENT_TEXT : CONSENT_TEXT)[data.language];
+        const consentText = (data.consentVersion === QUESTIONNAIRE_CONSENT_VERSION ? QUESTIONNAIRE_CONSENT_TEXT : data.consentVersion === REQUEST_CONSENT_VERSION ? REQUEST_CONSENT_TEXT : CONSENT_TEXT)[data.language];
         db.prepare('INSERT INTO ba_intakes VALUES(?,?,?,?,?,?,?,?,?,?)').run(reference,keyHash,digest,payload,requestOrigin,CATALOG_VERSION,consentText,JSON.stringify(price),new Date(time).toISOString(),'received');
         return { reference, status:'received' };
       });

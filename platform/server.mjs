@@ -7,6 +7,8 @@ import { authenticateRequest, createIntrospection, identityConfiguration, validI
 import { BROWSER_SESSION_COOKIE, createBrowserSessions, browserSessionConfiguration } from './lib/browser-session.mjs';
 import { publicCatalog } from './lib/catalog.mjs';
 import { createIntake, intakeConfiguration } from './lib/intake.mjs';
+import { createCommunications, COMMUNICATION_PROVIDERS } from './lib/communications.mjs';
+import { publicAddonCatalog } from './lib/addon-catalog.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -24,6 +26,7 @@ const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/dictation.js', ['dictation.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   // Public request page; it posts only to the same-origin /api/intake.
   ['/demande', ['demande.html', 'text/html; charset=utf-8']],
@@ -36,12 +39,13 @@ const assets = new Map([
   ['/fonts/jetbrains-mono-latin.woff2', ['fonts/jetbrains-mono-latin.woff2', 'font/woff2']],
 ]);
 
-function securityHeaders(res) {
+function securityHeaders(res, requestUrl = '') {
   res.setHeader('Content-Security-Policy', CSP);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  const portalPage = ['/', '/index.html'].includes(requestUrl.split('?')[0]);
+  res.setHeader('Permissions-Policy', `camera=(), microphone=${portalPage ? '(self)' : '()'}, geolocation=()`);
   res.setHeader('Cache-Control', 'no-store');
 }
 
@@ -91,6 +95,7 @@ export function createApp({
   const insidePublic = path => { const rel = relative(PUBLIC, resolve(path)); return !rel || (!rel.startsWith('..') && !isAbsolute(rel)); };
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
   const store = createStore({ dbPath, blobDir });
+  const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
     excludedPaths: [dbPath, env.BESOINAVOCAT_SESSION_DB_PATH, env.BESOINAVOCAT_SESSION_KEY_FILE, env.BESOINAVOCAT_GRANTS_FILE] });
 
@@ -178,9 +183,25 @@ export function createApp({
     } else {
       user = await authenticateRequest(req, verifyIdentity);
     }
+    if (path === '/api/search') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      const allowed = ['q', 'caseId', 'mode', 'offset', 'limit'];
+      if ([...url.searchParams.keys()].some(key => !allowed.includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');
+      const number = (key, fallback) => {
+        const value = url.searchParams.get(key);
+        if (value === null) return fallback;
+        if (!/^(?:0|[1-9][0-9]*)$/u.test(value) || !Number.isSafeInteger(Number(value))) throw invalid('Pagination invalide.');
+        return Number(value);
+      };
+      return json(res, 200, store.searchStructured(user, text(url.searchParams.get('q'), 'Recherche', 200), {
+        caseId: url.searchParams.get('caseId'), mode: url.searchParams.get('mode') ?? 'terms',
+        offset: number('offset', 0), limit: number('limit', 25),
+      }));
+    }
     if ([...url.searchParams.keys()].some(k => !((path.endsWith('/search') && k === 'q') || (path.endsWith('/pages') && ['offset','limit'].includes(k)))) || [...url.searchParams.keys()].some(k => url.searchParams.getAll(k).length > 1)) throw invalid('Paramètre URL non autorisé.');
     if (path === '/api/me' && method === 'GET') return json(res, 200, { user });
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, twilio: false, payments: false, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/addons' && method === 'GET') return json(res, 200, publicAddonCatalog());
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -189,7 +210,24 @@ export function createApp({
     if (!match) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     const caseId = identifier(match[1]), suffix = match[2];
     store.access(user, caseId);
-    if (!suffix && method === 'GET') return json(res, 200, store.details(user, caseId));
+    if (!suffix && method === 'GET') return json(res, 200, { ...store.details(user, caseId), communications: communications.list(user, caseId), usage: communications.listUsage(user, caseId) });
+    if (suffix === '/communications') {
+      if (method === 'GET') return json(res, 200, communications.list(user, caseId));
+      if (method === 'POST') return json(res, 201, { session: communications.schedule(user, caseId, await readJson(req, 4096), req.headers['idempotency-key']) });
+    }
+    const communicationAction = /^\/communications\/([^/]+)\/(start|end|cancel)$/u.exec(suffix);
+    if (communicationAction && method === 'POST') {
+      fields(await readJson(req, 128, { allowEmpty: true }), []);
+      const sessionId = identifier(communicationAction[1]), action = communicationAction[2];
+      const result = communications[action](user, caseId, sessionId);
+      return json(res, 200, { [action === 'cancel' ? 'session' : 'timer']: result });
+    }
+    if (suffix === '/usage' && method === 'GET') return json(res, 200, communications.listUsage(user, caseId));
+    const usageApproval = /^\/usage\/([^/]+)\/approve$/u.exec(suffix);
+    if (usageApproval && method === 'POST') {
+      fields(await readJson(req, 128, { allowEmpty: true }), []);
+      return json(res, 200, { usage: communications.approveUsage(user, caseId, identifier(usageApproval[1])) });
+    }
     if (suffix === '/documents' && method === 'POST') {
       const declaredLength = req.headers['content-length'];
       if (declaredLength !== undefined && (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > MAX_DOCUMENT_JSON_BYTES)) throw new HttpError(413, 'BODY_TOO_LARGE', 'La requête est trop volumineuse.');
@@ -249,7 +287,7 @@ export function createApp({
   }
 
   const app = createServer({ maxHeaderSize: 16384, requestTimeout: 30000, headersTimeout: 15000 }, (req, res) => {
-    securityHeaders(res);
+    securityHeaders(res, req.url || '');
     route(req, res).catch(error => {
       if (res.headersSent) return res.destroy();
       const safe = error instanceof HttpError ? error : new HttpError(500, 'INTERNAL_ERROR', 'Une erreur interne empêche cette opération.');

@@ -1,8 +1,16 @@
 # DECISIONS — BESOINAVOCAT.CA
 
-**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+## D-024 — Développement GitHub et bascule par Mike (28 octobre 2026)
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-026 ci-dessous priment sur les états historiques qu'elles remplacent.
+Le propriétaire reprend le travail et confirme : aucun WordPress dans la cible, tous les contenus existants conservés dans `www/`, backend Node construit et testé dans GitHub. Mike, son développeur, termine les DNS. L'agent prépare le code, ses tests et [la liste de bascule](DEV-A-FAIRE-2026-10-28.md); ne pas refaire le travail de Mike ni réinstaller WordPress. La sauvegarde WordPress est conservée pour retour arrière.
+
+Le dashboard personnel et les trois dossiers du propriétaire priment. Réutiliser son identité TAKATAK existante, confirmée en lecture seule; les droits locaux préparés ne prouvent pas que le portail distant est activé. Les mots de passe ne vont jamais dans le dépôt ni les notes.
+
+## D-025 — Connecteurs optionnels et revenus distincts (28 octobre 2026)
+
+Le client doit choisir ses options : services internes BesoinAvocat, connecteur Zoom, téléphonie et autres intégrations. Les connecteurs pourront porter des frais d'installation payés par Stripe; **50 CAD est l'exemple donné, pas un prix activé**. Le propriétaire envisage un service interne gratuit, à définir. Des frais pour de forts volumes documentaires sont aussi prévus, sans barème arrêté.
+
+Chaque connexion fournisseur utilise son flux officiel OAuth et ses habilitations propres; ne pas collecter le mot de passe Zoom. L'état du paiement, le droit à l'option, la connexion du fournisseur et les permissions des dossiers sont séparés. Une page de succès Stripe ne débloque pas une option : confirmation serveur signée et idempotente requise. Pas de débit, de création de facture réelle ni de promesse de fonction active avant raccordement et recette.
 
 ## D-026 — La vitrine est la copie exacte du site WordPress, en couleurs juridiques (28 octobre 2026)
 
@@ -21,6 +29,10 @@ Règles :
 - la page de demande du portail (`platform/public/demande.*`) garde le style refusé de `c00ead5`. Sans instruction du propriétaire, elle n'est pas modifiée.
 
 Le résultat attend la validation du propriétaire. La bascule DNS reste à faire par son développeur.
+
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-026 ci-dessous priment sur les états historiques qu'elles remplacent.
 
 ## D-023 — Refonte D-022 refusée; le propriétaire reprend la vitrine (28 octobre 2026)
 

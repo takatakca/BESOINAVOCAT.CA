@@ -51,6 +51,9 @@ strong { color: #fff; }
 .ba-lang { display: flex; padding: 3px; border-radius: 10px; background: rgba(13, 28, 60, .8); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .ba-lang button { border: 0; background: transparent; color: var(--muted); border-radius: 8px; padding: 6px 11px; font: 700 .76rem/1 var(--mono); min-height: 32px; letter-spacing: .06em; }
 .ba-lang button[aria-pressed="true"] { background: var(--cyan); color: #04121f; }
+@media (max-width: 420px) {
+  .ba-top__tools { flex-direction: column-reverse; gap: 6px; align-items: flex-end; }
+}
 
 /* Hero and request card */
 .ba-hero { padding: 48px 0 64px; }
@@ -78,6 +81,9 @@ strong { color: #fff; }
 .ba-steps { list-style: none; margin: 0 0 24px; padding: 0 0 18px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
 .ba-steps--4 { grid-template-columns: repeat(4, 1fr); }
 .ba-steps--6 { grid-template-columns: repeat(6, 1fr); }
+.ba-steps--7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.ba-branch { align-items: start; }
+.ba-review-confirm { margin-top: 22px; }
 .ba-steps li { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font: 600 .68rem/1.25 var(--mono); letter-spacing: .02em; }
 .ba-steps li > span:first-child { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: rgba(150, 182, 235, .08); box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font-size: .74rem; }
 .ba-steps li[aria-current="step"] { color: #fff; }
@@ -202,6 +208,9 @@ label small, legend small { color: var(--muted); font: 500 .68rem/1 var(--mono);
   .ba-steps li > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .ba-steps li[aria-current="step"] { flex: 1 1 auto; }
   .ba-steps li[aria-current="step"] > span:last-child { position: static; width: auto; height: auto; clip: auto; white-space: normal; }
+  .ba-steps--7 { flex-wrap: wrap; gap: 5px; }
+  .ba-steps--7 li > span:first-child { width: 24px; height: 24px; flex-shrink: 0; }
+  .ba-steps--7 li[aria-current="step"] { min-width: 110px; }
   .ba-review dl > div { grid-template-columns: 1fr; gap: 2px; }
   .ba-actions { gap: 10px; }
   .ba-button { padding: 12px 18px; }

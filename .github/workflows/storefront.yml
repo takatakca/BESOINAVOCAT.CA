@@ -16,8 +16,9 @@ jobs:
           node-version: '24.19.0'
       - name: Build the copy of the WordPress site and compare every page, word for word, with the mirror
         run: |
-          for f in www/build.mjs www/palette.mjs www/tools/check-site.mjs www/tools/compare-live.mjs www/tools/mirror-wordpress.mjs www/tools/mirror-runtime.mjs; do node --check "$f"; done
+          for f in www/build.mjs www/palette.mjs www/tools/*.mjs; do node --check "$f"; done
           python3 -m py_compile www/tools/recolour-images.py
+          node www/tools/inventory-content.mjs --check
           node www/build.mjs
           node www/tools/check-site.mjs
       - name: Build the Coolify image and smoke-test it

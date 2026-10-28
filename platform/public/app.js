@@ -3,12 +3,14 @@
 (() => {
   const MAX_FILE_BYTES = 64 * 1024 * 1024;
   const SOURCE_LABELS = { original: 'Pièce source ou copie', declaration: 'Déclaration', analyse: 'Analyse', ocr: 'Extraction ou transcription' };
-  const VIEW_LABELS = { cases: 'Dossiers', documents: 'Pièces et sources', messages: 'Échanges', time: 'Suivi du temps' };
+  const VIEW_LABELS = { cases: 'Dossiers', search: 'Recherche', documents: 'Pièces et sources', messages: 'Échanges', communications: 'Rendez-vous', usage: 'Usages', time: 'Suivi du temps' };
   const PATHS = {
     folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
     document: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4M9 12h6M9 16h6"/>',
     message: '<path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8M8 12h5"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 17h3"/>',
+    video: '<rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3"/>',
     layers: '<path d="m12 3 10 5-10 5L2 8zM3 12l9 5 9-5M3 16l9 5 9-5"/>',
     logout: '<path d="M10 4H4v16h6M9 12h12m-4-4 4 4-4 4"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.1"/>',
@@ -32,10 +34,13 @@
     mode: 'loading', view: 'cases', cases: [], selectedId: null, detail: null,
     capabilities: null, health: null, user: null,
     documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
+    searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
+    dictationLanguage: 'fr-CA', dictationAutoSearch: true, dictationStatus: 'idle', dictationMessage: '',
   };
   const main = document.getElementById('main-content');
   const dialog = document.getElementById('workspace-dialog');
   let toastTimer;
+  let dictationController = null, dictationGeneration = 0;
 
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -69,12 +74,13 @@
     window.clearTimeout(toastTimer); toastTimer = window.setTimeout(() => { node.hidden = true; }, 6500);
   }
   function clearSession() {
+    cancelSearchWork();
     state.sessionVersion += 1;
     state.requestVersion += 1;
     state.pageRequest += 1;
     state.caseLoading = false;
     state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null;
-    state.selectedId = null; state.capabilities = null; state.searchResults = null; state.searchQuery = '';
+    state.selectedId = null; state.capabilities = null; state.searchResults = null; state.searchQuery = ''; state.searchMeta = null;
     if (dialog.open) dialog.close();
   }
   async function api(path, options = {}) {
@@ -82,7 +88,7 @@
     if (state.demo) throw new Error('L’aperçu utilise uniquement des données fictives locales.');
     const sessionVersion = state.sessionVersion;
     const method = options.method || 'GET';
-    const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
+    const headers = { ...options.headers, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
     const response = await fetch(path, { cache: 'no-store', ...options, credentials: 'same-origin', headers });
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
     if (response.status === 401) {
@@ -135,8 +141,13 @@
       'demo-preparation': { case: first, documents, messages: [
         { id: 'demo-message-1', authorSubject: 'Personne cliente — fictive', createdAt: '2026-10-13T14:00:00Z', body: 'Exemple de message : j’ai regroupé mes notes de préparation. Je souhaite distinguer les documents disponibles des pièces encore à obtenir.' },
         { id: 'demo-message-2', authorSubject: 'Professionnel — fictif', createdAt: '2026-10-13T15:30:00Z', body: 'Exemple de réponse : la provenance et les points à vérifier peuvent être suivis dans l’onglet « Pièces et sources ». Cet échange est entièrement fictif.' },
-      ], timeEntries: [{ id: 'demo-time-1', description: 'Exemple fictif : classement et lecture préparatoire', minutes: 30, authorSubject: 'Professionnel — fictif', status: 'submitted', createdAt: '2026-10-13T16:00:00Z' }] },
-      'demo-classement': { case: second, documents: [], messages: [], timeEntries: [] },
+      ], timeEntries: [{ id: 'demo-time-1', description: 'Exemple fictif : classement et lecture préparatoire', minutes: 30, authorSubject: 'Professionnel — fictif', status: 'submitted', createdAt: '2026-10-13T16:00:00Z' }],
+      communications: { sessions: [
+        { id: 'demo-rdv-1', kind: 'video', title: 'Préparer le premier échange — exemple fictif', scheduledAt: '2026-10-30T14:00:00Z', status: 'scheduled', joinUrl: null, ownTimer: null },
+        { id: 'demo-rdv-2', kind: 'phone', title: 'Faire le point sur les pièces — exemple fictif', scheduledAt: '2026-10-13T14:00:00Z', status: 'scheduled', joinUrl: null, ownTimer: { status: 'ended', startedAt: '2026-10-13T14:00:00Z', endedAt: '2026-10-13T14:12:30Z', seconds: 750, rateCentsPerMinute: null } },
+      ], hasMore: false, providers: { video: 'external_zoom_link_only', phone: 'not_connected' } },
+      usage: { entries: [{ id: 'demo-usage-1', sessionId: 'demo-rdv-2', authorSubject: 'Personne cliente — fictive', kind: 'phone', seconds: 750, rateCentsPerMinute: null, estimateCents: null, needsReview: false, createdAt: '2026-10-13T14:12:30Z', status: 'submitted', providerVerified: false, billed: false }], hasMore: false, billingEnabled: false } },
+      'demo-classement': { case: second, documents: [], messages: [], timeEntries: [], communications: { sessions: [], hasMore: false }, usage: { entries: [], hasMore: false, billingEnabled: false } },
     };
   }
   let examples = null;
@@ -162,6 +173,12 @@
   }
   function connections() {
     // These flows deliberately have no actionable controls until complete integrations exist.
+    const addons = state.capabilities?.addons?.items;
+    if (Array.isArray(addons)) {
+      const status = { available_pilot: 'Pilote interne', external_link_only: 'Lien externe', planned: 'À connecter' };
+      const symbol = { internal_chat: 'message', zoom: 'video', phone: 'phone' };
+      return `<div class="connection-panel"><h3>Services complémentaires</h3>${addons.map(item => `<div class="integration-row"><span>${icon(symbol[item.id] || 'layers')}${esc(item.label)}</span><span class="badge">${esc(status[item.availability] || 'À vérifier')}</span></div><p class="addon-description">${esc(item.description)}</p>`).join('')}<p class="addon-description">Tarifs des options payantes à définir. Aucun achat ni connexion fournisseur depuis cette liste.</p></div>`;
+    }
     return `<div class="connection-panel"><h3>Services complémentaires</h3><div class="integration-row"><span>${icon('spark')}Assistant IA</span><span class="badge">À connecter</span></div><div class="integration-row"><span>${icon('credit')}Crédits et paiements</span><span class="badge">À connecter</span></div><div class="integration-row"><span>${icon('phone')}Appels et voix</span><span class="badge">À connecter</span></div></div>`;
   }
   function principles() {
@@ -180,25 +197,36 @@
     const item = currentCase();
     return `<div class="case-context"><div><small>DOSSIER SÉLECTIONNÉ${state.demo ? ' · FICTIF' : ''}</small><strong>${esc(item?.title)}</strong></div><label class="sr-only" for="case-select">Changer de dossier</label><select id="case-select" aria-label="Changer de dossier">${state.cases.map((entry) => `<option value="${esc(entry.id)}"${entry.id === state.selectedId ? ' selected' : ''}>${esc(entry.reference || entry.title)}</option>`).join('')}</select></div>`;
   }
+  function quickSearch(scope = 'all') {
+    return `<section class="panel quick-search"><div><h2>${scope === 'case' ? 'Chercher dans ce dossier' : 'Retrouver une pièce ou un passage'}</h2><p>${scope === 'case' ? 'Les filtres du registre ci-dessous ne limitent pas cette recherche.' : 'Dans les dossiers auxquels vous avez accès, avec un retour à chaque source.'}</p></div><form id="${scope === 'case' ? 'case-search-form' : 'dashboard-search-form'}" class="search-toolbar"><label class="searchbox">${icon('search')}<input type="search" name="query" maxlength="200" required autocomplete="off" placeholder="Un nom, un numéro de facture, une question…" aria-label="${scope === 'case' ? 'Rechercher dans ce dossier' : 'Rechercher dans tous mes dossiers'}"></label><button class="button" type="submit">Rechercher</button><button class="button secondary" type="button" data-action="open-search" data-scope="${scope}">Options et dictée</button></form></section>`;
+  }
+  function searchView() {
+    const listening = ['starting','listening','stopping'].includes(state.dictationStatus);
+    const supported = Boolean(window.BesoinAvocatDictation && (window.SpeechRecognition || window.webkitSpeechRecognition));
+    const cases = state.cases.map(item => `<option value="${esc(item.id)}"${item.id === state.selectedId ? ' selected' : ''}>${esc(item.reference ? `${item.reference} — ${item.title}` : item.title)}</option>`).join('');
+    return `${intro('RECHERCHE DANS VOS PIÈCES', 'Un passage. Une source vérifiable.', 'Recherche sourcée dans les textes disponibles. L’IA générative reste à connecter.')}<section class="panel"><div class="panel-body search-workspace"><form id="search-form"><label for="document-query" class="search-label">Votre recherche ou votre question</label><div class="search-toolbar"><label class="searchbox" for="document-query">${icon('search')}<input id="document-query" name="query" type="search" required maxlength="200" value="${esc(state.searchQuery)}" placeholder="Ex. retrouver les factures de réparation…" autocomplete="off"></label><button class="button" type="submit"${state.searchPending || listening || state.caseLoading ? ' disabled' : ''}>${state.searchPending ? 'Recherche…' : 'Rechercher'}</button></div><div class="search-options"><label>Périmètre<select id="search-scope" name="scope"${listening || state.caseLoading ? ' disabled' : ''}><option value="all"${state.searchScope === 'all' ? ' selected' : ''}>Tous mes dossiers autorisés</option><option value="case"${state.searchScope === 'case' ? ' selected' : ''}${state.selectedId ? '' : ' disabled'}>Ce dossier</option></select></label>${state.searchScope === 'case' ? `<label>Dossier<select id="search-case"${listening || state.caseLoading ? ' disabled' : ''}>${cases}</select></label>` : ''}<label>Correspondance<select id="search-mode" name="mode"${listening || state.caseLoading ? ' disabled' : ''}><option value="terms"${state.searchMode === 'terms' ? ' selected' : ''}>Tous les mots utiles</option><option value="literal"${state.searchMode === 'literal' ? ' selected' : ''}>Expression exacte</option></select></label></div><div class="dictation-panel"><div class="dictation-controls"><button class="button secondary" id="dictation-control" type="button" data-action="dictate"${supported && !state.caseLoading && !state.searchPending && state.dictationStatus !== 'stopping' ? '' : ' disabled'}>${listening ? 'Terminer la dictée' : 'Dicter la recherche'}</button>${listening ? '<button class="text-button" type="button" data-action="cancel-dictation">Annuler la dictée</button>' : ''}<label>Langue de dictée<select id="dictation-language"${listening || state.caseLoading ? ' disabled' : ''}><option value="fr-CA"${state.dictationLanguage === 'fr-CA' ? ' selected' : ''}>Français</option><option value="en-CA"${state.dictationLanguage === 'en-CA' ? ' selected' : ''}>English</option></select></label></div><label class="checkbox-filter"><input id="dictation-auto-search" type="checkbox"${state.dictationAutoSearch ? ' checked' : ''}${listening || state.caseLoading ? ' disabled' : ''}> Rechercher automatiquement à la fin de la dictée</label><p class="table-subtext">Le micro démarre seulement après votre clic. Le navigateur peut transmettre l’audio à son service de reconnaissance externe. Aucun fichier audio n’est enregistré par ce portail. ${supported ? 'Vous pouvez aussi saisir votre recherche au clavier.' : 'Dictée indisponible dans ce navigateur : utilisez le clavier.'}</p><p id="dictation-status" role="status">${esc(state.dictationMessage)}</p></div></form><div id="search-results" aria-live="polite">${searchResults()}</div></div></section>${readOnlyNote()}`;
+  }
   function casesView() {
     const docs = state.detail?.documents || [];
     const entries = state.detail?.timeEntries || [];
     const pending = entries.filter((entry) => entry.status === 'submitted').reduce((sum, entry) => sum + entry.minutes, 0);
     const cards = state.cases.map((item) => `<article class="case-card${item.id === state.selectedId ? ' selected' : ''}" data-case-filter="${esc(fold(`${item.title} ${item.reference}`))}"><span class="case-symbol">${icon('folder')}</span><div class="case-card-content"><div class="case-ref">${esc(item.reference || 'Référence à préciser')}${state.demo ? ' · FICTIF' : ''}</div><button class="case-title" data-action="open-case" data-id="${esc(item.id)}">${esc(item.title)}</button><p>${state.demo ? 'Exemple de présentation, sans affaire réelle.' : `Créé le ${esc(date(item.createdAt))}`}</p><div class="case-card-foot"><span class="badge${item.id === state.selectedId ? ' teal' : ' neutral'}">${item.id === state.selectedId ? 'Dossier sélectionné' : 'Dossier de travail'}</span>${item.id === state.selectedId ? `<span>${docs.length} pièce${docs.length > 1 ? 's' : ''}</span>` : ''}<span>${state.demo ? 'Lecture seule' : `Accès ${esc(({ owner: 'responsable', lawyer: 'avocat', client: 'client' })[item.role] || 'autorisé')}`}</span></div></div><button class="icon-button case-arrow" data-action="open-case" data-id="${esc(item.id)}" aria-label="${esc(`Ouvrir ${item.title}`)}">${icon('arrow')}</button></article>`).join('');
-    return `${intro('L’ESSENTIEL, AU MÊME ENDROIT', 'Vos dossiers, en ordre.', 'Un point de départ clair pour préparer la prochaine étape.', `<button class="button" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button>`)}<div class="metrics">${metric('Dossiers accessibles', state.cases.length, state.demo ? 'Exemples fictifs' : 'Selon vos habilitations', 'folder')}${metric('Pièces du dossier sélectionné', docs.length, `${docs.filter((doc) => doc.reviewStatus !== 'controle_visuel').length} à vérifier`, 'document')}${metric('Temps soumis du dossier', duration(pending), 'Aucune facturation automatique', 'clock')}</div><div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Votre bibliothèque de dossiers</h2><p>Ouvrez un dossier pour retrouver ses pièces et son suivi.</p></div><span class="badge outline">${state.cases.length} dossier${state.cases.length > 1 ? 's' : ''}</span></div><div class="panel-body"><label class="searchbox" for="case-filter">${icon('search')}<input id="case-filter" type="search" placeholder="Rechercher un titre ou une référence…" autocomplete="off" aria-label="Rechercher un dossier"></label><div class="case-list">${cards || '<div class="empty-state"><h2>Votre premier dossier commence ici.</h2><p>Créez un dossier pour y classer les pièces et leurs sources.</p></div>'}</div><p id="case-filter-empty" class="table-empty" hidden>Aucun dossier ne correspond à cette recherche.</p>${readOnlyNote()}</div></section><aside class="section-stack" aria-label="Repères de travail">${principles()}${connections()}</aside></div>`;
+    return `${intro('L’ESSENTIEL, AU MÊME ENDROIT', 'Vos dossiers, en ordre.', 'Un point de départ clair pour préparer la prochaine étape.', `<button class="button" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button>`)}<div class="metrics">${metric('Dossiers accessibles', state.cases.length, state.demo ? 'Exemples fictifs' : 'Selon vos habilitations', 'folder')}${metric('Pièces du dossier sélectionné', docs.length, `${docs.filter((doc) => doc.reviewStatus !== 'controle_visuel').length} à vérifier`, 'document')}${metric('Temps soumis du dossier', duration(pending), 'Aucune facturation automatique', 'clock')}</div>${quickSearch()}<div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Votre bibliothèque de dossiers</h2><p>Ouvrez un dossier pour retrouver ses pièces et son suivi.</p></div><span class="badge outline">${state.cases.length} dossier${state.cases.length > 1 ? 's' : ''}</span></div><div class="panel-body"><label class="searchbox" for="case-filter">${icon('search')}<input id="case-filter" type="search" placeholder="Rechercher un titre ou une référence…" autocomplete="off" aria-label="Rechercher un dossier"></label><div class="case-list">${cards || '<div class="empty-state"><h2>Votre premier dossier commence ici.</h2><p>Créez un dossier pour y classer les pièces et leurs sources.</p></div>'}</div><p id="case-filter-empty" class="table-empty" hidden>Aucun dossier ne correspond à cette recherche.</p>${readOnlyNote()}</div></section><aside class="section-stack" aria-label="Repères de travail">${principles()}${connections()}</aside></div>`;
   }
   function documentsView() {
     const allDocuments = state.detail.documents || [];
     const categories = [...new Set(allDocuments.map(doc => doc.category).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
     const documents = allDocuments.filter(doc => (!state.documentCategory || doc.category === state.documentCategory) && (!state.onlyUnresolved || (doc.missingTextPages?.length || doc.ocrPagesToVerify?.length || doc.lowTextPagesToVerify?.length)));
-    const filters = `<div class="document-filters"><label for="document-category">Catégorie<select id="document-category"><option value="">Toutes les catégories (${allDocuments.length})</option>${categories.map(category => `<option value="${esc(category)}"${category === state.documentCategory ? ' selected' : ''}>${esc(category)}</option>`).join('')}</select></label><label class="checkbox-filter"><input id="document-unresolved" type="checkbox"${state.onlyUnresolved ? ' checked' : ''}> Texte manquant ou extraction à contrôler</label></div>`;
+    const filters = `<div class="document-filters"><label for="document-category">Catégorie du registre<select id="document-category"><option value="">Toutes les catégories (${allDocuments.length})</option>${categories.map(category => `<option value="${esc(category)}"${category === state.documentCategory ? ' selected' : ''}>${esc(category)}</option>`).join('')}</select></label><label class="checkbox-filter"><input id="document-unresolved" type="checkbox"${state.onlyUnresolved ? ' checked' : ''}> Registre : texte manquant ou extraction à contrôler</label></div>`;
     const rows = documents.map((doc) => `<tr><td><div class="document-name">${icon('document')}<div><button data-action="preview" data-id="${esc(doc.id)}">${esc(doc.name)}</button><small>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Document fictif' : esc(bytes(doc.bytes))}${doc.pageCount ? ` · ${doc.pageCount} pages/unités` : ''}</small>${doc.category ? `<small>${esc(doc.category)}</small>` : ''}</div></div></td><td>${sourceBadge(doc.sourceType)}${duplicateNote(doc)}<small class="table-subtext">${esc(date(doc.createdAt))}</small></td><td>${reviewBadge(doc.reviewStatus)}${(doc.missingTextPages?.length || doc.ocrPagesToVerify?.length) ? `<small class="table-subtext">${doc.missingTextPages?.length || 0} sans texte · ${doc.ocrPagesToVerify?.length || 0} OCR à contrôler</small>` : ""}</td><td><button class="icon-button" data-action="preview" data-id="${esc(doc.id)}" aria-label="${esc(`Voir la provenance de ${doc.name}`)}">${icon('eye')}</button></td></tr>`).join('');
-    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Retrouvez un passage. Contrôlez le document auquel il se rapporte.', `<button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter une pièce</button>`)}${context()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel"><div class="panel-heading"><div><h2>Rechercher dans les pièces</h2><p>Recherche littérale dans les noms, références et textes disponibles.</p></div></div><div class="panel-body"><form id="search-form" class="search-toolbar"><label class="searchbox" for="document-query">${icon('search')}<input id="document-query" name="query" type="search" required maxlength="200" value="${esc(state.searchQuery)}" placeholder="Un mot, un nom, une référence…" aria-label="Rechercher dans le dossier"></label><button class="button secondary" type="submit">Rechercher ${icon('arrow')}</button></form><div id="search-results" aria-live="polite">${searchResults()}</div></div></section><section class="panel"><div class="panel-heading"><div><h2>Registre des pièces</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''} dans ce dossier${state.demo ? ' fictif' : ''}.</p></div></div>${filters}${documents.length ? `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>'}</section></div><aside class="section-stack" aria-label="Repères sur les pièces">${principles()}${connections()}</aside></div>${readOnlyNote()}`;
+    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Retrouvez un passage. Contrôlez le document auquel il se rapporte.', `<button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter une pièce</button>`)}${context()}<div class="layout-two"><div class="section-stack main-stack">${quickSearch('case')}<section class="panel"><div class="panel-heading"><div><h2>Registre des pièces</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''} dans ce dossier${state.demo ? ' fictif' : ''}.</p></div></div>${filters}${documents.length ? `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>'}</section></div><aside class="section-stack" aria-label="Repères sur les pièces">${principles()}${connections()}</aside></div>${readOnlyNote()}`;
   }
   function searchResults() {
-    if (state.searchResults === null) return '<p class="table-subtext">La recherche retrouve du texte ; elle ne produit pas d’avis juridique. L’assistant IA reste à connecter.</p>';
-    if (!state.searchResults.length) return '<p class="table-empty">Aucun passage retrouvé. Une pièce sans texte saisi peut ne pas apparaître dans la recherche.</p>';
-    return `<p class="table-subtext">${state.searchResults.length} résultat${state.searchResults.length > 1 ? 's' : ''}${state.demo ? ' dans les exemples fictifs' : ''} · au plus 100 correspondances ; contrôlez chaque passage sur sa source.</p><div class="search-results">${state.searchResults.map((result, i) => `<article class="result"><div class="result-header"><button class="result-title" data-action="preview" data-id="${esc(result.id)}" data-page="${esc(result.citation?.ordinal || 1)}">[${i + 1}] ${esc(result.name)}</button>${sourceBadge(result.sourceType)}</div>${result.citation ? `<p class="citation-line">${esc(result.citation.sourceDocumentId || result.id)} · ${result.citation.page ? `page ${esc(result.citation.page)}` : `unité ${esc(result.citation.ordinal)}`}${result.citation.label ? ` · ${esc(result.citation.label)}` : ''}${result.citation.ocrToVerify ? ' · OCR à contrôler' : ''}</p>` : ''}<p>${esc(result.excerpt || 'Aucun extrait textuel fourni.')}</p><div class="result-foot">${reviewBadge(result.reviewStatus)}<span>${state.demo ? 'Aucune empreinte réelle' : result.sha256 ? `SHA-256 ${esc(result.sha256.slice(0, 14))}…` : 'Empreinte non fournie'}</span><button class="text-button" data-action="preview" data-id="${esc(result.id)}" data-page="${esc(result.citation?.ordinal || 1)}">Voir la source ${icon('arrow')}</button></div></article>`).join('')}</div>`;
+    if (state.searchResults === null) return '<p class="table-subtext">Saisissez des mots ou une question : la recherche extrait des termes et retrouve les passages correspondants. Elle ne rédige pas de réponse juridique.</p>';
+    const meta = state.searchMeta || {};
+    const lead = `<p class="search-summary">${state.searchResults.length} résultat${state.searchResults.length > 1 ? 's' : ''} affiché${state.searchResults.length > 1 ? 's' : ''}${meta.hasMore ? ' · liste partielle, d’autres résultats sont disponibles' : ' · fin des résultats de cette recherche'}${state.demo ? ' · données fictives' : ''}.</p><p class="table-subtext">Recherche : « ${esc(meta.query || state.searchQuery)} »${meta.terms?.length ? ` · termes retenus : ${meta.terms.map(esc).join(', ')}` : ''}. Contrôlez les extraits sur leur source. Aucune réponse d’IA générative.</p>`;
+    if (!state.searchResults.length) return lead + '<p class="table-empty">Aucun passage retrouvé. Essayez moins de mots ou une expression différente. Une pièce sans texte peut rester accessible par son nom dans le registre.</p>';
+    return lead + `<div class="search-results">${state.searchResults.map((result, i) => `<article class="result"><div class="result-header"><button class="result-title" data-action="search-preview" data-result-index="${i}">[${i + 1}] ${esc(result.name)}</button>${sourceBadge(result.sourceType)}</div><p class="result-case">Dossier : ${esc(result.caseTitle || state.cases.find(item => item.id === result.caseId)?.title || 'Dossier sélectionné')}</p>${result.citation ? `<p class="citation-line">${esc(result.citation.sourceDocumentId || result.id)} · ${result.citation.unitKind === 'pdf_page' && result.citation.page ? `page PDF ${esc(result.citation.page)}` : `unité ${esc(result.citation.ordinal)}`}${result.citation.label ? ` · ${esc(result.citation.label)}` : ''}${result.citation.ocrToVerify ? ' · OCR à contrôler' : ''}</p>` : '<p class="citation-line">Correspondance documentaire · aucune page citée</p>'}<p>${esc(result.excerpt || 'Aucun extrait textuel fourni.')}</p><div class="result-foot">${reviewBadge(result.reviewStatus)}<span>${state.demo ? 'Aucune empreinte réelle' : result.sha256 ? `SHA-256 ${esc(result.sha256.slice(0, 14))}…` : 'Empreinte non fournie'}</span><button class="text-button" data-action="search-preview" data-result-index="${i}">Voir la source ${icon('arrow')}</button><button class="text-button" data-action="search-download" data-result-index="${i}"${state.demo || !canMutate() ? ' disabled' : ''}>Télécharger la pièce</button></div></article>`).join('')}</div>${meta.hasMore ? `<button class="button secondary search-more" type="button" data-action="search-more"${state.searchPending ? ' disabled' : ''}>${state.searchPending ? 'Chargement…' : 'Afficher les résultats suivants'}</button>` : ''}`;
   }
   function messagesView() {
     const messages = state.detail.messages || [];
@@ -211,13 +239,74 @@
     const rows = entries.map((entry) => `<tr><td><strong>${esc(entry.description)}</strong><small class="table-subtext">${esc(entry.authorSubject || 'Auteur non précisé')} · ${esc(date(entry.createdAt))}</small>${entry.approvedAt ? `<small class="table-subtext">Validé le ${esc(date(entry.approvedAt, true))}</small>` : ''}</td><td><span class="time-number">${esc(duration(entry.minutes))}</span></td><td><span class="badge ${entry.status === 'approved' ? 'teal' : 'warning'}">${entry.status === 'approved' ? 'Validé' : 'Soumis'}</span></td><td>${entry.status === 'submitted' && canApprove() && entry.authorSubject !== state.user?.subject ? `<button class="button secondary small" data-action="approve-time" data-id="${esc(entry.id)}">Valider</button>` : ''}</td></tr>`).join('');
     return `${intro('DU TEMPS, SANS ZONE GRISE', 'Suivre le travail effectué.', 'Le temps est saisi manuellement, puis validé par un avocat ou responsable habilité.', `<button class="button" data-action="new-time"${canMutate() ? '' : ' disabled'}>${icon('plus')}Soumettre du temps</button>`)}${context()}<div class="metrics">${metric('Temps soumis', duration(sum('submitted')), 'En attente de validation', 'clock')}${metric('Temps validé', duration(sum('approved')), 'Validation enregistrée au dossier', 'check')}${metric('Débit de crédits', '—', 'Paiements et crédits à connecter', 'credit')}</div><div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Journal du temps</h2><p>${state.demo ? 'Exemples fictifs de suivi du temps.' : 'La validation ne déclenche pas de facturation ni de paiement.'}</p></div></div>${entries.length ? `<div class="table-wrap"><table><caption class="sr-only">Temps soumis et validé</caption><thead><tr><th scope="col">Travail déclaré</th><th scope="col">Durée</th><th scope="col">État</th><th scope="col"><span class="sr-only">Validation</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune entrée de temps dans ce dossier.</p>'}<p class="time-note">La personne cliente peut consulter le suivi. La validation est réservée aux rôles autorisés du dossier et contrôlée par le serveur.</p></section><aside class="section-stack"><div class="note-panel"><div class="note-icon">${icon('clock')}</div><h2>Une validation<br>distincte.</h2><p>Décrire le travail, déclarer la durée et faire valider l’entrée sont des étapes séparées. Le portail ne calcule aucun honoraire automatiquement.</p></div>${connections()}</aside></div>${readOnlyNote()}`;
   }
+  function elapsed(seconds) {
+    if (!Number.isSafeInteger(seconds) || seconds < 0) return 'Durée non disponible';
+    const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds % 3600 / 60), rest = seconds % 60;
+    return `${hours ? `${hours} h ` : ''}${minutes} min ${String(rest).padStart(2, '0')} s`;
+  }
+  function money(cents) {
+    return Number.isSafeInteger(cents) && cents >= 0 ? new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD', currencyDisplay: 'code' }).format(cents / 100) : null;
+  }
+  function rateLabel(rate) { return money(rate) === null ? 'Tarif non configuré' : `${money(rate)} / min — estimation`; }
+  function communicationSessions() { return state.detail?.communications?.sessions || []; }
+  function communicationReady() { return Array.isArray(state.detail?.communications?.sessions); }
+  function usageReady() { return Array.isArray(state.detail?.usage?.entries); }
+  function kindLabel(kind) { return kind === 'video' ? 'Visioconférence' : kind === 'phone' ? 'Téléphone' : 'Type non précisé'; }
+  function safeZoomUrl(value) {
+    if (typeof value !== 'string' || value.length > 1024 || /[\\\s]/u.test(value)) return null;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash ||
+        !(url.hostname === 'zoom.us' || /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+zoom\.us$/u.test(url.hostname)) ||
+        !/^\/j\/[0-9]{9,11}$/u.test(url.pathname) || [...url.searchParams.keys()].some(key => key !== 'pwd') ||
+        url.searchParams.getAll('pwd').length > 1 || (url.searchParams.has('pwd') && !/^[A-Za-z0-9._~-]{1,256}$/u.test(url.searchParams.get('pwd')))) return null;
+      return url.href;
+    } catch { return null; }
+  }
+  function communicationLimits() {
+    return `<div class="callout warning">${icon('info')}<p><strong>Un suivi manuel, sans facturation</strong>Ouvrir Zoom ne démarre pas le chronomètre. Vous le démarrez et l’arrêtez vous-même ; la durée provient de l’horloge du portail, sans vérification par Zoom ou un opérateur. La fermeture de cette page ne l’arrête pas.</p></div>`;
+  }
+  function communicationCard(item) {
+    const timer = item.ownTimer;
+    const running = timer?.status === 'running', ended = timer?.status === 'ended', cancelled = item.status === 'cancelled';
+    const anotherRunning = communicationSessions().some(other => other.id !== item.id && other.ownTimer?.status === 'running');
+    const ready = canMutate() && communicationReady() && !state.busy;
+    const joinUrl = safeZoomUrl(item.joinUrl);
+    const status = cancelled ? 'Annulé' : running ? 'Votre chronomètre est en cours' : ended ? 'Votre chronomètre est arrêté' : 'Planifié';
+    const provider = item.kind === 'video' ? 'Lien Zoom externe · aucune réunion créée par le portail' : 'Service téléphonique non connecté · aucun appel lancé';
+    const link = item.kind === 'video' && joinUrl && !cancelled && !state.demo && !state.caseLoading
+      ? `<a class="button secondary small" href="${esc(joinUrl)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${icon('link')}Ouvrir Zoom <span class="sr-only">dans un nouvel onglet</span></a>`
+      : item.kind === 'video' ? `<span class="table-subtext">${state.demo ? 'Aucun lien réel dans l’aperçu.' : item.joinUrl && !joinUrl ? 'Lien de participation non reconnu ; à faire corriger.' : cancelled ? 'Lien désactivé pour ce rendez-vous annulé.' : 'Lien de participation non renseigné.'}</span>` : '';
+    const timerCopy = running ? `Démarré le ${date(timer.startedAt, true)}. Arrêtez-le à la fin de votre échange.` : ended ? `Durée enregistrée : ${elapsed(timer.seconds)} · arrêté le ${date(timer.endedAt, true)}.` : 'Aucun chronomètre personnel démarré.';
+    return `<article class="communication-card"><div class="communication-heading"><span class="case-symbol">${icon(item.kind === 'video' ? 'video' : 'phone')}</span><div><span class="case-ref">${esc(kindLabel(item.kind))}${state.demo ? ' · FICTIF' : ''}</span><h3>${esc(item.title)}</h3><time datetime="${esc(item.scheduledAt)}">${esc(date(item.scheduledAt, true))}</time></div><span class="badge ${running ? 'teal' : cancelled ? 'neutral' : 'outline'}">${esc(status)}</span></div><p class="communication-provider">${esc(provider)}</p><div class="communication-timer"><span>${icon('clock')}${esc(timerCopy)}</span>${timer ? `<small>${esc(rateLabel(timer.rateCentsPerMinute))} · aucun débit.</small>` : ''}</div><div class="communication-actions">${link}${running ? `<button type="button" class="button small" data-action="communication-end" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Arrêter mon chronomètre</button>` : !timer && !cancelled ? `<button type="button" class="button secondary small" data-action="communication-start" data-id="${esc(item.id)}"${ready && !anotherRunning ? '' : ' disabled'}>${icon('clock')}Démarrer mon chronomètre</button>` : ''}${!cancelled && !timer && canApprove() ? `<button type="button" class="button subtle small" data-action="communication-cancel" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Annuler le rendez-vous</button>` : ''}</div>${anotherRunning && !timer && !cancelled ? '<p class="table-subtext">Arrêtez votre autre chronomètre actif avant d’en démarrer un.</p>' : ''}</article>`;
+  }
+  function communicationsView() {
+    const sessions = communicationSessions();
+    const ready = communicationReady();
+    const actions = `<button class="button secondary" data-action="refresh-communications"${canMutate() && !state.busy ? '' : ' disabled'}>Actualiser</button><button class="button" data-action="new-communication"${canApprove() && ready && !state.busy ? '' : ' disabled'}>${icon('plus')}Planifier un rendez-vous</button>`;
+    return `${intro('PRÉPARER LE PROCHAIN ÉCHANGE', 'Vos rendez-vous, avec un suivi clair.', 'Les rendez-vous et les durées restent rattachés au dossier sélectionné.', actions)}${context()}<div class="metrics">${metric('Rendez-vous affichés', sessions.length, 'Dates dans votre fuseau horaire', 'calendar')}${metric('Votre chronomètre en cours', sessions.filter(item => item.ownTimer?.status === 'running').length, 'Démarrage et arrêt manuels', 'clock')}${metric('Service téléphonique', 'À connecter', 'Aucun appel lancé depuis le portail', 'phone')}</div><div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Rendez-vous du dossier</h2><p>${state.demo ? 'Exemples fictifs, sans réunion ni appel réel.' : 'Un avocat ou responsable habilité planifie les rendez-vous.'}</p></div></div><div class="panel-body">${!ready ? '<p class="table-empty">La liste des rendez-vous n’est pas disponible dans cette version du serveur.</p>' : sessions.length ? `<div class="communication-list">${sessions.map(communicationCard).join('')}</div>` : '<p class="table-empty">Aucun rendez-vous enregistré dans ce dossier.</p>'}${state.detail?.communications?.hasMore ? '<p class="callout warning">Liste limitée à 200 rendez-vous, avec votre chronomètre actif prioritaire ; d’autres rendez-vous ne sont pas affichés.</p>' : ''}${communicationLimits()}</div></section><aside class="section-stack"><div class="note-panel"><div class="note-icon">${icon('calendar')}</div><h2>Un rendez-vous.<br>Votre propre durée.</h2><p>Chaque membre suit son propre temps. Un rendez-vous déjà chronométré ne peut plus être annulé.</p><p>Les durées arrêtées se retrouvent dans Usages, pour une validation interne par une autre personne habilitée.</p><button class="text-button communication-jump" data-view="usage">Consulter les usages ${icon('arrow')}</button></div>${connections()}</aside></div>${readOnlyNote()}`;
+  }
+  function usageView() {
+    const entries = state.detail?.usage?.entries || [];
+    const sessions = communicationSessions();
+    const rows = entries.map(entry => {
+      const session = sessions.find(item => item.id === entry.sessionId);
+      const approved = entry.status === 'approved_internal_only';
+      const estimate = entry.needsReview ? 'Estimation suspendue — durée à contrôler' : money(entry.estimateCents) === null ? 'Estimation non disponible' : `${money(entry.estimateCents)} — estimation seulement`;
+      const approval = !approved && !entry.needsReview && canApprove() && entry.authorSubject !== state.user?.subject
+        ? `<button class="button secondary small" data-action="approve-usage" data-id="${esc(entry.id)}"${state.busy ? ' disabled' : ''}>Valider en interne</button>` : '';
+      return `<tr><td><strong>${esc(session?.title || `Rendez-vous ${entry.sessionId}`)}</strong><small class="table-subtext">${esc(kindLabel(entry.kind))} · ${esc(date(entry.createdAt, true))}</small><small class="table-subtext">Auteur : ${esc(entry.authorSubject === state.user?.subject ? 'Vous' : entry.authorSubject || 'Non précisé')}</small><small class="table-subtext">Référence : ${esc(entry.id)}</small></td><td><span class="time-number usage-duration">${esc(elapsed(entry.seconds))}</span><small class="table-subtext">Chronomètre manuel · non vérifié par un fournisseur</small>${entry.needsReview ? '<span class="badge warning">Plus de 24 h — à contrôler</span>' : ''}</td><td><strong>${esc(estimate)}</strong><small class="table-subtext">${esc(rateLabel(entry.rateCentsPerMinute))}</small><small class="table-subtext">Non facturé · aucun débit de crédits</small></td><td><span class="badge ${approved ? 'teal' : 'warning'}">${approved ? 'Validé en interne' : 'Soumis'}</span>${approved ? `<small class="table-subtext">Le ${esc(date(entry.approvedAt, true))}<br>Par ${esc(entry.approvedBy || 'Personne habilitée')}</small>` : entry.authorSubject === state.user?.subject ? '<small class="table-subtext">Une autre personne habilitée doit valider.</small>' : ''}${approval}</td></tr>`;
+    }).join('');
+    return `${intro('DURÉES ET VALIDATION INTERNE', 'Comprendre chaque usage.', 'Des durées manuelles et des estimations distinctes d’une facture.', `<button class="button secondary" data-action="refresh-communications"${canMutate() && !state.busy ? '' : ' disabled'}>Actualiser</button>`)}${context()}<div class="metrics">${metric('Usages affichés', entries.length, 'Durées arrêtées dans ce dossier', 'clock')}${metric('À valider', entries.filter(item => item.status === 'submitted').length, 'Par une autre personne habilitée', 'check')}${metric('Facturation', 'Inactive', 'Aucun paiement ni débit de crédits', 'credit')}</div><section class="panel"><div class="panel-heading"><div><h2>Journal des usages</h2><p>${state.demo ? 'Exemple fictif de durée soumise.' : 'La validation interne ne déclenche aucune facturation.'}</p></div></div>${!usageReady() ? '<p class="table-empty">Le journal des usages n’est pas disponible dans cette version du serveur.</p>' : entries.length ? `<div class="table-wrap"><table class="usage-table"><caption class="sr-only">Durées des communications et estimations non facturées</caption><thead><tr><th scope="col">Rendez-vous et auteur</th><th scope="col">Durée</th><th scope="col">Estimation</th><th scope="col">Validation</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucun usage enregistré. L’arrêt de votre chronomètre crée une entrée ici.</p>'}${state.detail?.usage?.hasMore ? '<p class="time-note">Liste limitée aux 200 usages les plus récents ; d’autres usages ne sont pas affichés.</p>' : ''}<p class="time-note">Ces durées ne sont pas automatiquement ajoutées au journal « Suivi du temps ». Évitez de compter deux fois une même intervention. Un tarif absent reste non configuré ; ce n’est pas un tarif nul.</p></section>${communicationLimits()}${readOnlyNote()}`;
+  }
   function render(focus = false) {
     header();
     if (state.mode === 'loading') return;
     if (state.mode === 'signedout') main.innerHTML = signedOut();
     else if (state.view === 'cases') main.innerHTML = casesView();
+    else if (state.view === 'search') main.innerHTML = searchView();
     else if (!state.detail) main.innerHTML = noCase();
-    else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView })[state.view]();
+    else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView, communications: communicationsView, usage: usageView })[state.view]();
     if (focus) main.focus({ preventScroll: true });
   }
   function showDialog(title, subtitle, body) {
@@ -240,6 +329,116 @@
     if (!canMutate()) return;
     showDialog('Soumettre du temps', 'Une entrée déclarée, à valider séparément.', `<form id="time-form"><div class="field"><label for="time-description">Travail effectué</label><textarea id="time-description" name="description" required maxlength="2000" placeholder="Décrivez précisément l’intervention…"></textarea></div><div class="field"><label for="time-minutes">Durée en minutes</label><input id="time-minutes" name="minutes" type="number" min="1" max="1440" step="1" required inputmode="numeric"><small>De 1 à 1 440 minutes. Aucun montant n’est calculé ni débité.</small></div>${formFooter('Soumettre pour validation')}</form>`);
   }
+  function communicationScope() {
+    return { caseId: state.selectedId, requestVersion: state.requestVersion, sessionVersion: state.sessionVersion };
+  }
+  function sameCommunicationScope(scope) {
+    return scope.caseId === state.selectedId && scope.requestVersion === state.requestVersion && scope.sessionVersion === state.sessionVersion && canMutate();
+  }
+  function bindCommunicationForm(form) {
+    const scope = communicationScope();
+    form.dataset.caseId = scope.caseId;
+    form.dataset.requestVersion = String(scope.requestVersion);
+    form.dataset.sessionVersion = String(scope.sessionVersion);
+  }
+  function communicationFormScope(form) {
+    return { caseId: form.dataset.caseId, requestVersion: Number(form.dataset.requestVersion), sessionVersion: Number(form.dataset.sessionVersion) };
+  }
+  function finishCommunicationAction(trigger) {
+    const wasBusy = state.busy;
+    state.busy = false; trigger.disabled = false;
+    // A different dossier may have finished loading while this action was pending.
+    if (wasBusy && state.mode === 'authenticated' && !state.caseLoading && ['communications', 'usage'].includes(state.view)) render();
+  }
+  function openCommunication() {
+    if (!canApprove() || !communicationReady() || state.busy) return;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'fuseau de votre appareil';
+    showDialog('Planifier un rendez-vous', 'Un repère au dossier, sans invitation ni appel automatique.', `<form id="communication-form"><div class="field"><label for="communication-title">Objet du rendez-vous</label><input id="communication-title" name="title" required maxlength="160" autocomplete="off" placeholder="Préparation, point sur les pièces…"></div><div class="form-grid"><div class="field"><label for="communication-kind">Type</label><select id="communication-kind" name="kind"><option value="video">Visioconférence — lien Zoom externe</option><option value="phone">Téléphone — service non connecté</option></select></div><div class="field"><label for="communication-date">Date et heure</label><input id="communication-date" name="scheduledAt" type="datetime-local" required><small>Fuseau de votre appareil : ${esc(zone)}. La date sera enregistrée en UTC.</small></div></div><div class="field" id="communication-link-field"><label for="communication-link">Lien de participation Zoom — facultatif</label><input id="communication-link" name="joinUrl" type="url" maxlength="1024" autocomplete="off" placeholder="https://zoom.us/j/12345678901"><small>Uniquement un lien de participation Zoom /j/numéro, avec code de participation éventuel. Ne saisissez pas de lien hôte.</small></div><div class="callout warning">${icon('info')}<p>Ce rendez-vous sera visible dans ce dossier. Aucune réunion Zoom n’est créée, aucune invitation n’est envoyée et aucun appel téléphonique n’est lancé. Le chronomètre ne démarre pas à la planification.</p></div>${formFooter('Enregistrer le rendez-vous')}</form>`);
+    bindCommunicationForm(document.getElementById('communication-form'));
+  }
+  function openCommunicationCancel(id) {
+    if (!canApprove() || state.busy) return;
+    const item = communicationSessions().find(session => session.id === id);
+    if (!item || item.status === 'cancelled' || item.ownTimer) return;
+    showDialog('Annuler le rendez-vous', item.title, `<form id="communication-cancel-form" data-id="${esc(id)}"><p>Le rendez-vous restera dans le dossier avec le statut « Annulé ». Un rendez-vous déjà chronométré par un membre ne peut pas être annulé.</p><p>Aucun message externe n’est envoyé aux participants.</p>${formFooter('Confirmer l’annulation')}</form>`);
+    bindCommunicationForm(document.getElementById('communication-cancel-form'));
+  }
+  async function submitCommunication(form) {
+    const scope = communicationFormScope(form);
+    if (!sameCommunicationScope(scope) || !canApprove() || !communicationReady() || state.busy) return;
+    const button = form.querySelector('[type="submit"]'), errorNode = form.querySelector('.form-error');
+    state.busy = true; button.disabled = true; errorNode.hidden = true;
+    try {
+      const base = `/api/cases/${encodeURIComponent(scope.caseId)}/communications`;
+      let resultMessage;
+      if (form.id === 'communication-cancel-form') {
+        const item = communicationSessions().find(session => session.id === form.dataset.id);
+        if (!item || item.ownTimer || item.status === 'cancelled') throw new Error('Ce rendez-vous ne peut plus être annulé depuis cette vue.');
+        await api(`${base}/${encodeURIComponent(item.id)}/cancel`, { method: 'POST', body: '{}' });
+        resultMessage = 'Le rendez-vous est annulé. Aucun message externe n’a été envoyé.';
+      } else {
+        const data = new FormData(form), kind = String(data.get('kind'));
+        const localDate = String(data.get('scheduledAt') || ''), parsed = new Date(localDate);
+        if (!localDate || Number.isNaN(parsed.getTime())) throw new Error('Précisez une date et une heure valides.');
+        const title = String(data.get('title') || '').trim();
+        if (!title) throw new Error('Précisez l’objet du rendez-vous.');
+        const rawLink = kind === 'video' ? String(data.get('joinUrl') || '').trim() : '';
+        const joinUrl = rawLink ? safeZoomUrl(rawLink) : null;
+        if (rawLink && !joinUrl) throw new Error('Utilisez un lien de participation HTTPS Zoom au format /j/numéro.');
+        const body = JSON.stringify({ kind, title, scheduledAt: parsed.toISOString(), joinUrl });
+        // Keep the same key across retries of the same form and payload only.
+        if (form.dataset.payload !== body || !form.dataset.idempotencyKey) {
+          form.dataset.idempotencyKey = crypto.randomUUID(); form.dataset.payload = body;
+        }
+        await api(base, { method: 'POST', headers: { 'Idempotency-Key': form.dataset.idempotencyKey }, body });
+        resultMessage = 'Le rendez-vous a été enregistré. Aucun appel ni chronomètre n’a été démarré.';
+      }
+      if (!sameCommunicationScope(scope)) return;
+      if (!await refreshDetail(scope.caseId) || !sameCommunicationScope(scope)) return;
+      if (form.isConnected && dialog.open) dialog.close();
+      state.busy = false;
+      render(); notify(resultMessage);
+    } catch (error) {
+      if (sameCommunicationScope(scope)) {
+        if (errorNode.isConnected) { errorNode.textContent = error.message; errorNode.hidden = false; }
+        else notify(error.message, true);
+      }
+    } finally { finishCommunicationAction(button); }
+  }
+  async function mutateCommunication(action, id, trigger) {
+    if (!canMutate() || state.busy) return;
+    const scope = communicationScope();
+    let path, message;
+    if (action === 'approve') {
+      const entry = state.detail?.usage?.entries?.find(item => item.id === id);
+      if (!canApprove() || !entry || entry.status !== 'submitted' || entry.needsReview || entry.authorSubject === state.user?.subject) return;
+      path = `usage/${encodeURIComponent(id)}/approve`;
+      message = 'L’usage a été validé en interne. Aucune facture ni aucun débit de crédits n’a été créé.';
+    } else {
+      const item = communicationSessions().find(session => session.id === id);
+      if (!item || !['start', 'end'].includes(action) || item.status === 'cancelled') return;
+      if (action === 'start' && (item.ownTimer || communicationSessions().some(session => session.ownTimer?.status === 'running'))) return;
+      if (action === 'end' && item.ownTimer?.status !== 'running') return;
+      path = `communications/${encodeURIComponent(id)}/${action}`;
+      message = action === 'start' ? 'Votre chronomètre est démarré. Arrêtez-le à la fin de votre échange ; fermer la page ne l’arrête pas.' : 'Votre chronomètre est arrêté. La durée est enregistrée dans Usages, sans facturation.';
+    }
+    state.busy = true; trigger.disabled = true;
+    try {
+      await api(`/api/cases/${encodeURIComponent(scope.caseId)}/${path}`, { method: 'POST', body: '{}' });
+      if (!sameCommunicationScope(scope)) return;
+      if (!await refreshDetail(scope.caseId) || !sameCommunicationScope(scope)) return;
+      state.busy = false;
+      render(); notify(message);
+    } catch (error) { if (sameCommunicationScope(scope)) notify(error.message, true); }
+    finally { finishCommunicationAction(trigger); }
+  }
+  async function refreshCommunications(trigger) {
+    if (!canMutate() || state.busy) return;
+    const scope = communicationScope(); state.busy = true; trigger.disabled = true;
+    try { if (await refreshDetail(scope.caseId) && sameCommunicationScope(scope)) { state.busy = false; render(); notify('Le suivi du dossier a été actualisé.'); } }
+    catch (error) { if (sameCommunicationScope(scope)) notify(error.message, true); }
+    finally { finishCommunicationAction(trigger); }
+  }
   function preview(id, ordinal = 1) {
     const doc = state.detail?.documents.find((item) => item.id === id) || state.searchResults?.find((item) => item.id === id);
     if (!doc) return;
@@ -254,6 +453,8 @@
     } else { delete dialog.dataset.pageDocument; }
   }
   async function loadPage(id, offset) {
+    const available = state.detail?.documents.find(doc => doc.id === id);
+    if (!available || !Number.isSafeInteger(offset) || offset < 0 || offset >= available.pageCount) return;
     const caseId=state.selectedId, session=state.sessionVersion, request=++state.pageRequest;
     const panel=document.getElementById('document-page-reader'); if(!panel || state.demo)return;
     panel.textContent='Chargement de la page…';
@@ -261,17 +462,31 @@
       const result=await api(`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(id)}/pages?offset=${offset}&limit=1`);
       if(caseId!==state.selectedId || session!==state.sessionVersion || request!==state.pageRequest || !dialog.open || dialog.dataset.pageDocument!==id)return;
       const page=result.pages[0], doc=result.document;
-      panel.innerHTML=`<h3>Lecture référencée</h3><p class="citation-line">${esc(doc.sourceDocumentId || doc.id)} · ${page?.page !== null && page?.page !== undefined ? `page source ${esc(page.page)}` : 'unité sans numéro de page'} · extrait ${offset+1} / ${esc(doc.pageCount)} · ${esc(page?.label || '')}</p><p class="table-subtext">${esc(page?.method || 'Méthode non précisée')} · texte à comparer au fichier versé.</p><div class="transcription">${esc(page?.text || 'Aucun texte disponible pour cette page/unité. Consulter le fichier versé.')}</div>${page?.visual_review_note ? `<p class="callout">${esc(page.visual_review_note)}</p>` : ''}<details><summary>Provenance de cette page</summary><pre class="page-provenance">${esc(JSON.stringify(page ? Object.fromEntries(Object.entries(page).filter(([key])=>key!=='text')) : {},null,2))}</pre></details><p class="table-subtext">Pages sans texte restant à obtenir : ${esc((doc.missingTextPages || []).join(', ') || 'aucune signalée dans cet index')}. OCR à contrôler : ${esc((doc.ocrPagesToVerify || []).join(', ') || 'aucun signalé dans cet index')}.</p><div class="page-controls"><button class="button secondary small" data-action="page" data-id="${esc(id)}" data-offset="${offset-1}"${offset===0?' disabled':''}>Précédente</button><span>${offset+1} / ${esc(doc.pageCount)}</span><button class="button secondary small" data-action="page" data-id="${esc(id)}" data-offset="${offset+1}"${offset+1>=doc.pageCount?' disabled':''}>Suivante</button></div>`;
+      const sourceUnit = page?.page !== null && page?.page !== undefined
+        ? `${doc.mimeType === 'application/pdf' ? 'page source' : 'unité logique'} ${esc(page.page)}`
+        : 'unité sans numéro de page';
+      panel.innerHTML=`<h3>Lecture référencée</h3><p class="citation-line">${esc(doc.sourceDocumentId || doc.id)} · ${sourceUnit} · extrait ${offset+1} / ${esc(doc.pageCount)} · ${esc(page?.label || '')}</p><p class="table-subtext">${esc(page?.method || 'Méthode non précisée')} · texte à comparer au fichier versé.</p><div class="transcription">${esc(page?.text || 'Aucun texte disponible pour cette page/unité. Consulter le fichier versé.')}</div>${page?.visual_review_note ? `<p class="callout">${esc(page.visual_review_note)}</p>` : ''}<details><summary>Provenance de cette page / unité</summary><pre class="page-provenance">${esc(JSON.stringify(page ? Object.fromEntries(Object.entries(page).filter(([key])=>key!=='text')) : {},null,2))}</pre></details><p class="table-subtext">Pages / unités sans texte restant à obtenir : ${esc((doc.missingTextPages || []).join(', ') || 'aucune signalée dans cet index')}. OCR à contrôler : ${esc((doc.ocrPagesToVerify || []).join(', ') || 'aucun signalé dans cet index')}.</p><div class="page-controls"><button class="button secondary small" data-action="page" data-id="${esc(id)}" data-offset="${offset-1}"${offset===0?' disabled':''}>Précédente</button><span>${offset+1} / ${esc(doc.pageCount)}</span><button class="button secondary small" data-action="page" data-id="${esc(id)}" data-offset="${offset+1}"${offset+1>=doc.pageCount?' disabled':''}>Suivante</button></div><form id="page-jump-form" class="page-jump" data-document="${esc(id)}" data-case="${esc(caseId)}"><label for="page-jump">Aller à l’extrait / unité (ordre de lecture)</label><div><input id="page-jump" name="ordinal" type="number" inputmode="numeric" min="1" max="${esc(doc.pageCount)}" value="${offset+1}" required><button class="button secondary small" type="submit">Aller</button></div><small>Le numéro de page PDF ou d’unité logique est indiqué séparément dans la référence.</small></form>`;
     } catch(error) {if(caseId===state.selectedId && session===state.sessionVersion && request===state.pageRequest && dialog.open)panel.textContent=error.message;}
   }
-  async function loadCase(id, newView = state.view, focus = false) {
+  async function jumpPage(form) {
+    const id = form.dataset.document, ordinal = Number(new FormData(form).get('ordinal'));
+    const doc = state.detail?.documents.find(item => item.id === id);
+    if (!dialog.open || dialog.dataset.pageDocument !== id || form.dataset.case !== state.selectedId || !doc || !Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > doc.pageCount) return;
+    await loadPage(id, ordinal - 1);
+  }
+  async function loadCase(id, newView = state.view, focus = false, preserveSearch = false) {
+    cancelSearchWork();
     const version = ++state.requestVersion;
     const sessionVersion = state.sessionVersion;
     state.caseLoading = true;
+    if (dialog.open) dialog.close();
+    render();
     try {
       const detail = state.demo ? examples[id] : await api(`/api/cases/${encodeURIComponent(id)}`);
-      if (version !== state.requestVersion || sessionVersion !== state.sessionVersion || !detail) return;
-      state.selectedId = id; state.detail = detail; state.view = newView; state.searchResults = null; state.searchQuery = ''; state.documentCategory = ''; state.onlyUnresolved = false;
+      if (version !== state.requestVersion || sessionVersion !== state.sessionVersion || !detail) return false;
+      state.selectedId = id; state.detail = detail; state.view = newView; state.documentCategory = ''; state.onlyUnresolved = false;
+      if (!preserveSearch) { state.searchResults = null; state.searchQuery = ''; state.searchMeta = null; }
+      return true;
     } catch (error) { if (sessionVersion === state.sessionVersion) notify(error.message, true); }
     finally {
       if (version === state.requestVersion && sessionVersion === state.sessionVersion) { state.caseLoading = false; render(focus); }
@@ -279,6 +494,7 @@
   }
   async function refreshDetail(caseId = state.selectedId) {
     if (!caseId) return false;
+    cancelSearchWork();
     const requestVersion = state.requestVersion;
     const sessionVersion = state.sessionVersion;
     const detail = await api(`/api/cases/${encodeURIComponent(caseId)}`);
@@ -301,26 +517,109 @@
     } catch (error) { notify(error.message, true); }
     finally { trigger.disabled = false; }
   }
+  function cancelDictation() {
+    dictationGeneration += 1;
+    const previous = dictationController; dictationController = null;
+    previous?.abort(); state.dictationStatus = 'idle'; state.dictationMessage = '';
+  }
+  function cancelSearchWork() {
+    cancelDictation(); state.searchRequest += 1; state.searchPending = false;
+  }
+  function navigate(view) {
+    if (!Object.hasOwn(VIEW_LABELS, view)) return;
+    cancelSearchWork(); state.requestVersion += 1; state.caseLoading = false;
+    if (dialog.open) dialog.close(); state.pageRequest += 1;
+    state.view = view; render(true);
+  }
+  function openSearch(scope = 'all') {
+    cancelSearchWork(); state.requestVersion += 1; state.caseLoading = false;
+    state.searchScope = scope === 'case' && state.selectedId ? 'case' : 'all';
+    state.searchResults = null; state.searchMeta = null; state.view = 'search'; render(true);
+    document.getElementById('document-query')?.focus();
+  }
+  function beginDictation() {
+    if (state.view !== 'search' || !['demo','authenticated'].includes(state.mode) || state.searchPending || state.caseLoading) return;
+    if (['starting','listening'].includes(state.dictationStatus)) { dictationController?.stop(); return; }
+    cancelDictation();
+    if (!window.BesoinAvocatDictation) { state.dictationMessage = 'Dictée indisponible. Saisissez votre recherche au clavier.'; render(); return; }
+    const generation = ++dictationGeneration, session = state.sessionVersion, selected = state.selectedId, scope = state.searchScope;
+    const active = () => generation === dictationGeneration && session === state.sessionVersion && selected === state.selectedId && scope === state.searchScope && state.view === 'search' && ['demo','authenticated'].includes(state.mode);
+    dictationController = window.BesoinAvocatDictation.create({ lang: state.dictationLanguage, shouldAccept: active,
+      onState(status) {
+        if (!active()) return;
+        state.dictationStatus = status;
+        state.dictationMessage = ({ starting: 'Ouverture du micro…', listening: 'Écoute en cours. Terminez ou annulez la dictée.', stopping: 'Fin de la dictée…', idle: '' })[status] || '';
+        render(); document.getElementById(status === 'idle' ? 'document-query' : 'dictation-control')?.focus();
+      },
+      onResult(text) {
+        if (!active() || typeof text !== 'string') return;
+        if (text.length > 200) { state.dictationMessage = 'La dictée dépasse 200 caractères. Faites une recherche plus courte ou utilisez le clavier.'; state.dictationStatus = 'idle'; render(); return; }
+        state.searchQuery = text; state.searchResults = null; state.searchMeta = null;
+        state.dictationMessage = 'Texte dicté ajouté. Vous pouvez le corriger.'; render();
+        if (state.dictationAutoSearch && state.searchQuery.trim()) void runSearch(state.searchQuery);
+        else document.getElementById('document-query')?.focus();
+      },
+      onError(message) { if (active()) { state.dictationMessage = String(message || 'La dictée n’a pas abouti. Utilisez le clavier.'); state.dictationStatus = 'idle'; render(); } },
+    });
+    dictationController.start();
+  }
+  function demoSearch(query, offset, limit) {
+    const words = fold(query).split(/\s+/).filter(Boolean);
+    const terms = state.searchMode === 'literal' ? [fold(query)] : words;
+    const hits = [];
+    for (const [caseId, item] of Object.entries(examples || {})) {
+      if (state.searchScope === 'case' && caseId !== state.selectedId) continue;
+      for (const doc of item.documents) {
+        const haystack = fold(`${doc.name} ${doc.sourceReference} ${doc.extractedText}`);
+        if (terms.every(word => haystack.includes(word))) hits.push({ ...doc, documentId: doc.id, caseId, caseTitle: item.case.title, excerpt: doc.extractedText, citation: null });
+      }
+    }
+    return { query, mode: state.searchMode, terms, results: hits.slice(offset,offset+limit), offset, limit, hasMore: hits.length > offset + limit, nextOffset: hits.length > offset + limit ? offset + limit : null, ai: false };
+  }
+  async function runSearch(rawQuery, more = false) {
+    const query = String(rawQuery || '').trim();
+    if (!query || query.length > 200 || state.view !== 'search' || state.caseLoading || !['demo','authenticated'].includes(state.mode)) return;
+    if (more && (state.searchPending || !state.searchMeta?.hasMore)) return;
+    const offset = more ? state.searchMeta.nextOffset : 0;
+    if (!Number.isSafeInteger(offset) || offset < 0) return;
+    cancelDictation(); const request = ++state.searchRequest, session = state.sessionVersion, selected = state.selectedId, scope = state.searchScope, mode = state.searchMode;
+    if (scope === 'case' && !selected) { notify('Choisissez d’abord un dossier.', true); return; }
+    state.searchQuery = query; state.searchPending = true;
+    if (!more) { state.searchResults = null; state.searchMeta = null; }
+    render(); document.getElementById('document-query')?.focus();
+    const active = () => request === state.searchRequest && session === state.sessionVersion && selected === state.selectedId && scope === state.searchScope && mode === state.searchMode && state.view === 'search';
+    try {
+      const params = new URLSearchParams({ q: query, mode, offset: String(offset), limit: '25' });
+      if (scope === 'case') params.set('caseId', selected);
+      const result = state.demo ? demoSearch(query, offset, 25) : await api(`/api/search?${params}`);
+      if (!active()) return;
+      if (!Array.isArray(result.results)) throw new Error('Réponse de recherche invalide. Réessayez.');
+      state.searchResults = more ? [...state.searchResults, ...result.results] : result.results;
+      state.searchMeta = result;
+    } catch (error) { if (active()) notify(error.message, true); }
+    finally { if (active()) {
+      const focusId = document.activeElement?.id || 'document-query';
+      state.searchPending = false; render(); document.getElementById(focusId)?.focus();
+    } }
+  }
   async function submitSearch(form) {
     const query = String(new FormData(form).get('query') || '').trim();
-    if (!query) return;
-    const selectedId = state.selectedId;
-    const requestVersion = state.requestVersion;
-    const sessionVersion = state.sessionVersion;
-    const button = form.querySelector('[type="submit"]'); button.disabled = true;
-    try {
-      let results;
-      if (state.demo) {
-        const needle = fold(query);
-        results = state.detail.documents.filter((doc) => fold(`${doc.name} ${doc.sourceReference} ${doc.extractedText}`).includes(needle)).map((doc) => ({ ...doc, excerpt: doc.extractedText }));
-      } else {
-        results = (await api(`/api/cases/${encodeURIComponent(selectedId)}/search?q=${encodeURIComponent(query)}`)).results || [];
-      }
-      if (selectedId !== state.selectedId || state.view !== 'documents' || requestVersion !== state.requestVersion || sessionVersion !== state.sessionVersion) return;
-      state.searchQuery = query; state.searchResults = results;
-      document.getElementById('search-results').innerHTML = searchResults();
-    } catch (error) { notify(error.message, true); }
-    finally { button.disabled = false; }
+    if (form.id !== 'search-form') openSearch(form.id === 'case-search-form' ? 'case' : 'all');
+    await runSearch(query);
+  }
+  async function openSearchSource(index, downloadRequested = false, trigger = { disabled: false }) {
+    const hit = state.searchResults?.[index];
+    if (!Number.isSafeInteger(index) || index < 0 || !hit || state.caseLoading || (downloadRequested && state.demo)) return;
+    const targetCase = hit.caseId || state.selectedId, documentId = hit.documentId || hit.id;
+    if (!state.cases.some(item => item.id === targetCase)) { notify('Ce dossier n’est plus accessible. Actualisez votre session.', true); return; }
+    cancelDictation();
+    if (targetCase !== state.selectedId) {
+      const pending = loadCase(targetCase, 'search', false, true), request = state.searchRequest;
+      if (!await pending || request !== state.searchRequest) return;
+    }
+    if (state.view !== 'search' || targetCase !== state.selectedId || !state.detail?.documents.some(doc => doc.id === documentId)) return;
+    if (downloadRequested) await download(documentId, trigger);
+    else preview(documentId, hit.citation?.ordinal || 1);
   }
   function mimeFor(file) {
     const ext = file.name.split('.').pop().toLowerCase();
@@ -386,16 +685,34 @@
   function help() {
     showDialog('Un espace pour préparer', 'Le document, sa source et ses limites restent accessibles.', `<p>Les dossiers regroupent les pièces, les échanges et le suivi du temps. Les droits sont contrôlés par le serveur pour chaque dossier.</p><div class="callout">${icon('info')}<p><strong>Une source reste à apprécier</strong>Un original, une déclaration, une analyse et une extraction OCR sont des natures distinctes. Un texte extrait reste à contrôler sur la pièce. Les doublons ne s’additionnent pas.</p></div><p>L’aperçu ne contient que des exemples fictifs et n’envoie aucune information au serveur. La connexion TAKATAK, l’assistant IA, les crédits et les appels ne sont pas présentés comme actifs lorsqu’ils ne sont pas configurés.</p><div class="form-actions"><button class="button" data-action="close-dialog">Compris</button></div>`);
   }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.dictationStatus !== 'idle') {
+      event.preventDefault(); cancelDictation(); render();
+      document.getElementById('document-query')?.focus();
+    }
+  });
   document.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button || button.disabled) return;
-    if (button.dataset.view) { state.view = button.dataset.view; render(true); return; }
+    if (button.dataset.view) { navigate(button.dataset.view); return; }
     const action = button.dataset.action;
-    if (action === 'go-cases') { state.view = 'cases'; render(true); }
+    if (action === 'go-cases') navigate('cases');
+    if (action === 'open-search') openSearch(button.dataset.scope);
+    if (action === 'dictate') beginDictation();
+    if (action === 'cancel-dictation') { cancelDictation(); render(); }
+    if (action === 'search-more') void runSearch(state.searchMeta?.query || state.searchQuery, true);
+    if (action === 'search-preview') void openSearchSource(Number(button.dataset.resultIndex));
+    if (action === 'search-download') void openSearchSource(Number(button.dataset.resultIndex), true, button);
     if (action === 'open-case') void loadCase(button.dataset.id, 'documents', true);
     if (action === 'new-case') openNewCase();
     if (action === 'upload') openUpload();
     if (action === 'new-time') openTime();
+    if (action === 'new-communication') openCommunication();
+    if (action === 'communication-cancel') openCommunicationCancel(button.dataset.id);
+    if (action === 'communication-start') void mutateCommunication('start', button.dataset.id, button);
+    if (action === 'communication-end') void mutateCommunication('end', button.dataset.id, button);
+    if (action === 'approve-usage') void mutateCommunication('approve', button.dataset.id, button);
+    if (action === 'refresh-communications') void refreshCommunications(button);
     if (action === 'preview') preview(button.dataset.id, Number(button.dataset.page || 1));
     if (action === 'page') void loadPage(button.dataset.id, Number(button.dataset.offset));
     if (action === 'close-dialog') dialog.close();
@@ -409,15 +726,52 @@
     if (!(form instanceof HTMLFormElement)) return;
     event.preventDefault();
     if (form.id === 'login-form') void login(form);
-    else if (form.id === 'search-form') void submitSearch(form);
+    else if (['search-form', 'dashboard-search-form', 'case-search-form'].includes(form.id)) void submitSearch(form);
+    else if (form.id === 'page-jump-form') void jumpPage(form);
+    else if (['communication-form', 'communication-cancel-form'].includes(form.id)) void submitCommunication(form);
     else if (['case-form', 'upload-form', 'message-form', 'time-form'].includes(form.id)) void submitMutation(form);
   });
   document.addEventListener('change', (event) => {
+    if (event.target.id === 'search-scope' || event.target.id === 'search-mode') {
+      cancelSearchWork();
+      if (event.target.id === 'search-scope') state.searchScope = event.target.value === 'case' ? 'case' : 'all';
+      else state.searchMode = event.target.value === 'literal' ? 'literal' : 'terms';
+      state.searchResults = null; state.searchMeta = null; render();
+    }
+    if (event.target.id === 'search-case') {
+      cancelSearchWork(); state.searchResults = null; state.searchMeta = null;
+      if (state.cases.some(item => item.id === event.target.value)) void loadCase(event.target.value, 'search', false, true);
+    }
+    if (event.target.id === 'dictation-language') { cancelSearchWork(); state.dictationLanguage = event.target.value === 'en-CA' ? 'en-CA' : 'fr-CA'; render(); }
+    if (event.target.id === 'dictation-auto-search') state.dictationAutoSearch = event.target.checked;
     if (event.target.id === 'case-select') void loadCase(event.target.value);
     if (event.target.id === 'document-category') { state.documentCategory=event.target.value; render(); }
     if (event.target.id === 'document-unresolved') { state.onlyUnresolved=event.target.checked; render(); }
+    if (event.target.id === 'communication-kind') {
+      const phone = event.target.value === 'phone';
+      const link = document.getElementById('communication-link');
+      document.getElementById('communication-link-field').hidden = phone;
+      link.disabled = phone;
+    }
   });
   document.addEventListener('input', (event) => {
+    if (event.target.id === 'document-query') {
+      const listening = state.dictationStatus !== 'idle';
+      state.searchQuery = event.target.value; cancelSearchWork(); state.searchResults = null; state.searchMeta = null;
+      if (listening) {
+        const selection = [event.target.selectionStart, event.target.selectionEnd, event.target.selectionDirection];
+        render(); const input = document.getElementById('document-query'); input?.focus();
+        if (Number.isInteger(selection[0]) && Number.isInteger(selection[1])) input?.setSelectionRange?.(...selection);
+      } else {
+        const results = document.getElementById('search-results'); if (results) results.innerHTML = searchResults();
+        const submit = document.querySelector('#search-form button[type="submit"]');
+        if (submit) { submit.disabled = state.caseLoading; submit.textContent = 'Rechercher'; }
+        const microphone = document.getElementById('dictation-control');
+        if (microphone) microphone.disabled = state.caseLoading || !window.BesoinAvocatDictation || !(window.SpeechRecognition || window.webkitSpeechRecognition);
+        const status = document.getElementById('dictation-status'); if (status) status.textContent = state.dictationMessage;
+      }
+      return;
+    }
     if (event.target.id !== 'case-filter') return;
     const query = fold(event.target.value);
     let count = 0;
@@ -458,6 +812,7 @@
   }
   async function logout(button) {
     if (state.demo || state.busy) return;
+    cancelSearchWork();
     state.busy = true; button.disabled = true;
     // Invalidate in-flight reads before closing the server session.
     state.sessionVersion += 1; state.requestVersion += 1; state.pageRequest += 1; state.caseLoading = true;

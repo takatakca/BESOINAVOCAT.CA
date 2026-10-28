@@ -10,6 +10,8 @@ Le propriétaire refuse la refonte « plateforme IA » de D-022. Il ne voulait p
 
 L'erreur de l'agent : il a lu la demande « premium, futuriste » du 27 octobre comme une permission de tout redessiner, alors que la consigne antérieure était de garder ce qui existe et seulement de nettoyer. Il aurait dû poser la question avant de remplacer un design fait à la main. Dès la première copie (D-021), il n'a d'ailleurs repris que les textes et les liens dans son propre gabarit, sans le dire assez clairement.
 
+Direction précisée le même jour : c'est un site juridique, qui doit garder un ton juridique. Les couleurs sont sobres et professionnelles, propres à un service juridique; les textes sont formels et rigoureux; aucune esthétique ni aucun vocabulaire « IA, futuriste, robotique ».
+
 Conséquences :
 
 - aucun agent ne modifie `www/`, `platform/public/demande.*`, WordPress ou le DNS sans instruction écrite du propriétaire;

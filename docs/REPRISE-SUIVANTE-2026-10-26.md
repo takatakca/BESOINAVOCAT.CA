@@ -1,5 +1,7 @@
 # Reprise suivante — BesoinAvocat et écosystème TAKATAK
 
+**Point de remise du 28 octobre : [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2), branche `codex/workspaces-appels-2026-10-28`, code `212e8d7`, contrôles GitHub verts.** Mike doit intégrer ce lot avant de déployer; il n'est pas fusionné sur `main`. Voir [la liste de bascule](DEV-A-FAIRE-2026-10-28.md) et [les preuves](VALIDATION-LOT-2026-10-28.md). Les notes concurrentes de `main` `fb992d6` ont été intégrées sans perte. Aucun déploiement, DNS, connexion de production, appel fournisseur ou paiement n'est annoncé réalisé. Les originaux juridiques et les 312 annexes restent intacts.
+
 > **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
 > - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.

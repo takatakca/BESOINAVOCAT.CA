@@ -2,6 +2,8 @@
 
 Branche : `codex/workspaces-appels-2026-10-28`. Le lot est destiné à la revue et au déploiement par Mike. Il ne modifie pas WordPress, le DNS ou les comptes de production. Les notes concurrentes de `main` réservent la présentation de la vitrine au propriétaire : conserver cette décision.
 
+**Livraison publiée : [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2)**, code `212e8d71cc73be4c8691b831350105b476e87e71`. Les quatre familles de contrôles de PR sont vertes : [portail](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40657895221), [vitrine](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40657895219), [qualité](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40657895237), [navigateur du site d'orientation](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40657895255). Les deux contrôles au push sont également verts. La QA visuelle du nouveau portail est celle décrite plus bas, distincte de la QA automatisée du site d'orientation. PR ouverte, fusion possible au contrôle; aucune fusion sur `main` ni production effectuée par ce lot.
+
 ## Résultat du lot
 
 - Questionnaire FR/EN : huit domaines, questions conditionnelles, récapitulatif relu, consentement versionné et réception idempotente. Les contrats antérieurs restent acceptés. Aucun formulaire réel transmis pendant la QA visuelle.

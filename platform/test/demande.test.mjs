@@ -14,7 +14,7 @@ import { CONSENT_VERSION, CONSENT_TEXT, REQUEST_CONSENT_VERSION, REQUEST_CONSENT
 
 const script = fs.readFileSync(new URL('../public/demande.js', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../public/demande.html', import.meta.url), 'utf8');
-const context = { module: { exports: {} }, URL, URLSearchParams, Uint8Array, AbortController, setTimeout, clearTimeout };
+const context = { module: { exports: {} }, URL, URLSearchParams, Uint8Array, TextDecoder, AbortController, setTimeout, clearTimeout };
 vm.runInNewContext(script, context, { filename: 'demande.js' });
 const api = context.module.exports;
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -99,9 +99,8 @@ test('deadline bounds use the visitor’s day and reject impossible or out-of-ra
 
 test('every payload the page builds is accepted unchanged by the real intake service', async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), 'ba-demande-test-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
   const service = createIntake({ config: { origins: [PORTAL], dbPath: path.join(root, 'intake.sqlite'), requestEnabled: true } });
-  t.after(() => service.clear());
+  t.after(async () => { service.clear(); await rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }); });
   const detailed = plain(api.payloadFrom(detailedState({ hasDeadline: 'yes', deadline: in30days(), contactPreference: 'phone', phone: '+1 514 555 0100' })));
   assert.deepEqual(Object.keys(detailed).sort(), ['consent', 'consentVersion', 'contactPreference', 'deadline', 'domain', 'email', 'language', 'name', 'objective',
     'phone', 'region', 'role', 'stage', 'summary', 'urgency', 'website'].sort());
@@ -171,7 +170,8 @@ test('a same-origin page submission is received without any cookie or credential
   app.listen(0, '127.0.0.1'); await once(app, 'listening');
   const base = `http://127.0.0.1:${app.address().port}`;
   const service = await api.loadService(async (url, init) => fetch(base + url, init));
-  assert.deepEqual(plain(service), { open: true, requestMode: true });
+  assert.equal(service.open, true); assert.equal(service.requestMode, true);
+  assert.deepEqual(plain(service.questionnaireSchema), publicCatalog().intake.request.questionnaire);
   const attempt = api.createAttempt(webcrypto).prepare(api.payloadFrom(detailedState()));
   // Node fetch sends no Origin; the browser adds the page origin, which is what the server checks.
   const result = await api.sendRequest(attempt, async (url, init) => fetch(base + url, { ...init, headers: { ...init.headers, Origin: PORTAL } }));

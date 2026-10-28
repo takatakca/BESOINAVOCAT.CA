@@ -20,6 +20,123 @@ const users = {
   otherTenant: { subject: 'alice', tenantId: 'tenant-b', product: 'besoinavocat', active: true },
 };
 
+test('structured search HTTP supports bounded global results, valid citations and current authorized scope only', async t => {
+  const f = await fixture(t);
+  const first = await f.createCase('alice', 'First synthetic case');
+  const second = await f.createCase('alice', 'Second synthetic case');
+  const privateCase = await f.createCase('colleague', 'Private synthetic case');
+  const alien = await f.createCase('otherTenant', 'Another tenant');
+  const sources = [];
+  for (const [item, token] of [[first, 'alice'], [second, 'alice'], [privateCase, 'colleague'], [alien, 'otherTenant']]) {
+    const uploaded = await f.upload(item.id, 'Synthetic FournisseurDemo bytes', { name: 'Facture FournisseurDemo.pdf', extractedText: 'Facture FournisseurDemo', mimeType: 'application/pdf' }, token);
+    assert.equal(uploaded.status, 201);
+    sources.push(uploaded.json.document);
+  }
+  f.app.store.db.prepare('INSERT INTO document_pages VALUES (?,?,?,?,?,?,?,?)').run('tenant-a', first.id, sources[0].id, 1, 9, 'Facture de FournisseurDemo à contrôler.', 'ocr_a_controler', '{}');
+  const query = `/api/search?q=${encodeURIComponent('Montre-moi les factures de FournisseurDemo')}&limit=1`;
+  assert.equal((await f.request(query, { token: null })).status, 401);
+  assert.equal((await f.request(query, { method: 'POST', body: {} })).status, 405);
+  const result = await f.request(query);
+  assert.equal(result.status, 200, result.text);
+  assert.equal(result.json.ai, false); assert.deepEqual(result.json.terms, ['facture', 'fournisseurdemo']);
+  assert.deepEqual(result.json.scope.caseIds.sort(), [first.id, second.id].sort());
+  assert.equal(result.json.results.length, 1); assert.equal(result.json.hasMore, true); assert.equal(result.json.nextOffset, 1);
+  const next = await f.request(`${query}&offset=1`);
+  assert.equal(next.json.results.length, 1); assert.equal(next.json.hasMore, false); assert.equal(next.json.nextOffset, null);
+  const hits = [...result.json.results, ...next.json.results];
+  assert.deepEqual(new Set(hits.map(hit => hit.caseId)), new Set([first.id, second.id]));
+  const cited = hits.find(hit => hit.citation);
+  assert.equal(cited.citation.page, 9); assert.equal(cited.citation.extractionVerified, false);
+  const page = await f.request(cited.citation.pagesUrl);
+  assert.equal(page.status, 200); assert.equal(page.json.pages[0].text, 'Facture de FournisseurDemo à contrôler.');
+  assert.equal((await f.request(cited.downloadUrl)).status, 200);
+  assert.equal((await f.request(`${query}&caseId=${privateCase.id}`)).status, 404);
+  assert.equal((await f.request(`${query}&caseId=${alien.id}`)).status, 404);
+  assert.equal((await f.request(`${query}&caseId=${second.id}`)).json.results.length, 1);
+  f.app.store.db.prepare('DELETE FROM members WHERE tenantId=? AND caseId=? AND subject=?').run('tenant-a', first.id, 'alice');
+  assert.equal((await f.request(cited.citation.pagesUrl)).status, 404);
+  assert.equal((await f.request(cited.downloadUrl)).status, 404);
+  assert.deepEqual((await f.request(query)).json.scope.caseIds, [second.id]);
+  assert.equal((await f.request('/api/capabilities')).json.structuredSearch, true);
+});
+
+test('structured search rejects unknown, duplicated, oversized or malformed query parameters', async t => {
+  const f = await fixture(t);
+  for (const suffix of ['', '?q=', '?q=montre+moi+les', '?q=%CC%81', `?q=${'a'.repeat(201)}`, '?q=fournisseurdemo&q=other',
+    '?q=fournisseurdemo&tenantId=other', '?q=fournisseurdemo&mode=', '?q=fournisseurdemo&mode=semantic', '?q=fournisseurdemo&limit=51', '?q=fournisseurdemo&limit=0',
+    '?q=fournisseurdemo&offset=-1', '?q=fournisseurdemo&offset=1e3', '?q=fournisseurdemo&offset=100001', '?q=fournisseurdemo&caseId=', '?q=fournisseurdemo&caseId=bad']) {
+    assert.equal((await f.request(`/api/search${suffix}`)).status, 400, suffix);
+  }
+});
+
+test('optional addons require a session and expose no purchase, connection or case entitlement', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.request('/api/addons', { token: null })).status, 401);
+  const catalog = await f.request('/api/addons');
+  assert.equal(catalog.status, 200);
+  assert.equal(catalog.json.checkoutEnabled, false);
+  assert.deepEqual(catalog.json.items.map(item => item.id), ['internal_chat', 'zoom', 'phone']);
+  for (const item of catalog.json.items) {
+    assert.equal(item.price.amountCents, null);
+    assert.equal(item.canPurchase, false);
+    assert.equal(item.canConnect, false);
+    assert.equal(item.caseAccessGranted, false);
+  }
+  assert.deepEqual((await f.request('/api/capabilities')).json.addons, catalog.json);
+  assert.equal((await f.request('/api/addons', { method: 'POST', body: { id: 'zoom', amountCents: 1 } })).status, 404);
+  assert.equal((await f.request('/api/cases')).json.cases.length, 0);
+});
+
+test('communication HTTP workflow isolates tenants, controls roles and never bills manual usage', async t => {
+  const f = await fixture(t);
+  const item = await f.createCase();
+  f.member(item.id, 'lawyer', 'lawyer');
+  f.member(item.id, 'owner', 'owner');
+  const base = `/api/cases/${item.id}`;
+  const payload = { kind: 'video', title: 'Synthetic consultation', scheduledAt: '2026-11-01T14:00:00Z', joinUrl: 'https://zoom.us/j/12345678901' };
+  const options = { method: 'POST', body: payload, headers: { 'Idempotency-Key': 'synthetic-meeting-0001' } };
+  assert.equal((await f.request(`${base}/communications`, options)).status, 403);
+  assert.equal((await f.request(`${base}/communications`, { ...options, token: 'lawyer', headers: {} })).status, 400);
+  const scheduled = await f.request(`${base}/communications`, { ...options, token: 'lawyer' });
+  assert.equal(scheduled.status, 201, scheduled.text);
+  const id = scheduled.json.session.id;
+  assert.equal((await f.request(`${base}/communications`, { ...options, token: 'lawyer' })).json.session.id, id);
+  assert.equal((await f.request(`${base}/communications`, { ...options, token: 'lawyer', body: { ...payload, title: 'Different' } })).status, 409);
+  for (const token of ['stranger', 'otherTenant', null]) {
+    for (const suffix of ['/communications', '/usage']) {
+      assert.equal((await f.request(base + suffix, { token })).status, token ? 404 : 401);
+    }
+    assert.equal((await f.request(`${base}/communications/${id}/start`, { method: 'POST', body: {}, token })).status, token ? 404 : 401);
+  }
+  const timerPath = `${base}/communications/${id}`;
+  assert.equal((await f.request(`${timerPath}/start`, { method: 'POST', body: { subject: 'lawyer' } })).status, 400);
+  const started = await f.request(`${timerPath}/start`, { method: 'POST', body: {} });
+  assert.equal(started.status, 200);
+  assert.equal(started.json.timer.status, 'running');
+  assert.equal((await f.request(`${timerPath}/start`, { method: 'POST', body: {} })).json.timer.id, started.json.timer.id);
+  assert.equal((await f.request(`${timerPath}/cancel`, { method: 'POST', token: 'lawyer', body: {} })).status, 409);
+  const ended = await f.request(`${timerPath}/end`, { method: 'POST', body: {} });
+  assert.equal(ended.status, 200);
+  assert.equal(ended.json.timer.status, 'ended');
+  assert.equal(ended.json.timer.providerVerified, false);
+  await f.request(`${timerPath}/end`, { method: 'POST', body: {} });
+  const usage = (await f.request(`${base}/usage`)).json;
+  assert.equal(usage.entries.length, 1);
+  assert.equal(usage.billingEnabled, false);
+  assert.equal(usage.entries[0].estimateCents, null);
+  assert.equal(usage.entries[0].billed, false);
+  f.member(item.id, 'alice', 'owner');
+  const approval = `${base}/usage/${usage.entries[0].id}/approve`;
+  assert.equal((await f.request(approval, { method: 'POST', body: {} })).status, 403);
+  const approved = await f.request(approval, { method: 'POST', token: 'lawyer', body: {} });
+  assert.equal(approved.status, 200);
+  assert.equal(approved.json.usage.status, 'approved_internal_only');
+  const detail = (await f.request(base)).json;
+  assert.equal(detail.communications.sessions.length, 1);
+  assert.equal(detail.usage.entries[0].billed, false);
+  assert.equal((await f.request('/api/capabilities')).json.communications.providers.phone, 'not_connected');
+});
+
 async function fixture(t, options = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'besoinavocat-api-test-'));
   const blobDir = path.join(directory, 'blobs');

@@ -1,5 +1,7 @@
 # BESOINAVOCAT.CA
 
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](docs/VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+
 > **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
 > - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
@@ -8,7 +10,21 @@
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
 > - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
 
-**À lire en premier à la reprise : [REPRISE-SUIVANTE-2026-10-26.md](docs/REPRISE-SUIVANTE-2026-10-26.md).** La session est arrêtée après cette mise à jour des notes.
+**Note de clôture de l’autre session — à lire en premier à la reprise : [REPRISE-SUIVANTE-2026-10-26.md](docs/REPRISE-SUIVANTE-2026-10-26.md).** La session est arrêtée après cette mise à jour des notes.
+
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+
+**Lot du 28 octobre validé localement :** [preuve et limites](docs/VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+**État courant du 28 octobre : [liste immédiate pour le développeur](docs/DEV-A-FAIRE-2026-10-28.md).** Le propriétaire a repris le développement. La cible est désormais sans WordPress : vitrine `www/`, portail Node `platform/`, déploiement Coolify depuis GitHub. Les sauvegardes et les contenus sont conservés.
+
+La connexion réelle et le corpus distant restent à valider. Contrôle du 28 octobre : portail `/api/health` 200 avec `identityConfigured:false`, `/demande` 404; DNS encore MochaHost. La présence du code ne prouve pas son déploiement. Le lot validé localement sur `codex/workspaces-appels-2026-10-28` ajoutent le questionnaire FR/EN, les rendez-vous et le chronométrage manuel; [communications et Facturations](docs/COMMUNICATIONS.md). Aucun appel fournisseur ni débit actif.
+
+Le propriétaire prévoit aussi des frais clients pour les volumes documentaires importants : tarifs, crédits, appels et commissions restent à définir. Les forfaits avocats 100 CAD/semaine ou 300 CAD/mois restent les seuls montants décidés; aucune facturation n'est activée.
+
+## Historique et surfaces conservées
+
+Les mentions WordPress, arrêt de session et blocage MochaHost ci-dessous décrivent les étapes antérieures. Le mandat actuel et la procédure de bascule ci-dessus prévalent.
 
 Site d'orientation juridique généraliste pour le Québec et développement d'un espace client/avocat distinct.
 

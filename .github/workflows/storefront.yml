@@ -19,6 +19,7 @@ jobs:
           node --check www/build.mjs
           node --check www/tools/check-site.mjs
           node --check www/tools/import-wordpress.mjs
+          node www/tools/inventory-content.mjs --check
           node www/build.mjs
           node www/tools/check-site.mjs
       - name: Build the Coolify image and smoke-test it

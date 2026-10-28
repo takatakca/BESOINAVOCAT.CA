@@ -1,5 +1,7 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+
 > **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
 > - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
@@ -7,6 +9,20 @@
 > - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
 > - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
+
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## État courant — 28 octobre 2026
+
+Le propriétaire reprend le travail et confirme la sortie de WordPress. [Liste opérationnelle pour son développeur disponible](DEV-A-FAIRE-2026-10-28.md). Base synchronisée : `main` `e59a9e084966a649d260ff917d756823ff4558c4`, PR 1 fusionnée. Développement séparé sur `codex/workspaces-appels-2026-10-28`.
+
+Contrôles publics du 28 octobre : apex/portail A `209.42.24.127`; MX sur apex; mail CNAME sur apex; TTL 7200. Portail health 200 avec `identityConfigured:false`, `/demande` 404; vitrine `/healthz` 404. Coolify et accès réel au corpus ne sont pas confirmés. Déployer le code GitHub, protéger le courrier avant la bascule, puis faire la recette propriétaire.
+
+Lot validé localement : questionnaire par domaine FR/EN, rendez-vous, chronomètre personnel serveur et registre des durées. Adaptateur Facturations limité à des lectures et une préparation locale de brouillons, fermé par défaut. Aucun appel réel, paiement ou souscription activé. Tarifs de stockage client, minutes et commissions non fixés.
+
+Les sections antérieures suivantes sont conservées comme historique; leurs consignes « notes seulement » et maintien de WordPress sont remplacées par le mandat du 28 octobre.
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md)**, dont la section du 27 octobre.
 

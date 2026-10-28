@@ -1,5 +1,9 @@
 # Reprise suivante — BesoinAvocat et écosystème TAKATAK
 
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+
+**Point de remise du premier lot du 28 octobre : [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2), branche `codex/workspaces-appels-2026-10-28`, code `212e8d7`, contrôles GitHub verts.** Mike doit intégrer ce lot avant de déployer; il n'est pas fusionné sur `main`. Voir [la liste de bascule](DEV-A-FAIRE-2026-10-28.md) et [les preuves](VALIDATION-LOT-2026-10-28.md). Les notes concurrentes de `main` `fb992d6` ont été intégrées sans perte. Aucun déploiement, DNS, connexion de production, appel fournisseur ou paiement n'est annoncé réalisé. Les originaux juridiques et les 312 annexes restent intacts.
+
 > **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
 > - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
@@ -7,6 +11,24 @@
 > - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
 > - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
+
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## État prioritaire du 28 octobre 2026
+
+**Reprise explicitement autorisée.** Le propriétaire confie la bascule DNS à Mike et demande de construire/tester le SaaS dans GitHub. La cible ne contient plus WordPress : `www/` conserve ses 348 pages et leurs adresses; `platform/` fournit le portail Node. Lire [DEV-A-FAIRE-2026-10-28.md](DEV-A-FAIRE-2026-10-28.md) avant toute action de déploiement.
+
+La base `main` a été synchronisée au commit `e59a9e084966a649d260ff917d756823ff4558c4`; PR 1 fusionnée. Le nouveau lot est sur `codex/workspaces-appels-2026-10-28`. Il ajoute le questionnaire par domaine FR/EN, les rendez-vous/chronomètres personnels et usages avec validation indépendante, et un adaptateur Facturations fermé par défaut. Les appels réels et paiements restent à raccorder.
+
+Contrôle de production du 28 octobre : apex et portail encore A MochaHost `209.42.24.127`, MX sur l'apex; portail health 200 avec `identityConfigured:false`, `/demande` 404. Ne pas annoncer une connexion active. L'identité TAKATAK du propriétaire existe et a été confirmée en lecture seule; le corpus local préparé lui attribue les trois dossiers. Le reçu privé `scripts/.build-livrables/node-portal-2026-10-26/VERIFICATION-COMPTE-2026-10-28.md` constate 1 359 occurrences, 3 098 unités et 1 182 SHA distincts, sans test de mot de passe. Ne pas copier ce reçu, les grants ou le corpus dans le dépôt public.
+
+Les fonctions internes et connecteurs optionnels seront facturables séparément. Prix de 50 CAD évoqué pour l'installation : à confirmer. Pas de mot de passe Zoom collecté; autorisation fournisseur, preuve de paiement et accès dossier sont distincts. Voir décisions D-024/D-025.
+
+Tri courriel du 28 octobre dans OneDrive : 22 messages classés, 9 promotions déplacées à la corbeille, aucun envoi ni suppression permanente. Deux exports (envoyé/brouillon distingués); divergences d'adresse à vérifier. Un seul compte inspecté. Manifestes privés sous `00_DOSSIER_MAITRE/99_Travail_et_collecte/Reprise_2026-10-28`. La remise figée de 312 annexes est intacte.
+
+Les sections du 26/27 octobre suivantes restent historiques. Leur arrêt de session est levé par la nouvelle demande; l'automatisation historique n'a pas été réactivée.
 
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 

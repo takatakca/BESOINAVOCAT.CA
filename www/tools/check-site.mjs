@@ -3,6 +3,7 @@
 // Rules: one h1, a title and a description per page; every internal link and image resolves;
 // no button without a destination; the text of each imported page is present in its built page.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const ROOT = new URL('../', import.meta.url);
 const DIST = new URL('dist/', ROOT);
@@ -21,7 +22,7 @@ function walk(dir, out = []) {
   return out;
 }
 
-const distPath = new URL('.', DIST).pathname.replace(/\/$/, '');
+const distPath = fileURLToPath(DIST).replace(/\\/g, '/').replace(/\/$/, '');
 const files = walk(distPath);
 const htmlFiles = files.filter((file) => file.endsWith('.html'));
 const exists = (path) => {
@@ -52,7 +53,7 @@ const overrides = new Set(existsSync(new URL('overrides/', contentDir)) ? readdi
 let compared = 0;
 for (const name of readdirSync(new URL('pages/', contentDir))) {
   const source = readFileSync(new URL(`pages/${name}`, contentDir), 'utf8');
-  const path = source.match(/^path: (.*)$/m)[1];
+  const path = source.match(/^path: (.*)$/m)[1].trim();
   const built = `${distPath}${path}index.html`;
   if (!existsSync(built)) { errors.push(`${path}: not built`); continue; }
   const original = sentences(source.replace(/^<!--[\s\S]*?-->/, ''));

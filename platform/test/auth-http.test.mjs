@@ -16,6 +16,24 @@ const bob = { subject: OTHER, tenantId: 'synthetic-b', product: 'besoinavocat', 
 const csrf = { Origin: ORIGIN, 'X-Requested-With': 'XMLHttpRequest' };
 const providerJson = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 
+test('cookie-authenticated communication writes require the same origin and AJAX guard', async t => {
+  const f = await fixture(t);
+  const signedIn = await f.login();
+  const item = f.app.store.createCase(alice, { title: 'Synthetic communications', reference: 'TEST' });
+  f.app.store.provisionMembership({ tenantId: alice.tenantId, caseId: item.id, subject: alice.subject, role: 'owner' });
+  const route = `/api/cases/${item.id}/communications`;
+  const body = { kind: 'phone', title: 'Synthetic appointment', scheduledAt: '2026-11-01T14:00:00Z' };
+  const key = { 'Idempotency-Key': 'synthetic-cookie-0001' };
+  for (const headers of [key, { ...key, Origin: ORIGIN }, { ...key, ...csrf, Origin: 'https://attacker.example.test' }]) {
+    assert.equal((await f.request(route, { method: 'POST', body, cookie: signedIn.cookie, headers })).status, 403);
+  }
+  const added = await f.request(route, { method: 'POST', body, cookie: signedIn.cookie, headers: { ...key, ...csrf } });
+  assert.equal(added.status, 201, added.text);
+  const start = `${route}/${added.json.session.id}/start`;
+  assert.equal((await f.request(start, { method: 'POST', body: {}, cookie: signedIn.cookie })).status, 403);
+  assert.equal((await f.request(start, { method: 'POST', body: {}, cookie: signedIn.cookie, headers: csrf })).status, 200);
+});
+
 async function fixture(t, { configured = true } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'ba-auth-http-'));
   const grantsFile = path.join(directory, 'grants.json');

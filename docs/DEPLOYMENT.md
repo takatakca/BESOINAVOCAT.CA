@@ -1,5 +1,11 @@
 # DEPLOYMENT — BESOINAVOCAT.CA
 
+## Cible confirmée le 28 octobre 2026
+
+GitHub → Coolify : `www/` sans WordPress et `platform/` Node. Suivre [la liste du développeur](DEV-A-FAIRE-2026-10-28.md), [STOREFRONT](STOREFRONT.md) et [COOLIFY](COOLIFY.md). La PR 1 est fusionnée; base `main` `e59a9e0`, nouvelles branches en préversion seulement. WordPress/MochaHost reste une sauvegarde et l'hébergement du courrier, à séparer du DNS web avant bascule.
+
+Contrôle live du 28 octobre : DNS encore MochaHost; portail health 200 mais `/demande` 404; pas de preuve de connexion propriétaire ni de corpus actif. Aucun déploiement Coolify par ce lot. Les instructions MochaHost et Render suivantes sont historiques ou concernent le site d'orientation distinct.
+
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
 ## Hébergements distincts — état vérifié le 26 octobre 2026

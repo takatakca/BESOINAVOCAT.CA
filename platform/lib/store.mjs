@@ -4,6 +4,7 @@ import { mkdirSync, realpathSync, lstatSync, readFileSync, writeFileSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { HttpError, externalIdentifier, identifier, invalid } from './validation.mjs';
 import { createCorpusSupport } from './corpus.mjs';
+import { createStructuredSearch } from './search.mjs';
 
 const now = () => new Date().toISOString();
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -120,9 +121,10 @@ export function createStore({ dbPath, blobDir }) {
     if (stored.length !== data.length || digest(stored) !== hash) throw new Error('Stored blob integrity failure');
   }
   corpus = createCorpusSupport({ db, access, audit, putBlob, publicDocument });
+  const structuredSearch = createStructuredSearch({ db, access, audit, publicDocument });
   let closed = false;
   return {
-    db, access, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus,
+    db, access, audit, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus, searchStructured: structuredSearch.searchStructured,
     close() { if (!closed) { db.close(); closed = true; } },
     // Trusted deployment/test operation only. It is deliberately NOT an HTTP route.
     provisionMembership({ tenantId, caseId, subject, role }) {

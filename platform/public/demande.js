@@ -4,6 +4,7 @@
   const CONSENT_VERSION = '2026-10-26.1';
   // Detailed client request (situation, urgency): separate consent, used only when the server opens it.
   const REQUEST_CONSENT_VERSION = '2026-10-27.1';
+  const QUESTIONNAIRE_VERSION = '2026-10-28.1';
   const ENDPOINT = '/api/intake', CATALOG = '/api/catalog';
   const SUMMARY_MIN = 20, SUMMARY_MAX = 1500;
   // One day below the server bound so a visitor east of UTC is never refused.
@@ -46,13 +47,16 @@
   const DEADLINE_CHOICES = { yes: ['Oui', 'Yes'], no: ['Non, ou je ne sais pas', 'No, or I do not know'] };
   const PLANS = { weekly: ['100 CAD / semaine', '100 CAD / week'], monthly: ['300 CAD / mois', '300 CAD / month'] };
   // Situation and timing are asked only in the detailed client request.
-  const STEP_ORDER = ['role', 'preferences', 'situation', 'timing', 'contact', 'review'];
+  const STEP_ORDER = ['role', 'preferences', 'details', 'situation', 'timing', 'contact', 'review'];
   const FIELD_STEPS = { role: 'role', domain: 'preferences', region: 'preferences', periodicity: 'preferences', stage: 'situation',
-    objective: 'situation', summary: 'situation', urgency: 'timing', hasDeadline: 'timing', deadline: 'timing' };
+    objective: 'situation', summary: 'situation', urgency: 'timing', hasDeadline: 'timing', deadline: 'timing', questionnaire: 'details', reviewed: 'review' };
   const URGENT_LINKS = [['https://www.barreau.qc.ca/fr/grand-public/acces-justice/besoin-avocat/', 'urgentBarreau'], ['https://www.csj.qc.ca/', 'urgentLegalAid']];
   const COPY = {
     fr: {
-      steps: ['Votre parcours', 'Domaine et région', 'Votre situation', 'Urgence et échéance', 'Vos coordonnées', 'Récapitulatif'],
+      steps: ['Votre parcours', 'Domaine et région', 'Questions ciblées', 'Votre situation', 'Urgence et échéance', 'Vos coordonnées', 'Récapitulatif'],
+      detailsTitle: 'Quelques questions adaptées à votre domaine.', detailsHint: 'Seules les questions utiles à votre choix apparaissent. Vous pouvez choisir « Je ne sais pas »; aucune conclusion juridique n’est déduite de vos réponses.',
+      reviewDetails: 'Réponses aux questions ciblées', missingQuestionnaire: 'Complétez les choix affichés pour votre domaine.', reviewRequired: 'Relisez le récapitulatif puis confirmez les réponses à transmettre.',
+      paidServices: 'La demande initiale de contact est gratuite. Les futurs services du dossier et de l’IA pourront être payants selon le volume; leurs prix et conditions restent à définir. Aucun achat n’est effectué ici.',
       progress: 'Progression de la demande', step: 'Étape', of: 'sur',
       roleTitle: 'Quelle est votre prochaine étape ?', roleHint: 'Votre choix prépare une demande. Il ne crée pas de compte et ne donne accès à aucun dossier.',
       client: 'Je cherche un avocat', clientShort: 'Client', professional: 'Je suis avocat', professionalShort: 'Avocat',
@@ -111,7 +115,10 @@
       website: 'Laisser ce champ vide', title: 'Trouver un avocat — demande gratuite | BesoinAvocat'
     },
     en: {
-      steps: ['Your path', 'Area of law and region', 'Your situation', 'Urgency and deadline', 'Your contact details', 'Summary'],
+      steps: ['Your path', 'Area of law and region', 'Targeted questions', 'Your situation', 'Urgency and deadline', 'Your contact details', 'Summary'],
+      detailsTitle: 'A few questions for your area of law.', detailsHint: 'Only questions relevant to your selection appear. You can choose “I do not know”; your answers do not produce a legal conclusion.',
+      reviewDetails: 'Answers to targeted questions', missingQuestionnaire: 'Complete the choices displayed for your area of law.', reviewRequired: 'Read the summary and confirm the answers to be submitted.',
+      paidServices: 'The initial contact request is free. Future case and AI services may be paid according to usage volume; their prices and terms remain to be defined. No purchase is made here.',
       progress: 'Request progress', step: 'Step', of: 'of',
       roleTitle: 'What is your next step?', roleHint: 'Your choice prepares a request. It does not create an account or grant access to any case.',
       client: 'I am looking for a lawyer', clientShort: 'Client', professional: 'I am a lawyer', professionalShort: 'Lawyer',
@@ -172,7 +179,8 @@
   };
   const ERROR_KEYS = {
     INTAKE_UNAVAILABLE: 'serviceUnavailable', INTAKE_FORBIDDEN: 'forbidden', INTAKE_INVALID_INPUT: 'invalidInput',
-    INTAKE_CONSENT_REQUIRED: 'consentRequired', INTAKE_RATE_LIMIT: 'rateLimit', IDEMPOTENCY_CONFLICT: 'conflict'
+    INTAKE_CONSENT_REQUIRED: 'consentRequired', INTAKE_RATE_LIMIT: 'rateLimit', IDEMPOTENCY_CONFLICT: 'conflict',
+    QUESTIONNAIRE_INVALID_INPUT: 'missingQuestionnaire', QUESTIONNAIRE_REVIEW_REQUIRED: 'reviewRequired'
   };
   const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
@@ -184,11 +192,62 @@
       requestMode: requestMode === true, step: 'role', domain: '', region: '', periodicity: 'monthly',
       stage: '', objective: '', summary: '', urgency: '', hasDeadline: '', deadline: '', contactPreference: 'email',
       name: '', email: '', phone: '', consent: false, website: '',
-      pending: false, error: '', errorField: '', receipt: '', requestLanguage: '', uncertainBody: '', returnToReview: false };
+      pending: false, error: '', errorField: '', receipt: '', requestLanguage: '', uncertainBody: '', returnToReview: false,
+      questionnaireSchema: null, answers: {}, reviewed: false };
   }
   function detailed(state) { return state.requestMode === true && state.role === 'client'; }
-  function stepsFor(state) { return STEP_ORDER.filter((id) => detailed(state) || (id !== 'situation' && id !== 'timing')); }
-  function consentVersionFor(state) { return detailed(state) ? REQUEST_CONSENT_VERSION : CONSENT_VERSION; }
+  function branched(state) { return detailed(state) && !!state.questionnaireSchema; }
+  function stepsFor(state) { return STEP_ORDER.filter((id) => id === 'details' ? branched(state) : detailed(state) || (id !== 'situation' && id !== 'timing')); }
+  function consentVersionFor(state) { return branched(state) ? QUESTIONNAIRE_VERSION : detailed(state) ? REQUEST_CONSENT_VERSION : CONSENT_VERSION; }
+  function branchQuestions(state) {
+    const definition = state.questionnaireSchema && state.questionnaireSchema.domains[state.domain];
+    return definition ? definition.questions.filter((item) => !item.when || (has(state.answers, item.when.field) && item.when.values.includes(state.answers[item.when.field]))) : [];
+  }
+  function pruneBranchAnswers(state) {
+    const clean = {};
+    for (const item of branchQuestions(state)) {
+      if (item.when && !item.when.values.includes(clean[item.when.field])) continue;
+      if (has(state.answers, item.id) && item.options.some((option) => option.id === state.answers[item.id])) clean[item.id] = state.answers[item.id];
+    }
+    state.answers = clean;
+    return clean;
+  }
+  function setDomain(state, domain) {
+    if (state.domain !== domain) { state.domain = domain; state.answers = {}; state.reviewed = false; }
+  }
+  function setBranchAnswer(state, id, value) {
+    if (!branched(state) || !branchQuestions(state).some((item) => item.id === id)) return false;
+    state.answers[id] = value; pruneBranchAnswers(state); state.reviewed = false; return true;
+  }
+  function branchFailure(state) {
+    if (!branched(state)) return null;
+    const questions = branchQuestions(state);
+    if (!questions.length || Object.keys(state.answers).some((id) => !questions.some((item) => item.id === id))) return { field: 'questionnaire', key: 'missingQuestionnaire' };
+    for (const item of questions) if (!has(state.answers, item.id) || !item.options.some((option) => option.id === state.answers[item.id])) return { field: 'questionnaire', question: item.id, key: 'missingQuestionnaire' };
+    return null;
+  }
+  function questionnaireFrom(catalog) {
+    const value = catalog?.intake?.request?.questionnaire;
+    if (!value) return null;
+    const pair = (item) => item && ['fr','en'].every((lang) => typeof item[lang] === 'string' && item[lang].length > 0 && item[lang].length <= 1000);
+    if (value.version !== QUESTIONNAIRE_VERSION || value.consent?.version !== QUESTIONNAIRE_VERSION || !pair(value.consent.text) || !pair(value.review) || !value.domains || Object.keys(value.domains).length !== 8) return null;
+    for (const domain of Object.keys(DOMAINS)) {
+      const questions = value.domains[domain]?.questions;
+      if (!Array.isArray(questions) || questions.length < 1 || questions.length > 6) return null;
+      const prior = new Set();
+      for (const item of questions) {
+        if (!item || !/^[a-zA-Z][a-zA-Z0-9]{0,39}$/.test(item.id) || prior.has(item.id) || item.type !== 'select' || item.required !== true || !pair(item.label) || !Array.isArray(item.options) || item.options.length < 1 || item.options.length > 10) return null;
+        const values = new Set();
+        for (const choice of item.options) {
+          if (!choice || !/^[a-z0-9_]{1,40}$/.test(choice.id) || values.has(choice.id) || !pair(choice.label)) return null;
+          values.add(choice.id);
+        }
+        if (item.when && (!prior.has(item.when.field) || !Array.isArray(item.when.values) || !item.when.values.length || item.when.values.some((id) => typeof id !== 'string'))) return null;
+        prior.add(item.id);
+      }
+    }
+    return JSON.parse(JSON.stringify(value));
+  }
   function normalizeSummary(value) { return String(value || '').replace(/\r\n?/g, '\n').trim(); }
   function dayNumber(date) { return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000); }
   function isoDay(day) { return new Date(day * 86400000).toISOString().slice(0, 10); }
@@ -214,6 +273,7 @@
     if (!has(DOMAINS, state.domain)) return { field: 'domain', key: 'missingDomain' };
     if (!has(REGIONS, state.region)) return { field: 'region', key: 'missingRegion' };
     if (state.role === 'professional' && !has(PLANS, state.periodicity)) return { field: 'periodicity', key: 'missingPlan' };
+    if (checks('details')) { const failure = branchFailure(state); if (failure) return failure; }
     if (checks('situation')) {
       if (!has(STAGES, state.stage)) return { field: 'stage', key: 'missingStage' };
       if (!has(OBJECTIVES, state.objective)) return { field: 'objective', key: 'missingObjective' };
@@ -241,6 +301,7 @@
     }
     if (state.consent !== true) return { field: 'consent', key: 'consentRequired' };
     if (state.website) return { field: 'website', key: 'invalidInput' };
+    if (branched(state) && checks('review') && state.reviewed !== true) return { field: 'reviewed', key: 'reviewRequired' };
     return null;
   }
   function payloadFrom(state) {
@@ -252,6 +313,8 @@
       payload.contactPreference = state.contactPreference; payload.stage = state.stage; payload.objective = state.objective;
       payload.summary = normalizeSummary(state.summary); payload.urgency = state.urgency;
       if (state.hasDeadline === 'yes') payload.deadline = state.deadline;
+      if (branched(state)) payload.questionnaire = { version: QUESTIONNAIRE_VERSION,
+        answers: Object.fromEntries(branchQuestions(state).map((item) => [item.id, state.answers[item.id]])), reviewed: true };
     }
     payload.consent = true;
     payload.consentVersion = consentVersionFor(state);
@@ -293,7 +356,9 @@
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
   function changedUncertainAttempt(state) {
-    return !!state.uncertainBody && !validate(state) && JSON.stringify(payloadFrom(state)) !== state.uncertainBody;
+    // Show the new-request warning before the visitor confirms the review checkbox.
+    const candidate = { ...state, reviewed: true };
+    return !!state.uncertainBody && !validate(candidate) && JSON.stringify(payloadFrom(candidate)) !== state.uncertainBody;
   }
   function createAttempt(cryptoObject) {
     let previous = null;
@@ -309,12 +374,20 @@
         !/^BA-[A-Za-z0-9_-]{24}$/.test(value.reference)) return '';
     return value.reference;
   }
-  async function readSmallJson(response) {
-    const maximum = 16384;
+  async function readSmallJson(response, maximum = 16384) {
     const stated = Number(response.headers && response.headers.get('Content-Length'));
     if (stated > maximum) throw new Error('uncertain');
-    const text = await response.text();
-    if (text.length > maximum) throw new Error('uncertain');
+    let text;
+    if (response.body && typeof response.body.getReader === 'function') {
+      const reader = response.body.getReader(), chunks = []; let size = 0;
+      try {
+        for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength;
+          if (size > maximum) { await reader.cancel(); throw new Error('uncertain'); } chunks.push(part.value); }
+        const bytes = new Uint8Array(size); let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+        text = new TextDecoder().decode(bytes);
+      } finally { reader.releaseLock(); }
+    } else { text = await response.text(); if (text.length > maximum) throw new Error('uncertain'); }
     try { return JSON.parse(text); } catch (_) { throw new Error('uncertain'); }
   }
   async function sendRequest(attempt, fetchImpl) {
@@ -337,7 +410,10 @@
     try {
       const response = await fetchImpl(CATALOG, { credentials: 'omit', cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' } });
       if (response.status !== 200) return { open: false, requestMode: false };
-      return serviceFrom(await readSmallJson(response));
+      const catalog = await readSmallJson(response, 131072), service = serviceFrom(catalog);
+      const schema = questionnaireFrom(catalog);
+      if (service.requestMode && catalog.intake.request.questionnaire && !schema) return { open: false, requestMode: false };
+      return { ...service, ...(service.requestMode && schema ? { questionnaireSchema: schema } : {}) };
     } catch (_) { return { open: false, requestMode: false }; }
   }
 
@@ -380,6 +456,12 @@
       const plans = state.role === 'professional' ? radios('periodicity', PLANS, 'plan', 'inline') + `<p class="ba-fine">${escaped('planHint')}</p>` : '';
       return `<div class="ba-grid"><div class="ba-field"><label for="${id('domain')}">${escaped('domain')} <small>${escaped('required')}</small></label><select id="${id('domain')}" name="domain" required${invalid('domain')}${disabled()}>${options(DOMAINS, state.domain)}</select></div><div class="ba-field"><label for="${id('region')}">${escaped('region')} <small>${escaped('required')}</small></label><select id="${id('region')}" name="region" required${invalid('region')}${disabled()}>${options(REGIONS, state.region)}</select></div></div>${plans}`;
     }
+    function detailsSection() {
+      return `<div class="ba-grid ba-branch">${branchQuestions(state).map((item) => {
+        const name = 'questionnaire.' + item.id;
+        return `<div class="ba-field"><label for="${id(name)}">${escapeHtml(item.label[state.language])} <small>${escaped('required')}</small></label><select id="${id(name)}" name="${name}" required${state.errorField === 'questionnaire' ? ' aria-invalid="true" aria-describedby="ba-request-error"' : ''}${disabled()}><option value="">${escaped('choose')}</option>${item.options.map((choice) => `<option value="${choice.id}"${state.answers[item.id] === choice.id ? ' selected' : ''}>${escapeHtml(choice.label[state.language])}</option>`).join('')}</select></div>`;
+      }).join('')}</div>`;
+    }
     function situationSection() {
       const described = `${id('summary')}-hint ${id('summary')}-avoid ${id('summary')}-count${errorRef('summary')}`;
       return `${radios('stage', STAGES, 'stage')}${radios('objective', OBJECTIVES, 'objective')}<div class="ba-field ba-field--wide"><label for="${id('summary')}">${escaped('summary')} <small>${escaped('required')}</small></label><p class="ba-fine" id="${id('summary')}-hint">${escaped('summaryHint')}</p><p class="ba-fine ba-avoid" id="${id('summary')}-avoid">${escaped('summaryAvoid')}</p><textarea id="${id('summary')}" name="summary" rows="7" maxlength="${SUMMARY_MAX}" aria-describedby="${described}"${invalid('summary')} required${disabled()}>${escapeHtml(state.summary)}</textarea><p class="ba-count" id="${id('summary')}-count" data-ba-summary-count>${String(state.summary).length} ${escaped('summaryCount')}</p></div>`;
@@ -392,8 +474,8 @@
     }
     function contactSection() {
       if (!ready()) return `<p class="ba-fine">${escaped('reviewEmpty')}</p>`;
-      const consentKey = detailed(state) ? 'requestConsent' : 'consent';
-      return `${detailed(state) ? radios('contactPreference', CONTACT_PREFERENCES, 'contactPreference', 'inline') : ''}<div class="ba-grid">${field('name', 'text', 120, 'name')}${field('email', 'email', 254, 'email')}${field('phone', 'tel', 32, 'tel')}</div><div class="ba-honeypot" aria-hidden="true"><label for="${id('website')}">${escaped('website')}</label><input id="${id('website')}" name="website" type="text" autocomplete="off" tabindex="-1" value=""></div><label class="ba-consent"><input name="consent" type="checkbox"${state.consent ? ' checked' : ''}${invalid('consent')} required${disabled()}><span>${escaped(consentKey)}</span></label><p class="ba-fine">${escaped('consentHint')} <a href="https://besoinavocat.ca/politique-de-confidentialite/" target="_blank" rel="noopener noreferrer">${escaped('privacy')}</a></p>`;
+      const consentText = branched(state) ? state.questionnaireSchema.consent.text[state.language] : text(detailed(state) ? 'requestConsent' : 'consent');
+      return `${detailed(state) ? radios('contactPreference', CONTACT_PREFERENCES, 'contactPreference', 'inline') : ''}<div class="ba-grid">${field('name', 'text', 120, 'name')}${field('email', 'email', 254, 'email')}${field('phone', 'tel', 32, 'tel')}</div><div class="ba-honeypot" aria-hidden="true"><label for="${id('website')}">${escaped('website')}</label><input id="${id('website')}" name="website" type="text" autocomplete="off" tabindex="-1" value=""></div><label class="ba-consent"><input name="consent" type="checkbox"${state.consent ? ' checked' : ''}${invalid('consent')} required${disabled()}><span>${escapeHtml(consentText)}</span></label><p class="ba-fine">${escaped('consentHint')} <a href="https://besoinavocat.ca/politique-de-confidentialite/" target="_blank" rel="noopener noreferrer">${escaped('privacy')}</a></p>`;
     }
     function formatDate(value) {
       try { return new Date(value + 'T12:00:00').toLocaleDateString(state.language === 'en' ? 'en-CA' : 'fr-CA', { year: 'numeric', month: 'long', day: 'numeric' }); }
@@ -404,6 +486,7 @@
       const group = (step, titleKey, rows) => `<section class="ba-review" aria-labelledby="${id('review-' + step)}"><div class="ba-review__head"><h3 id="${id('review-' + step)}">${escaped(titleKey)}</h3><button type="button" class="ba-link-button" data-ba-action="edit" data-ba-edit-step="${step}" aria-label="${escaped('editSection')} : ${escaped(titleKey)}"${disabled()}>${escaped('editSection')}</button></div><dl>${rows.join('')}</dl></section>`;
       const groups = [group('role', 'reviewPath', [row(text('role'), text(state.role + 'Short')), row(text('language'), text(state.requestLanguage || state.language))].concat(state.role === 'client' ? [row(text('price'), text('free'))] : [])),
         group('preferences', 'reviewPreferences', [row(text('domain'), labelOf(DOMAINS, state.domain, state.language)), row(text('region'), labelOf(REGIONS, state.region, state.language))].concat(state.role === 'professional' ? [row(text('plan'), labelOf(PLANS, state.periodicity, state.language))] : []))];
+      if (branched(state)) groups.push(group('details', 'reviewDetails', branchQuestions(state).map(item => row(item.label[state.language], item.options.find(choice => choice.id === state.answers[item.id])?.label[state.language] || text('optionalEmpty')))));
       if (detailed(state)) {
         groups.push(group('situation', 'reviewSituation', [row(text('stage'), labelOf(STAGES, state.stage, state.language)), row(text('objective'), labelOf(OBJECTIVES, state.objective, state.language)), row(text('summary'), normalizeSummary(state.summary), true)]));
         groups.push(group('timing', 'reviewTiming', [row(text('urgency'), labelOf(URGENCIES, state.urgency, state.language)), row(text('deadline'), state.hasDeadline === 'yes' ? formatDate(state.deadline) : text('noDeadline'))]));
@@ -416,7 +499,8 @@
       } else groups.push(`<p class="ba-fine">${escaped('reviewEmpty')}</p>`);
       const changed = changedUncertainAttempt(state) ? `<div class="ba-notice" role="status">${escaped('changedAttempt')}</div>` : '';
       const retry = state.requestLanguage && state.requestLanguage !== state.language ? `<p class="ba-fine">${escaped('retryLanguage')}</p>` : '';
-      return groups.join('') + changed + retry;
+      const confirmation = branched(state) && ready() ? `<label class="ba-consent ba-review-confirm"><input type="checkbox" name="reviewed" required${state.reviewed ? ' checked' : ''}${invalid('reviewed')}${disabled()}><span>${escapeHtml(state.questionnaireSchema.review[state.language])}</span></label>` : '';
+      return groups.join('') + (state.role === 'client' ? `<p class="ba-fine">${escaped('paidServices')}</p>` : '') + changed + retry + confirmation;
     }
     function translatePage() {
       document.documentElement.lang = state.language === 'en' ? 'en-CA' : 'fr-CA';
@@ -436,7 +520,7 @@
         const stepper = `<nav aria-label="${escaped('progress')}"><ol class="ba-steps ba-steps--${steps.length}">${steps.map((step, i) => `<li${i === index ? ' aria-current="step"' : ''}${i < index ? ' class="is-complete"' : ''}><span aria-hidden="true">${i < index ? '✓' : i + 1}</span><span>${escapeHtml(text('steps')[STEP_ORDER.indexOf(step)])}</span></li>`).join('')}</ol></nav>`;
         const status = service === 'loading' ? `<p class="ba-fine" role="status">${escaped('loading')}</p>` : !ready() ? `<div class="ba-notice"><strong>${escaped('closedTitle')}</strong><p>${escaped('closed')}</p><a href="tel:+15148252825">${escaped('call')}</a></div>` : '';
         const error = state.error ? `<div class="ba-error" id="ba-request-error" role="alert" tabindex="-1"><strong>${escaped('errorTitle')}</strong><p>${escapeHtml(text(state.error) || text('uncertain'))}</p></div>` : '';
-        const sections = { role: () => `<div class="ba-choices">${roleCard('client')}${roleCard('professional')}</div>`, preferences: preferencesSection, situation: situationSection, timing: timingSection, contact: contactSection, review: reviewSection };
+        const sections = { role: () => `<div class="ba-choices">${roleCard('client')}${roleCard('professional')}</div>`, preferences: preferencesSection, details: detailsSection, situation: situationSection, timing: timingSection, contact: contactSection, review: reviewSection };
         const last = state.step === 'review';
         const next = last
           ? `<button class="ba-button" type="submit"${!ready() || state.pending ? ' disabled' : ''}>${escaped(state.pending ? 'sending' : changedUncertainAttempt(state) ? 'submitChanged' : 'submit')}</button>`
@@ -458,22 +542,32 @@
       for (const name of CAPTURED) {
         const element = form.elements.namedItem(name);
         if (!element) continue;
-        if (element.tagName) { if (!element.disabled) state[name] = element.type === 'radio' ? (element.checked ? element.value : '') : element.value; }
-        else if (!Array.from(element).some((item) => item.disabled)) state[name] = element.value;
+        let value = state[name];
+        if (element.tagName) { if (!element.disabled) value = element.type === 'radio' ? (element.checked ? element.value : '') : element.value; }
+        else if (!Array.from(element).some((item) => item.disabled)) value = element.value;
+        if (name === 'domain') setDomain(state, value);
+        else if (state[name] !== value) { state[name] = value; state.reviewed = false; }
+      }
+      for (const item of branchQuestions(state)) {
+        const element = form.elements.namedItem('questionnaire.' + item.id);
+        if (element && !element.disabled && state.answers[item.id] !== element.value) setBranchAnswer(state, item.id, element.value);
       }
       const consent = form.elements.namedItem('consent');
-      if (consent && !consent.disabled) state.consent = consent.checked;
+      if (consent && !consent.disabled && state.consent !== consent.checked) { state.consent = consent.checked; state.reviewed = false; }
+      const reviewed = form.elements.namedItem('reviewed');
+      if (reviewed && !reviewed.disabled) state.reviewed = reviewed.checked;
     }
     function changeRole(role) {
       const before = consentVersionFor(state);
-      state.role = role === 'professional' ? 'professional' : 'client';
+      const next = role === 'professional' ? 'professional' : 'client';
+      if (state.role !== next) { state.role = next; state.answers = {}; state.reviewed = false; }
       // A different consent text must be agreed to again.
       if (consentVersionFor(state) !== before) state.consent = false;
     }
     root.addEventListener('input', (event) => {
       const input = event.target;
       if (state.pending || !['name', 'email', 'phone', 'website', 'summary', 'deadline'].includes(input.name)) return;
-      state[input.name] = input.value;
+      if (state[input.name] !== input.value) { state[input.name] = input.value; state.reviewed = false; }
       if (input.name === 'summary') {
         const counter = view.querySelector('[data-ba-summary-count]');
         if (counter) counter.textContent = `${input.value.length} ${text('summaryCount')}`;
@@ -482,12 +576,18 @@
     root.addEventListener('change', (event) => {
       const input = event.target;
       if (state.pending || !input.name) return;
-      if (['domain', 'region', 'stage', 'objective', 'deadline'].includes(input.name)) state[input.name] = input.value;
-      if (input.name === 'consent') state.consent = input.checked;
+      if (input.name.startsWith('questionnaire.')) {
+        captureVisibleFields(); setBranchAnswer(state, input.name.slice(14), input.value); render(false);
+        view.querySelector(`[name="${input.name}"]`)?.focus(); return;
+      }
+      if (input.name === 'domain') setDomain(state, input.value);
+      if (['region', 'stage', 'objective', 'deadline'].includes(input.name) && state[input.name] !== input.value) { state[input.name] = input.value; state.reviewed = false; }
+      if (input.name === 'consent' && state.consent !== input.checked) { state.consent = input.checked; state.reviewed = false; }
+      if (input.name === 'reviewed') state.reviewed = input.checked;
       if (['urgency', 'hasDeadline', 'contactPreference', 'periodicity'].includes(input.name)) {
         // These choices change the questions shown below them.
         captureVisibleFields();
-        state[input.name] = input.value;
+        if (state[input.name] !== input.value) { state[input.name] = input.value; state.reviewed = false; }
         if (state.errorField === input.name) { state.error = ''; state.errorField = ''; }
         render(false);
         const again = view.querySelector(`input[name="${input.name}"][value="${input.value}"]`);
@@ -499,7 +599,10 @@
       if (!target) return;
       if (target.dataset.baLanguage) {
         if (state.pending) return;
-        captureVisibleFields(); state.language = languageOf(target.dataset.baLanguage); render(false);
+        captureVisibleFields();
+        const language = languageOf(target.dataset.baLanguage);
+        if (state.language !== language && !state.requestLanguage) state.reviewed = false;
+        state.language = language; render(false);
         return;
       }
       if (!root.contains(target) || state.pending) return;
@@ -522,8 +625,8 @@
         state.returnToReview = true; state.error = ''; state.errorField = ''; render(true);
       }
       if (action === 'restart') {
-        const mode = state.requestMode, lang = state.language;
-        Object.assign(state, initialState('client', lang, mode)); attempt.clear(); render(true);
+        const mode = state.requestMode, lang = state.language, schema = state.questionnaireSchema;
+        Object.assign(state, initialState('client', lang, mode), { questionnaireSchema: schema }); attempt.clear(); render(true);
       }
     });
     root.addEventListener('submit', async (event) => {
@@ -537,7 +640,7 @@
       if (failure) { setError(failure); return; }
       if (state.step !== 'review') {
         if (state.returnToReview) {
-          const pending = validate(state, ready() ? 'review' : 'timing');
+          const pending = validate(state, ready() ? 'contact' : 'timing');
           if (pending) { state.step = FIELD_STEPS[pending.field] || 'contact'; setError(pending); return; }
           state.step = 'review'; state.returnToReview = false;
         } else {
@@ -557,7 +660,7 @@
         state.receipt = result.reference;
         // Nothing entered is kept after a confirmed receipt.
         Object.assign(state, { name: '', email: '', phone: '', consent: false, website: '', summary: '', deadline: '', hasDeadline: '',
-          stage: '', objective: '', urgency: '', contactPreference: 'email', uncertainBody: '', returnToReview: false });
+          stage: '', objective: '', urgency: '', contactPreference: 'email', uncertainBody: '', returnToReview: false, answers: {}, reviewed: false });
         attempt.clear();
       } else { state.error = result.error; if (result.error === 'uncertain') state.uncertainBody = request.body; }
       render(true);
@@ -569,6 +672,7 @@
         if (!state.pending && !state.receipt) {
           const before = consentVersionFor(state);
           state.requestMode = result.open && result.requestMode;
+          state.questionnaireSchema = result.questionnaireSchema || null;
           if (consentVersionFor(state) !== before) state.consent = false;
           if (!stepsFor(state).includes(state.step)) state.step = 'preferences';
           render(false);
@@ -578,8 +682,9 @@
     return { state };
   }
 
-  const api = { CONSENT_VERSION, REQUEST_CONSENT_VERSION, DOMAINS, REGIONS, STAGES, OBJECTIVES, URGENCIES, CONTACT_PREFERENCES, DEADLINE_CHOICES, PLANS,
+  const api = { CONSENT_VERSION, REQUEST_CONSENT_VERSION, QUESTIONNAIRE_VERSION, DOMAINS, REGIONS, STAGES, OBJECTIVES, URGENCIES, CONTACT_PREFERENCES, DEADLINE_CHOICES, PLANS,
     STEP_ORDER, COPY, ERROR_KEYS, escapeHtml, initialState, detailed, stepsFor, consentVersionFor, normalizeSummary, deadlineBounds, validDeadline,
+    branched, branchQuestions, pruneBranchAnswers, setDomain, setBranchAnswer, branchFailure, questionnaireFrom,
     validate, payloadFrom, serviceFrom, preselection, createAttempt, changedUncertainAttempt, receiptFrom, sendRequest, loadService };
   // Pure contract functions are exported for deterministic tests, without a DOM.
   if (typeof module === 'object' && module.exports) module.exports = api;

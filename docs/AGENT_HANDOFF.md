@@ -1,14 +1,14 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
-> **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
-> - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
-> - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
+> **28 octobre 2026 — VITRINE : `www/` est maintenant la copie exacte du site WordPress; seules les couleurs changent (D-026). En attente de la validation du propriétaire.**
+> - La refonte « plateforme IA » du 27 octobre (D-022) a été **refusée** par le propriétaire (D-023). Son design n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé de `www/content/` est conservé, sans être lu par la construction ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)).
+> - Le 28 octobre, le propriétaire a choisi de reconstruire `www/` comme **copie exacte** de son site WordPress, fait à la main détail par détail : mêmes mises en page, sections, images et boutons, textes mot pour mot. **Seules les couleurs changent**, pour ne pas ressembler à un autre de ses sites : l'orange devient bordeaux, les bleus et les verts deviennent marine; le blanc, les crèmes et le charbon restent.
 > - **Direction du propriétaire (28 octobre)** : c'est un site juridique, il doit garder un **ton juridique**. Les couleurs sont sobres et professionnelles, propres à un service juridique. Les textes sont formels et rigoureux. Proportion voulue : **99 % réel et juridique, 1 % d'IA**. L'IA est la touche discrète qui distingue la plateforme et en fait l'avenir des plateformes juridiques; elle n'est jamais le thème visuel ni le ton général. Pas d'esthétique futuriste ou robotique.
-> - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
+> - Preuves de la copie, page par page et mot pour mot : [STOREFRONT](STOREFRONT.md#preuves).
+> - **Sans instruction écrite du propriétaire, aucun agent ne modifie** la page de demande du portail (`platform/public/demande.*`, encore dans le style refusé de `c00ead5`), WordPress ou le DNS. Dans `www/`, seule la copie fidèle est autorisée (BA-034). Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
-> - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
 
-**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** L'utilisateur termine la session : cette passe ne modifie que les notes, puis s'arrête.
+**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Vitrine : copie exacte livrée le 28 octobre, en attente de la validation du propriétaire (BA-034, D-026).
 
 ## Reprise courante — 26 octobre 2026
 
@@ -31,12 +31,15 @@ Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md
 
 ### Prochaine action exacte
 
-0. **Vitrine (27 oct., D-021 et D-022)** : la PR 1 a été fusionnée par le propriétaire (`a27f70f`), puis `main` a avancé en avance rapide jusqu'à `050653c`. Ce commit contient la refonte, avec CI verte sur `main` (Quality, Browser QA, Platform, Storefront, smoke de production). Le déploiement Coolify automatique reste désactivé. Suite de la vitrine : refonte « plateforme IA », relecture ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)) et Ontario ajoutés à la demande. Ne pas annoncer une fonction d'IA comme active avant son raccordement et son test. le site complet est prêt dans `www/` (CI verte sur `adde5c2`). La suite revient au développeur du propriétaire, dans l'ordre de [STOREFRONT](STOREFRONT.md) :
+0. **Vitrine (28 oct., D-026)** : `www/` est la copie exacte du site WordPress, et seules les couleurs changent. Preuves : [STOREFRONT](STOREFRONT.md#preuves). **La suite attend le propriétaire** :
+   - valider le rendu et la palette (`www/palette.mjs`);
+   - décider du style de la page de demande du portail, encore celui refusé de `c00ead5`.
+   Ensuite, son développeur suit l'ordre de [STOREFRONT](STOREFRONT.md) :
    1. détacher le courriel, car le MX pointe sur le domaine;
    2. déployer le portail sur Coolify et basculer `portail`;
    3. déployer la vitrine et basculer l'enregistrement A du domaine;
    4. vérifier.
-   Un agent ne modifie ni le DNS ni WordPress. Il contrôle les adresses après la bascule et met à jour le contenu dans `www/content/`. Relancer `node www/build.mjs && node www/tools/check-site.mjs` après toute modification.
+   Un agent ne modifie ni le DNS ni WordPress, et ne redessine rien. Après une modification faite par le propriétaire dans WordPress, reprendre la copie (`node www/tools/mirror-wordpress.mjs`, puis `node www/tools/mirror-runtime.mjs`), relire le diff, puis lancer `node www/build.mjs && node www/tools/check-site.mjs`.
 1. Lire la note de reprise, dont la section du 27 octobre, et vérifier l'état courant du code sans remplacer les travaux d'autres agents. La 0.2.2 est installée et réussit `node scripts/wordpress-cta-qa.mjs` (24/24); relancer ce contrôle après toute nouvelle version du plugin. Funnel toujours désactivé. Les tests de code ne prouvent pas le circuit de réception réel.
 2. Obtenir la résolution documentée du refus antivirus sur le paquet exact. Ne pas désactiver la protection, changer de format pour l'esquiver ou installer autrement un paquet refusé.
 3. Après résolution, installer le code validé en conservant la version précédente. Relire manifeste/SHA et configuration privée, puis vérifier health, assets, HTTPS, refus anonymes et inaccessibilité des fichiers privés.

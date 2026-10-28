@@ -1,16 +1,36 @@
 # Reprise suivante — BesoinAvocat et écosystème TAKATAK
 
-> **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
-> - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
-> - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
+> **28 octobre 2026 — VITRINE : `www/` est maintenant la copie exacte du site WordPress; seules les couleurs changent (D-026). En attente de la validation du propriétaire.**
+> - La refonte « plateforme IA » du 27 octobre (D-022) a été **refusée** par le propriétaire (D-023). Son design n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé de `www/content/` est conservé, sans être lu par la construction ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)).
+> - Le 28 octobre, le propriétaire a choisi de reconstruire `www/` comme **copie exacte** de son site WordPress, fait à la main détail par détail : mêmes mises en page, sections, images et boutons, textes mot pour mot. **Seules les couleurs changent**, pour ne pas ressembler à un autre de ses sites : l'orange devient bordeaux, les bleus et les verts deviennent marine; le blanc, les crèmes et le charbon restent.
 > - **Direction du propriétaire (28 octobre)** : c'est un site juridique, il doit garder un **ton juridique**. Les couleurs sont sobres et professionnelles, propres à un service juridique. Les textes sont formels et rigoureux. Proportion voulue : **99 % réel et juridique, 1 % d'IA**. L'IA est la touche discrète qui distingue la plateforme et en fait l'avenir des plateformes juridiques; elle n'est jamais le thème visuel ni le ton général. Pas d'esthétique futuriste ou robotique.
-> - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
+> - Preuves de la copie, page par page et mot pour mot : [STOREFRONT](STOREFRONT.md#preuves).
+> - **Sans instruction écrite du propriétaire, aucun agent ne modifie** la page de demande du portail (`platform/public/demande.*`, encore dans le style refusé de `c00ead5`), WordPress ou le DNS. Dans `www/`, seule la copie fidèle est autorisée (BA-034). Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
-> - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
 
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 
-## 27 octobre 2026, refonte — plateforme IA, relecture, Ontario (D-022)
+## 28 octobre 2026 — copie exacte du site WordPress, couleurs juridiques (D-026)
+
+Le propriétaire a refusé la refonte (D-023). Il a choisi de reconstruire `www/` comme la copie exacte de son site WordPress, avec d'autres couleurs seulement, puis demandé une vérification « mot pour mot », OCR compris, sur toutes les pages.
+
+- **Fait** :
+  - `www/site/` : la copie du site en ligne, prise le 28 octobre à 08:24 UTC. Elle contient les 348 pages, la page 404 et 1 870 fichiers, chacun avec son empreinte SHA-256;
+  - `www/build.mjs` : elle ne change que les couleurs (`www/palette.mjs` : orange → bordeaux, bleus et verts → marine, charbon et crèmes gardés) et ce qui ne fonctionne qu'avec WordPress (liens, boutons, formulaires vers le portail);
+  - les fichiers modifiés reçoivent une nouvelle adresse, car WordPress les envoie avec un cache d'un an;
+  - le design de la refonte n'est plus servi : ses fichiers de présentation (`www/public/assets/`) sont retirés. Le texte importé (`www/content/`, `www/public/wp-content/`) et ses outils restent, couverts par l'inventaire de préservation;
+  - nginx, Docker et la CI sont adaptés à la copie.
+- **Preuves** : [STOREFRONT](STOREFRONT.md#preuves) et [PROJECT_STATUS](PROJECT_STATUS.md).
+- **Gardé tel quel et signalé au propriétaire** :
+  - images jurigo.ca en 404, lien `/contact/` mort, bannière de témoins qui n'enregistre pas le choix;
+  - coquilles de [CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md), non appliquées.
+- **Non fait, en attente du propriétaire** :
+  - sa validation du rendu et de la palette;
+  - la page de demande du portail, encore dans le style refusé de `c00ead5`;
+  - l'application Coolify et la bascule DNS (BA-031);
+  - WordPress et le DNS ne sont pas touchés.
+
+## 27 octobre 2026, refonte — plateforme IA, relecture, Ontario (D-022, refusée le 28 octobre)
 
 Demande du propriétaire : tout vérifier page par page, rendre le site premium et futuriste, et présenter BesoinAvocat comme une plateforme juridique propulsée par l'IA pour le Québec et l'Ontario, raccordée à TAKATAK, sans rien retirer du contenu.
 

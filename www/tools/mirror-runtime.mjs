@@ -6,11 +6,12 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--site='));
 const option = process.argv.find((a) => a.startsWith('--site='));
-const SITE = option ? option.slice(7) : new URL('../site', import.meta.url).pathname;
+const SITE = option ? option.slice(7) : fileURLToPath(new URL('../site', import.meta.url));
 const manifest = JSON.parse(readFileSync(join(SITE, 'manifest.json'), 'utf8'));
 const known = new Set(manifest.assets.map((a) => a.path));
 const pages = args.length ? args : ['/', '/professionnels/', '/consultations/', '/log-in/', '/demande/', '/faq/'];

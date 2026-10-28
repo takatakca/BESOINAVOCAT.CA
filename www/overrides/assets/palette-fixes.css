@@ -1,7 +1,9 @@
 /* besoinavocat.ca copy: the few places where the accent colour sits on a dark photo or overlay.
-   Orange read well there; burgundy does not, so these use a light tint of the same burgundy. Nothing else changes. */
+   Orange (and the purple of /consultations/) read on dark; burgundy and navy do not, so these use a light tint of the
+   same colour. Nothing else changes. */
 .elementor-151 .elementor-element.elementor-element-ad2cba7 .elementor-heading-title,
 .elementor-151 .elementor-element.elementor-element-7cf03e0 .elementor-heading-title,
 .elementor-151 .elementor-element.elementor-element-0375e99 .elementor-heading-title { color: #f3d4da; }
 .elementor-470 .elementor-element.elementor-element-da149d6 .elementor-heading-title,
 .elementor-470 .elementor-element.elementor-element-59733ae .elementor-heading-title { color: #f3d4da; }
+.elementor-1432 .elementor-element.elementor-element-a7ab248 .elementor-heading-title { color: #c3d1ea; }

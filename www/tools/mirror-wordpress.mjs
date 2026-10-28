@@ -6,9 +6,10 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ORIGIN = 'https://besoinavocat.ca';
-const OUT = process.argv[2] || new URL('../site', import.meta.url).pathname;
+const OUT = process.argv[2] || fileURLToPath(new URL('../site', import.meta.url));
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 BesoinAvocat-mirror';
 const sha = (data) => createHash('sha256').update(data).digest('hex');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

@@ -8,10 +8,11 @@
 //  - WordPress-only parts that cannot work without WordPress are bridged (forms, login) or removed (REST, feeds).
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { keepReadable, recolour } from './palette.mjs';
 
-const ROOT = new URL('./', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('./', import.meta.url));
 const SITE = join(ROOT, 'site'), DIST = join(ROOT, 'dist'), OVERRIDES = join(ROOT, 'overrides');
 const ORIGIN = 'https://besoinavocat.ca';
 const REQUEST_URL = process.env.BA_REQUEST_URL || 'https://portail.besoinavocat.ca/demande';
@@ -125,7 +126,8 @@ rmSync(DIST, { recursive: true, force: true });
 cpSync(SITE, DIST, { recursive: true, filter: (src) => relative(SITE, src) !== 'manifest.json' });
 if (existsSync(OVERRIDES)) cpSync(OVERRIDES, DIST, { recursive: true });
 const domains = domainsOf(readFileSync(join(SITE, 'index.html'), 'utf8'));
-const files = walk(DIST).map((file) => ({ file, path: '/' + relative(DIST, file) }));
+// Web paths use / on every system (the build also runs on Windows).
+const files = walk(DIST).map((file) => ({ file, path: '/' + relative(DIST, file).split(sep).join('/') }));
 const changedFrom = (path, content) => { const source = join(SITE, path); return !existsSync(source) || !readFileSync(source).equals(Buffer.from(content)); };
 
 // Images first (stylesheets point to them), then stylesheets, then pages.

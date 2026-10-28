@@ -2,7 +2,25 @@
 
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-023 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-026 ci-dessous priment sur les états historiques qu'elles remplacent.
+
+## D-026 — La vitrine est la copie exacte du site WordPress, en couleurs juridiques (28 octobre 2026)
+
+Le propriétaire a choisi la « copie GitHub du site ». Dans le cadre de D-024 (aucun WordPress dans la cible, contenus conservés, bascule par Mike), `www/` est reconstruit comme la copie exacte de son site WordPress : mêmes mises en page, sections, images, boutons et scripts, textes mot pour mot. Il a ensuite demandé de vérifier le site « mot pour mot », OCR compris, sur toutes les pages.
+
+Règles :
+
+- **seules les couleurs changent**, et dans des tons juridiques :
+  - l'orange devient bordeaux;
+  - les bleus, verts et violets deviennent marine;
+  - le blanc, les crèmes, les gris neutres et le charbon restent.
+  La règle est dans `www/palette.mjs`;
+- les autres changements servent seulement à faire fonctionner la copie sans WordPress : les liens, la destination des boutons, l'envoi des formulaires vers le portail et les nouvelles adresses des fichiers modifiés. Voir [STOREFRONT](STOREFRONT.md);
+- les défauts présents sur WordPress sont gardés et signalés, pas corrigés : coquilles, images et liens morts, bannière de témoins qui n'enregistre pas le choix. Le propriétaire décide;
+- le design de la refonte D-022 n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé le 27 octobre (`www/content/`, `www/public/wp-content/`) et ses outils restent dans le dépôt, couverts par l'inventaire de préservation de D-024 ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)); la construction ne les lit plus. Seuls les fichiers de présentation de la refonte (`www/public/assets/`, `www/public/favicon.svg`) sont retirés;
+- la page de demande du portail (`platform/public/demande.*`) garde le style refusé de `c00ead5`. Sans instruction du propriétaire, elle n'est pas modifiée.
+
+Le résultat attend la validation du propriétaire. La bascule DNS reste à faire par son développeur.
 
 ## D-023 — Refonte D-022 refusée; le propriétaire reprend la vitrine (28 octobre 2026)
 

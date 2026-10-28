@@ -4,9 +4,10 @@
 // internal links and files resolve (WordPress-only endpoints that the copy has no file for are listed apart); no file is loaded from another
 // site; no orange colour is left in stylesheets or inline styles; no HTML character (&#039;…) is damaged.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const SITE = join(ROOT, 'site'), DIST = join(ROOT, 'dist');
 const manifest = JSON.parse(readFileSync(join(SITE, 'manifest.json'), 'utf8'));
 const errors = [], wordpressOnly = new Map(), warnings = [];
@@ -63,7 +64,7 @@ for (const page of manifest.pages) {
 if (!existsSync(join(DIST, '404.html'))) errors.push('missing 404.html');
 
 for (const file of walk(DIST)) {
-  const path = '/' + relative(DIST, file);
+  const path = '/' + relative(DIST, file).split(sep).join('/');
   if (path.endsWith('.html')) {
     const html = readFileSync(file, 'utf8');
     for (const [, ref] of html.matchAll(/\s(?:href|src)=["'](\/(?!\/)[^"']*)["']/g)) {

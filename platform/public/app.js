@@ -3,12 +3,14 @@
 (() => {
   const MAX_FILE_BYTES = 64 * 1024 * 1024;
   const SOURCE_LABELS = { original: 'Pièce source ou copie', declaration: 'Déclaration', analyse: 'Analyse', ocr: 'Extraction ou transcription' };
-  const VIEW_LABELS = { cases: 'Dossiers', documents: 'Pièces et sources', messages: 'Échanges', time: 'Suivi du temps' };
+  const VIEW_LABELS = { cases: 'Dossiers', documents: 'Pièces et sources', messages: 'Échanges', communications: 'Rendez-vous', usage: 'Usages', time: 'Suivi du temps' };
   const PATHS = {
     folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
     document: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4M9 12h6M9 16h6"/>',
     message: '<path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8M8 12h5"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 17h3"/>',
+    video: '<rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3"/>',
     layers: '<path d="m12 3 10 5-10 5L2 8zM3 12l9 5 9-5M3 16l9 5 9-5"/>',
     logout: '<path d="M10 4H4v16h6M9 12h12m-4-4 4 4-4 4"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.1"/>',
@@ -82,7 +84,7 @@
     if (state.demo) throw new Error('L’aperçu utilise uniquement des données fictives locales.');
     const sessionVersion = state.sessionVersion;
     const method = options.method || 'GET';
-    const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
+    const headers = { ...options.headers, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
     const response = await fetch(path, { cache: 'no-store', ...options, credentials: 'same-origin', headers });
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
     if (response.status === 401) {
@@ -135,8 +137,13 @@
       'demo-preparation': { case: first, documents, messages: [
         { id: 'demo-message-1', authorSubject: 'Personne cliente — fictive', createdAt: '2026-10-13T14:00:00Z', body: 'Exemple de message : j’ai regroupé mes notes de préparation. Je souhaite distinguer les documents disponibles des pièces encore à obtenir.' },
         { id: 'demo-message-2', authorSubject: 'Professionnel — fictif', createdAt: '2026-10-13T15:30:00Z', body: 'Exemple de réponse : la provenance et les points à vérifier peuvent être suivis dans l’onglet « Pièces et sources ». Cet échange est entièrement fictif.' },
-      ], timeEntries: [{ id: 'demo-time-1', description: 'Exemple fictif : classement et lecture préparatoire', minutes: 30, authorSubject: 'Professionnel — fictif', status: 'submitted', createdAt: '2026-10-13T16:00:00Z' }] },
-      'demo-classement': { case: second, documents: [], messages: [], timeEntries: [] },
+      ], timeEntries: [{ id: 'demo-time-1', description: 'Exemple fictif : classement et lecture préparatoire', minutes: 30, authorSubject: 'Professionnel — fictif', status: 'submitted', createdAt: '2026-10-13T16:00:00Z' }],
+      communications: { sessions: [
+        { id: 'demo-rdv-1', kind: 'video', title: 'Préparer le premier échange — exemple fictif', scheduledAt: '2026-10-30T14:00:00Z', status: 'scheduled', joinUrl: null, ownTimer: null },
+        { id: 'demo-rdv-2', kind: 'phone', title: 'Faire le point sur les pièces — exemple fictif', scheduledAt: '2026-10-13T14:00:00Z', status: 'scheduled', joinUrl: null, ownTimer: { status: 'ended', startedAt: '2026-10-13T14:00:00Z', endedAt: '2026-10-13T14:12:30Z', seconds: 750, rateCentsPerMinute: null } },
+      ], hasMore: false, providers: { video: 'external_zoom_link_only', phone: 'not_connected' } },
+      usage: { entries: [{ id: 'demo-usage-1', sessionId: 'demo-rdv-2', authorSubject: 'Personne cliente — fictive', kind: 'phone', seconds: 750, rateCentsPerMinute: null, estimateCents: null, needsReview: false, createdAt: '2026-10-13T14:12:30Z', status: 'submitted', providerVerified: false, billed: false }], hasMore: false, billingEnabled: false } },
+      'demo-classement': { case: second, documents: [], messages: [], timeEntries: [], communications: { sessions: [], hasMore: false }, usage: { entries: [], hasMore: false, billingEnabled: false } },
     };
   }
   let examples = null;
@@ -162,6 +169,12 @@
   }
   function connections() {
     // These flows deliberately have no actionable controls until complete integrations exist.
+    const addons = state.capabilities?.addons?.items;
+    if (Array.isArray(addons)) {
+      const status = { available_pilot: 'Pilote interne', external_link_only: 'Lien externe', planned: 'À connecter' };
+      const symbol = { internal_chat: 'message', zoom: 'video', phone: 'phone' };
+      return `<div class="connection-panel"><h3>Services complémentaires</h3>${addons.map(item => `<div class="integration-row"><span>${icon(symbol[item.id] || 'layers')}${esc(item.label)}</span><span class="badge">${esc(status[item.availability] || 'À vérifier')}</span></div><p class="addon-description">${esc(item.description)}</p>`).join('')}<p class="addon-description">Options payantes à venir. Aucun achat ni connexion fournisseur depuis cette liste.</p></div>`;
+    }
     return `<div class="connection-panel"><h3>Services complémentaires</h3><div class="integration-row"><span>${icon('spark')}Assistant IA</span><span class="badge">À connecter</span></div><div class="integration-row"><span>${icon('credit')}Crédits et paiements</span><span class="badge">À connecter</span></div><div class="integration-row"><span>${icon('phone')}Appels et voix</span><span class="badge">À connecter</span></div></div>`;
   }
   function principles() {
@@ -211,13 +224,73 @@
     const rows = entries.map((entry) => `<tr><td><strong>${esc(entry.description)}</strong><small class="table-subtext">${esc(entry.authorSubject || 'Auteur non précisé')} · ${esc(date(entry.createdAt))}</small>${entry.approvedAt ? `<small class="table-subtext">Validé le ${esc(date(entry.approvedAt, true))}</small>` : ''}</td><td><span class="time-number">${esc(duration(entry.minutes))}</span></td><td><span class="badge ${entry.status === 'approved' ? 'teal' : 'warning'}">${entry.status === 'approved' ? 'Validé' : 'Soumis'}</span></td><td>${entry.status === 'submitted' && canApprove() && entry.authorSubject !== state.user?.subject ? `<button class="button secondary small" data-action="approve-time" data-id="${esc(entry.id)}">Valider</button>` : ''}</td></tr>`).join('');
     return `${intro('DU TEMPS, SANS ZONE GRISE', 'Suivre le travail effectué.', 'Le temps est saisi manuellement, puis validé par un avocat ou responsable habilité.', `<button class="button" data-action="new-time"${canMutate() ? '' : ' disabled'}>${icon('plus')}Soumettre du temps</button>`)}${context()}<div class="metrics">${metric('Temps soumis', duration(sum('submitted')), 'En attente de validation', 'clock')}${metric('Temps validé', duration(sum('approved')), 'Validation enregistrée au dossier', 'check')}${metric('Débit de crédits', '—', 'Paiements et crédits à connecter', 'credit')}</div><div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Journal du temps</h2><p>${state.demo ? 'Exemples fictifs de suivi du temps.' : 'La validation ne déclenche pas de facturation ni de paiement.'}</p></div></div>${entries.length ? `<div class="table-wrap"><table><caption class="sr-only">Temps soumis et validé</caption><thead><tr><th scope="col">Travail déclaré</th><th scope="col">Durée</th><th scope="col">État</th><th scope="col"><span class="sr-only">Validation</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune entrée de temps dans ce dossier.</p>'}<p class="time-note">La personne cliente peut consulter le suivi. La validation est réservée aux rôles autorisés du dossier et contrôlée par le serveur.</p></section><aside class="section-stack"><div class="note-panel"><div class="note-icon">${icon('clock')}</div><h2>Une validation<br>distincte.</h2><p>Décrire le travail, déclarer la durée et faire valider l’entrée sont des étapes séparées. Le portail ne calcule aucun honoraire automatiquement.</p></div>${connections()}</aside></div>${readOnlyNote()}`;
   }
+  function elapsed(seconds) {
+    if (!Number.isSafeInteger(seconds) || seconds < 0) return 'Durée non disponible';
+    const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds % 3600 / 60), rest = seconds % 60;
+    return `${hours ? `${hours} h ` : ''}${minutes} min ${String(rest).padStart(2, '0')} s`;
+  }
+  function money(cents) {
+    return Number.isSafeInteger(cents) && cents >= 0 ? new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD', currencyDisplay: 'code' }).format(cents / 100) : null;
+  }
+  function rateLabel(rate) { return money(rate) === null ? 'Tarif non configuré' : `${money(rate)} / min — estimation`; }
+  function communicationSessions() { return state.detail?.communications?.sessions || []; }
+  function communicationReady() { return Array.isArray(state.detail?.communications?.sessions); }
+  function usageReady() { return Array.isArray(state.detail?.usage?.entries); }
+  function kindLabel(kind) { return kind === 'video' ? 'Visioconférence' : kind === 'phone' ? 'Téléphone' : 'Type non précisé'; }
+  function safeZoomUrl(value) {
+    if (typeof value !== 'string' || value.length > 1024 || /[\\\s]/u.test(value)) return null;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash ||
+        !(url.hostname === 'zoom.us' || /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+zoom\.us$/u.test(url.hostname)) ||
+        !/^\/j\/[0-9]{9,11}$/u.test(url.pathname) || [...url.searchParams.keys()].some(key => key !== 'pwd') ||
+        url.searchParams.getAll('pwd').length > 1 || (url.searchParams.has('pwd') && !/^[A-Za-z0-9._~-]{1,256}$/u.test(url.searchParams.get('pwd')))) return null;
+      return url.href;
+    } catch { return null; }
+  }
+  function communicationLimits() {
+    return `<div class="callout warning">${icon('info')}<p><strong>Un suivi manuel, sans facturation</strong>Ouvrir Zoom ne démarre pas le chronomètre. Vous le démarrez et l’arrêtez vous-même ; la durée provient de l’horloge du portail, sans vérification par Zoom ou un opérateur. La fermeture de cette page ne l’arrête pas.</p></div>`;
+  }
+  function communicationCard(item) {
+    const timer = item.ownTimer;
+    const running = timer?.status === 'running', ended = timer?.status === 'ended', cancelled = item.status === 'cancelled';
+    const anotherRunning = communicationSessions().some(other => other.id !== item.id && other.ownTimer?.status === 'running');
+    const ready = canMutate() && communicationReady() && !state.busy;
+    const joinUrl = safeZoomUrl(item.joinUrl);
+    const status = cancelled ? 'Annulé' : running ? 'Votre chronomètre est en cours' : ended ? 'Votre chronomètre est arrêté' : 'Planifié';
+    const provider = item.kind === 'video' ? 'Lien Zoom externe · aucune réunion créée par le portail' : 'Service téléphonique non connecté · aucun appel lancé';
+    const link = item.kind === 'video' && joinUrl && !cancelled && !state.demo && !state.caseLoading
+      ? `<a class="button secondary small" href="${esc(joinUrl)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${icon('link')}Ouvrir Zoom <span class="sr-only">dans un nouvel onglet</span></a>`
+      : item.kind === 'video' ? `<span class="table-subtext">${state.demo ? 'Aucun lien réel dans l’aperçu.' : item.joinUrl && !joinUrl ? 'Lien de participation non reconnu ; à faire corriger.' : cancelled ? 'Lien désactivé pour ce rendez-vous annulé.' : 'Lien de participation non renseigné.'}</span>` : '';
+    const timerCopy = running ? `Démarré le ${date(timer.startedAt, true)}. Arrêtez-le à la fin de votre échange.` : ended ? `Durée enregistrée : ${elapsed(timer.seconds)} · arrêté le ${date(timer.endedAt, true)}.` : 'Aucun chronomètre personnel démarré.';
+    return `<article class="communication-card"><div class="communication-heading"><span class="case-symbol">${icon(item.kind === 'video' ? 'video' : 'phone')}</span><div><span class="case-ref">${esc(kindLabel(item.kind))}${state.demo ? ' · FICTIF' : ''}</span><h3>${esc(item.title)}</h3><time datetime="${esc(item.scheduledAt)}">${esc(date(item.scheduledAt, true))}</time></div><span class="badge ${running ? 'teal' : cancelled ? 'neutral' : 'outline'}">${esc(status)}</span></div><p class="communication-provider">${esc(provider)}</p><div class="communication-timer"><span>${icon('clock')}${esc(timerCopy)}</span>${timer ? `<small>${esc(rateLabel(timer.rateCentsPerMinute))} · aucun débit.</small>` : ''}</div><div class="communication-actions">${link}${running ? `<button type="button" class="button small" data-action="communication-end" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Arrêter mon chronomètre</button>` : !timer && !cancelled ? `<button type="button" class="button secondary small" data-action="communication-start" data-id="${esc(item.id)}"${ready && !anotherRunning ? '' : ' disabled'}>${icon('clock')}Démarrer mon chronomètre</button>` : ''}${!cancelled && !timer && canApprove() ? `<button type="button" class="button subtle small" data-action="communication-cancel" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Annuler le rendez-vous</button>` : ''}</div>${anotherRunning && !timer && !cancelled ? '<p class="table-subtext">Arrêtez votre autre chronomètre actif avant d’en démarrer un.</p>' : ''}</article>`;
+  }
+  function communicationsView() {
+    const sessions = communicationSessions();
+    const ready = communicationReady();
+    const actions = `<button class="button secondary" data-action="refresh-communications"${canMutate() && !state.busy ? '' : ' disabled'}>Actualiser</button><button class="button" data-action="new-communication"${canApprove() && ready && !state.busy ? '' : ' disabled'}>${icon('plus')}Planifier un rendez-vous</button>`;
+    return `${intro('PRÉPARER LE PROCHAIN ÉCHANGE', 'Vos rendez-vous, avec un suivi clair.', 'Les rendez-vous et les durées restent rattachés au dossier sélectionné.', actions)}${context()}<div class="metrics">${metric('Rendez-vous affichés', sessions.length, 'Dates dans votre fuseau horaire', 'calendar')}${metric('Votre chronomètre en cours', sessions.filter(item => item.ownTimer?.status === 'running').length, 'Démarrage et arrêt manuels', 'clock')}${metric('Service téléphonique', 'À connecter', 'Aucun appel lancé depuis le portail', 'phone')}</div><div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Rendez-vous du dossier</h2><p>${state.demo ? 'Exemples fictifs, sans réunion ni appel réel.' : 'Un avocat ou responsable habilité planifie les rendez-vous.'}</p></div></div><div class="panel-body">${!ready ? '<p class="table-empty">La liste des rendez-vous n’est pas disponible dans cette version du serveur.</p>' : sessions.length ? `<div class="communication-list">${sessions.map(communicationCard).join('')}</div>` : '<p class="table-empty">Aucun rendez-vous enregistré dans ce dossier.</p>'}${state.detail?.communications?.hasMore ? '<p class="callout warning">Liste limitée à 200 rendez-vous, avec votre chronomètre actif prioritaire ; d’autres rendez-vous ne sont pas affichés.</p>' : ''}${communicationLimits()}</div></section><aside class="section-stack"><div class="note-panel"><div class="note-icon">${icon('calendar')}</div><h2>Un rendez-vous.<br>Votre propre durée.</h2><p>Chaque membre suit son propre temps. Un rendez-vous déjà chronométré ne peut plus être annulé.</p><p>Les durées arrêtées se retrouvent dans Usages, pour une validation interne par une autre personne habilitée.</p><button class="text-button communication-jump" data-view="usage">Consulter les usages ${icon('arrow')}</button></div>${connections()}</aside></div>${readOnlyNote()}`;
+  }
+  function usageView() {
+    const entries = state.detail?.usage?.entries || [];
+    const sessions = communicationSessions();
+    const rows = entries.map(entry => {
+      const session = sessions.find(item => item.id === entry.sessionId);
+      const approved = entry.status === 'approved_internal_only';
+      const estimate = entry.needsReview ? 'Estimation suspendue — durée à contrôler' : money(entry.estimateCents) === null ? 'Estimation non disponible' : `${money(entry.estimateCents)} — estimation seulement`;
+      const approval = !approved && !entry.needsReview && canApprove() && entry.authorSubject !== state.user?.subject
+        ? `<button class="button secondary small" data-action="approve-usage" data-id="${esc(entry.id)}"${state.busy ? ' disabled' : ''}>Valider en interne</button>` : '';
+      return `<tr><td><strong>${esc(session?.title || `Rendez-vous ${entry.sessionId}`)}</strong><small class="table-subtext">${esc(kindLabel(entry.kind))} · ${esc(date(entry.createdAt, true))}</small><small class="table-subtext">Auteur : ${esc(entry.authorSubject === state.user?.subject ? 'Vous' : entry.authorSubject || 'Non précisé')}</small><small class="table-subtext">Référence : ${esc(entry.id)}</small></td><td><span class="time-number usage-duration">${esc(elapsed(entry.seconds))}</span><small class="table-subtext">Chronomètre manuel · non vérifié par un fournisseur</small>${entry.needsReview ? '<span class="badge warning">Plus de 24 h — à contrôler</span>' : ''}</td><td><strong>${esc(estimate)}</strong><small class="table-subtext">${esc(rateLabel(entry.rateCentsPerMinute))}</small><small class="table-subtext">Non facturé · aucun débit de crédits</small></td><td><span class="badge ${approved ? 'teal' : 'warning'}">${approved ? 'Validé en interne' : 'Soumis'}</span>${approved ? `<small class="table-subtext">Le ${esc(date(entry.approvedAt, true))}<br>Par ${esc(entry.approvedBy || 'Personne habilitée')}</small>` : entry.authorSubject === state.user?.subject ? '<small class="table-subtext">Une autre personne habilitée doit valider.</small>' : ''}${approval}</td></tr>`;
+    }).join('');
+    return `${intro('DURÉES ET VALIDATION INTERNE', 'Comprendre chaque usage.', 'Des durées manuelles et des estimations distinctes d’une facture.', `<button class="button secondary" data-action="refresh-communications"${canMutate() && !state.busy ? '' : ' disabled'}>Actualiser</button>`)}${context()}<div class="metrics">${metric('Usages affichés', entries.length, 'Durées arrêtées dans ce dossier', 'clock')}${metric('À valider', entries.filter(item => item.status === 'submitted').length, 'Par une autre personne habilitée', 'check')}${metric('Facturation', 'Inactive', 'Aucun paiement ni débit de crédits', 'credit')}</div><section class="panel"><div class="panel-heading"><div><h2>Journal des usages</h2><p>${state.demo ? 'Exemple fictif de durée soumise.' : 'La validation interne ne déclenche aucune facturation.'}</p></div></div>${!usageReady() ? '<p class="table-empty">Le journal des usages n’est pas disponible dans cette version du serveur.</p>' : entries.length ? `<div class="table-wrap"><table class="usage-table"><caption class="sr-only">Durées des communications et estimations non facturées</caption><thead><tr><th scope="col">Rendez-vous et auteur</th><th scope="col">Durée</th><th scope="col">Estimation</th><th scope="col">Validation</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucun usage enregistré. L’arrêt de votre chronomètre crée une entrée ici.</p>'}${state.detail?.usage?.hasMore ? '<p class="time-note">Liste limitée aux 200 usages les plus récents ; d’autres usages ne sont pas affichés.</p>' : ''}<p class="time-note">Ces durées ne sont pas automatiquement ajoutées au journal « Suivi du temps ». Évitez de compter deux fois une même intervention. Un tarif absent reste non configuré ; ce n’est pas un tarif nul.</p></section>${communicationLimits()}${readOnlyNote()}`;
+  }
   function render(focus = false) {
     header();
     if (state.mode === 'loading') return;
     if (state.mode === 'signedout') main.innerHTML = signedOut();
     else if (state.view === 'cases') main.innerHTML = casesView();
     else if (!state.detail) main.innerHTML = noCase();
-    else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView })[state.view]();
+    else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView, communications: communicationsView, usage: usageView })[state.view]();
     if (focus) main.focus({ preventScroll: true });
   }
   function showDialog(title, subtitle, body) {
@@ -239,6 +312,116 @@
   function openTime() {
     if (!canMutate()) return;
     showDialog('Soumettre du temps', 'Une entrée déclarée, à valider séparément.', `<form id="time-form"><div class="field"><label for="time-description">Travail effectué</label><textarea id="time-description" name="description" required maxlength="2000" placeholder="Décrivez précisément l’intervention…"></textarea></div><div class="field"><label for="time-minutes">Durée en minutes</label><input id="time-minutes" name="minutes" type="number" min="1" max="1440" step="1" required inputmode="numeric"><small>De 1 à 1 440 minutes. Aucun montant n’est calculé ni débité.</small></div>${formFooter('Soumettre pour validation')}</form>`);
+  }
+  function communicationScope() {
+    return { caseId: state.selectedId, requestVersion: state.requestVersion, sessionVersion: state.sessionVersion };
+  }
+  function sameCommunicationScope(scope) {
+    return scope.caseId === state.selectedId && scope.requestVersion === state.requestVersion && scope.sessionVersion === state.sessionVersion && canMutate();
+  }
+  function bindCommunicationForm(form) {
+    const scope = communicationScope();
+    form.dataset.caseId = scope.caseId;
+    form.dataset.requestVersion = String(scope.requestVersion);
+    form.dataset.sessionVersion = String(scope.sessionVersion);
+  }
+  function communicationFormScope(form) {
+    return { caseId: form.dataset.caseId, requestVersion: Number(form.dataset.requestVersion), sessionVersion: Number(form.dataset.sessionVersion) };
+  }
+  function finishCommunicationAction(trigger) {
+    const wasBusy = state.busy;
+    state.busy = false; trigger.disabled = false;
+    // A different dossier may have finished loading while this action was pending.
+    if (wasBusy && state.mode === 'authenticated' && !state.caseLoading && ['communications', 'usage'].includes(state.view)) render();
+  }
+  function openCommunication() {
+    if (!canApprove() || !communicationReady() || state.busy) return;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'fuseau de votre appareil';
+    showDialog('Planifier un rendez-vous', 'Un repère au dossier, sans invitation ni appel automatique.', `<form id="communication-form"><div class="field"><label for="communication-title">Objet du rendez-vous</label><input id="communication-title" name="title" required maxlength="160" autocomplete="off" placeholder="Préparation, point sur les pièces…"></div><div class="form-grid"><div class="field"><label for="communication-kind">Type</label><select id="communication-kind" name="kind"><option value="video">Visioconférence — lien Zoom externe</option><option value="phone">Téléphone — service non connecté</option></select></div><div class="field"><label for="communication-date">Date et heure</label><input id="communication-date" name="scheduledAt" type="datetime-local" required><small>Fuseau de votre appareil : ${esc(zone)}. La date sera enregistrée en UTC.</small></div></div><div class="field" id="communication-link-field"><label for="communication-link">Lien de participation Zoom — facultatif</label><input id="communication-link" name="joinUrl" type="url" maxlength="1024" autocomplete="off" placeholder="https://zoom.us/j/12345678901"><small>Uniquement un lien de participation Zoom /j/numéro, avec code de participation éventuel. Ne saisissez pas de lien hôte.</small></div><div class="callout warning">${icon('info')}<p>Ce rendez-vous sera visible dans ce dossier. Aucune réunion Zoom n’est créée, aucune invitation n’est envoyée et aucun appel téléphonique n’est lancé. Le chronomètre ne démarre pas à la planification.</p></div>${formFooter('Enregistrer le rendez-vous')}</form>`);
+    bindCommunicationForm(document.getElementById('communication-form'));
+  }
+  function openCommunicationCancel(id) {
+    if (!canApprove() || state.busy) return;
+    const item = communicationSessions().find(session => session.id === id);
+    if (!item || item.status === 'cancelled' || item.ownTimer) return;
+    showDialog('Annuler le rendez-vous', item.title, `<form id="communication-cancel-form" data-id="${esc(id)}"><p>Le rendez-vous restera dans le dossier avec le statut « Annulé ». Un rendez-vous déjà chronométré par un membre ne peut pas être annulé.</p><p>Aucun message externe n’est envoyé aux participants.</p>${formFooter('Confirmer l’annulation')}</form>`);
+    bindCommunicationForm(document.getElementById('communication-cancel-form'));
+  }
+  async function submitCommunication(form) {
+    const scope = communicationFormScope(form);
+    if (!sameCommunicationScope(scope) || !canApprove() || !communicationReady() || state.busy) return;
+    const button = form.querySelector('[type="submit"]'), errorNode = form.querySelector('.form-error');
+    state.busy = true; button.disabled = true; errorNode.hidden = true;
+    try {
+      const base = `/api/cases/${encodeURIComponent(scope.caseId)}/communications`;
+      let resultMessage;
+      if (form.id === 'communication-cancel-form') {
+        const item = communicationSessions().find(session => session.id === form.dataset.id);
+        if (!item || item.ownTimer || item.status === 'cancelled') throw new Error('Ce rendez-vous ne peut plus être annulé depuis cette vue.');
+        await api(`${base}/${encodeURIComponent(item.id)}/cancel`, { method: 'POST', body: '{}' });
+        resultMessage = 'Le rendez-vous est annulé. Aucun message externe n’a été envoyé.';
+      } else {
+        const data = new FormData(form), kind = String(data.get('kind'));
+        const localDate = String(data.get('scheduledAt') || ''), parsed = new Date(localDate);
+        if (!localDate || Number.isNaN(parsed.getTime())) throw new Error('Précisez une date et une heure valides.');
+        const title = String(data.get('title') || '').trim();
+        if (!title) throw new Error('Précisez l’objet du rendez-vous.');
+        const rawLink = kind === 'video' ? String(data.get('joinUrl') || '').trim() : '';
+        const joinUrl = rawLink ? safeZoomUrl(rawLink) : null;
+        if (rawLink && !joinUrl) throw new Error('Utilisez un lien de participation HTTPS Zoom au format /j/numéro.');
+        const body = JSON.stringify({ kind, title, scheduledAt: parsed.toISOString(), joinUrl });
+        // Keep the same key across retries of the same form and payload only.
+        if (form.dataset.payload !== body || !form.dataset.idempotencyKey) {
+          form.dataset.idempotencyKey = crypto.randomUUID(); form.dataset.payload = body;
+        }
+        await api(base, { method: 'POST', headers: { 'Idempotency-Key': form.dataset.idempotencyKey }, body });
+        resultMessage = 'Le rendez-vous a été enregistré. Aucun appel ni chronomètre n’a été démarré.';
+      }
+      if (!sameCommunicationScope(scope)) return;
+      if (!await refreshDetail(scope.caseId) || !sameCommunicationScope(scope)) return;
+      if (form.isConnected && dialog.open) dialog.close();
+      state.busy = false;
+      render(); notify(resultMessage);
+    } catch (error) {
+      if (sameCommunicationScope(scope)) {
+        if (errorNode.isConnected) { errorNode.textContent = error.message; errorNode.hidden = false; }
+        else notify(error.message, true);
+      }
+    } finally { finishCommunicationAction(button); }
+  }
+  async function mutateCommunication(action, id, trigger) {
+    if (!canMutate() || state.busy) return;
+    const scope = communicationScope();
+    let path, message;
+    if (action === 'approve') {
+      const entry = state.detail?.usage?.entries?.find(item => item.id === id);
+      if (!canApprove() || !entry || entry.status !== 'submitted' || entry.needsReview || entry.authorSubject === state.user?.subject) return;
+      path = `usage/${encodeURIComponent(id)}/approve`;
+      message = 'L’usage a été validé en interne. Aucune facture ni aucun débit de crédits n’a été créé.';
+    } else {
+      const item = communicationSessions().find(session => session.id === id);
+      if (!item || !['start', 'end'].includes(action) || item.status === 'cancelled') return;
+      if (action === 'start' && (item.ownTimer || communicationSessions().some(session => session.ownTimer?.status === 'running'))) return;
+      if (action === 'end' && item.ownTimer?.status !== 'running') return;
+      path = `communications/${encodeURIComponent(id)}/${action}`;
+      message = action === 'start' ? 'Votre chronomètre est démarré. Arrêtez-le à la fin de votre échange ; fermer la page ne l’arrête pas.' : 'Votre chronomètre est arrêté. La durée est enregistrée dans Usages, sans facturation.';
+    }
+    state.busy = true; trigger.disabled = true;
+    try {
+      await api(`/api/cases/${encodeURIComponent(scope.caseId)}/${path}`, { method: 'POST', body: '{}' });
+      if (!sameCommunicationScope(scope)) return;
+      if (!await refreshDetail(scope.caseId) || !sameCommunicationScope(scope)) return;
+      state.busy = false;
+      render(); notify(message);
+    } catch (error) { if (sameCommunicationScope(scope)) notify(error.message, true); }
+    finally { finishCommunicationAction(trigger); }
+  }
+  async function refreshCommunications(trigger) {
+    if (!canMutate() || state.busy) return;
+    const scope = communicationScope(); state.busy = true; trigger.disabled = true;
+    try { if (await refreshDetail(scope.caseId) && sameCommunicationScope(scope)) { state.busy = false; render(); notify('Le suivi du dossier a été actualisé.'); } }
+    catch (error) { if (sameCommunicationScope(scope)) notify(error.message, true); }
+    finally { finishCommunicationAction(trigger); }
   }
   function preview(id, ordinal = 1) {
     const doc = state.detail?.documents.find((item) => item.id === id) || state.searchResults?.find((item) => item.id === id);
@@ -268,6 +451,7 @@
     const version = ++state.requestVersion;
     const sessionVersion = state.sessionVersion;
     state.caseLoading = true;
+    if (dialog.open) dialog.close();
     try {
       const detail = state.demo ? examples[id] : await api(`/api/cases/${encodeURIComponent(id)}`);
       if (version !== state.requestVersion || sessionVersion !== state.sessionVersion || !detail) return;
@@ -396,6 +580,12 @@
     if (action === 'new-case') openNewCase();
     if (action === 'upload') openUpload();
     if (action === 'new-time') openTime();
+    if (action === 'new-communication') openCommunication();
+    if (action === 'communication-cancel') openCommunicationCancel(button.dataset.id);
+    if (action === 'communication-start') void mutateCommunication('start', button.dataset.id, button);
+    if (action === 'communication-end') void mutateCommunication('end', button.dataset.id, button);
+    if (action === 'approve-usage') void mutateCommunication('approve', button.dataset.id, button);
+    if (action === 'refresh-communications') void refreshCommunications(button);
     if (action === 'preview') preview(button.dataset.id, Number(button.dataset.page || 1));
     if (action === 'page') void loadPage(button.dataset.id, Number(button.dataset.offset));
     if (action === 'close-dialog') dialog.close();
@@ -410,12 +600,19 @@
     event.preventDefault();
     if (form.id === 'login-form') void login(form);
     else if (form.id === 'search-form') void submitSearch(form);
+    else if (['communication-form', 'communication-cancel-form'].includes(form.id)) void submitCommunication(form);
     else if (['case-form', 'upload-form', 'message-form', 'time-form'].includes(form.id)) void submitMutation(form);
   });
   document.addEventListener('change', (event) => {
     if (event.target.id === 'case-select') void loadCase(event.target.value);
     if (event.target.id === 'document-category') { state.documentCategory=event.target.value; render(); }
     if (event.target.id === 'document-unresolved') { state.onlyUnresolved=event.target.checked; render(); }
+    if (event.target.id === 'communication-kind') {
+      const phone = event.target.value === 'phone';
+      const link = document.getElementById('communication-link');
+      document.getElementById('communication-link-field').hidden = phone;
+      link.disabled = phone;
+    }
   });
   document.addEventListener('input', (event) => {
     if (event.target.id !== 'case-filter') return;

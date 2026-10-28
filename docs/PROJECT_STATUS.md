@@ -1,5 +1,17 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## État courant — 28 octobre 2026
+
+Le propriétaire reprend le travail et confirme la sortie de WordPress. [Liste opérationnelle pour son développeur disponible](DEV-A-FAIRE-2026-10-28.md). Base synchronisée : `main` `e59a9e084966a649d260ff917d756823ff4558c4`, PR 1 fusionnée. Développement séparé sur `codex/workspaces-appels-2026-10-28`.
+
+Contrôles publics du 28 octobre : apex/portail A `209.42.24.127`; MX sur apex; mail CNAME sur apex; TTL 7200. Portail health 200 avec `identityConfigured:false`, `/demande` 404; vitrine `/healthz` 404. Coolify et accès réel au corpus ne sont pas confirmés. Déployer le code GitHub, protéger le courrier avant la bascule, puis faire la recette propriétaire.
+
+Lot en cours : questionnaire par domaine FR/EN, rendez-vous, chronomètre personnel serveur et registre des durées. Adaptateur Facturations limité à des lectures et une préparation locale de brouillons, fermé par défaut. Aucun appel réel, paiement ou souscription activé. Tarifs de stockage client, minutes et commissions non fixés.
+
+Les sections antérieures suivantes sont conservées comme historique; leurs consignes « notes seulement » et maintien de WordPress sont remplacées par le mandat du 28 octobre.
+
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md)**, dont la section du 27 octobre.
 
 **Priorité : rendre l'accès personnel au backend réellement utilisable avant de poursuivre la vitrine.** État documentaire vérifié le 26 octobre 2026; aucun nouveau déploiement réalisé par cette mise à jour.

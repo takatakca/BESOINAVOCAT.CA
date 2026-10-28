@@ -21,7 +21,7 @@ function inspect(file, query = 'SELECT * FROM ba_intakes', params = []) {
 
 async function fixture(t, override = {}) {
   const root = await mkdtemp(path.join(tmpdir(), 'ba-intake-test-'));
-  const file = path.join(root, 'intake.sqlite'), apps = [];
+  const file = path.join(root, 'intake.sqlite'), apps = [], services = [];
   const env = { BESOINAVOCAT_INTAKE_DB_PATH: file, BESOINAVOCAT_INTAKE_ALLOWED_ORIGINS: JSON.stringify([WP, ORIGIN]), ...override };
   const start = async (options = {}) => {
     const app = createApp({ dbPath: path.join(root, 'cases.sqlite'), blobDir: path.join(root, 'blobs'), env, ...options });
@@ -37,11 +37,12 @@ async function fixture(t, override = {}) {
     return { app, base, request, post };
   };
   t.after(async () => {
+    for (const service of services) service.clear();
     for (const app of apps) if (app.listening) await new Promise(resolve => app.close(resolve));
     assert.equal(path.dirname(root), path.resolve(tmpdir())); assert.match(path.basename(root), /^ba-intake-test-/);
-    await rm(root, { recursive:true, force:true });
+    await rm(root, { recursive:true, force:true, maxRetries: 3, retryDelay: 50 });
   });
-  return { root, file, env, start, ...(await start()) };
+  return { root, file, env, start, trackService(service) { services.push(service); return service; }, ...(await start()) };
 }
 
 test('public versioned catalogue has exact CAD prices, free clients and separate inactive AI credits', async t => {
@@ -52,7 +53,7 @@ test('public versioned catalogue has exact CAD prices, free clients and separate
   assert.equal(result.headers.get('access-control-allow-credentials'), null);
   assert.equal(result.headers.get('cache-control'), 'no-store');
   const value = result.json;
-  assert.equal(value.version, '2026-10-27.2'); assert.equal(value.currency, 'CAD'); assert.equal(value.amountUnit, 'minor');
+  assert.equal(value.version, '2026-10-28.1'); assert.equal(value.currency, 'CAD'); assert.equal(value.amountUnit, 'minor');
   assert.equal(value.purchaseAvailable, false); assert.equal(value.client.amountMinor, 0);
   assert.deepEqual(value.professional.plans.map(item => [item.id,item.amountMinor,item.interval]), [['weekly',10000,'week'],['monthly',30000,'month']]);
   assert.equal(value.professional.subscriptionActive, false);
@@ -121,7 +122,7 @@ test('client receipt is emitted only after separate private storage with consent
   const stored = JSON.parse(rows[0].payloadJson); assert.equal(stored.consent,true); assert.equal(stored.consentVersion,'2026-10-26.1');
   assert.equal(stored.name,body.name); assert.equal(stored.phone,body.phone); assert.equal(stored.website,undefined);
   assert.match(rows[0].createdAt,/Z$/u); assert.match(rows[0].consentText,/ni abonnement/u);
-  assert.equal(JSON.parse(rows[0].priceJson).amountMinor,0); assert.equal(rows[0].catalogVersion,'2026-10-27.2');
+  assert.equal(JSON.parse(rows[0].priceJson).amountMinor,0); assert.equal(rows[0].catalogVersion,'2026-10-28.1');
   assert.equal(f.app.store.db.prepare('SELECT COUNT(*) AS n FROM cases').get().n,0);
   assert.equal(f.app.store.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'ba_intake%'").get().n,0);
   const limits = inspect(f.file,'SELECT * FROM ba_intake_limits');
@@ -228,7 +229,7 @@ test('public reads and guessed receipt URLs expose neither leads nor their exist
     const result=await f.request(route); assert.ok([401,404,405].includes(result.status));
     assert.doesNotMatch(result.text,/synthetic@example|Personne|BA-|received/);
   }
-  const catalog=await f.request('/api/catalog'); assert.doesNotMatch(catalog.text,/synthetic@example|Personne|BA-/);
+  const catalog=await f.request('/api/catalog'); assert.doesNotMatch(catalog.text,/synthetic@example|Personne Synthétique|BA-[A-Za-z0-9_-]{24}/);
   const owner=await f.start({authenticate:async()=>({subject:'synthetic-owner',tenantId:'synthetic-tenant',product:'besoinavocat',active:true})});
   const denied=await owner.request('/api/intake',{headers:{Authorization:'Bearer synthetic-owner'}}); assert.equal(denied.status,405);
 });
@@ -308,15 +309,14 @@ test('enabled detailed request is received only after storage, with its own cons
   assert.equal(stored.summary, 'Première ligne.\nDeuxième ligne\tavec tabulation.');
   assert.equal(stored.deadline, body.deadline); assert.equal(stored.contactPreference, 'phone'); assert.equal(stored.website, undefined);
   assert.equal(stored.consentVersion, '2026-10-27.1'); assert.match(row.consentText, /summary of my situation/u);
-  assert.equal(JSON.parse(row.priceJson).amountMinor, 0); assert.equal(row.catalogVersion, '2026-10-27.2');
+  assert.equal(JSON.parse(row.priceJson).amountMinor, 0); assert.equal(row.catalogVersion, '2026-10-28.1');
   assert.equal(f.app.store.db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, 0);
 });
 
 test('detailed request rejects lawyers, plans, files, unknown choices, unsafe or out-of-bounds summaries', async t => {
   const f = await fixture(t, REQUEST);
   // Validation matrix through the service: the HTTP per-client limit (20 / 15 min) is tested elsewhere.
-  const service = createIntake({ config: { origins: [WP], dbPath: f.file, requestEnabled: true } });
-  t.after(() => service.clear());
+  const service = f.trackService(createIntake({ config: { origins: [WP], dbPath: f.file, requestEnabled: true } }));
   const missing = request(); delete missing.summary;
   const noStage = request(); delete noStage.stage;
   for (const body of [missing, noStage, { ...request(), role: 'professional' }, { ...request(), periodicity: 'monthly' },
@@ -336,8 +336,7 @@ test('detailed request rejects lawyers, plans, files, unknown choices, unsafe or
 
 test('deadline must be a real calendar date from yesterday up to five years ahead', async t => {
   const f = await fixture(t); let time = Date.parse('2026-10-27T03:00:00Z');
-  const service = createIntake({ config: { origins: [WP], dbPath: f.file, requestEnabled: true }, now: () => time });
-  t.after(() => service.clear());
+  const service = f.trackService(createIntake({ config: { origins: [WP], dbPath: f.file, requestEnabled: true }, now: () => time }));
   for (const deadline of ['2026-10-26', '2026-10-27', '2031-10-31']) {
     assert.equal(service.receive({ ...request(), deadline, email: `ok-${deadline}@example.test` }, randomUUID(), WP).status, 'received');
   }

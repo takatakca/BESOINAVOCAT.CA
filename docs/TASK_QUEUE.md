@@ -1,5 +1,18 @@
 # TASK_QUEUE — BESOINAVOCAT.CA
 
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## Priorité du 28 octobre — reprise autorisée
+
+1. Développeur du propriétaire : exécuter [DEV-A-FAIRE-2026-10-28](DEV-A-FAIRE-2026-10-28.md), portail et compte réel avant vitrine. Préserver les courriels lors du DNS. WordPress devient seulement une sauvegarde de retour arrière.
+2. Valider/restaurer le corpus privé dans une destination neuve, habilitations par UUID, trois dossiers, recherche et téléchargement; remise de 312 annexes inchangée.
+3. Livrer et tester le questionnaire conditionnel, les rendez-vous et le journal de durée du lot `codex/workspaces-appels-2026-10-28`.
+4. Compléter la file opérateur, l'attribution humaine des demandes, le parcours d'inscription et les notifications; la réception d'un formulaire seule n'est pas la mise en relation.
+5. Raccorder Zoom/Twilio et Facturations après configuration serveur réelle, définir les tarifs clients/minutes/crédits/commissions; aucun débit avant ces étapes.
+6. Visuels réservés au propriétaire et à Mike selon D-023, ton juridique sobre; garder le contenu informationnel et les anciens slugs. Ne pas confondre copie textuelle et reproduction exacte de la mise en page.
+
+Le tableau ci-dessous conserve l'historique. Les tâches de réinstallation WordPress/MochaHost ne sont plus le chemin de déploiement principal.
+
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
 Ordre actuel demandé par le propriétaire : **backend et accès effectif aux dossiers avant la vitrine**. Les tâches documentaires et de préparation indépendantes peuvent avancer sans contourner un blocage de déploiement.

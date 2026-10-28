@@ -1,5 +1,21 @@
 # Reprise suivante — BesoinAvocat et écosystème TAKATAK
 
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## État prioritaire du 28 octobre 2026
+
+**Reprise explicitement autorisée.** Le propriétaire confie la bascule DNS à Mike et demande de construire/tester le SaaS dans GitHub. La cible ne contient plus WordPress : `www/` conserve ses 348 pages et leurs adresses; `platform/` fournit le portail Node. Lire [DEV-A-FAIRE-2026-10-28.md](DEV-A-FAIRE-2026-10-28.md) avant toute action de déploiement.
+
+La base `main` a été synchronisée au commit `e59a9e084966a649d260ff917d756823ff4558c4`; PR 1 fusionnée. Le nouveau lot est sur `codex/workspaces-appels-2026-10-28`. Il ajoute le questionnaire par domaine FR/EN, les rendez-vous/chronomètres personnels et usages avec validation indépendante, et un adaptateur Facturations fermé par défaut. Les appels réels et paiements restent à raccorder.
+
+Contrôle de production du 28 octobre : apex et portail encore A MochaHost `209.42.24.127`, MX sur l'apex; portail health 200 avec `identityConfigured:false`, `/demande` 404. Ne pas annoncer une connexion active. L'identité TAKATAK du propriétaire existe et a été confirmée en lecture seule; le corpus local préparé lui attribue les trois dossiers. Le reçu privé `scripts/.build-livrables/node-portal-2026-10-26/VERIFICATION-COMPTE-2026-10-28.md` constate 1 359 occurrences, 3 098 unités et 1 182 SHA distincts, sans test de mot de passe. Ne pas copier ce reçu, les grants ou le corpus dans le dépôt public.
+
+Les fonctions internes et connecteurs optionnels seront facturables séparément. Prix de 50 CAD évoqué pour l'installation : à confirmer. Pas de mot de passe Zoom collecté; autorisation fournisseur, preuve de paiement et accès dossier sont distincts. Voir décisions D-024/D-025.
+
+Tri courriel du 28 octobre dans OneDrive : 22 messages classés, 9 promotions déplacées à la corbeille, aucun envoi ni suppression permanente. Deux exports (envoyé/brouillon distingués); divergences d'adresse à vérifier. Un seul compte inspecté. Manifestes privés sous `00_DOSSIER_MAITRE/99_Travail_et_collecte/Reprise_2026-10-28`. La remise figée de 312 annexes est intacte.
+
+Les sections du 26/27 octobre suivantes restent historiques. Leur arrêt de session est levé par la nouvelle demande; l'automatisation historique n'a pas été réactivée.
+
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 
 ## 27 octobre 2026, refonte — plateforme IA, relecture, Ontario (D-022)

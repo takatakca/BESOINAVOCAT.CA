@@ -122,7 +122,7 @@ export function createStore({ dbPath, blobDir }) {
   corpus = createCorpusSupport({ db, access, audit, putBlob, publicDocument });
   let closed = false;
   return {
-    db, access, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus,
+    db, access, audit, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus,
     close() { if (!closed) { db.close(); closed = true; } },
     // Trusted deployment/test operation only. It is deliberately NOT an HTTP route.
     provisionMembership({ tenantId, caseId, subject, role }) {

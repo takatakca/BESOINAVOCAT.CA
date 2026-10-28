@@ -36,7 +36,11 @@ if (APP_ROOT.parent / ".git").exists():
     PRIVATE_EXCLUDED_ROOTS.append(APP_ROOT.parent)
 FORMAT = "besoinavocat-corpus-backup"
 CORE_TABLES = {"cases", "members", "documents", "messages", "time_entries", "audit_events"}
-OPTIONAL_TABLES = {"document_imports", "document_pages"}
+OPTIONAL_TABLES = {
+    "document_imports", "document_pages",
+    "communication_sessions", "communication_timers",
+    "communication_usage", "communication_usage_approvals",
+}
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 BLOB_PATH = re.compile(r"blobs/[0-9a-f]{64}/[0-9a-f]{64}\Z")
 PUBLIC_COMPONENTS = {"public", "public_html", "htdocs", "wwwroot"}

@@ -20,6 +20,74 @@ const users = {
   otherTenant: { subject: 'alice', tenantId: 'tenant-b', product: 'besoinavocat', active: true },
 };
 
+test('optional addons require a session and expose no purchase, connection or case entitlement', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.request('/api/addons', { token: null })).status, 401);
+  const catalog = await f.request('/api/addons');
+  assert.equal(catalog.status, 200);
+  assert.equal(catalog.json.checkoutEnabled, false);
+  assert.deepEqual(catalog.json.items.map(item => item.id), ['internal_chat', 'zoom', 'phone']);
+  for (const item of catalog.json.items) {
+    assert.equal(item.price.amountCents, null);
+    assert.equal(item.canPurchase, false);
+    assert.equal(item.canConnect, false);
+    assert.equal(item.caseAccessGranted, false);
+  }
+  assert.deepEqual((await f.request('/api/capabilities')).json.addons, catalog.json);
+  assert.equal((await f.request('/api/addons', { method: 'POST', body: { id: 'zoom', amountCents: 1 } })).status, 404);
+  assert.equal((await f.request('/api/cases')).json.cases.length, 0);
+});
+
+test('communication HTTP workflow isolates tenants, controls roles and never bills manual usage', async t => {
+  const f = await fixture(t);
+  const item = await f.createCase();
+  f.member(item.id, 'lawyer', 'lawyer');
+  f.member(item.id, 'owner', 'owner');
+  const base = `/api/cases/${item.id}`;
+  const payload = { kind: 'video', title: 'Synthetic consultation', scheduledAt: '2026-11-01T14:00:00Z', joinUrl: 'https://zoom.us/j/12345678901' };
+  const options = { method: 'POST', body: payload, headers: { 'Idempotency-Key': 'synthetic-meeting-0001' } };
+  assert.equal((await f.request(`${base}/communications`, options)).status, 403);
+  assert.equal((await f.request(`${base}/communications`, { ...options, token: 'lawyer', headers: {} })).status, 400);
+  const scheduled = await f.request(`${base}/communications`, { ...options, token: 'lawyer' });
+  assert.equal(scheduled.status, 201, scheduled.text);
+  const id = scheduled.json.session.id;
+  assert.equal((await f.request(`${base}/communications`, { ...options, token: 'lawyer' })).json.session.id, id);
+  assert.equal((await f.request(`${base}/communications`, { ...options, token: 'lawyer', body: { ...payload, title: 'Different' } })).status, 409);
+  for (const token of ['stranger', 'otherTenant', null]) {
+    for (const suffix of ['/communications', '/usage']) {
+      assert.equal((await f.request(base + suffix, { token })).status, token ? 404 : 401);
+    }
+    assert.equal((await f.request(`${base}/communications/${id}/start`, { method: 'POST', body: {}, token })).status, token ? 404 : 401);
+  }
+  const timerPath = `${base}/communications/${id}`;
+  assert.equal((await f.request(`${timerPath}/start`, { method: 'POST', body: { subject: 'lawyer' } })).status, 400);
+  const started = await f.request(`${timerPath}/start`, { method: 'POST', body: {} });
+  assert.equal(started.status, 200);
+  assert.equal(started.json.timer.status, 'running');
+  assert.equal((await f.request(`${timerPath}/start`, { method: 'POST', body: {} })).json.timer.id, started.json.timer.id);
+  assert.equal((await f.request(`${timerPath}/cancel`, { method: 'POST', token: 'lawyer', body: {} })).status, 409);
+  const ended = await f.request(`${timerPath}/end`, { method: 'POST', body: {} });
+  assert.equal(ended.status, 200);
+  assert.equal(ended.json.timer.status, 'ended');
+  assert.equal(ended.json.timer.providerVerified, false);
+  await f.request(`${timerPath}/end`, { method: 'POST', body: {} });
+  const usage = (await f.request(`${base}/usage`)).json;
+  assert.equal(usage.entries.length, 1);
+  assert.equal(usage.billingEnabled, false);
+  assert.equal(usage.entries[0].estimateCents, null);
+  assert.equal(usage.entries[0].billed, false);
+  f.member(item.id, 'alice', 'owner');
+  const approval = `${base}/usage/${usage.entries[0].id}/approve`;
+  assert.equal((await f.request(approval, { method: 'POST', body: {} })).status, 403);
+  const approved = await f.request(approval, { method: 'POST', token: 'lawyer', body: {} });
+  assert.equal(approved.status, 200);
+  assert.equal(approved.json.usage.status, 'approved_internal_only');
+  const detail = (await f.request(base)).json;
+  assert.equal(detail.communications.sessions.length, 1);
+  assert.equal(detail.usage.entries[0].billed, false);
+  assert.equal((await f.request('/api/capabilities')).json.communications.providers.phone, 'not_connected');
+});
+
 async function fixture(t, options = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'besoinavocat-api-test-'));
   const blobDir = path.join(directory, 'blobs');

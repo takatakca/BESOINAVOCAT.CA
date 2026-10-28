@@ -34,7 +34,7 @@ function readPages() {
     if (!existsSync(folder)) continue;
     for (const file of readdirSync(folder).filter((name) => name.endsWith('.html')).sort()) {
       const source = readFileSync(new URL(file, folder), 'utf8');
-      const match = source.match(/^<!--\n([\s\S]*?)\n-->\n?/);
+      const match = source.match(/^<!--\r?\n([\s\S]*?)\r?\n-->(?:\r?\n)?/);
       if (!match) throw new Error(`${dir}${file}: missing header comment`);
       const meta = Object.fromEntries(match[1].split('\n').map((line) => { const i = line.indexOf(':'); return [line.slice(0, i).trim(), line.slice(i + 1).trim()]; }));
       if (!meta.path || !meta.path.startsWith('/') || !meta.path.endsWith('/')) throw new Error(`${dir}${file}: path must start and end with /`);

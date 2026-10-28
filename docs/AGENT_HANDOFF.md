@@ -1,5 +1,17 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## Reprise prioritaire — 28 octobre 2026
+
+Le propriétaire a repris le travail : la consigne historique d'arrêt ci-dessous est levée. **Plus de WordPress dans la cible**; contenus importés dans `www/` et portail Node dans `platform/`. Le développeur humain est disponible pour Coolify/DNS : [sa liste](DEV-A-FAIRE-2026-10-28.md), avec contrôles live du 28 octobre et restauration détaillée [COOLIFY](COOLIFY.md).
+
+`main` synchronisé au SHA `e59a9e084966a649d260ff917d756823ff4558c4`; ne pas réutiliser l'ancienne PR 1, fusionnée. Nouvelle branche `codex/workspaces-appels-2026-10-28`, questionnaires et communications en cours. Lire les résultats du lot avant d'intégrer; aucun déploiement de ce lot n'est revendiqué.
+
+Le portail actuel renvoie health 200 mais `/demande` 404 et identité Bearer non configurée. Tester `loginConfigured`, puis la vraie connexion : ne jamais annoncer le compte prêt sur un aperçu fictif. Préserver la sauvegarde/corpus privés hors Git et la remise figée des 312 annexes.
+
+Le tri courriel a été effectué séparément dans le OneDrive privé le 28 octobre : 22 messages classés, 9 promotions mises à la corbeille de façon réversible, deux exports avec distinction envoyé/brouillon. Un seul compte accessible; deuxième compte et ChatGPT non contrôlés dans ce lot. Manifestes privés dans `00_DOSSIER_MAITRE/99_Travail_et_collecte/Reprise_2026-10-28`, pas de nouvelle preuve de pertes affirmée.
+
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** L'utilisateur termine la session : cette passe ne modifie que les notes, puis s'arrête.
 
 ## Reprise courante — 26 octobre 2026

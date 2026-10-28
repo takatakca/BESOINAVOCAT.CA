@@ -1,5 +1,17 @@
 # Relève — BESOINAVOCAT.CA
 
+**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+## Reprise du 28 octobre — le développement est autorisé
+
+Lire [la liste destinée à Mike](DEV-A-FAIRE-2026-10-28.md) et les ajouts courants de [PROJECT_STATUS](PROJECT_STATUS.md). Mike termine le DNS; l'agent construit et teste le code dans GitHub, sans intervention WordPress. Vitrine `www/` avec contenu conservé, backend Node `platform/`, identité TAKATAK et corpus privé séparé du dépôt public.
+
+L'identité existante du propriétaire a été confirmée en lecture seule dans TAKATAK. Les grants et trois appartenances au corpus préparé concordent; reçu dans le OneDrive privé. Cela n'est pas une connexion au portail de production ni une vérification de mot de passe. Après déploiement, Mike doit vérifier la connexion réelle et les trois dossiers.
+
+Les connecteurs sont optionnels pour chaque client; Zoom doit utiliser son autorisation OAuth, pas collecter son mot de passe dans BesoinAvocat. Le prix d'installation évoqué de 50 CAD est un exemple à confirmer. Chat interne, intégrations externes, frais d'usage et honoraires restent des rubriques distinctes.
+
+Les sections ci-dessous sont historiques; leur consigne d'arrêt est levée. L'ancienne automatisation reste en pause : ce travail est celui du chat actif.
+
 État de fin de session du 26 octobre 2026 : notes seulement, puis arrêt. **Lire en premier [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md)**, puis [AGENTS.md](../AGENTS.md), [AGENT_HANDOFF](AGENT_HANDOFF.md), [PROJECT_STATUS](PROJECT_STATUS.md) et [TASK_QUEUE](TASK_QUEUE.md).
 
 ## Priorité du propriétaire

@@ -26,6 +26,7 @@ const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/dictation.js', ['dictation.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   // Public request page; it posts only to the same-origin /api/intake.
   ['/demande', ['demande.html', 'text/html; charset=utf-8']],
@@ -38,12 +39,13 @@ const assets = new Map([
   ['/fonts/jetbrains-mono-latin.woff2', ['fonts/jetbrains-mono-latin.woff2', 'font/woff2']],
 ]);
 
-function securityHeaders(res) {
+function securityHeaders(res, requestUrl = '') {
   res.setHeader('Content-Security-Policy', CSP);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  const portalPage = ['/', '/index.html'].includes(requestUrl.split('?')[0]);
+  res.setHeader('Permissions-Policy', `camera=(), microphone=${portalPage ? '(self)' : '()'}, geolocation=()`);
   res.setHeader('Cache-Control', 'no-store');
 }
 
@@ -181,10 +183,25 @@ export function createApp({
     } else {
       user = await authenticateRequest(req, verifyIdentity);
     }
+    if (path === '/api/search') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      const allowed = ['q', 'caseId', 'mode', 'offset', 'limit'];
+      if ([...url.searchParams.keys()].some(key => !allowed.includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');
+      const number = (key, fallback) => {
+        const value = url.searchParams.get(key);
+        if (value === null) return fallback;
+        if (!/^(?:0|[1-9][0-9]*)$/u.test(value) || !Number.isSafeInteger(Number(value))) throw invalid('Pagination invalide.');
+        return Number(value);
+      };
+      return json(res, 200, store.searchStructured(user, text(url.searchParams.get('q'), 'Recherche', 200), {
+        caseId: url.searchParams.get('caseId'), mode: url.searchParams.get('mode') ?? 'terms',
+        offset: number('offset', 0), limit: number('limit', 25),
+      }));
+    }
     if ([...url.searchParams.keys()].some(k => !((path.endsWith('/search') && k === 'q') || (path.endsWith('/pages') && ['offset','limit'].includes(k)))) || [...url.searchParams.keys()].some(k => url.searchParams.getAll(k).length > 1)) throw invalid('Paramètre URL non autorisé.');
     if (path === '/api/me' && method === 'GET') return json(res, 200, { user });
     if (path === '/api/addons' && method === 'GET') return json(res, 200, publicAddonCatalog());
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -270,7 +287,7 @@ export function createApp({
   }
 
   const app = createServer({ maxHeaderSize: 16384, requestTimeout: 30000, headersTimeout: 15000 }, (req, res) => {
-    securityHeaders(res);
+    securityHeaders(res, req.url || '');
     route(req, res).catch(error => {
       if (res.headersSent) return res.destroy();
       const safe = error instanceof HttpError ? error : new HttpError(500, 'INTERNAL_ERROR', 'Une erreur interne empêche cette opération.');

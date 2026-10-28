@@ -20,6 +20,55 @@ const users = {
   otherTenant: { subject: 'alice', tenantId: 'tenant-b', product: 'besoinavocat', active: true },
 };
 
+test('structured search HTTP supports bounded global results, valid citations and current authorized scope only', async t => {
+  const f = await fixture(t);
+  const first = await f.createCase('alice', 'First synthetic case');
+  const second = await f.createCase('alice', 'Second synthetic case');
+  const privateCase = await f.createCase('colleague', 'Private synthetic case');
+  const alien = await f.createCase('otherTenant', 'Another tenant');
+  const sources = [];
+  for (const [item, token] of [[first, 'alice'], [second, 'alice'], [privateCase, 'colleague'], [alien, 'otherTenant']]) {
+    const uploaded = await f.upload(item.id, 'Synthetic FournisseurDemo bytes', { name: 'Facture FournisseurDemo.pdf', extractedText: 'Facture FournisseurDemo', mimeType: 'application/pdf' }, token);
+    assert.equal(uploaded.status, 201);
+    sources.push(uploaded.json.document);
+  }
+  f.app.store.db.prepare('INSERT INTO document_pages VALUES (?,?,?,?,?,?,?,?)').run('tenant-a', first.id, sources[0].id, 1, 9, 'Facture de FournisseurDemo à contrôler.', 'ocr_a_controler', '{}');
+  const query = `/api/search?q=${encodeURIComponent('Montre-moi les factures de FournisseurDemo')}&limit=1`;
+  assert.equal((await f.request(query, { token: null })).status, 401);
+  assert.equal((await f.request(query, { method: 'POST', body: {} })).status, 405);
+  const result = await f.request(query);
+  assert.equal(result.status, 200, result.text);
+  assert.equal(result.json.ai, false); assert.deepEqual(result.json.terms, ['facture', 'fournisseurdemo']);
+  assert.deepEqual(result.json.scope.caseIds.sort(), [first.id, second.id].sort());
+  assert.equal(result.json.results.length, 1); assert.equal(result.json.hasMore, true); assert.equal(result.json.nextOffset, 1);
+  const next = await f.request(`${query}&offset=1`);
+  assert.equal(next.json.results.length, 1); assert.equal(next.json.hasMore, false); assert.equal(next.json.nextOffset, null);
+  const hits = [...result.json.results, ...next.json.results];
+  assert.deepEqual(new Set(hits.map(hit => hit.caseId)), new Set([first.id, second.id]));
+  const cited = hits.find(hit => hit.citation);
+  assert.equal(cited.citation.page, 9); assert.equal(cited.citation.extractionVerified, false);
+  const page = await f.request(cited.citation.pagesUrl);
+  assert.equal(page.status, 200); assert.equal(page.json.pages[0].text, 'Facture de FournisseurDemo à contrôler.');
+  assert.equal((await f.request(cited.downloadUrl)).status, 200);
+  assert.equal((await f.request(`${query}&caseId=${privateCase.id}`)).status, 404);
+  assert.equal((await f.request(`${query}&caseId=${alien.id}`)).status, 404);
+  assert.equal((await f.request(`${query}&caseId=${second.id}`)).json.results.length, 1);
+  f.app.store.db.prepare('DELETE FROM members WHERE tenantId=? AND caseId=? AND subject=?').run('tenant-a', first.id, 'alice');
+  assert.equal((await f.request(cited.citation.pagesUrl)).status, 404);
+  assert.equal((await f.request(cited.downloadUrl)).status, 404);
+  assert.deepEqual((await f.request(query)).json.scope.caseIds, [second.id]);
+  assert.equal((await f.request('/api/capabilities')).json.structuredSearch, true);
+});
+
+test('structured search rejects unknown, duplicated, oversized or malformed query parameters', async t => {
+  const f = await fixture(t);
+  for (const suffix of ['', '?q=', '?q=montre+moi+les', '?q=%CC%81', `?q=${'a'.repeat(201)}`, '?q=fournisseurdemo&q=other',
+    '?q=fournisseurdemo&tenantId=other', '?q=fournisseurdemo&mode=', '?q=fournisseurdemo&mode=semantic', '?q=fournisseurdemo&limit=51', '?q=fournisseurdemo&limit=0',
+    '?q=fournisseurdemo&offset=-1', '?q=fournisseurdemo&offset=1e3', '?q=fournisseurdemo&offset=100001', '?q=fournisseurdemo&caseId=', '?q=fournisseurdemo&caseId=bad']) {
+    assert.equal((await f.request(`/api/search${suffix}`)).status, 400, suffix);
+  }
+});
+
 test('optional addons require a session and expose no purchase, connection or case entitlement', async t => {
   const f = await fixture(t);
   assert.equal((await f.request('/api/addons', { token: null })).status, 401);

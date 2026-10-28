@@ -1,5 +1,7 @@
 # BesoinAvocat — liste immédiate pour le développeur
 
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+
 Mandat du propriétaire, 28 octobre 2026 : remplacer WordPress par nos solutions versionnées dans GitHub, préserver le contenu et les adresses existantes, rendre le compte et les trois dossiers utilisables avant les ajouts visuels.
 
 **Code à intégrer : [PR 2 — portail et préservation](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2).** Le code `212e8d7` a ses contrôles GitHub verts. Cette PR reste ouverte pour coordonner la bascule avec Mike; `main` ne contient pas encore ce nouveau lot. Relire [la validation](VALIDATION-LOT-2026-10-28.md), intégrer la PR, puis déployer le SHA résultant. Ne pas confondre le SHA de l'ancienne base avec celui du code livré.

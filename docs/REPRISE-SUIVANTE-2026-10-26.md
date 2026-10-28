@@ -1,5 +1,7 @@
 # Reprise suivante — BesoinAvocat et écosystème TAKATAK
 
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+
 **Point de remise du 28 octobre : [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2), branche `codex/workspaces-appels-2026-10-28`, code `212e8d7`, contrôles GitHub verts.** Mike doit intégrer ce lot avant de déployer; il n'est pas fusionné sur `main`. Voir [la liste de bascule](DEV-A-FAIRE-2026-10-28.md) et [les preuves](VALIDATION-LOT-2026-10-28.md). Les notes concurrentes de `main` `fb992d6` ont été intégrées sans perte. Aucun déploiement, DNS, connexion de production, appel fournisseur ou paiement n'est annoncé réalisé. Les originaux juridiques et les 312 annexes restent intacts.
 
 > **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**

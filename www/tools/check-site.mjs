@@ -2,7 +2,7 @@
 //   node www/tools/check-site.mjs        exits 1 when a rule below is broken
 // Rules: every mirrored page is built; its visible text is identical, word for word, to the mirror;
 // internal links and files resolve (WordPress-only endpoints that the copy has no file for are listed apart); no file is loaded from another
-// site; no orange colour is left in stylesheets or inline styles.
+// site; no orange colour is left in stylesheets or inline styles; no HTML character (&#039;…) is damaged.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -49,6 +49,11 @@ for (const page of manifest.pages) {
   if (!existsSync(join(DIST, file))) { errors.push(`${page.path}: not built`); continue; }
   const source = visibleText(readFileSync(join(SITE, file), 'utf8'));
   const built = visibleText(readFileSync(join(DIST, file), 'utf8'));
+  // Characters written as HTML entities (the quotes of font names in inline styles, &#038; in addresses) are not
+  // damaged by the build: a recoloured "&#039;" would become "&#112d5e", a broken entity.
+  const broken = (html) => (html.match(/&#\d+(?![\d;])/g) || []).length;
+  const damaged = broken(readFileSync(join(DIST, file), 'utf8')) - broken(readFileSync(join(SITE, file), 'utf8'));
+  if (damaged > 0) errors.push(`${page.path}: ${damaged} HTML character(s) like &#039; damaged by the build`);
   if (source !== built) {
     let i = 0; while (i < source.length && source[i] === built[i]) i++;
     errors.push(`${page.path}: text differs from WordPress near « ${source.slice(Math.max(0, i - 40), i + 40)} »`);

@@ -40,9 +40,10 @@ export function mapColour(r, g, b) {
 const hex = (rgb) => '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
 
 // Recolours every hex and rgb()/rgba() colour in a CSS (or inline style) text.
+// "&#039;" in an inline style is an HTML character (the quote of 'Nunito Sans'), not the colour #039.
 export function recolour(text) {
   return text
-    .replace(/#([0-9a-f]{3}|[0-9a-f]{6})(?![0-9a-z_-])/gi, (m, value) => {
+    .replace(/(?<!&)#([0-9a-f]{3}|[0-9a-f]{6})(?![0-9a-z_-])/gi, (m, value) => {
       const full = value.length === 3 ? value.split('').map((c) => c + c).join('') : value;
       const rgb = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
       const next = mapColour(...rgb);

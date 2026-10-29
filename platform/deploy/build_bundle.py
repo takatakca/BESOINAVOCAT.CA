@@ -31,6 +31,7 @@ ALLOWLIST = {
     'public/index.html': 'platform/public/index.html',
     'public/app.js': 'platform/public/app.js',
     'public/dictation.js': 'platform/public/dictation.js',
+    'public/workspace.js': 'platform/public/workspace.js',
     'public/styles.css': 'platform/public/styles.css',
     'public/demande.html': 'platform/public/demande.html',
     'public/demande.js': 'platform/public/demande.js',

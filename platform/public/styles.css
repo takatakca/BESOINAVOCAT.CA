@@ -1,10 +1,10 @@
-/* BesoinAvocat workspace — visual system, 29 October 2026 (Claude, D-028).
+/* BesoinAvocat workspace — visual system, 29 October 2026 (Claude, D-029).
    Legal tones shared with the storefront: navy, burgundy accent, green only for calling. Sharp corners, fine
    lines, short purposeful motion. Every class used by app.js keeps a style here; reduced motion is respected. */
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 400 700; font-display: swap; src: url("/fonts/inter-latin.woff2") format("woff2"); }
 
 :root {
-  --ink: #0f1b2d; --ink-2: #26344a; --muted: #5b6576; --faint: #8a93a3;
+  --ink: #0f1b2d; --ink-2: #26344a; --muted: #5b6576; --faint: #646d7f;
   --navy: #13233a; --navy-2: #1b2f4d; --navy-3: #253c5e; --navy-line: #2b4062;
   --wine: #8b2132; --wine-dark: #6f1a28; --wine-pale: #f6e9ec;
   --green: #1f7a4c; --green-dark: #17603b; --green-pale: #e6f3ec;
@@ -88,8 +88,9 @@ input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--navy-2); }
 .demo-banner strong { font-weight: 650; margin-right: 8px; }
 .demo-banner a { color: var(--amber); font-weight: 600; white-space: nowrap; }
 .content { padding: 28px 32px 40px; max-width: 1480px; width: 100%; margin: 0 auto; flex: 1; outline: none; }
-.content > * { animation: rise var(--base) var(--ease) both; }
-.content > *:nth-child(2) { animation-delay: 30ms; } .content > *:nth-child(3) { animation-delay: 60ms; } .content > *:nth-child(n+4) { animation-delay: 90ms; }
+/* Sections rise in when you open them; a refresh of the same section stays still. */
+.content.enter > * { animation: rise var(--base) var(--ease) both; }
+.content.enter > *:nth-child(2) { animation-delay: 30ms; } .content.enter > *:nth-child(3) { animation-delay: 60ms; } .content.enter > *:nth-child(n+4) { animation-delay: 90ms; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .page-footer { display: flex; justify-content: space-between; gap: 16px; padding: 16px 32px 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .page-footer span span { padding: 0 6px; }
@@ -133,7 +134,9 @@ input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--navy-2); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .panel-heading p { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .panel-body { padding: 16px 18px 18px; }
-.section-stack { display: grid; gap: 16px; align-content: start; }
+/* Columns may shrink below their longest unbroken name: long file names end with an ellipsis instead of widening the page. */
+.section-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
+.layout-two > * { min-width: 0; }
 .main-stack { min-width: 0; }
 .note-panel { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--wine); border-radius: var(--r); padding: 16px 18px; }
 .note-icon { color: var(--wine); margin-bottom: 10px; }
@@ -374,7 +377,7 @@ dialog::backdrop { background: rgb(9 18 33 / 45%); backdrop-filter: blur(2px); }
 .contact-row:first-of-type { border-top: 0; padding-top: 0; }
 .contact-row > span { display: grid; min-width: 0; }
 .contact-row small { color: var(--muted); }
-.media-list { display: grid; gap: 6px; margin-top: 10px; }
+.media-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
 .media-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; text-align: left; border: 1px solid var(--line); border-radius: var(--r); background: #fafbfc; font-size: 13px; color: var(--ink); transition: background var(--fast); }
 .media-item:hover { background: var(--sunken); }
 .media-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -518,8 +521,10 @@ body.dock-third .main-shell { margin-right: max(380px, 33.333vw); }
 .content.slide-prev > * { animation: slide-prev 260ms var(--ease) both; }
 @keyframes slide-next { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
 @keyframes slide-prev { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
-body.dock-open .toast { bottom: 340px; }
-body.dock-open:has(.viewer-dock[data-mode=full]) .toast, body.dock-open:has(.viewer-dock[data-mode=third]) .toast { bottom: 20px; }
+/* With a window open, notices move to the top so they never cover its buttons. */
+body.dock-open .toast { top: 60px; bottom: auto; }
+body.dock-third .layout-two { grid-template-columns: minmax(0, 1fr); }
+body.dock-third .workbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* Mobile shell */
 .scrim { position: fixed; inset: 0; z-index: 29; background: rgb(9 18 33 / 45%); opacity: 0; pointer-events: none; transition: opacity var(--base); }

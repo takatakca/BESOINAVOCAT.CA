@@ -1,6 +1,6 @@
 'use strict';
 
-// Workspace tools of the portal (D-028): adjustable viewer, video messages, a Word-like editor saving .docx, a drawing
+// Workspace tools of the portal (D-029): adjustable viewer, video messages, a Word-like editor saving .docx, a drawing
 // board and image annotation, and the mobile shell (drawer, tab bar, swipe between sections). Everything runs in the
 // browser under the portal's CSP: no inline script or style, no request to another origin. Files leave the page only
 // through the bridge given by app.js, which posts them to the case like any other piece.
@@ -244,7 +244,7 @@
   };
   // A file name the server accepts: no path or reserved characters, no trailing dot, at most 240 characters.
   function safeName(name, extension) {
-    const base = String(name || '').normalize('NFC').replace(/[\\/:<>"|?*\u0000-\u001f\u007f]+/gu, ' ').replace(/\s+/gu, ' ').replace(/^[\s.-]+|[\s.]+$/gu, '').slice(0, 200) || 'Document';
+    const base = String(name || '').normalize('NFC').replace(/[\\/:<>"|?*\u0000-\u001f\u007f]+/gu, ' ').replace(/\s+/gu, ' ').replace(/\s+\./gu, '.').replace(/^[\s.-]+|[\s.]+$/gu, '').slice(0, 200) || 'Document';
     return extension && !base.toLowerCase().endsWith(`.${extension}`) ? `${base}.${extension}` : base;
   }
   function stampLabel(when = new Date()) {
@@ -274,10 +274,9 @@
     type: 'button', class: cls, title: title || false, 'aria-label': glyph && !label ? title : false, disabled,
     'aria-pressed': pressed === undefined ? false : String(pressed), onclick, html: `${glyph ? icon(glyph) : ''}${label ? `<span>${bridge.esc(label)}</span>` : ''}`,
   });
-  const store = {
-    get(key) { try { return window.localStorage.getItem(key); } catch { return null; } },
-    set(key, value) { try { window.localStorage.setItem(key, value); } catch { /* private mode */ } },
-  };
+  // Window sizes are remembered for this page only: the portal keeps nothing in browser storage.
+  const remembered = new Map();
+  const store = { get: (key) => remembered.get(key) ?? null, set: (key, value) => { remembered.set(key, value); } };
   const narrow = () => window.matchMedia?.('(max-width: 860px)').matches;
 
   // Viewer dock: one window at a time, in full screen, in one third of the screen, or in a corner.
@@ -422,7 +421,7 @@
     const node = dock.node;
     const show = (content) => { if (dock.node === node) dockBody().replaceChildren(content); };
     if (bridge.isDemo()) {
-      show(doc.extractedText ? el('div', { class: 'viewer-text', text: doc.extractedText }) : notice('Aperçu fictif : aucun fichier réel n’est chargé.'));
+      show(doc.extractedText ? el('div', { class: 'viewer-text', tabindex: '0', 'aria-label': `Texte de ${doc.name}`, text: doc.extractedText }) : notice('Aperçu fictif : aucun fichier réel n’est chargé.'));
       return;
     }
     try {
@@ -439,12 +438,12 @@
         else show(el('iframe', { src: `${url()}#view=FitH`, title: `Aperçu de ${doc.name}` }));
       } else if (kind === 'text') {
         const text = await blob.slice(0, 2 * 1024 * 1024).text();
-        show(el('div', { class: 'viewer-text', text: blob.size > 2 * 1024 * 1024 ? `${text}\n\n[Aperçu limité aux 2 premiers Mo. Téléchargez le fichier pour tout lire.]` : text }));
+        show(el('div', { class: 'viewer-text', tabindex: '0', 'aria-label': `Texte de ${doc.name}`, text: blob.size > 2 * 1024 * 1024 ? `${text}\n\n[Aperçu limité aux 2 premiers Mo. Téléchargez le fichier pour tout lire.]` : text }));
       } else if (kind === 'docx') {
         const blocks = await readDocx(blob);
         const page = el('article', { class: 'doc-page doc-readonly', 'aria-label': `Aperçu de ${doc.name}` });
         renderBlocks(page, blocks);
-        show(el('div', { class: 'doc-stage' }, [page]));
+        show(el('div', { class: 'doc-stage', tabindex: '0', 'aria-label': `Aperçu de ${doc.name}` }, [page]));
       } else show(notice(kind === 'pptx' ? 'Les présentations s’ouvrent dans PowerPoint, Keynote ou LibreOffice. Téléchargez le fichier pour la projeter.' : 'Aucun aperçu pour ce format dans le navigateur. Téléchargez le fichier pour l’ouvrir.'));
     } catch (error) { show(notice(error.message || 'La pièce n’a pas pu être ouverte.')); }
   }
@@ -518,6 +517,7 @@
   // ---------- Document editor ----------
   async function openEditor(source = null) {
     if (!bridge) return;
+    const caseId = bridge.caseId();
     let dirty = false, savedId = source && kindOf(source) === 'docx' ? source.id : null, versionOf = source?.id || null;
     const baseTitle = source ? source.name.replace(/\.(docx|txt|csv|json|eml)$/iu, '') : 'Document sans titre';
     const titleInput = el('input', { class: 'doc-title', type: 'text', value: baseTitle, maxlength: '180', 'aria-label': 'Titre du document', oninput: () => { dirty = true; } });
@@ -565,7 +565,7 @@
       saveButton.disabled = true; status.dataset.locked = '1'; status.textContent = 'Enregistrement dans le dossier…';
       try {
         const created = await bridge.save(new Blob([bytes], { type: MIME.docx }), {
-          name: safeName(title, 'docx'), mimeType: MIME.docx, sourceType: 'declaration', extractedText: text.slice(0, 200000), versionOf,
+          caseId, name: safeName(title, 'docx'), mimeType: MIME.docx, sourceType: 'declaration', extractedText: text.slice(0, 200000), versionOf,
           sourceReference: versionOf ? `Nouvelle version rédigée dans l’éditeur du portail le ${stampLabel()}. La version précédente reste au dossier.` : `Document rédigé dans l’éditeur du portail le ${stampLabel()}.`,
         });
         dirty = false; savedId = created?.id || savedId; versionOf = savedId;
@@ -634,6 +634,7 @@
   }
   async function openStudio(source = null) {
     if (!bridge) return;
+    const caseId = bridge.caseId();
     const S = { base: null, adjusted: null, ops: [], undo: [], redo: [], tool: source ? 'marker' : 'pen', color: COLORS[0][0], size: 4, brightness: 0, contrast: 0, draft: null, crop: null, legend: true, savedId: null, dirty: false };
     const canvas = makeCanvas(1600, 1000), ctx = canvas.getContext('2d');
     canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', source ? `Annotation de ${source.name}` : 'Tableau à dessin');
@@ -892,7 +893,7 @@
         const blob = await encode(exportCanvas());
         const legend = markers().map((op) => `${op.n} — ${op.label?.trim() || 'sans libellé'}`);
         const created = await bridge.save(blob, {
-          name: safeName(baseName, extension), mimeType: source ? 'image/jpeg' : 'image/png', sourceType: 'analyse', versionOf: S.savedId,
+          caseId, name: safeName(baseName, extension), mimeType: source ? 'image/jpeg' : 'image/png', sourceType: 'analyse', versionOf: S.savedId,
           sourceReference: (source ? `Annotation faite dans le portail le ${stampLabel()} sur « ${source.name} ». La pièce d’origine reste au dossier sans modification.` : `Dessin fait dans le portail le ${stampLabel()}.`).slice(0, 2048),
           extractedText: legend.length ? `Légende des repères :\n${legend.join('\n')}` : '',
         });
@@ -937,6 +938,7 @@
   }
   function recordVideo() {
     if (!bridge) return;
+    const caseId = bridge.caseId();
     let stream = null, recorder = null, chunks = [], timer = 0, cap = 0, recorded = null, reviewUrl = null, startedAt = 0;
     const supported = Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
     const video = el('video', { playsinline: true, muted: true, autoplay: true, hidden: true, 'aria-label': 'Aperçu de la caméra' });
@@ -1002,7 +1004,7 @@
       const topic = subject.value.trim();
       try {
         const created = await bridge.save(recorded, {
-          name: safeName(`${isVideo ? 'Message vidéo' : 'Message vocal'} — ${topic ? `${topic} — ` : ''}${stampLabel()}`, extension), mimeType: recorded.type, sourceType: 'declaration',
+          caseId, name: safeName(`${isVideo ? 'Message vidéo' : 'Message vocal'} — ${topic ? `${topic} — ` : ''}${stampLabel()}`, extension), mimeType: recorded.type, sourceType: 'declaration',
           sourceReference: `${isVideo ? 'Message vidéo' : 'Message vocal'} enregistré dans le portail le ${stampLabel()}${topic ? `. Objet : ${topic}` : ''}.`.slice(0, 2048),
         });
         release(); bridge.notify('Votre message est au dossier. Votre avocat le retrouve sous « Messages vidéo ».');
@@ -1021,6 +1023,7 @@
   // ---------- Presentation (.pptx) from the case's images ----------
   async function openPresentation() {
     if (!bridge) return;
+    const caseId = bridge.caseId();
     const images = bridge.docs().filter((doc) => kindOf(doc) === 'image');
     const caseTitle = bridge.caseTitle();
     const titleInput = el('input', { type: 'text', maxlength: '160', value: `Présentation — ${caseTitle || 'dossier'}`, 'aria-label': 'Titre de la présentation' });
@@ -1049,7 +1052,7 @@
         const bytes = pptxFromSlides(slides, { title, subtitle: `${caseTitle || ''} · ${stampLabel()}` });
         const blob = new Blob([bytes], { type: MIME.pptx });
         if (bridge.canSave()) {
-          await bridge.save(blob, { name: safeName(title, 'pptx'), mimeType: MIME.pptx, sourceType: 'analyse', sourceReference: `Présentation préparée dans le portail le ${stampLabel()} à partir de ${chosen.length} image${chosen.length > 1 ? 's' : ''} du dossier.`, extractedText: slides.map((slide) => [slide.title, ...slide.caption].join('\n')).join('\n\n').slice(0, 200000) });
+          await bridge.save(blob, { caseId, name: safeName(title, 'pptx'), mimeType: MIME.pptx, sourceType: 'analyse', sourceReference: `Présentation préparée dans le portail le ${stampLabel()} à partir de ${chosen.length} image${chosen.length > 1 ? 's' : ''} du dossier.`, extractedText: slides.map((slide) => [slide.title, ...slide.caption].join('\n')).join('\n\n').slice(0, 200000) });
           bridge.notify('La présentation est enregistrée dans le dossier (.pptx).');
         }
         downloadBlob(blob, safeName(title, 'pptx'));

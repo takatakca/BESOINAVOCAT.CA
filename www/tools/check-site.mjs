@@ -1,77 +1,92 @@
-// Checks the built storefront in www/dist. No dependency; run after node www/build.mjs.
-//   node www/tools/check-site.mjs        exits 1 when a page breaks a rule below
-// Rules: one h1, a title and a description per page; every internal link and image resolves;
-// no button without a destination; the text of each imported page is present in its built page.
+// Checks the built copy in www/dist against the WordPress mirror in www/site. No dependency; run after node www/build.mjs.
+//   node www/tools/check-site.mjs        exits 1 when a rule below is broken
+// Rules: every mirrored page is built; its visible text is identical, word for word, to the mirror;
+// internal links and files resolve (WordPress-only endpoints that the copy has no file for are listed apart); no file is loaded from another
+// site; no orange colour is left in stylesheets or inline styles; no HTML character (&#039;…) is damaged.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../', import.meta.url);
-const DIST = new URL('dist/', ROOT);
-const errors = [], warnings = [];
-const decode = (text) => text.replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#039;|&#39;/g, "'");
-const words = (html) => decode(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
-// Text blocks (paragraphs, headings, list items, cells, buttons), split into sentences.
-const sentences = (html) => html.split(/<\/?(?:p|h[1-6]|li|td|th|summary|div|aside|figcaption|blockquote|br)\b[^>]*>/)
-  .map(words).flatMap((block) => block.split(/(?<=[.!?])\s+/)).filter((sentence) => sentence.length > 25);
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
+const SITE = join(ROOT, 'site'), DIST = join(ROOT, 'dist');
+const manifest = JSON.parse(readFileSync(join(SITE, 'manifest.json'), 'utf8'));
+const errors = [], wordpressOnly = new Map(), warnings = [];
+const WORDPRESS = /^\/(wp-admin|wp-login\.php|wp-json|xmlrpc\.php|feed|comments\/feed|wp-content\/plugins\/[^?]*\.php)(\/|\?|$)|^\/\?s=/;
+
+const decode = (text) => text.replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'");
+const visibleText = (html) => decode(html.replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 
 function walk(dir, out = []) {
-  for (const name of readdirSync(dir)) {
-    const path = `${dir}/${name}`;
-    if (statSync(path).isDirectory()) walk(path, out); else out.push(path);
-  }
+  for (const name of readdirSync(dir)) { const file = join(dir, name); if (statSync(file).isDirectory()) walk(file, out); else out.push(file); }
   return out;
 }
-
-const distPath = fileURLToPath(DIST).replace(/\\/g, '/').replace(/\/$/, '');
-const files = walk(distPath);
-const htmlFiles = files.filter((file) => file.endsWith('.html'));
-const exists = (path) => {
-  const clean = decodeURIComponent(path.split(/[?#]/)[0]);
-  if (clean.endsWith('/')) return existsSync(distPath + clean + 'index.html');
-  return existsSync(distPath + clean) && statSync(distPath + clean).isFile();
+// Kept exactly as on WordPress and reported, not fixed: a link that is already dead there, images it loads from jurigo.ca.
+const KNOWN_DEAD = new Set(['/contact/']);
+const KNOWN_EXTERNAL = /^https:\/\/jurigo\.ca\/images\//;
+// Old WordPress addresses that nginx.conf redirects to a page of the copy.
+const REDIRECTED = new Set(['/avocat-aide-juridique', '/avocat-aide-juridique/', '/wp-sitemap.xml', '/sitemap_index.xml']);
+const exists = (ref) => {
+  const path = decodeURIComponent(ref.split(/[?#]/)[0]);
+  if (REDIRECTED.has(path)) return true;
+  if (path === '' || path.includes('..')) return false;
+  const file = join(DIST, path);
+  return path.endsWith('/') ? existsSync(join(file, 'index.html')) : existsSync(file) && statSync(file).isFile() || existsSync(join(file, 'index.html'));
 };
+const orange = (r, g, b) => {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (!d) return false;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = (max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  return h >= 8 && h <= 42 && s >= 0.45 && l >= 0.2 && l <= 0.88;
+};
+const oranges = (css) => [...css.matchAll(/#([0-9a-f]{6}|[0-9a-f]{3})(?![0-9a-z_-])/gi)].map((m) => (m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1]))
+  .filter((hex) => orange(...[0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))));
 
-const titles = new Map();
-for (const file of htmlFiles) {
-  const page = file.slice(distPath.length).replace(/index\.html$/, '');
-  const html = readFileSync(file, 'utf8');
-  const h1 = (html.match(/<h1[\s>]/g) || []).length;
-  if (h1 !== 1) errors.push(`${page}: ${h1} h1`);
-  const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1];
-  if (!title) errors.push(`${page}: no title`); else titles.set(title, [...(titles.get(title) || []), page]);
-  if (!/<meta name="description" content="[^"]{20,}">/.test(html)) errors.push(`${page}: no description`);
-  if (html.includes('#missing')) errors.push(`${page}: button without destination`);
-  for (const [, href] of html.matchAll(/href="(\/[^"]*)"/g)) if (!exists(href)) errors.push(`${page}: broken link ${href}`);
-  for (const [, src] of html.matchAll(/src="(\/[^"]*)"/g)) if (!exists(src)) errors.push(`${page}: missing image ${src}`);
-  for (const [, href] of html.matchAll(/<a [^>]*href="(https?:\/\/(?:www\.)?besoinavocat\.ca[^"]*)"/g)) warnings.push(`${page}: absolute link ${href}`);
-}
-for (const [title, pages] of titles) if (pages.length > 1) warnings.push(`duplicate title « ${title} »: ${pages.join(', ')}`);
-
-// Imported text must survive the build, except where a hand-written page replaces it.
-const contentDir = new URL('content/', ROOT);
-const overrides = new Set(existsSync(new URL('overrides/', contentDir)) ? readdirSync(new URL('overrides/', contentDir)) : []);
 let compared = 0;
-for (const name of readdirSync(new URL('pages/', contentDir))) {
-  const source = readFileSync(new URL(`pages/${name}`, contentDir), 'utf8');
-  const path = source.match(/^path: (.*)$/m)[1].trim();
-  const built = `${distPath}${path}index.html`;
-  if (!existsSync(built)) { errors.push(`${path}: not built`); continue; }
-  const original = sentences(source.replace(/^<!--[\s\S]*?-->/, ''));
-  if (overrides.has(name)) {
-    // A replacement page keeps the original text; report the sentences it no longer carries.
-    const kept = words(readFileSync(built, 'utf8'));
-    const lost = original.filter((sentence) => !kept.includes(sentence));
-    if (lost.length) warnings.push(`${path}: replaced page drops ${lost.length} sentence(s): ${lost.slice(0, 3).map((s) => `« ${s.slice(0, 70)} »`).join(' ')}`);
-    continue;
+for (const page of manifest.pages) {
+  const file = join(page.path, 'index.html');
+  if (!existsSync(join(DIST, file))) { errors.push(`${page.path}: not built`); continue; }
+  const source = visibleText(readFileSync(join(SITE, file), 'utf8'));
+  const built = visibleText(readFileSync(join(DIST, file), 'utf8'));
+  // Characters written as HTML entities (the quotes of font names in inline styles, &#038; in addresses) are not
+  // damaged by the build: a recoloured "&#039;" would become "&#112d5e", a broken entity.
+  const broken = (html) => (html.match(/&#\d+(?![\d;])/g) || []).length;
+  const damaged = broken(readFileSync(join(DIST, file), 'utf8')) - broken(readFileSync(join(SITE, file), 'utf8'));
+  if (damaged > 0) errors.push(`${page.path}: ${damaged} HTML character(s) like &#039; damaged by the build`);
+  if (source !== built) {
+    let i = 0; while (i < source.length && source[i] === built[i]) i++;
+    errors.push(`${page.path}: text differs from WordPress near « ${source.slice(Math.max(0, i - 40), i + 40)} »`);
   }
-  const page = words(readFileSync(built, 'utf8'));
-  const missing = original.filter((sentence) => !page.includes(sentence));
-  if (missing.length) errors.push(`${path}: ${missing.length} imported sentence(s) missing, e.g. « ${missing[0].slice(0, 80)} »`);
   compared++;
 }
-for (const required of ['404.html', 'sitemap.xml', 'robots.txt', 'favicon.svg', 'assets/site.css']) if (!existsSync(`${distPath}/${required}`)) errors.push(`missing ${required}`);
+if (!existsSync(join(DIST, '404.html'))) errors.push('missing 404.html');
 
-console.log(JSON.stringify({ pages: htmlFiles.length, textCompared: compared, errors: errors.length, warnings: warnings.length }));
-for (const line of warnings) console.log(`warning ${line}`);
-for (const line of errors) console.log(`error ${line}`);
+for (const file of walk(DIST)) {
+  const path = '/' + relative(DIST, file).split(sep).join('/');
+  if (path.endsWith('.html')) {
+    const html = readFileSync(file, 'utf8');
+    for (const [, ref] of html.matchAll(/\s(?:href|src)=["'](\/(?!\/)[^"']*)["']/g)) {
+      const clean = decode(ref);
+      if (WORDPRESS.test(clean) && !exists(clean)) { wordpressOnly.set(clean.split('?')[0], (wordpressOnly.get(clean.split('?')[0]) || 0) + 1); continue; }
+      if (KNOWN_DEAD.has(clean.split(/[?#]/)[0])) { warnings.push(`${path}: link ${clean} is dead on WordPress too`); continue; }
+      if (!exists(clean)) errors.push(`${path}: missing ${clean}`);
+    }
+    for (const [, ref] of html.matchAll(/<(?:script|img|source|iframe)\b[^>]*\ssrc=["'](https?:\/\/[^"']+)["']|<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'](https?:\/\/[^"']+)["']/gi)) if (ref) (KNOWN_EXTERNAL.test(ref) ? warnings : errors).push(`${path}: third-party file ${ref}`);
+    const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>|\sstyle="([^"]*)"/gi)].map((m) => m[1] || m[2]).join('\n');
+    const left = oranges(styles); if (left.length) errors.push(`${path}: orange left in inline styles ${[...new Set(left)].slice(0, 4).join(' ')}`);
+  } else if (path.endsWith('.css')) {
+    const css = readFileSync(file, 'utf8');
+    const left = oranges(css); if (left.length) errors.push(`${path}: orange left ${[...new Set(left)].slice(0, 4).join(' ')}`);
+    for (const [, ref] of css.matchAll(/url\(\s*['"]?(https?:\/\/[^'")]+)/g)) errors.push(`${path}: third-party file ${ref}`);
+  }
+}
+if (manifest.failed.length) warnings.push(`${manifest.failed.length} file(s) the WordPress site itself did not serve: ${manifest.failed.slice(0, 5).map((f) => f.url).join(', ')}`);
+
+console.log(JSON.stringify({ pages: manifest.pages.length, textComparedWordForWord: compared, errors: errors.length, wordpressOnlyLinks: Object.fromEntries(wordpressOnly), warnings }));
+// Errors grouped by kind (the same missing file on every page is one line).
+const kinds = new Map();
+for (const line of errors) { const kind = line.replace(/^[^:]+: /, ''); kinds.set(kind, [...(kinds.get(kind) || []), line.split(':')[0]]); }
+for (const [kind, where] of kinds) console.log(`error ${kind} — ${where.length} page(s): ${where.slice(0, 3).join(', ')}${where.length > 3 ? ', …' : ''}`);
 process.exit(errors.length ? 1 : 0);

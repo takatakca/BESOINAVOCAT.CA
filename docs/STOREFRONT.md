@@ -1,74 +1,132 @@
 # Vitrine besoinavocat.ca sans WordPress (`www/`)
 
-> **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
-> - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
-> - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
+> **28 octobre 2026 — VITRINE : `www/` est maintenant la copie exacte du site WordPress; seules les couleurs changent (D-026). En attente de la validation du propriétaire.**
+> - La refonte « plateforme IA » du 27 octobre (D-022) a été **refusée** par le propriétaire (D-023). Son design n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé de `www/content/` est conservé, sans être lu par la construction ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)).
+> - Le 28 octobre, le propriétaire a choisi de reconstruire `www/` comme **copie exacte** de son site WordPress, fait à la main détail par détail : mêmes mises en page, sections, images et boutons, textes mot pour mot. **Seules les couleurs changent**, pour ne pas ressembler à un autre de ses sites : l'orange devient bordeaux, les bleus et les verts deviennent marine; le blanc, les crèmes et le charbon restent.
 > - **Direction du propriétaire (28 octobre)** : c'est un site juridique, il doit garder un **ton juridique**. Les couleurs sont sobres et professionnelles, propres à un service juridique. Les textes sont formels et rigoureux. Proportion voulue : **99 % réel et juridique, 1 % d'IA**. L'IA est la touche discrète qui distingue la plateforme et en fait l'avenir des plateformes juridiques; elle n'est jamais le thème visuel ni le ton général. Pas d'esthétique futuriste ou robotique.
-> - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
+> - Preuves de la copie, page par page et mot pour mot : voir [Preuves](#preuves).
+> - **Sans instruction écrite du propriétaire, aucun agent ne modifie** la page de demande du portail (`platform/public/demande.*`, encore dans le style refusé de `c00ead5`), WordPress ou le DNS. Dans `www/`, seule la copie fidèle est autorisée (BA-034). Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
-> - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
 
-Décision du propriétaire, 27 octobre 2026 (D-021) : la vitrine besoinavocat.ca est reconstruite à partir du contenu publié sur WordPress, versionnée dans GitHub et servie par le serveur Coolify du propriétaire. Il n'y a plus d'extension, de thème ni de base de données. Le site WordPress chez MochaHost **n'est ni modifié ni supprimé** : il reste la copie de retour arrière jusqu'à la fin de la bascule.
+Décisions du propriétaire :
+- D-021 (27 octobre) : sortir de WordPress, versionner le site dans GitHub et le servir depuis son serveur Coolify;
+- D-023 (28 octobre) : la refonte D-022 est refusée;
+- D-026 (28 octobre) : `www/` devient la copie exacte du site WordPress, et seules les couleurs changent.
 
-## Ce qui a été copié et comment le vérifier
+Le site WordPress chez MochaHost **n'est ni modifié ni supprimé** : il reste la copie de retour arrière jusqu'à la fin de la bascule.
 
-- **348 pages**, soit toutes celles du plan du site WordPress (`wp-sitemap.xml` ne contient que des pages, aucun article de blogue). Instantané en lecture seule du 27 octobre, puis conversion des widgets Elementor en HTML propre : `www/tools/import-wordpress.mjs`. Résultat dans `www/content/pages/`, une page par fichier, avec son adresse, son titre et sa source en en-tête.
-- **Mêmes adresses** que WordPress, barre oblique finale comprise. Une adresse sans barre oblique redirige vers la page, comme avant.
-- **Comparaison au site en ligne** (`node www/tools/compare-snapshot.mjs <instantané>`) : 36 741 des 36 835 phrases visibles sont retrouvées telles quelles. Les 94 autres ont été contrôlées par échantillon : elles sont présentes, mais la comparaison colle autrement les listes imbriquées. S'y ajoutent les trois corrections volontaires listées plus bas.
-- **Contrôle de chaque construction** (`node www/tools/check-site.mjs`, aussi exécuté dans l'image Docker et la CI) : un seul h1, un titre et une description par page; tous les liens internes et les images aboutissent; aucun bouton sans destination; le texte importé est présent dans la page construite. Résultat au 27 octobre : 350 pages (348, plus `/contact/` et la page 404), 0 erreur. Il reste 9 avertissements : 6 titres en double déjà présents sur WordPress (`/logement/` et `/logement-2/`, par exemple) et 3 pages réécrites.
-- Rendu contrôlé dans Chromium à 1440 et 375 px : aucun débordement horizontal, aucune erreur JavaScript (le site n'a aucun script), menu mobile et ordre de tabulation corrects.
+## Contenu de `www/`
 
-## Ce qui a changé par rapport à WordPress
+| Chemin | Rôle |
+|---|---|
+| `site/` | **Copie exacte du site en ligne**, prise le 28 octobre 2026 à 08:24 UTC. Elle compte : les 348 pages du plan du site, la page 404 et 1 870 fichiers (feuilles de style, scripts, polices, images, PDF). `manifest.json` donne l'adresse d'origine et l'empreinte SHA-256 de chaque fichier. Ne pas modifier à la main : ce dossier est la référence des contrôles. |
+| `tools/mirror-wordpress.mjs` | Prend la copie, en lecture seule : plan du site, pages, puis tous les fichiers qu'elles appellent, y compris les `url()` et `@import` des feuilles de style. Les polices Google sont gardées dans `site/vendor/`. |
+| `tools/mirror-runtime.mjs` | Second passage, dans Chromium à 1440 et 390 px. Il ajoute les fichiers que les pages ne chargent qu'en s'exécutant (morceaux de scripts Elementor, par exemple). |
+| `palette.mjs` | La règle des couleurs (voir plus bas). |
+| `overrides/` | Fichiers qui remplacent ceux de la copie à la même adresse : <br>- le logo recoloré (`tools/recolour-images.py`, même règle); <br>- `assets/palette-fixes.css` : six titres posés sur un fond sombre; <br>- `assets/static-bridge.js` : les formulaires. |
+| `build.mjs` | Construit `dist/` (ignoré par Git) à partir de `site/` et `overrides/`. |
+| `tools/check-site.mjs` | Contrôle de chaque construction, sans dépendance. Il est aussi exécuté dans l'image Docker et la CI. |
+| `tools/compare-live.mjs` | Comparaison au site en ligne, dans Chromium, avec OCR facultatif. |
+| `nginx.conf`, `Dockerfile` | Service par nginx 1.28 sur Coolify. |
+| `content/`, `public/wp-content/`, `tools/import-wordpress.mjs`, `tools/compare-snapshot.mjs`, `tools/inventory-content.mjs` | Le texte importé le 27 octobre et ses outils. Ils sont conservés et contrôlés par l'inventaire de préservation ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)). La construction ne les lit plus. Ne pas relancer `import-wordpress.mjs` : il écrase `content/pages/`. |
 
-- Un seul gabarit (voir la refonte ci-dessous) : navigation, fil d'Ariane et panneau « Trouver mon avocat » sur chaque article. Le pied de page reprend tous les liens de WordPress, les domaines étant regroupés en sections dépliables.
-- **« Trouver mon avocat » mène à la page de demande du portail** (`https://portail.besoinavocat.ca/demande`), avec le domaine de droit de la page présélectionné (D-020). Les boutons « Parler à un avocat » et « Obtenir des offres », sans destination sur WordPress, affichent et composent le 514 825-2825.
-- Pages réécrites à la main dans `www/content/overrides/`, en conservant leurs textes :
-  - l'accueil et `/tableau-de-bord/` : leurs blocs (prix 100/300 $ CA, crédits IA, assistant téléphonique « en préparation », aperçu fictif) venaient de l'extension et non d'Elementor;
-  - `/demande/` : le choix des domaines, avec deux fautes corrigées (« jeuneesse », « Immobiler »);
-  - `/professionnels/` : les prix présentés en cartes et une étape en double retirée (« clients potentielse new leads »). Le formulaire MetForm est remplacé par le lien du portail `?role=professional`.
-- **Pages vides sur WordPress, aucun texte juridique inventé** : `/politique-de-confidentialite/`, `/conditions-dutilisation-des-professionnels/`, `/find-a-lawyer/` et `/rediger-un-contrat-de-service/`. Elles annoncent un texte « en cours de rédaction », sauf la dernière, qui renvoie vers l'article complet `/rediger-un-contrat-de-service-2/`. `/log-in/` explique que la connexion est en préparation.
-- Liens réparés : six liens du pied de page sans barre oblique. Le lien « Avocat aide juridique » menait, sur WordPress, à une image; il mène maintenant à l'article `/avocat-aide-juridique-2/`. `/contact/` répondait 404; il devient une page « Nous joindre ». Les deux PDF Complianz (conditions et formulaire de rétractation) sont copiés tels quels.
-- Plus de bannière de témoins : le site ne dépose aucun témoin et n'a ni outil d'analyse ni script. Le site WordPress n'avait aucune balise Google Analytics, Tag Manager ou de vérification Search Console.
+## Ce qui change par rapport à WordPress, et rien d'autre
 
-## Refonte « plateforme IA » du 27 octobre 2026 (D-022)
+1. **Les couleurs** (`palette.mjs`), pour ne pas ressembler à un autre site du propriétaire et garder un ton juridique sobre. actionavocat.ca, par exemple, est en noir et or `#d6b36a`.
+   - L'orange de la marque `#FF751F` devient le bordeaux `#8b2132`, et `#E77926` devient `#792936`. Les teintes claires d'orange deviennent un rose pâle de même clarté.
+   - Les verts, sarcelles, ardoises, bleus et violets deviennent marine (teinte 218°), à clarté égale. Les bleus vifs sont assombris : `#046bd2` → `#173f83`, `#1863dc` → `#1a4795`, `#176358` → `#1b345f`.
+   - Restent tels quels : le blanc, les crèmes (`#f8f6ef`, `#fffefa`…), les gris neutres, le charbon du texte (`#373643`, `#32373c`) et le noir.
+   - La règle s'applique :
+     - aux feuilles de style, aux styles en ligne et aux attributs SVG;
+     - aux illustrations SVG du site;
+     - aux couleurs de la bannière de témoins;
+     - au logo PNG.
+   - Les photos ne changent pas.
+   - Lisibilité :
+     - si un fond devient sombre sous un texte sombre, ce texte devient blanc;
+     - six titres posés sur un fond sombre prennent une teinte pâle de leur couleur : les prix de `/professionnels/` et deux titres de `/a-propos/` en rose pâle `#f3d4da`, un titre de `/consultations/` en marine pâle `#c3d1ea`.
+2. **Les liens du site** deviennent relatifs, pour que la copie fonctionne sur toute adresse. Les balises `canonical`, de partage et `ld+json` gardent `https://besoinavocat.ca`. Les polices Google sont servies par le site lui-même : aucune page n'appelle un tiers.
+3. **Les boutons** gardent leurs mots :
+   - « Trouver mon avocat » mène à la page de demande du portail `https://portail.besoinavocat.ca/demande?domaine=…`, avec le domaine de la page présélectionné (D-020);
+   - « Parler à un avocat » et « Obtenir des offres », sans destination sur WordPress, composent le 514 825-2825;
+   - « Contacte-nous » mène au portail (`?role=professional`).
+4. **Ce qui ne marche qu'avec WordPress** :
+   - Le formulaire MetForm de `/professionnels/`, la connexion de `/log-in/` et le formulaire de mot de passe oublié gardent leur apparence et leurs vérifications de champs. À l'envoi, le visiteur est conduit au portail. **Rien n'est envoyé** : il n'y a plus de serveur WordPress pour le recevoir.
+   - Les liens d'en-tête REST, flux et oEmbed sont retirés.
+   - Le compteur de vues de MetForm reçoit une réponse vide (204).
+5. **Nouvelles adresses pour les fichiers modifiés** (`?ba=<empreinte>`). WordPress envoie ses feuilles de style et ses images avec un cache d'un an (`expires` 2027). Sans nouvelle adresse, un visiteur déjà venu verrait encore l'ancien orange.
+6. `sitemap.xml` et `robots.txt` sont produits par la construction.
 
-Demande du propriétaire : un site premium et futuriste, qui présente BesoinAvocat comme une plateforme juridique propulsée par l'IA pour le Québec et l'Ontario, raccordée à TAKATAK, sans rien retirer du contenu.
+**Gardé tel quel, car c'est l'état actuel de WordPress** (signalé au propriétaire, pas corrigé) :
+- les deux images de `/regroupement-familial-quebec/` sont chargées depuis jurigo.ca, qui répond 404 : elles sont cassées sur WordPress aussi;
+- `/terms-and-conditions/` contient un lien `/contact/`, qui est en 404 sur WordPress;
+- le lien « Avocat aide juridique » du pied de page mène, sur WordPress, à une page de pièce jointe. nginx le redirige vers l'article `/avocat-aide-juridique-2/`;
+- la bannière de témoins n'enregistre pas le choix : WordPress répond « Error saving consent data. » et la bannière revient à chaque page. La copie fait de même : il n'y a plus de serveur pour enregistrer le choix;
+- les pages vides sur WordPress le restent, dont la politique de confidentialité et les conditions des professionnels (BA-032);
+- les coquilles du texte : celles repérées le 27 octobre sont listées dans [CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md). Elles ne sont **pas** appliquées, puisque la copie est mot pour mot. Le propriétaire décide;
+- sur l'accueil, à 1440 px, les trois cartes « 100% gratuit », « Simple et rapide » et « Confidentiel » sont serrées dans des colonnes de 20 px. C'est le cas sur WordPress aussi, animations actives ou non;
+- les contrastes faibles de WordPress, comme les petits libellés gris. La copie en a beaucoup moins que le site en ligne (axe-core, plus bas).
 
-- **Design** :
-  - fond marine et lumière bleue de la marque TAKATAK (`BRAND.md` de takatak-v1), orange BesoinAvocat pour les actions;
-  - polices Montserrat, Inter et JetBrains Mono, servies par le site lui-même (licence OFL) : aucune requête vers un tiers;
-  - aucun script : tous les effets sont en CSS et respectent « réduire les animations »;
-  - même design sur la page de demande du portail (`platform/public/demande.css`).
-- **Articles** :
-  - l'ouverture commune (titre, « Répondez à quelques questions… », bouton) devient un en-tête avec le domaine et le temps de lecture;
-  - les sections reçoivent une ancre, et une table « Sur cette page » accompagne un panneau de demande fixe.
-  - Les niveaux de titre ne sautent plus de niveau (accessibilité). Le texte et l'ordre ne changent pas.
-- **Accueil** : tous les textes précédents sont conservés. S'ajoutent :
-  - des chiffres réels (292 guides, 16 domaines, 38 villes et régions, 0 $ pour publier une demande);
-  - le « moteur BesoinAvocat » avec l'état de chaque fonction : questionnaire *Disponible*; structuration par IA, recherche dans les documents et connexion TAKATAK *En déploiement*; assistant téléphonique *En préparation*;
-  - une comparaison « Payez pour le conseil, pas pour la paperasse »;
-  - l'annuaire des domaines et un bandeau TAKATAK.
-- **Limites volontaires du texte** (lois sur le Barreau et sur la protection du consommateur) :
-  - BesoinAvocat prépare le dossier, l'avocat conseille : aucune consultation juridique ni économie chiffrée n'est promise;
-  - les fonctions d'IA ne sont pas présentées comme actives avant d'être raccordées et testées.
-- **Ontario** :
-  - la page de demande propose maintenant l'Ontario;
-  - l'ancien choix « Hors Québec » devient « Autre province ou territoire », avec le même identifiant;
-  - catalogue `2026-10-27.2`.
-- **Image de partage** `assets/og-image.png` (1200 × 630) et nouvelle icône. L'adresse de la feuille de style change avec son contenu, ce qui évite qu'un ancien design reste en cache après un déploiement.
-- **Contrôles** :
-  - `check-site` : 350 pages, 0 erreur;
-  - axe-core (WCAG 2.1 AA) sur les 350 pages à 390 px, sans erreur ni débordement : voir la section des preuves de [PROJECT_STATUS](PROJECT_STATUS.md);
-  - relecture du contenu : [CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md).
+## Preuves
+
+Contrôles du 28 octobre 2026 sur la construction finale, sauf mention contraire. Outils : Chromium (Playwright 1.63), Tesseract 5.3.4 `fra+eng`, axe-core 4.10.2. La copie a été prise à 08:24 UTC : une modification faite ensuite dans WordPress n'y figure pas.
+
+- **Mot pour mot, contre la copie de WordPress** (`check-site`, aussi exécuté dans l'image Docker et la CI) :
+  - 348 pages sur 348 ont un texte visible identique;
+  - aucun caractère HTML n'est abîmé et aucun orange ne reste dans les styles;
+  - aucun fichier n'est chargé d'un tiers, hormis les deux images de jurigo.ca;
+  - tous les liens internes aboutissent.
+  CI « Storefront checks » verte.
+- **Mot pour mot, contre le site en ligne** (`compare-live --ocr`, à 1440 px, chaque page défilée jusqu'au bout) :
+  - le texte affiché est **identique sur les 348 pages**, sans erreur de script sur la copie. MochaHost a répondu un 503 passager pour `/contestation-contravention-avocat/`; recontrôlée ensuite, la page répond 200 et est identique;
+  - **OCR** de la capture pleine page de la copie : en moyenne **97,1 %** des mots du site en ligne sont retrouvés (médiane 97,5 %); 343 pages sont à 90 % ou plus;
+  - les cinq pages sous 90 % sont du texte sur photo ou des pages très courtes : `/demande/`, `/a-propos/`, `/consultations/`, `/log-in/` et `/recrutement/`. La capture de WordPress, lue de la même façon, obtient le même score : `/demande/` 71,4 % en ligne contre 70,1 %, `/a-propos/` 83,9 % contre 83,8 %, `/log-in/` 86,5 % des deux côtés;
+  - seul écart notable : `/recrutement/`, 94,2 % contre 87,1 %. Il vient du découpage de la page par Tesseract. Le pied de page, lu seul, donne les mêmes mots des deux côtés (747 et 748), et aucun pixel n'y diffère de plus de 40 sur 255;
+  - ce passage a été fait avant deux corrections : le charbon conservé et le caractère `&#039;` (voir plus bas). Le texte affiché n'en dépend pas. Dix pages ont été recontrôlées sur la construction finale : texte identique.
+- **Mises en page** : dans Chromium, page défilée, on compare la position et la taille de chaque titre, image et bouton, à 2 px près.
+  - À 1440 px : 348 pages sur 348 identiques (16 904 éléments), à la hauteur de page près.
+  - À 390 px : 348 pages sur 348 identiques (15 245 éléments).
+  - Un écart a été trouvé et corrigé : sur `/succession/`, la page était 59 px plus courte à 1440 px. La règle des couleurs lisait le caractère `&#039;` (les guillemets de « Nunito Sans » dans un style en ligne) comme la couleur `#039`, et le nom de la police était cassé. La règle est corrigée et `check-site` refuse désormais tout caractère abîmé. Après correction, la page est identique; le passage à 390 px a été fait avec la correction.
+- **Couleurs rendues et CSP** : dans l'image Docker finale, 349 adresses à 1440 px et 14 pages aussi à 390 px :
+  - aucune violation de la CSP;
+  - aucun orange calculé sur un élément visible;
+  - aucune erreur de script ni fichier en échec, hormis les images de jurigo.ca (en 404 sur WordPress aussi).
+- **Contraste** (axe-core, règle `color-contrast`, WordPress contre copie, sur les 348 pages) :
+  - WordPress compte 1 386 violations, la copie 9 : la copie en a moins sur chaque page, et plus sur aucune;
+  - restent de petits libellés gris de `/` et de `/tableau-de-bord/`, de même clarté que sur WordPress;
+  - le titre « Digne de confiance à travers le Québec. » de `/consultations/` est violet `#8400E4` sur fond presque noir sur WordPress (rapport 2,72; il en faut 4,5). Devenu marine, il était moins lisible (1,95). Il passe en marine pâle `#c3d1ea` (11,97), comme les cinq titres sur photo sombre.
+- **Formulaires** :
+  - MetForm de `/professionnels/` : 9 champs, même hauteur (426 px) et même bouton « OBTENIR DES NOUVEAUX CLIENTS » que sur WordPress. Un envoi valide mène à `portail.besoinavocat.ca/demande?role=professional`, sans aucune requête d'envoi;
+  - la connexion de `/log-in/` mène au portail.
+- **Bannière de témoins** : mêmes boutons que sur WordPress, même comportement (voir « Gardé tel quel »).
+- **Logo** : mêmes lettres et même flèche; le charbon est inchangé et l'orange devient bordeaux.
+- **Image Docker** (nginx 1.28, construite localement et en CI) :
+  - `/healthz` répond;
+  - les pages répondent 200;
+  - réponses 301 : une adresse sans barre oblique finale, `/avocat-aide-juridique/`, et www vers le domaine principal;
+  - réponses 404 : une page inconnue (page 404 de WordPress), `wp-login.php`, `wp-admin`, `xmlrpc.php`, `wp-json` et `.env`;
+  - le PDF `download.php` répond 200 en `application/pdf`;
+  - l'en-tête CSP est présent.
+- **Tests du dépôt** :
+  - `node --check site/app.js` et `site/guide.mjs`;
+  - `node --test tests/*.test.mjs` : 12 sur 12;
+  - `node --test platform/test/*.test.mjs` : 113 sur 113 sous Node 22 en local; la CI utilise Node 24.19.
+- **Limites** :
+  - ces contrôles ne sont pas une certification WCAG, ni un test avec lecteur d'écran;
+  - le rendu n'a été vérifié que dans Chromium, pas dans Safari ou Firefox;
+  - l'OCR est une aide : la preuve mot pour mot est la comparaison du texte affiché.
 
 ## Modifier le site
 
-1. Modifier le texte dans `www/content/pages/<page>.html` ou, pour une page réécrite, dans `www/content/overrides/<page>.html`. Une page de `overrides/` remplace la page importée de même adresse.
-2. Dans une page réécrite, `{{request}}` ou `{{request:family}}` donne l'adresse de demande (domaine présélectionné); `{{portal}}`, `{{phone}}` et `{{phone-label}}` sont aussi disponibles.
-3. `node www/build.mjs && node www/tools/check-site.mjs`, sans dépendance. Le site construit est dans `www/dist/` (ignoré par Git).
-4. Pousser sur GitHub : la CI « Storefront checks » reconstruit, vérifie et teste l'image. Après la bascule, le déploiement suit la CI verte sur `main` (voir plus bas).
+Tant que la bascule n'est pas faite, le site se modifie là où le propriétaire l'a construit, dans WordPress et Elementor. On reprend ensuite la copie :
 
-L'import WordPress est un outil de reprise ponctuel. Le relancer **écrase** `www/content/pages/`; ne le faire qu'avec un nouvel instantané et en relisant le diff.
+1. Reprendre la copie : `node www/tools/mirror-wordpress.mjs`, puis `node www/tools/mirror-runtime.mjs`. Relire le diff Git de `www/site/`.
+2. Si le logo change : `python3 -I www/tools/recolour-images.py` (Pillow).
+3. Construire et contrôler : `node www/build.mjs && node www/tools/check-site.mjs`.
+4. Comparer au site en ligne : `node www/tools/compare-live.mjs <dossier> [--ocr] [adresses…]`. Il faut Playwright, et Tesseract `fra` pour l'option `--ocr`.
+5. Pousser sur GitHub : la CI « Storefront checks » reconstruit, vérifie et teste l'image.
+
+Après la bascule, le domaine ne mène plus à WordPress, et la reprise de la copie lit `https://besoinavocat.ca` en dur. **Le propriétaire choisit alors comment modifier le site** : modifier directement `www/site/`, ou garder WordPress joignable à une autre adresse et adapter l'outil.
 
 ## Application Coolify de la vitrine
 
@@ -83,14 +141,20 @@ L'import WordPress est un outil de reprise ponctuel. Le relancer **écrase** `ww
 | Stockage persistant | aucun : le site ne garde aucune donnée |
 | Argument de build facultatif | `BA_REQUEST_URL`, si la page de demande change d'adresse |
 
-L'image construit les pages, les vérifie (la construction échoue au moindre défaut), puis les sert avec nginx 1.28. Elle fournit :
+L'image construit la copie et la vérifie mot pour mot : la construction échoue au moindre défaut. Elle la sert ensuite avec nginx 1.28 et fournit :
 
-- une CSP stricte : aucun script, aucun formulaire;
+- une CSP limitée au site lui-même :
+  - les scripts et styles en ligne d'Elementor sont permis;
+  - `unsafe-eval` est permis seulement sur `/professionnels/`, car MetForm construit ses champs avec `new Function`;
+  - le worker du contrôle des émojis de WordPress (`blob:`) est permis;
+  - les deux images de jurigo.ca sont permises;
+  - les envois de formulaire ne vont que vers le site et le portail;
 - les redirections de barre oblique finale, la page 404 et `/healthz`;
-- la redirection des anciens plans de site WordPress vers `/sitemap.xml`;
-- un 404 pour `wp-admin`, `wp-login.php`, `xmlrpc.php` et tout `.php`.
+- la redirection des anciens plans de site WordPress vers `/sitemap.xml`, et `/avocat-aide-juridique` vers l'article;
+- un 404 pour `wp-admin`, `wp-login.php`, `xmlrpc.php`, `wp-json` et tout `.php`. Seule exception : le PDF des conditions, que WordPress servait à l'adresse `download.php`;
+- un cache de 7 jours pour `wp-content/` et `wp-includes/`, de 30 jours pour `vendor/` et d'un jour pour `assets/`.
 
-L'image a été construite et testée localement le 27 octobre : healthy, 200, 301, 404 et en-têtes vérifiés.
+L'image a été construite et testée localement le 28 octobre (voir les preuves).
 
 ## Bascule DNS : ordre à suivre (à faire par le développeur du propriétaire)
 
@@ -134,6 +198,12 @@ Aucun jeton ne doit figurer dans une adresse, un commit ou une note.
 
 ## Vie privée
 
-La vitrine ne collecte rien : pas de formulaire, pas de témoin, pas de script. Les demandes passent par le portail, qui affiche sa finalité et recueille le consentement. Les journaux nginx du conteneur contiennent l'adresse IP et la page demandée; leur durée de conservation dépend de la configuration de Coolify.
+La copie ne recueille rien elle-même. Il n'y a ni outil d'analyse ni balise Google : le site WordPress n'en avait pas, et aucun fichier n'est chargé d'un tiers. Seules exceptions : les deux images de jurigo.ca, cassées.
+
+Elle garde les scripts de WordPress :
+- la bannière de témoins, qui n'enregistre pas le choix (voir plus haut);
+- le stockage local `elementor` d'Elementor.
+
+Les formulaires n'envoient rien. Les demandes passent par le portail, qui affiche sa finalité et recueille le consentement. Les journaux nginx du conteneur contiennent l'adresse IP et la page demandée; leur durée de conservation dépend de la configuration de Coolify.
 
 **La politique de confidentialité doit être rédigée par le propriétaire** avant l'ouverture des demandes. Elle doit nommer la personne responsable de la protection des renseignements personnels (Loi 25) et dire où se trouve le serveur. Aucun texte juridique n'a été inventé.

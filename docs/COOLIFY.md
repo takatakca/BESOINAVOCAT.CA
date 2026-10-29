@@ -18,18 +18,18 @@ La PR 2 est fusionnée dans `main` au commit `348d626b76d4adcd874cc7485d2e744006
 | URL d’essai | [Portail HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) |
 | Santé | `/api/health` 200, `mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true` |
 | Réception des demandes | Désactivée; `intakeConfigured:true` ne signifie pas ouverture du formulaire |
-| Stockage | Volume privé monté sur `/data`; aucun transfert ni restauration du corpus confirmés |
-| Installation non confirmée | Corpus, grants, clé de session, variables de connexion TAKATAK/Supabase |
+| Stockage | Volume privé monté sur `/data`; fichier `grants.json` transféré, archive en cours de réception, aucune restauration du corpus confirmée |
+| Configuration non validée | Droits/propriétaire des grants, corpus restauré, clé de session, variables de connexion TAKATAK/Supabase |
 
-**État figé — 29 octobre 2026, 03:18 UTC.** La première tentative de transfert via Chrome a été bloquée par l’option **Allow access to file URLs** de l’extension. Le propriétaire l’a activée, puis la deuxième tentative a échoué lors de la perte de connexion de l’outil à Chrome. L’onglet reste visible dans l’inventaire, mais son accès échoue également. La reconnexion est demandée.
+**Reprise — 29 octobre 2026.** Les premières tentatives Chrome ont rencontré la restriction **Allow access to file URLs**, puis une perte de connexion à l’extension. L’accès a ensuite été repris dans le navigateur intégré connecté : `grants.json`, 198 octets, est visible dans `/data` à 03:31:27 UTC. Le gestionnaire affiche encore le mode `0644` et un propriétaire inconnu : vérifier l’UID effectif et corriger les droits avant d’activer la connexion. Le téléversement de l’archive privée a démarré; sa réception complète et son empreinte distante restent à confirmer.
 
-**Transfert non confirmé.** Aucun fichier du transfert, corpus, grant, clé de session ou variable de connexion n’est confirmé installé. Ne pas supposer que l’échec a effacé d’éventuels fichiers partiels : inspecter l’état distant après reconnexion, puis reprendre sans écraser une base ou un volume existants. Aucun compte ni connexion utilisateur validés. Ne jamais placer le corpus, les grants ou la clé dans GitHub.
+**Transfert partiel confirmé, configuration non validée.** La présence du fichier de grants ne prouve ni la restauration du corpus ni une habilitation active. Inspecter les fichiers distants et les empreintes avant de reprendre sans écraser une base ou un volume existants. Aucune clé de session, variable de connexion, connexion utilisateur ou lecture authentifiée des dossiers n’est validée à ce stade. Ne jamais placer le corpus, les grants ou la clé dans GitHub.
 
 La procédure privée `PROCEDURE-RESTAURATION-HOTE-COOLIFY-2026-10-28.md` est prête, **non exécutée**. Elle reste dans l’espace de travail privé avec la sauvegarde et les empreintes; ce document public ne contient aucun secret.
 
 Contrôle HTTPS distant du 28 octobre : **19/19 réussis**, dont sept assets identiques au code fusionné, cinq routes privées refusées en 401 et six chemins internes en 404. Le rapport `CONTROLE-COOLIFY-HTTPS-2026-10-28T17-33-00-004Z` est conservé dans les reçus privés. Ces contrôles ne testent pas une session utilisateur authentifiée.
 
-Suite : rétablir la connexion au navigateur, contrôler les fichiers éventuellement présents, reprendre le transfert privé et vérifier les empreintes après restauration dans une destination neuve, installer les habilitations et la configuration de connexion existantes, puis contrôler la vraie connexion, les trois dossiers, recherche/citations, téléchargements, refus d’accès et persistance. Le domaine d’essai et le health ne prouvent aucune mise en production validée ni bascule DNS.
+Suite : terminer et contrôler le transfert privé, vérifier les empreintes après restauration dans une destination neuve, corriger les permissions des fichiers privés et installer la configuration de connexion existante, puis contrôler la vraie connexion, les trois dossiers, recherche/citations, téléchargements, refus d’accès et persistance. Le domaine d’essai et le health ne prouvent aucune mise en production validée ni bascule DNS.
 
 ## Ce qui a été vérifié localement (27 octobre)
 

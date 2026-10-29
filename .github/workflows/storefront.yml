@@ -8,17 +8,16 @@ permissions:
 jobs:
   storefront:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24.19.0'
-      - name: Build every page and check titles, links, images and imported text
+      - name: Build the copy of the WordPress site and compare every page, word for word, with the mirror
         run: |
-          node --check www/build.mjs
-          node --check www/tools/check-site.mjs
-          node --check www/tools/import-wordpress.mjs
+          for f in www/build.mjs www/palette.mjs www/tools/*.mjs; do node --check "$f"; done
+          python3 -m py_compile www/tools/recolour-images.py
           node www/tools/inventory-content.mjs --check
           node www/build.mjs
           node www/tools/check-site.mjs
@@ -31,10 +30,18 @@ jobs:
           check / 200
           check /famille-et-jeunesse/ 200
           check /professionnels/ 200
+          check /avocat-accusation-fraude/ 200
           check /famille-et-jeunesse 301
+          check /avocat-aide-juridique/ 301
           check /n-existe-pas/ 404
           check /wp-login.php 404
+          check /wp-admin/ 404
+          check /xmlrpc.php 404
+          check /wp-json/ 404
           check /.env 404
           check /sitemap.xml 200
+          check /wp-content/plugins/complianz-terms-conditions/download.php 200
           curl -sI http://127.0.0.1:8080/ | grep -qi '^content-security-policy:'
           curl -s http://127.0.0.1:8080/ | grep -q 'portail.besoinavocat.ca/demande'
+          curl -s http://127.0.0.1:8080/ | grep -q '/assets/palette-fixes.css'
+          curl -s http://127.0.0.1:8080/n-existe-pas/ | grep -qi '<title>'

@@ -2,27 +2,27 @@
 
 **Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est **fusionnée dans `main` le 28 octobre 2026**, au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. **Configuration du serveur en cours, recette login/corpus non validée.** Le microphone physique reste à essayer; IA générative non connectée.
 
-**État figé — 29 octobre 2026, 03:18 UTC :** [instance HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) déployée; dernier health confirmé : 200, `mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true`, demandes désactivées. Volume privé `/data` créé. Après activation de l’accès aux fichiers locaux, la deuxième tentative de téléversement a échoué par perte de connexion à l’extension Chrome; la reconnexion est demandée. **Transfert non confirmé; aucune installation du corpus, des grants, de la clé de session ou des variables de connexion TAKATAK/Supabase confirmée.** Procédure privée de restauration prête, non exécutée. Recette login/corpus non validée. [État et suite](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
+**Reprise — 29 octobre 2026 :** [instance HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) déployée; dernier contrôle HTTPS indépendant du 28 octobre : 19/19 réussis, health 200, `mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true`, demandes désactivées. Volume privé `/data` créé. Le téléversement via le navigateur intégré a repris : `grants.json` (198 octets) est visible à distance à 03:31:27 UTC; propriétaire et droits du fichier restent à corriger. Le transfert de l’archive a démarré; réception complète et empreinte distante non encore confirmées. **Restauration du corpus et configuration de connexion non validées; aucune connexion réelle aux dossiers annoncée.** La procédure privée de restauration est prête. [État et suite](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
 
-> **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
-> - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
-> - Ce qu'il voulait : reproduire fidèlement le design qu'il a construit à la main sur WordPress, détail par détail, en changeant **seulement les couleurs** pour ne pas ressembler à un autre de ses sites.
+> **28 octobre 2026 — VITRINE : `www/` est maintenant la copie exacte du site WordPress; seules les couleurs changent (D-026). En attente de la validation du propriétaire.**
+> - La refonte « plateforme IA » du 27 octobre (D-022) a été **refusée** par le propriétaire (D-023). Son design n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé de `www/content/` est conservé, sans être lu par la construction ([CONTENT_PRESERVATION](CONTENT_PRESERVATION.md)).
+> - Le 28 octobre, le propriétaire a choisi de reconstruire `www/` comme **copie exacte** de son site WordPress, fait à la main détail par détail : mêmes mises en page, sections, images et boutons, textes mot pour mot. **Seules les couleurs changent**, pour ne pas ressembler à un autre de ses sites : l'orange devient bordeaux, les bleus et les verts deviennent marine; le blanc, les crèmes et le charbon restent.
 > - **Direction du propriétaire (28 octobre)** : c'est un site juridique, il doit garder un **ton juridique**. Les couleurs sont sobres et professionnelles, propres à un service juridique. Les textes sont formels et rigoureux. Proportion voulue : **99 % réel et juridique, 1 % d'IA**. L'IA est la touche discrète qui distingue la plateforme et en fait l'avenir des plateformes juridiques; elle n'est jamais le thème visuel ni le ton général. Pas d'esthétique futuriste ou robotique.
-> - **Aucun agent ne modifie** `www/`, la page de demande du portail (`platform/public/demande.*`), WordPress ou le DNS sans instruction écrite du propriétaire. Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
+> - Preuves de la copie, page par page et mot pour mot : [STOREFRONT](STOREFRONT.md#preuves).
+> - **Sans instruction écrite du propriétaire, aucun agent ne modifie** la page de demande du portail (`platform/public/demande.*`, encore dans le style refusé de `c00ead5`), WordPress ou le DNS. Dans `www/`, seule la copie fidèle est autorisée (BA-034). Une autre session travaille en parallèle : vérifier GitHub avant toute action et ne pas écraser son travail.
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
-> - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
 
-**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées. Les changements de la branche de livraison ont été intégrés par la PR 2; la configuration du serveur reste en cours.
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes et la copie fidèle de `main` (`a2b2d11`) sont conservées; aucun fichier de vitrine n’est modifié par cette réconciliation documentaire. Les changements de la branche de livraison ont été intégrés par la PR 2; la configuration du serveur reste en cours.
 
-**Historique du premier lot du 28 octobre, désormais intégré :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+**Historique du premier lot du 28 octobre, désormais intégré :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. L’application de test est désormais déployée; sa configuration privée et la connexion réelle restent à valider. La présentation est réservée au propriétaire.
 
-## État courant — 28 octobre 2026
+## État courant — 29 octobre 2026
 
-Le propriétaire reprend le travail et confirme la sortie de WordPress. [Liste opérationnelle pour son développeur disponible](DEV-A-FAIRE-2026-10-28.md). Code intégré : `main` `348d626b76d4adcd874cc7485d2e744006b249c9`, PR 2 fusionnée. Historique de la reprise : base `e59a9e084966a649d260ff917d756823ff4558c4` après fusion de la PR 1, puis développement sur `codex/workspaces-appels-2026-10-28`.
+Le propriétaire reprend le travail et confirme la sortie de WordPress. [Liste opérationnelle pour son développeur disponible](DEV-A-FAIRE-2026-10-28.md). Code du portail intégré par la PR 2 : `348d626b76d4adcd874cc7485d2e744006b249c9`, SHA du dernier contrôle HTTPS indépendant. `origin/main` relu le 29 octobre : `a2b2d11d85e0b27013d12a0ab05f17b959449db9`, avec la copie fidèle de la vitrine (D-026). Historique de la reprise : base `e59a9e084966a649d260ff917d756823ff4558c4` après fusion de la PR 1, puis développement sur `codex/workspaces-appels-2026-10-28`. La réconciliation des notes conserve tous les fichiers de `main` et n’est pas une nouvelle recette du serveur.
 
 Contrôles publics du 28 octobre, antérieurs à la configuration en cours : apex/portail A `209.42.24.127`; MX sur apex; mail CNAME sur apex; TTL 7200. Portail health 200 avec `identityConfigured:false`, `/demande` 404; vitrine `/healthz` 404. **Configuration du serveur en cours, recette login/corpus non validée.** Protéger le courrier avant la bascule, puis vérifier l’accès réel du propriétaire.
 
-Le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
+Contrôle daté du 28 octobre : le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
 
 Lot validé localement : questionnaire par domaine FR/EN, rendez-vous, chronomètre personnel serveur et registre des durées. Adaptateur Facturations limité à des lectures et une préparation locale de brouillons, fermé par défaut. Aucun appel réel, paiement ou souscription activé. Tarifs de stockage client, minutes et commissions non fixés.
 
@@ -37,13 +37,64 @@ Les sections antérieures suivantes sont conservées comme historique; leurs con
 | Surface | Fait vérifié | Ce qui reste ouvert |
 |---|---|---|
 | `besoinavocat.ca` | WordPress HTTPS chez MochaHost; installation 0.2.1 réussie par l'interface WP, après contrôle visuel de la 0.2.0; aperçu `tableau-de-bord` conservé | **0.2.2 installée** le 27 oct. : bloc prix non recouvert, CTA 1839 sans saut ni piège clavier sur l'accueil, contrôle officiel 24/24. Parcours « Trouver mon avocat » en boucle sans formulaire ([inventaire](WORDPRESS_CTA_INVENTORY.md)); funnel désactivé |
-| `www/` (future vitrine) | **Copie complète du site WordPress dans GitHub**, le 27 oct. : 348 pages, mêmes adresses, aucun script. Contrôle 0 erreur; 36 741 / 36 835 phrases en ligne retrouvées; image nginx testée; CI « Storefront checks » verte sur `adde5c2` ([STOREFRONT](STOREFRONT.md)) | Pas encore servie. Application Coolify et bascule DNS par le développeur du propriétaire, courriel détaché d'abord. Politique de confidentialité à rédiger. **Refonte « plateforme IA » et relecture faites le 27 oct. (D-022)** : voir la section « Preuves de la refonte » ci-dessous |
+| `www/` (future vitrine) | **Copie exacte du site WordPress** (D-026), prise le 28 oct. : 348 pages, page 404 et 1 870 fichiers, mêmes adresses. Seules les couleurs changent, en tons juridiques. Texte identique, mot pour mot : voir les preuves ci-dessous et [STOREFRONT](STOREFRONT.md#preuves) | Validation du propriétaire; application Coolify; bascule DNS par son développeur (BA-031); textes de BA-032 |
 | `portail.besoinavocat.ca` | Première version technique Node/Passenger joignable; contrôle HTTP courant health 200 (`mode: pilot`, `identityConfigured: false`), dossiers anonymes 401 | Archive v2 avec connexion/corpus refusée par antivirus; pas de connexion utilisateur réelle ni de corpus distant actif validé |
 | `besoinavocat.onrender.com` | Site d'orientation statique distinct, service Render actif sur `main` | Ne fournit pas le backend ni les dossiers; ne pas déplacer le domaine WordPress vers Render |
 
-## Preuves de la refonte du 27 octobre (D-022)
+## Preuves de la copie exacte du 28 octobre (D-026)
 
-Contrôles faits sur la construction finale, localement, avant le push :
+Détail complet : [STOREFRONT](STOREFRONT.md#preuves).
+
+Contrôles du 28 octobre 2026 sur la construction finale, sauf mention contraire. Outils : Chromium (Playwright 1.63), Tesseract 5.3.4 `fra+eng`, axe-core 4.10.2. La copie a été prise à 08:24 UTC : une modification faite ensuite dans WordPress n'y figure pas.
+
+- **Mot pour mot, contre la copie de WordPress** (`check-site`, aussi exécuté dans l'image Docker et la CI) :
+  - 348 pages sur 348 ont un texte visible identique;
+  - aucun caractère HTML n'est abîmé et aucun orange ne reste dans les styles;
+  - aucun fichier n'est chargé d'un tiers, hormis les deux images de jurigo.ca;
+  - tous les liens internes aboutissent.
+  CI « Storefront checks » verte.
+- **Mot pour mot, contre le site en ligne** (`compare-live --ocr`, à 1440 px, chaque page défilée jusqu'au bout) :
+  - le texte affiché est **identique sur les 348 pages**, sans erreur de script sur la copie. MochaHost a répondu un 503 passager pour `/contestation-contravention-avocat/`; recontrôlée ensuite, la page répond 200 et est identique;
+  - **OCR** de la capture pleine page de la copie : en moyenne **97,1 %** des mots du site en ligne sont retrouvés (médiane 97,5 %); 343 pages sont à 90 % ou plus;
+  - les cinq pages sous 90 % sont du texte sur photo ou des pages très courtes : `/demande/`, `/a-propos/`, `/consultations/`, `/log-in/` et `/recrutement/`. La capture de WordPress, lue de la même façon, obtient le même score : `/demande/` 71,4 % en ligne contre 70,1 %, `/a-propos/` 83,9 % contre 83,8 %, `/log-in/` 86,5 % des deux côtés;
+  - seul écart notable : `/recrutement/`, 94,2 % contre 87,1 %. Il vient du découpage de la page par Tesseract. Le pied de page, lu seul, donne les mêmes mots des deux côtés (747 et 748), et aucun pixel n'y diffère de plus de 40 sur 255;
+  - ce passage a été fait avant deux corrections : le charbon conservé et le caractère `&#039;` (voir plus bas). Le texte affiché n'en dépend pas. Dix pages ont été recontrôlées sur la construction finale : texte identique.
+- **Mises en page** : dans Chromium, page défilée, on compare la position et la taille de chaque titre, image et bouton, à 2 px près.
+  - À 1440 px : 348 pages sur 348 identiques (16 904 éléments), à la hauteur de page près.
+  - À 390 px : 348 pages sur 348 identiques (15 245 éléments).
+  - Un écart a été trouvé et corrigé : sur `/succession/`, la page était 59 px plus courte à 1440 px. La règle des couleurs lisait le caractère `&#039;` (les guillemets de « Nunito Sans » dans un style en ligne) comme la couleur `#039`, et le nom de la police était cassé. La règle est corrigée et `check-site` refuse désormais tout caractère abîmé. Après correction, la page est identique; le passage à 390 px a été fait avec la correction.
+- **Couleurs rendues et CSP** : dans l'image Docker finale, 349 adresses à 1440 px et 14 pages aussi à 390 px :
+  - aucune violation de la CSP;
+  - aucun orange calculé sur un élément visible;
+  - aucune erreur de script ni fichier en échec, hormis les images de jurigo.ca (en 404 sur WordPress aussi).
+- **Contraste** (axe-core, règle `color-contrast`, WordPress contre copie, sur les 348 pages) :
+  - WordPress compte 1 386 violations, la copie 9 : la copie en a moins sur chaque page, et plus sur aucune;
+  - restent de petits libellés gris de `/` et de `/tableau-de-bord/`, de même clarté que sur WordPress;
+  - le titre « Digne de confiance à travers le Québec. » de `/consultations/` est violet `#8400E4` sur fond presque noir sur WordPress (rapport 2,72; il en faut 4,5). Devenu marine, il était moins lisible (1,95). Il passe en marine pâle `#c3d1ea` (11,97), comme les cinq titres sur photo sombre.
+- **Formulaires** :
+  - MetForm de `/professionnels/` : 9 champs, même hauteur (426 px) et même bouton « OBTENIR DES NOUVEAUX CLIENTS » que sur WordPress. Un envoi valide mène à `portail.besoinavocat.ca/demande?role=professional`, sans aucune requête d'envoi;
+  - la connexion de `/log-in/` mène au portail.
+- **Bannière de témoins** : mêmes boutons que sur WordPress, même comportement (voir « Gardé tel quel »).
+- **Logo** : mêmes lettres et même flèche; le charbon est inchangé et l'orange devient bordeaux.
+- **Image Docker** (nginx 1.28, construite localement et en CI) :
+  - `/healthz` répond;
+  - les pages répondent 200;
+  - réponses 301 : une adresse sans barre oblique finale, `/avocat-aide-juridique/`, et www vers le domaine principal;
+  - réponses 404 : une page inconnue (page 404 de WordPress), `wp-login.php`, `wp-admin`, `xmlrpc.php`, `wp-json` et `.env`;
+  - le PDF `download.php` répond 200 en `application/pdf`;
+  - l'en-tête CSP est présent.
+- **Tests du dépôt** :
+  - `node --check site/app.js` et `site/guide.mjs`;
+  - `node --test tests/*.test.mjs` : 12 sur 12;
+  - `node --test platform/test/*.test.mjs` : 113 sur 113 sous Node 22 en local; la CI utilise Node 24.19.
+- **Limites** :
+  - ces contrôles ne sont pas une certification WCAG, ni un test avec lecteur d'écran;
+  - le rendu n'a été vérifié que dans Chromium, pas dans Safari ou Firefox;
+  - l'OCR est une aide : la preuve mot pour mot est la comparaison du texte affiché.
+
+## Historique : preuves de la refonte du 27 octobre (D-022, refusée)
+
+Le design de cette refonte n'est plus servi depuis le 28 octobre; son texte importé reste dans `www/content/`. Contrôles faits alors sur sa construction finale, localement, avant le push :
 
 - `node www/tools/check-site.mjs` : 350 pages, **0 erreur** (titres, h1, descriptions, liens internes, images, texte importé présent).
 - **Les 349 pages** rendues dans Chromium à 390 px :

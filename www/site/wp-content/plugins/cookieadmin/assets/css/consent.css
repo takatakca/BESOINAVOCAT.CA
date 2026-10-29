@@ -1,0 +1,922 @@
+:root {
+	--cookieadmin-primary-color: #001d39;
+	--cookieadmin-primary-hover-color: #985e23;
+	
+	--cookieadmin-secondary-color: #0046b2;
+	--cookieadmin-secondary-hover-color: #0065ff;
+	
+	--cookieadmin-txcolor: #0f172a;
+	
+	--cookieadmin-green-txtcolor: #3a8356;
+	--cookieadmin-warning-txtcolor: #9c7930;
+	--cookieadmin-red-txtcolor: #b55355;
+	
+	--cookieadmin-green-color: #15a448;
+	--cookieadmin-warning-color: #e9b306;
+	--cookieadmin-red-color: #dd2727;
+}
+
+/* Typography baseline for the banner, modal and reconsent button. Everything inside
+   inherits from these roots instead of the theme's body (font, fluid size, line-height,
+   color, letter-spacing). Any explicit value here beats inheritance, whatever the theme's specificity. */
+.cookieadmin_law_container,
+.cookieadmin_cookie_modal,
+.cookieadmin_reconsent_wrap{
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	font-size: 16px;
+	font-weight: 400;
+	font-style: normal;
+	line-height: 1.5;
+	letter-spacing: normal;
+	word-spacing: normal;
+	text-transform: none;
+	text-align: left;
+	color: #1f2937;
+}
+
+/*  Consent page css */
+
+.cookieadmin_cookie_modal label, .cookieadmin_cookie_modal input {
+	padding: 5px;
+	margin-right: 5px;
+	font-size: 15px;
+}
+
+.cookieadmin_cookie_modal label{
+	font-weight: 501;
+}
+
+.cookieadmin_bottom{
+	bottom:20px;
+}
+
+.cookieadmin_top{
+	top: 20px;
+}
+
+.cookieadmin_right{
+	right: 15px;
+}
+
+.cookieadmin_left{
+	left:15px;
+}
+
+
+ 
+/* Modal animations  */
+@keyframes cookieadmin_slideUp {
+	from {
+		transform: translateY(100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes cookieadmin_slideSide {
+	from {
+		transform: translateX(-100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+/* Modal animations Ends */
+
+
+/* Consent page css End*/
+
+
+/* Website consent box  */
+
+.cookieadmin_law_container{
+	position: fixed;
+	width: 25%;
+	box-sizing: border-box;
+	z-index: 99999;
+	display: none;
+}
+
+.cookieadmin_law_container:focus{
+	outline: none;
+}
+
+.cookieadmin_consent_btns{
+	align-content: center;
+	display: flex;
+	justify-content: space-evenly;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Percentage widths below stay; the cap stops the box growing on very wide screens */
+.cookieadmin_box{
+	/*position: fixed;*/
+	width: 25%;
+	max-width: 440px;
+	box-sizing: border-box;
+	display: none;
+}
+
+.cookieadmin_notice_group{
+	display: flex;
+	flex-direction: column;
+	gap: 10px; /* spacing between content and buttons */
+	align-items: flex-start;
+}
+
+
+.cookieadmin_consent_inside{
+	color: #1f2937;
+	background-color: #ffffff;
+	border: 1px solid #ffffff;
+	padding:15px;
+	border-radius: 4px;
+	box-shadow:1px 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Title and notice are <p>s: scoped by ID so theme paragraph sizes/margins don't apply.
+   No side padding, so text lines up with the buttons and links. */
+.cookieadmin_law_container p#cookieadmin_notice_title{
+	margin: 0 0 6px;
+	padding: 0;
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.4;
+}
+
+.cookieadmin_law_container p#cookieadmin_notice{
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	line-height: 22px;
+}
+
+.cookieadmin_notice_con{
+	padding: 0;
+	flex: 1;
+}
+
+/* Box layout: space between the notice and the buttons (footer layout uses the group's gap) */
+.cookieadmin_consent_inside > .cookieadmin_consent_btns{
+	margin-top: 12px;
+}
+
+.cookieadmin_cookie_modal{
+	display: none;
+	flex-direction: column;
+	position: fixed;
+	max-height: 80vh;
+	background-color: #FFFFFF;
+	border: 1px solid #F4F4F4;
+	border-radius: 8px;
+	box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+	z-index: 999999;
+}
+
+.cookieadmin_center{
+	top: 10%;
+	left: 22%;
+	max-width: 60vw;
+}
+
+.cookieadmin_side{
+	flex-direction: column;
+	position: fixed;
+	width: 35vw;
+	bottom: 0px;
+	animation: 0.5s ease-out forwards cookieadmin_slideSide;
+	max-height: 100vh;
+	left: 0px;
+	top: 0px;
+	border-radius: 0px;
+}
+
+.cookieadmin_down{
+	position: fixed;
+	max-width: 100%;
+	max-height: 55vh;
+	bottom: 0px;
+	animation: 0.5s ease-out forwards cookieadmin_slideUp;
+}
+
+.cookieadmin_cookie_modal:focus{
+	outline: none;
+}
+
+.cookieadmin_modal_overlay{
+	display: none; 
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.4); 
+	z-index: 1000;
+}
+
+/* Centered, not baseline: the CSS-drawn close button has no text baseline */
+.cookieadmin_mod_head{
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 20px;
+	border-bottom: 1px solid #CCCCCC;
+}
+
+/* Close icon drawn in CSS, font-size 0 hides any glyph left in filtered templates.
+   "all: unset" + (0,3,1) selector keeps theme button/hover styles out, same as the category buttons. */
+.cookieadmin_cookie_modal .cookieadmin_mod_head button.cookieadmin_close_pref{
+	all: unset;
+	display: inline-block;
+	position: relative;
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	border-radius: 4px;
+	color: #6b7280;
+	font-size: 0;
+	cursor: pointer;
+	transition: color .15s, background-color .15s;
+}
+
+.cookieadmin_cookie_modal .cookieadmin_mod_head button.cookieadmin_close_pref::before,
+.cookieadmin_cookie_modal .cookieadmin_mod_head button.cookieadmin_close_pref::after{
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 16px;
+	height: 2px;
+	background-color: currentColor;
+	border-radius: 1px;
+	transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.cookieadmin_cookie_modal .cookieadmin_mod_head button.cookieadmin_close_pref::after{
+	transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.cookieadmin_cookie_modal .cookieadmin_mod_head button.cookieadmin_close_pref:hover{
+	color: #111827;
+	background-color: rgba(0, 0, 0, 0.06);
+}
+
+.cookieadmin_cookie_modal .cookieadmin_mod_head button.cookieadmin_close_pref:focus-visible{
+	outline: 2px solid var(--cookieadmin-secondary-color);
+	outline-offset: 2px;
+}
+
+.cookieadmin_preference_title{
+	margin: 0;
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.3;
+}
+
+/* 5px + the wrapper's 15px lines the intro up with the title's 20px */
+.cookieadmin_preference_details{
+	padding: 0px 5px;
+}
+
+/* break-word (not overflow:auto) so long URLs wrap instead of adding an inner scrollbar */
+.cookieadmin_preference{
+	padding: 10px 0px;
+	font-size: 14px;
+	line-height: 28px;
+	overflow-wrap: break-word;
+}
+
+/* Admin-entered HTML: keep theme paragraph margins and link colors out */
+.cookieadmin_cookie_modal .cookieadmin_preference p{
+	margin: 0 0 8px;
+	padding: 0;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.cookieadmin_cookie_modal .cookieadmin_preference p:last-child{
+	margin-bottom: 0;
+}
+
+.cookieadmin_cookie_modal .cookieadmin_preference a{
+	color: inherit;
+	text-decoration: underline;
+}
+
+.cookieadmin_details_wrapper{
+	padding: 0px 15px;
+	height: calc(100% - 6%);
+	overflow: auto;
+	scrollbar-width: thin;
+}
+
+.cookieadmin_types{
+	padding: 10px 10px;
+	border-top: 1px solid #CCCCCC;
+}
+
+.cookieadmin_header{
+	display: flex;
+	justify-content: space-between;
+}
+
+
+/* Clickable header text, e.g. Pro's "Override GPC" label */
+.cookieadmin_header label[for]{
+	cursor: pointer;
+}
+
+/* Header labels get explicit displays scoped to .cookieadmin_header so theme rules
+   like "label { display: block }" can't push them onto their own line */
+.cookieadmin_header label.stitle{
+	display: inline;
+}
+
+.cookieadmin_header .cookieadmin_remark{
+	display:none;
+	justify-self:right;
+}
+
+.cookieadmin_header .cookieadmin_act{
+	display: inline;
+	color: #1863dc;
+}
+
+/* Lines up with .cookieadmin_desc; the old 4rem right margin squeezed cards on phones */
+.cookieadmin-modal-cookies-list{
+	display:none;
+	margin: 8px 20px 4px;
+	font-size: 14px;
+	text-align: left;
+}
+
+.cookieadmin-modal-cookies-list .cookieadmin-nocookie-cat{
+	display: block;
+	padding: 4px 0;
+	font-size: 13px;
+	font-weight: 600;
+	text-align: center;
+	opacity: 0.7;
+}
+
+.cookieadmin_desc{
+	padding:5px 20px;
+	font-size: 15px;
+	padding-right: 4rem;
+}
+
+.cookieadmin_footer{
+	left: 0px;
+	padding: 15px;
+	flex-wrap: wrap;
+	width: 100%;
+}
+
+/* Padding matches the header */
+.cookieadmin_modal_footer{
+	display: flex;
+	padding: 14px 20px;
+	flex-wrap: wrap;
+	gap: 8px;
+	border-top: 1px solid #CCCCCC;
+}
+
+/* GPC block and links take their own row above/below the buttons */
+.cookieadmin_modal_footer > :not(.cookieadmin_btn){
+	flex-basis: 100%;
+}
+
+/* Side panel is narrow: stack everything. nowrap matters, a wrapping column
+   overflows into extra columns beside the panel when height is limited. */
+.cookieadmin_side .cookieadmin_modal_footer{
+	flex-direction: column;
+	flex-wrap: nowrap;
+}
+
+.cookieadmin_cookie_modal.cookieadmin_side .cookieadmin_modal_footer > *{
+	flex: none;
+}
+
+/* Scoped to the containers so common theme rules (e.g. ".elementor-kit-N button") don't win.
+   Colors stay admin-controlled via the inline styles set in consent.js. */
+.cookieadmin_law_container button.cookieadmin_btn,
+.cookieadmin_cookie_modal button.cookieadmin_btn{
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1 1 0;
+	min-height: 40px;
+	margin: 0;
+	padding: 8px 16px;
+	background-color: transparent;
+	background-image: none;
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: 4px;
+	box-shadow: none;
+	color: #1863dc;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1;
+	letter-spacing: normal;
+	text-align: center;
+	text-decoration: none;
+	text-shadow: none;
+	text-transform: none;
+	text-wrap: auto;
+	cursor: pointer;
+	transition: filter .15s;
+}
+
+/* Footer buttons size to their labels so "Save My Preferences" doesn't wrap;
+   they still fill the row. The banner keeps equal widths. */
+.cookieadmin_modal_footer button.cookieadmin_btn{
+	flex: 1 1 auto;
+}
+
+/* Banner box is narrow (25% of the screen at 1366px = ~338px): size buttons to their labels
+   with tighter padding so "Accept All" stays on one line; they still fill the row. */
+.cookieadmin_consent_inside > .cookieadmin_consent_btns button.cookieadmin_btn{
+	flex: 1 1 auto;
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
+.cookieadmin_law_container button.cookieadmin_btn:hover,
+.cookieadmin_cookie_modal button.cookieadmin_btn:hover{
+	filter: brightness(0.92);
+}
+
+.cookieadmin_law_container button.cookieadmin_btn:focus-visible,
+.cookieadmin_cookie_modal button.cookieadmin_btn:focus-visible{
+	outline: 2px solid var(--cookieadmin-secondary-color);
+	outline-offset: 2px;
+}
+
+/* Category name + chevron in one accordion button. "all: unset" drops theme button styles;
+   the selector (0,3,1) outranks state rules like ".elementor-kit-N button:hover".
+   Scoped to .cookieadmin_header: Pro reuses this class for a shortcode button. */
+.cookieadmin_types .cookieadmin_header button.cookieadmin_show_pref_cookies{
+	all: unset;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 0;
+	color: inherit;
+	font: inherit;
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.cookieadmin_types .cookieadmin_header button.cookieadmin_show_pref_cookies::before{
+	content: "";
+	flex-shrink: 0;
+	width: 7px;
+	height: 7px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(-45deg);
+	transition: transform .2s;
+}
+
+.cookieadmin_types .cookieadmin_header button.cookieadmin_show_pref_cookies.dwn::before{
+	transform: rotate(45deg);
+}
+
+/* all: unset removes the outline, so the focus ring is added back */
+.cookieadmin_types .cookieadmin_header button.cookieadmin_show_pref_cookies:focus-visible{
+	outline: 2px solid var(--cookieadmin-secondary-color);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* Reconsent: all:unset drops theme button styles (min-height, hover/focus rules); the
+   wrapper selector (0,2,2) outranks ".elementor-kit-N button:hover". Plain selector kept
+   for templates filtered without the wrapper class. JS toggles display inline (none/block). */
+button.cookieadmin_re_consent,
+body .cookieadmin_reconsent_wrap button.cookieadmin_re_consent{
+	all: unset;
+	display: none;
+	position: fixed;
+	bottom: 15px;
+	left: 15px;
+	z-index: 99999;
+	box-sizing: border-box;
+	width: 50px;
+	height: 50px;
+	padding: 5px;
+	border-radius: 50%;
+	background-color: #374FD4;
+	box-shadow: -4px 5px 10px rgba(0, 0, 0, 0.4);
+	cursor: pointer;
+	transition: filter .15s;
+}
+
+button.cookieadmin_re_consent:hover,
+body .cookieadmin_reconsent_wrap button.cookieadmin_re_consent:hover{
+	filter: brightness(0.92);
+}
+
+button.cookieadmin_re_consent:focus-visible,
+body .cookieadmin_reconsent_wrap button.cookieadmin_re_consent:focus-visible{
+	outline: 2px solid var(--cookieadmin-secondary-color);
+	outline-offset: 3px;
+}
+
+/* Block + the button's 5px padding centres the 40px icon; theme img rules kept out */
+.cookieadmin_re_consent img.cookieadmin_reconsent_img{
+	display: block;
+	width: 40px;
+	height: 40px;
+	max-width: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+/* Flat card: theme font, 4px corners like the buttons. Muted text uses opacity so it
+   works on any admin-chosen modal background. */
+.cookieadmin-cookie-card {
+	margin: 0 0 8px;
+	padding: 12px 14px;
+	border: 1px solid rgb(187 187 187 / 12%);
+	border-radius: 4px;
+	text-align: left;
+}
+
+.cookieadmin-cookie-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 2px 12px;
+	font-size: 14px;
+}
+
+.cookieadmin-cookie-name {
+	font-weight: 600;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.cookieadmin-cookie-duration {
+	font-size: 13px;
+	opacity: 0.75;
+}
+
+.cookieadmin-cookie-duration > b {
+	font-weight: 600;
+}
+
+/* Scoped so theme paragraph margins/sizes don't apply */
+.cookieadmin-cookie-card p.cookieadmin-cookie-description {
+	margin: 6px 0 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.cookieadmin-cookie-tags {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.cookieadmin-tag {
+	background: rgba(0, 0, 0, 0.06);
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+/* Pro DPDP contact box. Keyed on the ID (not a new class) so it also restyles
+   older Pro versions that still output the shared .cookieadmin-cookie-card class. */
+#cookieadmin_dpdp_contact {
+	margin: 4px 0 12px;
+	padding: 12px 14px;
+	background: rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: 4px;
+	box-shadow: none;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.5;
+	text-align: left;
+}
+
+#cookieadmin_dpdp_contact a {
+	color: inherit;
+	text-decoration: underline;
+}
+
+/* "Exercise your rights" link, the card's main action */
+#cookieadmin_dpdp_contact > a {
+	display: inline-block;
+	margin-top: 6px;
+	font-weight: 600;
+}
+
+/* Website consent box End*/
+
+
+
+
+
+/* Checkbox switch Start */
+
+/* Box matches the 34x21 slider; the modal's generic label/input padding is cancelled
+   so the switch no longer overflows its box */
+.cookieadmin_toggle,
+.cookieadmin_cookie_modal .cookieadmin_toggle {
+	position: relative;
+	display: inline-block;
+	flex-shrink: 0;
+	width: 34px;
+	height: 21px;
+	margin: 0;
+	padding: 0;
+}
+
+/* Hide the checkbox input */
+.cookieadmin_toggle input,
+.cookieadmin_cookie_modal .cookieadmin_toggle input{
+	/* display: none; */
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	margin: 0;
+	padding: 0;
+}
+
+/* Text for screen readers / a11y checkers only, so toggle labels aren't empty */
+.cookieadmin_sr_only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Keyboard accessibility: When the checkbox is focused, add a visible outline to indicate focus. */
+.cookieadmin_show_pref_cookies:focus-visible{
+	outline: 1px solid #000;
+}
+.cookieadmin_toggle input:focus + .cookieadmin_slider {
+    outline: 1px solid #000;
+}
+/* end keyboard accessibility */
+
+/* Describe slider's look and position. */
+.cookieadmin_slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 21px;
+	width: 34px;
+	background-color: gray;
+	transition: .4s;
+	border-radius: 34px;
+}
+
+/* Describe the white ball's location 
+  and appearance in the slider. */
+.cookieadmin_slider:before {
+	position: absolute;
+	content: "";
+	height: 15px;
+	width: 15px;
+	left: 3.2px;
+	bottom: 3.2px;
+	background-color: white;
+	transition: .2s;
+	border-radius: 50%;
+}
+
+/* Modify the slider's background color to 
+  green once the checkbox has been selected. */
+input:checked+.cookieadmin_slider {
+	background-color: #3582c4;
+}
+
+/* When the checkbox is checked, shift the 
+  white ball towards the right within the slider. */
+input:checked+.cookieadmin_slider:before {
+	transform: translateX(13px);
+}
+
+/* Checkbox switch End */
+
+.cookieadmin_law_container .cookieadmin-poweredby{
+margin-top: 10px;
+}
+
+.cookieadmin_modal_footer_links .cookieadmin-poweredby{
+margin-left: auto;
+}
+
+.cookieadmin-poweredby a img{
+height: 15px;
+}
+
+.cookieadmin-poweredby a{
+color : unset;
+cursor: pointer;
+display: flex;
+justify-content: center;
+align-items: center;
+font-size: 11px;
+gap: 2px;
+text-decoration: none;
+}
+
+.cookieadmin_modal_footer .cookieadmin-poweredby a{
+justify-content: end;
+}
+
+#cookieadmin-gpc-toast{
+display:flex;
+visibility: hidden;
+position: fixed;
+bottom: 24px;
+right: 24px;
+color: #ffffff;
+padding: 10px 14px;
+border-radius: 6px;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+align-items: center;
+justify-content: space-between;
+gap: 10px;
+font-size: 14px;
+z-index: 99999;
+opacity: 0;
+transform: translateY(20px);
+transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s 0.3s;
+line-height:1.5;
+}
+
+#cookieadmin_gpc_override{
+padding-bottom:10px;
+}
+
+/* Policy Links */
+.cookieadmin_policy_link_box{
+	display: flex;
+	justify-content: space-around;
+	gap: 4px 16px;
+	margin-top: 8px;
+	font-size: 13px;
+	flex-wrap: wrap;
+}
+
+/* Same treatment as the modal links, so theme link colors don't apply */
+.cookieadmin_law_container .cookieadmin_policy_link_box a{
+	color: inherit;
+	text-decoration: underline;
+}
+
+.cookieadmin_modal_policy_link_box{
+	display: flex;
+	gap: 4px 16px;
+	font-size: 13px;
+	flex-wrap: wrap;
+}
+
+/* Same treatment as the intro and DPDP links, so theme link colors don't apply */
+.cookieadmin_cookie_modal .cookieadmin_modal_policy_link_box a{
+	color: inherit;
+	text-decoration: underline;
+}
+
+/* Footer gap handles spacing; the old 9px side margins pushed links out of line with the buttons */
+.cookieadmin_modal_footer_links{
+	display:flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content:space-between;
+	gap: 8px 16px;
+	margin-top: 4px;
+}
+
+/* Hidden when there are no policy links and "Powered by" is off (Pro) */
+.cookieadmin_modal_footer_links:not(:has(*)){
+	display: none;
+}
+
+/* CSS for phones only */
+@media (max-width: 767px) {
+
+	.cookieadmin_center{
+		top: 10%;
+		left: 5%;
+		max-width: 90vw;
+	}
+
+	.cookieadmin_show_pref_cookies{
+		font-size: 14px;
+	}
+
+	/* Even 16px on both sides; the footer bar keeps its 100% width */
+	.cookieadmin_box{
+		left: 16px;
+		right: 16px;
+		width: auto;
+		max-width: none;
+	}
+	
+	.cookieadmin_side{
+		width: 100%;
+	}
+}
+
+/* CSS for tablet */
+@media (min-width: 768px) and (max-width: 991px) {
+
+	.cookieadmin_box{
+		width: 45%;
+	}
+}
+
+/* CSS for small laptop */
+@media (min-width: 992px) and (max-width: 1199px) {
+
+	.cookieadmin_box{
+		width: 35%;
+	}
+	
+}
+/* CSS for HD TV screens */
+@media (min-width: 1200px) and (max-width: 1360px) {
+
+	.cookieadmin_box{
+		width: 30%;
+	}
+}
+
+/* Desktop Layout */
+@media (min-width: 768px) {
+	.cookieadmin_notice_group {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.cookieadmin_notice_con {
+		flex: 1; /* take remaining space */
+	}
+
+	.cookieadmin_consent_btns {
+		flex-shrink: 0;
+	}
+	
+	/* Footer layout: the button group sizes to its content, so equal-width (flex-basis 0)
+	   buttons would shrink and wrap their labels. Size them to their labels instead. */
+	.cookieadmin_footer .cookieadmin_consent_btns button.cookieadmin_btn{
+		flex: 0 0 auto;
+	}
+}
+
+@media (max-width:480px){
+	.cookieadmin_preference_title{
+		font-size: 18px;
+	}
+	
+	/* 28px leaves no room for the categories on phones */
+	.cookieadmin_preference{
+		line-height: 22px;
+	}
+	
+	.cookieadmin_law_container button.cookieadmin_btn,
+	.cookieadmin_cookie_modal button.cookieadmin_btn,
+	.cookieadmin_consent_inside > .cookieadmin_consent_btns button.cookieadmin_btn{
+		flex-basis: 100%;
+	}
+	
+	.cookieadmin_modal_footer{
+		padding: 12px 16px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce){
+	.cookieadmin_law_container *, .cookieadmin_cookie_modal *{
+		transition: none !important;
+	}
+}

@@ -1,5 +1,7 @@
 # Corrections du contenu importé de WordPress
 
+> **28 octobre 2026 : ces corrections ne sont pas appliquées.** Depuis D-026, `www/` sert la copie exacte du site WordPress, mot pour mot (`www/site/`). `www/content/` est conservé pour l'inventaire de préservation, mais la construction ne le lit plus. Cette liste reste une **proposition au propriétaire** : chaque défaut a été confirmé sur son site en ligne. S'il le souhaite, il les corrige dans WordPress, puis la copie est reprise (voir [STOREFRONT](STOREFRONT.md#modifier-le-site)).
+
 Relecture du 27 octobre 2026, sur les 348 pages de `www/content/pages/`. La méthode combine :
 
 - un correcteur orthographique français (pyspellchecker, 140 000 mots);

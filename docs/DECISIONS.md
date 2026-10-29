@@ -1,5 +1,13 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-028 — Code fusionné, réception du portail distincte (29 octobre 2026)
+
+La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est fusionnée dans `main` au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. L’intégration du code est achevée; **corpus restauré et connexion configurée, accès utilisateur réel non validé**. Conserver les résultats locaux et la CI comme preuves de code, sans les présenter comme une connexion réelle du propriétaire.
+
+La réception du 29 octobre confirme le déploiement `efef692` terminé à 04:21:20 UTC, la restauration contrôlée des trois dossiers (1 362 documents, 1 185 blobs), les empreintes et les permissions privées. `/api/health` indique `loginConfigured:true`; les refus anonymes sont contrôlés. Une tentative avec le mot de passe historique a été refusée. Le propriétaire est invité à utiliser ses accès TAKATAK actuels; aucune réinitialisation ni consultation authentifiée n’est validée. Le correctif de compatibilité des cinq tables de connecteurs avec la sauvegarde est testé, mais reste à intégrer après revue et CI. Le nom d’environnement Coolify `production` ne vaut pas recette utilisateur. Voir [l’état précis](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
+
+Contrôle daté du 28 octobre : le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
+
 ## D-024 — Développement GitHub et bascule par Mike (28 octobre 2026)
 
 Le propriétaire reprend le travail et confirme : aucun WordPress dans la cible, tous les contenus existants conservés dans `www/`, backend Node construit et testé dans GitHub. Mike, son développeur, termine les DNS. L'agent prépare le code, ses tests et [la liste de bascule](DEV-A-FAIRE-2026-10-28.md); ne pas refaire le travail de Mike ni réinstaller WordPress. La sauvegarde WordPress est conservée pour retour arrière.
@@ -51,9 +59,9 @@ Décisions :
 
 Le code est testé avec des fournisseurs simulés. Aucun connecteur n'est annoncé comme actif avant sa vérification avec un vrai compte ([INTEGRATIONS](INTEGRATIONS.md)).
 
-**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+**Historique de clôture du 26 octobre :** [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md). La consigne « notes seulement, puis arrêt » concernait cette étape; la reprise du 28 octobre demeure active.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-027 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-028 ci-dessous priment sur les états historiques qu'elles remplacent.
 
 ## D-023 — Refonte D-022 refusée; le propriétaire reprend la vitrine (28 octobre 2026)
 

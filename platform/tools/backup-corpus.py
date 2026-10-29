@@ -40,6 +40,8 @@ OPTIONAL_TABLES = {
     "document_imports", "document_pages",
     "communication_sessions", "communication_timers",
     "communication_usage", "communication_usage_approvals",
+    "integration_meta", "integration_states", "integration_connections",
+    "integration_links", "integration_events",
 }
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 BLOB_PATH = re.compile(r"blobs/[0-9a-f]{64}/[0-9a-f]{64}\Z")

@@ -1,6 +1,12 @@
 # Validation — recherche, dictée et corpus local
 
-**Code validé et publié : `aaf64efec669aac769d7b23d8c26644ec67b5459`.** Contrôles GitHub réussis : [portail](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400373), [vitrine](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400430), [qualité](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400332), [QA navigateur du site d’orientation](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400336). Les deux contrôles au push sont également verts. La PR reste ouverte pour intégration et déploiement coordonnés avec Mike.
+**PR 2 fusionnée dans `main` le 28 octobre 2026, au commit `348d626b76d4adcd874cc7485d2e744006b249c9`.** Configuration du serveur en cours, recette login/corpus non validée.
+
+**Réception — 29 octobre 2026 :** [portail HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) redéployé au SHA `efef6921201602ede0139af03bbfb92f43e6f90e`, déploiement terminé à 04:21:20 UTC. Archive et restauration vérifiées par empreintes; trois dossiers, 1 362 documents et 1 185 blobs restaurés, propriétaire `1000:1000`, répertoires `0700`, fichiers `0600`, base initiale préservée. Grants et clé prêts; `/api/health` répond avec `loginConfigured:true`, dossiers anonymes refusés en 401 et trois chemins privés en 404. **La tentative avec l’ancien mot de passe a été refusée : le propriétaire doit essayer son mot de passe TAKATAK actuel. Aucune réinitialisation ni consultation authentifiée des dossiers validée.** Recherche, téléchargement et persistance en session réelle restent à contrôler. [État et suite](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
+
+**Historique du code validé avant fusion : `aaf64efec669aac769d7b23d8c26644ec67b5459`.** Contrôles GitHub réussis : [portail](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400373), [vitrine](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400430), [qualité](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400332), [QA navigateur du site d’orientation](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400336). Les deux contrôles au push sont également verts. La fusion est achevée; l’activation du portail reste une étape distincte.
+
+Contrôle daté du 28 octobre : le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
 
 Ce second lot complète la [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2), à la demande explicite du propriétaire de poursuivre son tableau de bord et le travail juridique en parallèle. Il ne redessine pas la vitrine. La validation du premier lot est conservée dans [VALIDATION-LOT](VALIDATION-LOT-2026-10-28.md).
 
@@ -36,9 +42,14 @@ Ces compteurs décrivent le corpus disponible, pas l'exhaustivité du dossier ju
 
 ## Réception encore requise
 
-1. Mike intègre la PR et déploie le SHA retenu avec le corpus privé v2 et les habilitations existantes. Préserver le courrier lors du changement DNS et la sauvegarde WordPress complète.
+1. La restauration et les permissions du corpus privé v2 ont été contrôlées sur le serveur, et le déploiement `efef692` expose `loginConfigured:true`. Attendre la connexion du propriétaire avec son mot de passe TAKATAK actuel après le refus de l’essai historique; conserver grants, clé, base initiale et originaux. Intégrer le correctif de sauvegarde des cinq tables de connecteurs après revue et CI avant les prochaines sauvegardes de la base démarrée.
 2. Vérifier la vraie connexion, les trois dossiers, la recherche, les originaux et la persistance après redémarrage sur HTTPS.
 3. Essayer le microphone physique dans le navigateur de l'utilisateur. Aucune capture ambiante n'a été lancée pendant la QA; les états de reconnaissance ont été testés avec un simulateur.
 4. L'IA générative, OAuth Zoom, les appels intégrés et les paiements sont encore des raccordements distincts. Ne pas les annoncer actifs.
 
-Au dernier contrôle distant de cette session, le portail répond encore avec l'ancien health (`identityConfigured:false`), et `/demande` renvoie 404. Le déploiement public de ce lot n'est pas confirmé. L'accès à l'administration Coolify a été demandé pour pouvoir poursuivre sa réception réelle.
+Au contrôle distant du 28 octobre antérieur à la configuration en cours, le portail répondait avec l’ancien health (`identityConfigured:false`), et `/demande` renvoyait 404. **Corpus restauré et connexion configurée; accès utilisateur réel non validé.** La réception du 29 octobre confirme désormais le corpus restauré et la connexion configurée, mais l’accès authentifié reste non validé. Les vérifications locales et le smoke Render ne prouvent pas la recette login/corpus.
+
+
+## Complément du 29 octobre — sauvegarde après intégration des connecteurs
+
+Le démarrage d’`efef692` ajoute cinq tables au corpus. L’outil antérieur les refusait, même sans fournisseur actif. Le correctif autorise précisément ces tables optionnelles; le nouveau test produit le schéma et des données synthétiques avec les vrais modules, vérifie l’échec avant correction, puis le cycle complet de sauvegarde/restauration. **12 tests Python réussis**, tables inconnues toujours refusées, jetons chiffrés conservés et clé séparée exclue. Aucun appel fournisseur réel, changement de l’authentification ou migration des pièces par ce correctif. La CI de cette proposition reste distincte des contrôles verts de la base `efef692`.

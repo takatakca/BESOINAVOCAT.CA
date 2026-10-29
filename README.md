@@ -1,6 +1,8 @@
 # BESOINAVOCAT.CA
 
-**Suite du 28 octobre — recherche et dictée :** [validation du second lot](docs/VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](docs/VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est **fusionnée dans `main` le 28 octobre 2026**, au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. **Corpus restauré et connexion configurée; accès utilisateur réel non validé.** Le microphone physique reste à essayer; IA générative non connectée.
+
+**Réception — 29 octobre 2026 :** [portail HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) redéployé au SHA `efef6921201602ede0139af03bbfb92f43e6f90e`, déploiement terminé à 04:21:20 UTC. Archive et restauration vérifiées par empreintes; trois dossiers, 1 362 documents et 1 185 blobs restaurés, propriétaire `1000:1000`, répertoires `0700`, fichiers `0600`, base initiale préservée. Grants et clé prêts; `/api/health` répond avec `loginConfigured:true`, dossiers anonymes refusés en 401 et trois chemins privés en 404. **La tentative avec l’ancien mot de passe a été refusée : le propriétaire doit essayer son mot de passe TAKATAK actuel. Aucune réinitialisation ni consultation authentifiée des dossiers validée.** Recherche, téléchargement et persistance en session réelle restent à contrôler. [État et suite](docs/COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
 
 > **28 octobre 2026 — VITRINE : `www/` est maintenant la copie exacte du site WordPress; seules les couleurs changent (D-026). En attente de la validation du propriétaire.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) a été **refusée** par le propriétaire (D-023). Son design n'est plus servi; il reste dans l'historique Git (`0e457cd`, `c00ead5`). Le texte importé de `www/content/` est conservé, sans être lu par la construction ([CONTENT_PRESERVATION](docs/CONTENT_PRESERVATION.md)).
@@ -12,15 +14,17 @@
 
 **À lire en premier à la reprise : [REPRISE-SUIVANTE-2026-10-26.md](docs/REPRISE-SUIVANTE-2026-10-26.md).** La vitrine `www/` est la copie exacte du site WordPress, en attente de la validation du propriétaire (BA-034).
 
-**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes, la copie fidèle et les intégrations de `main` (`efef692`) sont conservées; aucun fichier de vitrine n’est modifié par cette réconciliation documentaire. Les changements de la branche de livraison ont été intégrés par la PR 2; la réception authentifiée reste ouverte après restauration.
 
-**Lot du 28 octobre validé localement :** [preuve et limites](docs/VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+**Historique du premier lot du 28 octobre, désormais intégré :** [preuve et limites](docs/VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. L’application de test et le corpus sont désormais installés; la connexion réelle reste à valider. La présentation est réservée au propriétaire.
+
+Contrôle daté du 28 octobre : le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
 
 **29 octobre — connecteurs du portail (D-027) :** chaque avocat relie son Zoom, son Outlook ou son Google Agenda à ses rendez-vous; DocuSign et Clio se connectent. Le code est testé avec des fournisseurs simulés; il reste à ouvrir les comptes développeur et à vérifier avec de vrais comptes : [INTEGRATIONS](docs/INTEGRATIONS.md).
 
 **État courant du 28 octobre : [liste immédiate pour le développeur](docs/DEV-A-FAIRE-2026-10-28.md).** Le propriétaire a repris le développement. La cible est désormais sans WordPress : vitrine `www/`, portail Node `platform/`, déploiement Coolify depuis GitHub. Les sauvegardes et les contenus sont conservés.
 
-La connexion réelle et le corpus distant restent à valider. Contrôle du 28 octobre : portail `/api/health` 200 avec `identityConfigured:false`, `/demande` 404; DNS encore MochaHost. La présence du code ne prouve pas son déploiement. Le lot validé localement sur `codex/workspaces-appels-2026-10-28` ajoutent le questionnaire FR/EN, les rendez-vous et le chronométrage manuel; [communications et Facturations](docs/COMMUNICATIONS.md). Aucun appel fournisseur ni débit actif.
+La connexion réelle et le corpus distant restent à valider. **Corpus restauré et connexion configurée; accès utilisateur réel non validé.** Le contrôle antérieur à cette configuration, le 28 octobre, obtenait portail `/api/health` 200 avec `identityConfigured:false`, `/demande` 404 et DNS MochaHost. L’instance de test Coolify est désormais joignable; cela ne prouve pas l’accès au corpus privé. Le lot issu de `codex/workspaces-appels-2026-10-28` ajoute le questionnaire FR/EN, les rendez-vous et le chronométrage manuel; [communications et Facturations](docs/COMMUNICATIONS.md). Aucun appel fournisseur ni débit actif.
 
 Le propriétaire prévoit aussi des frais clients pour les volumes documentaires importants : tarifs, crédits, appels et commissions restent à définir. Les forfaits avocats 100 CAD/semaine ou 300 CAD/mois restent les seuls montants décidés; aucune facturation n'est activée.
 
@@ -30,7 +34,7 @@ Les mentions WordPress, arrêt de session et blocage MochaHost ci-dessous décri
 
 Site d'orientation juridique généraliste pour le Québec et développement d'un espace client/avocat distinct.
 
-## Priorité courante — accès réel au backend
+## Historique du 26 octobre — priorité à l’accès réel au backend
 
 Le propriétaire demande d'abord un accès effectif à ses dossiers dans le portail **Node.js**, puis l'amélioration des formulaires WordPress et de la présentation interactive en français et en anglais. **besoinavocat.ca reste la vitrine WordPress chez MochaHost**; `site/` conserve le site d'orientation Render distinct. Les pages, articles, URL, informations documentaires et travaux existants sont préservés. Les anciennes marques d'opérateur et affiliations promotionnelles injustifiées peuvent être corrigées sans effacer les noms nécessaires aux documents ou articles.
 
@@ -98,7 +102,7 @@ Service : [besoinavocat.onrender.com](https://besoinavocat.onrender.com) (premie
 - Commande de build : `test -s site/index.html && test -s site/styles.css`.
 - Répertoire publié : `site`.
 
-**besoinavocat.ca reste sur WordPress chez MochaHost. Ne pas rediriger ce domaine vers Render.** Le site Render conserve son adresse propre; le futur backend MochaHost est distinct de ces deux vitrines.
+**Ne pas rediriger besoinavocat.ca vers Render.** Le site d’orientation Render conserve son adresse propre. La cible actuelle du portail Node est Coolify; le maintien de WordPress chez MochaHost décrivait l’étape antérieure à la migration.
 
 ## Déploiement facultatif : GitHub Pages
 

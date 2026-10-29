@@ -1,5 +1,13 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-026 — Code fusionné, réception du portail distincte (28 octobre 2026)
+
+La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est fusionnée dans `main` au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. L’intégration du code est achevée; **configuration du serveur en cours, recette login/corpus non validée**. Conserver les résultats locaux et la CI comme preuves de code, sans les présenter comme une connexion réelle du propriétaire.
+
+L’essai distant du 28 octobre est joignable en HTTPS sur le domaine de test Coolify : health 200, `mode:pilot`, identité et connexion désactivées; réception des demandes fermée malgré `intakeConfigured:true`. Le volume `/data` existe. **État du 29 octobre 2026 à 03:18 UTC :** après activation de l’accès aux fichiers locaux, la deuxième tentative de téléversement a échoué lors de la perte de connexion à l’extension Chrome. Reconnexion demandée; transfert et installation du corpus ou de la configuration privée non confirmés. La procédure privée de restauration est prête, non exécutée. Le nom d’environnement Coolify `production` ne vaut pas validation de production. Voir [l’état précis](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
+
+Le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
+
 ## D-024 — Développement GitHub et bascule par Mike (28 octobre 2026)
 
 Le propriétaire reprend le travail et confirme : aucun WordPress dans la cible, tous les contenus existants conservés dans `www/`, backend Node construit et testé dans GitHub. Mike, son développeur, termine les DNS. L'agent prépare le code, ses tests et [la liste de bascule](DEV-A-FAIRE-2026-10-28.md); ne pas refaire le travail de Mike ni réinstaller WordPress. La sauvegarde WordPress est conservée pour retour arrière.
@@ -12,7 +20,7 @@ Le client doit choisir ses options : services internes BesoinAvocat, connecteur 
 
 Chaque connexion fournisseur utilise son flux officiel OAuth et ses habilitations propres; ne pas collecter le mot de passe Zoom. L'état du paiement, le droit à l'option, la connexion du fournisseur et les permissions des dossiers sont séparés. Une page de succès Stripe ne débloque pas une option : confirmation serveur signée et idempotente requise. Pas de débit, de création de facture réelle ni de promesse de fonction active avant raccordement et recette.
 
-**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+**Historique de clôture du 26 octobre :** [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md). La consigne « notes seulement, puis arrêt » concernait cette étape; la reprise du 28 octobre demeure active.
 
 Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-023 ci-dessous priment sur les états historiques qu'elles remplacent.
 

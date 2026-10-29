@@ -1,6 +1,8 @@
 # TASK_QUEUE — BESOINAVOCAT.CA
 
-**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est **fusionnée dans `main` le 28 octobre 2026**, au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. **Configuration du serveur en cours, recette login/corpus non validée.** Le microphone physique reste à essayer; IA générative non connectée.
+
+**État figé — 29 octobre 2026, 03:18 UTC :** [instance HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) déployée; dernier health confirmé : 200, `mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true`, demandes désactivées. Volume privé `/data` créé. Après activation de l’accès aux fichiers locaux, la deuxième tentative de téléversement a échoué par perte de connexion à l’extension Chrome; la reconnexion est demandée. **Transfert non confirmé; aucune installation du corpus, des grants, de la clé de session ou des variables de connexion TAKATAK/Supabase confirmée.** Procédure privée de restauration prête, non exécutée. Recette login/corpus non validée. [État et suite](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
 
 > **28 octobre 2026 — ARRÊT SUR LA VITRINE : le propriétaire la reprend lui-même, en ce moment.**
 > - La refonte « plateforme IA » du 27 octobre (D-022) est **refusée** par le propriétaire (D-023).
@@ -10,22 +12,22 @@
 > - Le WordPress en ligne est intact : vérifié le 28 octobre, thème Astra, extension 0.2.2, DNS toujours chez MochaHost, rien n'a été basculé.
 > - Ni la copie de `www/` d'avant la refonte (`a27f70f`) ni celle d'après (`0e457cd`, `c00ead5`) ne reproduisent le design WordPress : seuls les textes et les liens ont été repris, dans un gabarit fait par l'agent. Rien n'est annulé par l'agent : le propriétaire décide.
 
-**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées; les changements restent sur la branche de livraison pour revue par Mike.
+**Périmètre coordonné du présent lot :** la demande écrite de ce chat autorise le backend et les questionnaires fonctionnels. Aucun rendu de la vitrine n’est redessiné ni déployé. Les notes concurrentes de `main` (`fb992d6`) sont conservées. Les changements de la branche de livraison ont été intégrés par la PR 2; la configuration du serveur reste en cours.
 
-**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+**Historique du premier lot du 28 octobre, désormais intégré :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
 
 ## Priorité du 28 octobre — reprise autorisée
 
 1. Développeur du propriétaire : exécuter [DEV-A-FAIRE-2026-10-28](DEV-A-FAIRE-2026-10-28.md), portail et compte réel avant vitrine. Préserver les courriels lors du DNS. WordPress devient seulement une sauvegarde de retour arrière.
 2. Valider/restaurer le corpus privé dans une destination neuve, habilitations par UUID, trois dossiers, recherche et téléchargement; remise de 312 annexes inchangée.
-3. Intégrer après revue le questionnaire conditionnel, les rendez-vous et le journal de durée testés du lot `codex/workspaces-appels-2026-10-28`.
+3. **Code intégré par la PR 2 dans `main` (`348d626`)** : questionnaire, rendez-vous, durées, recherche et dictée. Configuration du serveur en cours; recette login/corpus non validée. Exécuter les contrôles de réception sur le serveur, sans rouvrir l’étape de fusion.
 4. Compléter la file opérateur, l'attribution humaine des demandes, le parcours d'inscription et les notifications; la réception d'un formulaire seule n'est pas la mise en relation.
 5. Raccorder Zoom/Twilio et Facturations après configuration serveur réelle, définir les tarifs clients/minutes/crédits/commissions; aucun débit avant ces étapes.
 6. Visuels réservés au propriétaire et à Mike selon D-023, ton juridique sobre; garder le contenu informationnel et les anciens slugs. Ne pas confondre copie textuelle et reproduction exacte de la mise en page.
 
 Le tableau ci-dessous conserve l'historique. Les tâches de réinstallation WordPress/MochaHost ne sont plus le chemin de déploiement principal.
 
-**Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
+**Historique de clôture du 26 octobre :** [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md). Sa consigne d’arrêt ne remplace pas la file active du 28 octobre.
 
 Ordre actuel demandé par le propriétaire : **backend et accès effectif aux dossiers avant la vitrine**. Les tâches documentaires et de préparation indépendantes peuvent avancer sans contourner un blocage de déploiement.
 
@@ -34,7 +36,7 @@ Ordre actuel demandé par le propriétaire : **backend et accès effectif aux do
 | ID | Priorité / état | Travail et preuve attendue |
 |---|---|---|
 | BA-018 | P0 — v2 bloquée par l'antivirus | Faire examiner le paquet v2 exact refusé par MochaHost. Conserver le reçu et le SHA; aucun contournement ni désactivation de protection. La première version Node technique existe déjà. |
-| BA-030 | P0 — image prête, déploiement à faire par le propriétaire | Héberger le portail Node sur le serveur Coolify du propriétaire au lieu de MochaHost (supprime le blocage BA-018). `platform/Dockerfile` testé localement : healthy, `/demande` 200, demande reçue 201, données conservées après redémarrage. Réglages exacts dans [COOLIFY](COOLIFY.md); prouver ensuite les mêmes contrôles sur le serveur réel. |
+| BA-030 | P0 — instance HTTPS de test joignable; recette privée à faire | Application `besoinavocat-portail` en essai sur Coolify, volume `/data` créé et health 200. Connexion désactivée; installation du corpus, des grants, de la clé de session et des variables de connexion non confirmée. Deuxième téléversement interrompu par la perte de connexion Chrome le 29 octobre à 03:18 UTC; reconnexion demandée. Vérifier les fichiers distants, puis reprendre la procédure privée de restauration prête, non exécutée, et la recette d’accès. La réception des demandes reste fermée; voir [COOLIFY](COOLIFY.md). |
 | BA-031 | **en pause le 28 oct. — le propriétaire reprend la vitrine** (ancien état : site prêt dans `www/`, bascule DNS à faire par le développeur) | Vitrine besoinavocat.ca reconstruite sans WordPress (D-021) : 348 pages et mêmes adresses; « Trouver mon avocat » vers le portail. Contrôle de construction : 0 erreur. 36 741 / 36 835 phrases du site en ligne retrouvées. CI « Storefront checks » verte sur `adde5c2`, image nginx testée. Reste : application Coolify, puis bascule dans l'ordre de [STOREFRONT](STOREFRONT.md) (courriel d'abord, le MX pointe sur le domaine; portail avant vitrine). Prouver ensuite les adresses, le certificat et la réception d'un courriel. |
 | BA-033 | **refusée par le propriétaire le 28 oct. (D-023) — ne pas poursuivre** (ancien état : refonte et relecture, D-022) | Design « plateforme IA » sur la vitrine et la page de demande. 141 coquilles et défauts de la source corrigés ([CONTENT_CORRECTIONS](CONTENT_CORRECTIONS.md)); Ontario ajouté au formulaire (catalogue `2026-10-27.2`). Accessibilité axe-core contrôlée sur les 350 pages. À refaire après toute modification de contenu : `node www/build.mjs && node www/tools/check-site.mjs`. |
 | BA-034 | uniquement sur instruction du propriétaire | Reproduire fidèlement le design WordPress (mises en page, sections, images, boutons), en changeant seulement les couleurs, dans des tons juridiques, sobres et professionnels (99 % réel, 1 % d'IA en touche discrète). Le propriétaire précise lui-même la palette et valide le résultat. |

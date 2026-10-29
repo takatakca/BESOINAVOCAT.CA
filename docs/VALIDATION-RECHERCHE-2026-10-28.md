@@ -1,6 +1,12 @@
 # Validation — recherche, dictée et corpus local
 
-**Code validé et publié : `aaf64efec669aac769d7b23d8c26644ec67b5459`.** Contrôles GitHub réussis : [portail](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400373), [vitrine](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400430), [qualité](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400332), [QA navigateur du site d’orientation](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400336). Les deux contrôles au push sont également verts. La PR reste ouverte pour intégration et déploiement coordonnés avec Mike.
+**PR 2 fusionnée dans `main` le 28 octobre 2026, au commit `348d626b76d4adcd874cc7485d2e744006b249c9`.** Configuration du serveur en cours, recette login/corpus non validée.
+
+**État figé — 29 octobre 2026, 03:18 UTC :** déploiement HTTPS de test joignable; dernier health confirmé : 200 (`mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true`), demandes désactivées. Volume `/data` créé. Après activation de l’accès aux fichiers locaux, la deuxième tentative de téléversement a échoué par perte de connexion à l’extension Chrome; reconnexion demandée. **Transfert non confirmé; aucune installation du corpus, des grants, de la clé de session ni des variables de connexion confirmée.** Procédure privée de restauration prête, non exécutée; recette login/corpus non validée. [Identifiants et suite](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
+
+**Historique du code validé avant fusion : `aaf64efec669aac769d7b23d8c26644ec67b5459`.** Contrôles GitHub réussis : [portail](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400373), [vitrine](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400430), [qualité](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400332), [QA navigateur du site d’orientation](https://github.com/takatakca/BESOINAVOCAT.CA/actions/runs/40668400336). Les deux contrôles au push sont également verts. La fusion est achevée; l’activation du portail reste une étape distincte.
+
+Le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
 
 Ce second lot complète la [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2), à la demande explicite du propriétaire de poursuivre son tableau de bord et le travail juridique en parallèle. Il ne redessine pas la vitrine. La validation du premier lot est conservée dans [VALIDATION-LOT](VALIDATION-LOT-2026-10-28.md).
 
@@ -36,9 +42,9 @@ Ces compteurs décrivent le corpus disponible, pas l'exhaustivité du dossier ju
 
 ## Réception encore requise
 
-1. Mike intègre la PR et déploie le SHA retenu avec le corpus privé v2 et les habilitations existantes. Préserver le courrier lors du changement DNS et la sauvegarde WordPress complète.
+1. Compléter l’application de test Coolify existante : vérifier le SHA installé, rétablir la connexion au navigateur, contrôler l’état des fichiers distants avant une nouvelle tentative, terminer et vérifier le transfert privé, puis installer et contrôler le corpus privé v2 et la configuration de connexion prévue. Ne pas recréer le volume `/data` ni les comptes. Préserver le courrier lors du changement DNS et la sauvegarde WordPress complète.
 2. Vérifier la vraie connexion, les trois dossiers, la recherche, les originaux et la persistance après redémarrage sur HTTPS.
 3. Essayer le microphone physique dans le navigateur de l'utilisateur. Aucune capture ambiante n'a été lancée pendant la QA; les états de reconnaissance ont été testés avec un simulateur.
 4. L'IA générative, OAuth Zoom, les appels intégrés et les paiements sont encore des raccordements distincts. Ne pas les annoncer actifs.
 
-Au dernier contrôle distant de cette session, le portail répond encore avec l'ancien health (`identityConfigured:false`), et `/demande` renvoie 404. Le déploiement public de ce lot n'est pas confirmé. L'accès à l'administration Coolify a été demandé pour pouvoir poursuivre sa réception réelle.
+Au contrôle distant du 28 octobre antérieur à la configuration en cours, le portail répondait avec l’ancien health (`identityConfigured:false`), et `/demande` renvoyait 404. **Configuration du serveur en cours, recette login/corpus non validée.** Le nouvel essai Coolify prouve seulement un service HTTPS joignable avec connexion désactivée. Les vérifications locales et le smoke Render ne prouvent pas la recette login/corpus.

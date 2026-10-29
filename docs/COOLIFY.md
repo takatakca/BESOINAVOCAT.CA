@@ -1,8 +1,35 @@
 # Déployer le portail Node sur Coolify
 
-Décision du 27 octobre 2026 : le portail Node peut être hébergé sur le serveur Coolify du propriétaire au lieu de MochaHost. Ce choix supprime le blocage antivirus du paquet v2 (BA-018) et permet un déploiement automatique depuis GitHub. Ce document décrit les réglages; **aucun déploiement Coolify n'a encore été fait par un agent**, faute d'accès au serveur.
+Décision du 27 octobre 2026 : héberger le portail Node sur le serveur Coolify du propriétaire avec une image construite depuis GitHub. L’étape sans accès au serveur est historique : une instance HTTPS de test est désormais joignable. **Configuration privée incomplète, recette login/corpus non validée.** Le refus antérieur du paquet MochaHost reste conservé dans son historique; aucune protection de cet hébergeur n’a été désactivée.
 
-La vitrine besoinavocat.ca, reconstruite sans WordPress, est une seconde application Coolify. Ses réglages et **l'ordre de bascule DNS sont décrits dans [STOREFRONT](STOREFRONT.md)**. Il faut d'abord détacher le courriel, car le MX pointe sur le domaine, puis déployer le portail et enfin la vitrine.
+La vitrine besoinavocat.ca, reconstruite sans WordPress, est prévue comme seconde application Coolify. Ses réglages et **l'ordre de bascule DNS sont décrits dans [STOREFRONT](STOREFRONT.md)**. Il faut d'abord détacher le courriel, car le MX pointe sur le domaine, puis déployer le portail et enfin la vitrine.
+
+## État de l’essai distant — 28 octobre 2026
+
+La PR 2 est fusionnée dans `main` au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. L’application est configurée avec la source `main`, le répertoire `/platform` et le Dockerfile `/Dockerfile`. Vérifier le SHA effectif de chaque déploiement avant sa recette.
+
+| Ressource | État constaté |
+|---|---|
+| Projet | `BESOINAVOCAT` — `pwctapf4bxo821pbb9hvhaz8` |
+| Environnement Coolify | `production` — `i16tncnyov97ttcvw5lxro96` ; nom administratif, pas une recette validée |
+| Application | `besoinavocat-portail` — `fluzlqgkhifrgkmygknj4mjj` |
+| Serveur | `vps1` — `31.220.96.134` |
+| Déploiement | `c9qioijef3tljwkh50pstl52`, statut observé `Running` |
+| URL d’essai | [Portail HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) |
+| Santé | `/api/health` 200, `mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true` |
+| Réception des demandes | Désactivée; `intakeConfigured:true` ne signifie pas ouverture du formulaire |
+| Stockage | Volume privé monté sur `/data`; aucun transfert ni restauration du corpus confirmés |
+| Installation non confirmée | Corpus, grants, clé de session, variables de connexion TAKATAK/Supabase |
+
+**État figé — 29 octobre 2026, 03:18 UTC.** La première tentative de transfert via Chrome a été bloquée par l’option **Allow access to file URLs** de l’extension. Le propriétaire l’a activée, puis la deuxième tentative a échoué lors de la perte de connexion de l’outil à Chrome. L’onglet reste visible dans l’inventaire, mais son accès échoue également. La reconnexion est demandée.
+
+**Transfert non confirmé.** Aucun fichier du transfert, corpus, grant, clé de session ou variable de connexion n’est confirmé installé. Ne pas supposer que l’échec a effacé d’éventuels fichiers partiels : inspecter l’état distant après reconnexion, puis reprendre sans écraser une base ou un volume existants. Aucun compte ni connexion utilisateur validés. Ne jamais placer le corpus, les grants ou la clé dans GitHub.
+
+La procédure privée `PROCEDURE-RESTAURATION-HOTE-COOLIFY-2026-10-28.md` est prête, **non exécutée**. Elle reste dans l’espace de travail privé avec la sauvegarde et les empreintes; ce document public ne contient aucun secret.
+
+Contrôle HTTPS distant du 28 octobre : **19/19 réussis**, dont sept assets identiques au code fusionné, cinq routes privées refusées en 401 et six chemins internes en 404. Le rapport `CONTROLE-COOLIFY-HTTPS-2026-10-28T17-33-00-004Z` est conservé dans les reçus privés. Ces contrôles ne testent pas une session utilisateur authentifiée.
+
+Suite : rétablir la connexion au navigateur, contrôler les fichiers éventuellement présents, reprendre le transfert privé et vérifier les empreintes après restauration dans une destination neuve, installer les habilitations et la configuration de connexion existantes, puis contrôler la vraie connexion, les trois dossiers, recherche/citations, téléchargements, refus d’accès et persistance. Le domaine d’essai et le health ne prouvent aucune mise en production validée ni bascule DNS.
 
 ## Ce qui a été vérifié localement (27 octobre)
 
@@ -14,14 +41,14 @@ Image construite avec `platform/Dockerfile` : Node 24.22.1, 331 Mo, aucune dépe
 - après `docker restart`, la même clé d'idempotence renvoie **la même référence**, et la base contient une seule ligne;
 - fichiers privés en 0600 dans `/data`.
 
-Le serveur Coolify réel, son proxy, son certificat et ses sauvegardes restent à vérifier lors du premier déploiement.
+Le service HTTPS de test et son health ont été contrôlés à distance le 28 octobre. La restauration du corpus, la connexion réelle, les contrôles d’accès, la persistance après redémarrage et les sauvegardes du serveur restent à vérifier.
 
 ## Réglages de l'application dans Coolify
 
 | Réglage | Valeur |
 |---|---|
 | Source | GitHub `takatakca/BESOINAVOCAT.CA`, via l'application GitHub de Coolify |
-| Branche | `main` (PR 1 fusionnée); réserver les nouvelles branches aux préversions |
+| Branche | `main` (PR 2 fusionnée à `348d626`); réserver les nouvelles branches aux préversions |
 | Déploiement automatique | pour l'essai, celui de Coolify à chaque push; en production, le flux `coolify-deploy.yml` après CI verte sur `main`, comme dans takatak-v1 ([STOREFRONT](STOREFRONT.md#déploiement-automatique-comme-dans-takatak-v1)) |
 | Build pack | Dockerfile |
 | Base directory | `/platform` |
@@ -65,9 +92,9 @@ L'image Node ne contient ni Python ni `backup-corpus.py`. Le développeur exécu
 - `loginConfigured: true` indique la configuration de connexion navigateur; vérifier ensuite la connexion réelle. `identityConfigured` concerne l'introspection Bearer et ne remplace pas ce contrôle.
 - `/demande`, `/demande.js` et `/demande.css` → 200, avec l'en-tête `Content-Security-Policy`.
 - `/api/cases` sans session → 401; `/.env` et `/server.mjs` → 404.
-- Une demande synthétique depuis la page reçoit une référence.
+- Seulement après ouverture autorisée de la réception : une demande synthétique depuis la page reçoit une référence. Tant que les demandes sont désactivées, vérifier leur refus explicite.
 - Redéploiement : les demandes déjà reçues restent présentes, ce qui prouve que le volume `/data` est conservé.
 
 ## Sauvegarde
 
-Le volume `/data` contient les bases SQLite (mode WAL), les pièces, la clé de session et les grants. Sauvegarder avec une méthode cohérente pour SQLite, comme indiqué dans [CPANEL_NODE](CPANEL_NODE.md). Conserver ensemble la clé et la base des sessions. Avant d'y placer des dossiers juridiques réels, noter où se trouve physiquement le serveur : un hébergement hors Québec demande une évaluation des facteurs relatifs à la vie privée (Loi 25).
+Après installation complète, le volume `/data` contiendra les bases SQLite (mode WAL), les pièces, la clé de session et les grants. Sauvegarder avec une méthode cohérente pour SQLite, comme indiqué dans [CPANEL_NODE](CPANEL_NODE.md). Conserver ensemble la clé et la base des sessions. Avant d'y placer des dossiers juridiques réels, noter où se trouve physiquement le serveur : un hébergement hors Québec demande une évaluation des facteurs relatifs à la vie privée (Loi 25).

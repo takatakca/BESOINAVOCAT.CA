@@ -1,14 +1,18 @@
 # Relève — BESOINAVOCAT.CA
 
-**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. Le compte distant, le microphone physique et le déploiement restent à vérifier; IA générative non connectée. La PR 2 contient aussi ce lot.
+**Suite du 28 octobre — recherche et dictée :** [validation du second lot](VALIDATION-RECHERCHE-2026-10-28.md). 231 tests Node réussis, recherche globale autorisée et citations, dictée au clic, lecteur amélioré. Trois documents de travail ajoutés dans une nouvelle copie privée du corpus (1 362 occurrences / 1 185 empreintes / 3 101 unités), sauvegarde et restauration contrôlées. La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est **fusionnée dans `main` le 28 octobre 2026**, au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. **Configuration du serveur en cours, recette login/corpus non validée.** Le microphone physique reste à essayer; IA générative non connectée.
 
-**Lot du 28 octobre validé localement :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+**État figé — 29 octobre 2026, 03:18 UTC :** [instance HTTPS de test](https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io) déployée; dernier health confirmé : 200, `mode:pilot`, `identityConfigured:false`, `loginConfigured:false`, `intakeConfigured:true`, demandes désactivées. Volume privé `/data` créé. Après activation de l’accès aux fichiers locaux, la deuxième tentative de téléversement a échoué par perte de connexion à l’extension Chrome; la reconnexion est demandée. **Transfert non confirmé; aucune installation du corpus, des grants, de la clé de session ou des variables de connexion TAKATAK/Supabase confirmée.** Procédure privée de restauration prête, non exécutée. Recette login/corpus non validée. [État et suite](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
 
-## Reprise du 28 octobre — le développement est autorisé
+**Historique du premier lot du 28 octobre, désormais intégré :** [preuve et limites](VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
+
+Le site d’orientation Render, dont le contenu `site/` est inchangé, a été republié au commit `348d626b76d4adcd874cc7485d2e744006b249c9`; les sept URL du smoke public passent. Ce contrôle ne valide pas le portail Node ni les dossiers privés.
+
+## Reprise du 28 octobre — code intégré, configuration en cours
 
 Lire [la liste destinée à Mike](DEV-A-FAIRE-2026-10-28.md) et les ajouts courants de [PROJECT_STATUS](PROJECT_STATUS.md). Mike termine le DNS; l'agent construit et teste le code dans GitHub, sans intervention WordPress. Vitrine `www/` avec contenu conservé, backend Node `platform/`, identité TAKATAK et corpus privé séparé du dépôt public.
 
-L'identité existante du propriétaire a été confirmée en lecture seule dans TAKATAK. Les grants et trois appartenances au corpus préparé concordent; reçu dans le OneDrive privé. Cela n'est pas une connexion au portail de production ni une vérification de mot de passe. Après déploiement, Mike doit vérifier la connexion réelle et les trois dossiers.
+L'identité existante du propriétaire a été confirmée en lecture seule dans TAKATAK. Les grants et trois appartenances au corpus préparé concordent; reçu dans le OneDrive privé. Cela n'est pas une connexion au portail de production ni une vérification de mot de passe. La configuration du serveur est en cours; la recette login/corpus reste non validée. Après déploiement, vérifier la connexion réelle et les trois dossiers avec le propriétaire.
 
 Les connecteurs sont optionnels pour chaque client; Zoom doit utiliser son autorisation OAuth, pas collecter son mot de passe dans BesoinAvocat. Le prix d'installation évoqué de 50 CAD est un exemple à confirmer. Chat interne, intégrations externes, frais d'usage et honoraires restent des rubriques distinctes.
 

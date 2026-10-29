@@ -49,6 +49,11 @@ Lire d'abord `docs/REPRISE-SUIVANTE-2026-10-26.md`, puis `docs/PROJECT_STATUS.md
 
 ### Prochaine action exacte
 
+0. **Connecteurs (29 oct., D-027)** : le code est fait et testé (BA-035). La suite attend le propriétaire et Mike :
+   - la clé `/data/integrations.key`;
+   - les comptes développeur de [INTEGRATIONS](INTEGRATIONS.md) et leurs variables Coolify;
+   - la vérification avec un vrai compte, une étape à la fois.
+   Ne pas annoncer un connecteur actif avant cette vérification. Prochain lot : BA-036.
 0. **Vitrine (28 oct., D-026)** : `www/` est la copie exacte du site WordPress, et seules les couleurs changent. Preuves : [STOREFRONT](STOREFRONT.md#preuves). **La suite attend le propriétaire** :
    - valider le rendu et la palette (`www/palette.mjs`);
    - décider du style de la page de demande du portail, encore celui refusé de `c00ead5`.

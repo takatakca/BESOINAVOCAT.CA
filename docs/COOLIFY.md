@@ -39,6 +39,7 @@ Variables d'environnement (les chemins privés sont déjà fixés dans l'image) 
 | `BESOINAVOCAT_TRUST_PROXY` | `1` : le visiteur est lu dans le dernier `X-Forwarded-For`, ajouté par le proxy de Coolify. Sans cette valeur, tous les visiteurs partageraient la même limite anti-abus. À ne pas activer si le port est exposé directement. |
 | `BESOINAVOCAT_INTAKE_REQUEST_ENABLED` | `false` tant que l'ouverture de la demande détaillée n'est pas décidée (D-006); `true` l'ouvre |
 | `TAKATAK_SUPABASE_URL`, `TAKATAK_SUPABASE_PUBLISHABLE_KEY` | plus tard, pour la connexion du propriétaire : clé **publique** seulement, jamais `service_role` (voir [BROWSER_AUTH](BROWSER_AUTH.md)) |
+| `BESOINAVOCAT_ZOOM_*`, `BESOINAVOCAT_MICROSOFT_*`, `BESOINAVOCAT_GOOGLE_*`, `BESOINAVOCAT_DOCUSIGN_*`, `BESOINAVOCAT_CLIO_*`, `BESOINAVOCAT_STRIPE_WEBHOOK_SECRET`, `BESOINAVOCAT_TWILIO_*`, `BESOINAVOCAT_CANLII_API_KEY` | connecteurs, chacun seulement après la création de son compte développeur : liste exacte et étapes dans [INTEGRATIONS](INTEGRATIONS.md). Adresse de retour à déclarer chez chaque fournisseur : `https://<domaine du portail>/integrations/callback`. |
 
 ## Une seule fois, dans le terminal du conteneur
 
@@ -47,6 +48,9 @@ Variables d'environnement (les chemins privés sont déjà fixés dans l'image) 
    Ne jamais la recréer ni la copier ailleurs que dans une sauvegarde privée.
 2. `grants.json` en 0600 avec l'UUID TAKATAK du propriétaire, au format de [BROWSER_AUTH](BROWSER_AUTH.md). Uniquement au moment d'activer la connexion.
 3. Corpus : restauration de la sauvegarde vérifiée dans un nouveau sous-dossier privé, selon la procédure ci-dessous. La sauvegarde doit être restaurée, pas copiée à chaud depuis une base active.
+4. Clé des connecteurs (Zoom, Outlook, Google…), même règle que la clé de session :
+   `node -e "require('fs').writeFileSync('/data/integrations.key', require('crypto').randomBytes(32), { mode: 0o600, flag: 'wx' })"`.
+   Une nouvelle clé oblige chaque avocat à reconnecter ses services. Voir [INTEGRATIONS](INTEGRATIONS.md).
 
 ## Restaurer un corpus dans le volume Coolify
 

@@ -9,6 +9,7 @@ import { publicCatalog } from './lib/catalog.mjs';
 import { createIntake, intakeConfiguration } from './lib/intake.mjs';
 import { createCommunications, COMMUNICATION_PROVIDERS } from './lib/communications.mjs';
 import { publicAddonCatalog } from './lib/addon-catalog.mjs';
+import { createIntegrations, integrationConfiguration, readWebhookBody, WEBHOOK_PROVIDERS } from './lib/integrations.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,9 @@ let intakesInFlight = 0;
 // Contact fields plus the detailed request's bounded summary (1 500 characters, UTF-8 and JSON escapes).
 const MAX_INTAKE_JSON_BYTES = 12288;
 const MAX_CONCURRENT_INTAKES = 4;
+// Signed provider notifications, read as raw bytes before any parsing.
+let webhooksInFlight = 0;
+const MAX_CONCURRENT_WEBHOOKS = 8;
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -33,6 +37,9 @@ const assets = new Map([
   ['/demande/', ['demande.html', 'text/html; charset=utf-8']],
   ['/demande.js', ['demande.js', 'text/javascript; charset=utf-8']],
   ['/demande.css', ['demande.css', 'text/css; charset=utf-8']],
+  // Return address registered with each OAuth provider; the page posts the code to /api/integrations/complete.
+  ['/integrations/callback', ['integrations-callback.html', 'text/html; charset=utf-8']],
+  ['/integrations-callback.js', ['integrations-callback.js', 'text/javascript; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -75,6 +82,7 @@ function pathOutside(parent, child) {
 /**
  * Returns an unbound http.Server. Tests may inject authenticate(token, req),
  * returning the exact verified identity contract. No environment or HTTP bypass.
+ * integrationFetch replaces fetch for provider calls only (tests use local fakes).
  * app.store is a trusted in-process provisioning surface, never browser-exposed.
  */
 export function createApp({
@@ -83,6 +91,7 @@ export function createApp({
   authenticate,
   env = process.env,
   browserSessions = createBrowserSessions({ config: browserSessionConfiguration(env) }),
+  integrationFetch = globalThis.fetch,
 } = {}) {
   const config = identityConfiguration(env);
   const identityConfigured = Boolean(config);
@@ -96,6 +105,7 @@ export function createApp({
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
   const store = createStore({ dbPath, blobDir });
   const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
+  const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
     excludedPaths: [dbPath, env.BESOINAVOCAT_SESSION_DB_PATH, env.BESOINAVOCAT_SESSION_KEY_FILE, env.BESOINAVOCAT_GRANTS_FILE] });
 
@@ -120,6 +130,22 @@ export function createApp({
         res.setHeader('Content-Length', data.length);
         return res.end(method === 'HEAD' ? undefined : data);
       } catch { throw new HttpError(404, 'NOT_FOUND', 'Page introuvable.'); }
+    }
+
+    // Provider notifications carry no session: each is accepted only with the provider's valid signature.
+    const webhook = /^\/api\/webhooks\/([a-z0-9]+)$/u.exec(path);
+    if (webhook) {
+      if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (!WEBHOOK_PROVIDERS.includes(webhook[1])) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+      if (webhooksInFlight >= MAX_CONCURRENT_WEBHOOKS) {
+        res.setHeader('Retry-After', '1');
+        throw new HttpError(429, 'WEBHOOK_BUSY', 'Réessayez dans un instant.');
+      }
+      webhooksInFlight++;
+      try {
+        const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
+        return json(res, result.status, result.body);
+      } finally { webhooksInFlight--; }
     }
 
     // Public contact intake is isolated from client identity and case storage.
@@ -201,7 +227,15 @@ export function createApp({
     if ([...url.searchParams.keys()].some(k => !((path.endsWith('/search') && k === 'q') || (path.endsWith('/pages') && ['offset','limit'].includes(k)))) || [...url.searchParams.keys()].some(k => url.searchParams.getAll(k).length > 1)) throw invalid('Paramètre URL non autorisé.');
     if (path === '/api/me' && method === 'GET') return json(res, 200, { user });
     if (path === '/api/addons' && method === 'GET') return json(res, 200, publicAddonCatalog());
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    // Connectors belong to the person, not to a case: each lawyer connects their own Zoom, Outlook or Google account.
+    if (path === '/api/integrations' && method === 'GET') return json(res, 200, integrations.list(user));
+    if (path === '/api/integrations/complete' && method === 'POST') return json(res, 200, await integrations.complete(user, await readJson(req, 8192)));
+    const integration = /^\/api\/integrations\/([a-z0-9]+)\/(connect|disconnect)$/u.exec(path);
+    if (integration && method === 'POST') {
+      fields(await readJson(req, 128, { allowEmpty: true }), []);
+      return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
+    }
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -210,10 +244,21 @@ export function createApp({
     if (!match) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     const caseId = identifier(match[1]), suffix = match[2];
     store.access(user, caseId);
-    if (!suffix && method === 'GET') return json(res, 200, { ...store.details(user, caseId), communications: communications.list(user, caseId), usage: communications.listUsage(user, caseId) });
+    if (!suffix && method === 'GET') return json(res, 200, { ...store.details(user, caseId), communications: communications.list(user, caseId), usage: communications.listUsage(user, caseId), integrationLinks: integrations.linksFor(user, caseId) });
     if (suffix === '/communications') {
       if (method === 'GET') return json(res, 200, communications.list(user, caseId));
       if (method === 'POST') return json(res, 201, { session: communications.schedule(user, caseId, await readJson(req, 4096), req.headers['idempotency-key']) });
+    }
+    // Create (or remove) the Zoom meeting or calendar entry of an appointment through the person's own connector.
+    const appointmentIntegration = /^\/communications\/([^/]+)\/integrations\/([a-z0-9]+)(\/remove)?$/u.exec(suffix);
+    if (appointmentIntegration && method === 'POST') {
+      const sessionId = identifier(appointmentIntegration[1]), provider = appointmentIntegration[2];
+      if (appointmentIntegration[3]) {
+        fields(await readJson(req, 128, { allowEmpty: true }), []);
+        return json(res, 200, await integrations.unlinkAppointment(user, caseId, sessionId, provider));
+      }
+      const result = await integrations.linkAppointment(user, caseId, sessionId, provider, await readJson(req, 1024, { allowEmpty: true }));
+      return json(res, result.created ? 201 : 200, result);
     }
     const communicationAction = /^\/communications\/([^/]+)\/(start|end|cancel)$/u.exec(suffix);
     if (communicationAction && method === 'POST') {

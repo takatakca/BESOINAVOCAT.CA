@@ -3,7 +3,7 @@
 (() => {
   const MAX_FILE_BYTES = 64 * 1024 * 1024;
   const SOURCE_LABELS = { original: 'Pièce source ou copie', declaration: 'Déclaration', analyse: 'Analyse', ocr: 'Extraction ou transcription' };
-  const VIEW_LABELS = { cases: 'Dossiers', search: 'Recherche', documents: 'Pièces et sources', messages: 'Échanges', communications: 'Rendez-vous', usage: 'Usages', time: 'Suivi du temps' };
+  const VIEW_LABELS = { cases: 'Dossiers', search: 'Recherche', documents: 'Pièces et sources', messages: 'Échanges', communications: 'Rendez-vous', usage: 'Usages', time: 'Suivi du temps', integrations: 'Intégrations' };
   const PATHS = {
     folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
     document: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4M9 12h6M9 16h6"/>',
@@ -32,7 +32,7 @@
   const state = {
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
     mode: 'loading', view: 'cases', cases: [], selectedId: null, detail: null,
-    capabilities: null, health: null, user: null,
+    capabilities: null, health: null, user: null, integrations: null,
     documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
     searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
     dictationLanguage: 'fr-CA', dictationAutoSearch: true, dictationStatus: 'idle', dictationMessage: '',
@@ -80,7 +80,7 @@
     state.pageRequest += 1;
     state.caseLoading = false;
     state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null;
-    state.selectedId = null; state.capabilities = null; state.searchResults = null; state.searchQuery = ''; state.searchMeta = null;
+    state.selectedId = null; state.capabilities = null; state.integrations = null; state.searchResults = null; state.searchQuery = ''; state.searchMeta = null;
     if (dialog.open) dialog.close();
   }
   async function api(path, options = {}) {
@@ -175,7 +175,7 @@
     // These flows deliberately have no actionable controls until complete integrations exist.
     const addons = state.capabilities?.addons?.items;
     if (Array.isArray(addons)) {
-      const status = { available_pilot: 'Pilote interne', external_link_only: 'Lien externe', planned: 'À connecter' };
+      const status = { available_pilot: 'Pilote interne', connector_pilot: 'Dans Intégrations', external_link_only: 'Lien externe', planned: 'À connecter' };
       const symbol = { internal_chat: 'message', zoom: 'video', phone: 'phone' };
       return `<div class="connection-panel"><h3>Services complémentaires</h3>${addons.map(item => `<div class="integration-row"><span>${icon(symbol[item.id] || 'layers')}${esc(item.label)}</span><span class="badge">${esc(status[item.availability] || 'À vérifier')}</span></div><p class="addon-description">${esc(item.description)}</p>`).join('')}<p class="addon-description">Tarifs des options payantes à définir. Aucun achat ni connexion fournisseur depuis cette liste.</p></div>`;
     }
@@ -263,6 +263,54 @@
       return url.href;
     } catch { return null; }
   }
+  // Connectors belong to the person: each lawyer links their own Zoom, Outlook or Google account.
+  const INTEGRATION_GROUPS = [['video', 'Visioconférence'], ['calendar', 'Agenda'], ['signature', 'Signature électronique'], ['practice', 'Gestion du cabinet'], ['telephony', 'Téléphonie et SMS'], ['research', 'Recherche juridique'], ['payments', 'Paiements de la plateforme'], ['accounting', 'Comptabilité']];
+  const INTEGRATION_STATES = { connected: ['Connecté', 'teal'], reconnect_required: ['À reconnecter', 'warning'], available: ['Prêt à connecter', 'outline'], active_on_server: ['Actif sur le serveur', 'teal'], not_configured: ['Accès développeur à configurer', 'neutral'], planned: ['À venir', 'neutral'] };
+  const INTEGRATION_ICONS = { video: 'video', calendar: 'calendar', signature: 'document', practice: 'folder', telephony: 'phone', research: 'search', payments: 'credit', accounting: 'layers' };
+  const APPOINTMENT_ACTIONS = { zoom: 'Créer la réunion Zoom', microsoft365: 'Ajouter à Outlook', google: 'Ajouter à Google Agenda' };
+  function integrationCard(item) {
+    const [label, tone] = INTEGRATION_STATES[item.state] || ['À vérifier', 'neutral'];
+    const ready = canMutate() && !state.busy ? '' : ' disabled';
+    const id = esc(item.id);
+    const buttons = item.connectionType === 'oauth' ? ({
+      available: `<button class="button small" data-action="integration-connect" data-id="${id}"${ready}>${icon('link')}Connecter</button>`,
+      reconnect_required: `<button class="button small" data-action="integration-connect" data-id="${id}"${ready}>${icon('link')}Reconnecter</button><button class="button subtle small" data-action="integration-disconnect" data-id="${id}"${ready}>Retirer</button>`,
+      connected: `<button class="button secondary small" data-action="integration-disconnect" data-id="${id}"${ready}>Déconnecter</button>`,
+    })[item.state] || '' : '';
+    const account = item.connection?.account ? `<p class="integration-account">${icon('check')}<span>Compte relié : ${esc(item.connection.account)}<small>Depuis le ${esc(date(item.connection.connectedAt))}</small></span></p>` : '';
+    return `<article class="integration-card"><div class="integration-head"><span class="case-symbol">${icon(INTEGRATION_ICONS[item.category] || 'layers')}</span><div><h3>${esc(item.label)}</h3><span class="badge ${tone}">${esc(label)}</span></div></div><p>${esc(item.routine)}</p>${account}${buttons ? `<div class="integration-actions">${buttons}</div>` : ''}</article>`;
+  }
+  function integrationsView() {
+    const head = intro('VOS OUTILS, RELIÉS AU PORTAIL', 'Vos services de travail.', 'Chaque avocat relie ses propres comptes. BesoinAvocat ne reçoit jamais vos mots de passe.',
+      state.demo ? '' : `<button class="button secondary" data-action="refresh-integrations"${canMutate() && !state.busy ? '' : ' disabled'}>Actualiser</button>`);
+    if (state.demo) return `${head}<section class="panel empty-state">${icon('link')}<h2>Aucun compte réel dans l’aperçu.</h2><p>Dans votre espace, vous reliez Zoom, Outlook ou Google Agenda à vos rendez-vous, avec votre propre compte.</p></section>${readOnlyNote()}`;
+    const data = state.integrations;
+    if (!data?.providers) return `${head}<section class="panel empty-state">${icon('link')}<h2>Liste indisponible.</h2><p>Le serveur n’a pas renvoyé la liste des intégrations. Actualisez dans un instant.</p></section>`;
+    const count = value => data.providers.filter(item => item.state === value).length;
+    const engine = data.engine?.ready ? '' : `<div class="callout warning">${icon('info')}<p><strong>Connexions pas encore ouvertes sur ce serveur</strong>L’administrateur doit d’abord ajouter la clé de chiffrement des connecteurs et l’adresse publique du portail. Chaque service devient ensuite connectable dès que son accès développeur est configuré.</p></div>`;
+    const groups = INTEGRATION_GROUPS.map(([category, title]) => {
+      const items = data.providers.filter(item => item.category === category);
+      return items.length ? `<section class="integration-group"><h2>${esc(title)}</h2><div class="integration-grid">${items.map(integrationCard).join('')}</div></section>` : '';
+    }).join('');
+    return `${head}<div class="metrics">${metric('Comptes connectés', count('connected'), 'Vos propres comptes', 'check')}${metric('Prêts à connecter', count('available'), 'Accès développeur configuré', 'link')}${metric('À configurer', count('not_configured'), 'Accès développeur à créer', 'layers')}</div>${engine}${groups}<div class="callout">${icon('lock')}<p><strong>Ce qui est transmis</strong>Pour un rendez-vous, seuls son titre, sa date et sa durée sont envoyés au service que vous choisissez. Les jetons d’accès restent chiffrés sur le serveur et ne sont jamais affichés. Une réunion Zoom est créée avec salle d’attente et sans enregistrement.</p></div>`;
+  }
+  function meetingLink(item) {
+    return (state.detail?.integrationLinks || []).find(link => link.sessionId === item.id && link.kind === 'meeting' && link.url) || null;
+  }
+  function appointmentIntegrations(item) {
+    if (state.demo || item.status === 'cancelled' || !canApprove() || !Array.isArray(state.integrations?.providers)) return '';
+    const mine = (state.detail?.integrationLinks || []).filter(link => link.sessionId === item.id && link.mine);
+    const ready = canMutate() && !state.busy ? '' : ' disabled';
+    const controls = state.integrations.providers.filter(provider => provider.state === 'connected' && Object.hasOwn(APPOINTMENT_ACTIONS, provider.id) && (provider.id !== 'zoom' || item.kind === 'video')).map(provider => {
+      const link = mine.find(entry => entry.provider === provider.id), data = `data-id="${esc(item.id)}" data-provider="${esc(provider.id)}"`;
+      if (!link) return `<button type="button" class="button secondary small" data-action="appointment-link" ${data}${ready}>${icon(provider.id === 'zoom' ? 'video' : 'calendar')}${esc(APPOINTMENT_ACTIONS[provider.id])}</button>`;
+      const shown = link.kind === 'calendar_event' && link.url
+        ? `<a class="button secondary small" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${icon('calendar')}Ouvrir dans ${esc(provider.label)}<span class="sr-only"> dans un nouvel onglet</span></a>`
+        : `<span class="badge teal">${esc(link.kind === 'meeting' ? 'Réunion Zoom créée' : `Inscrit dans ${provider.label}`)}</span>`;
+      return `${shown}<button type="button" class="button subtle small" data-action="appointment-unlink" ${data}${ready}>Retirer</button>`;
+    });
+    return controls.length ? `<div class="communication-integrations"><small>Vos intégrations</small><div class="communication-actions">${controls.join('')}</div></div>` : '';
+  }
   function communicationLimits() {
     return `<div class="callout warning">${icon('info')}<p><strong>Un suivi manuel, sans facturation</strong>Ouvrir Zoom ne démarre pas le chronomètre. Vous le démarrez et l’arrêtez vous-même ; la durée provient de l’horloge du portail, sans vérification par Zoom ou un opérateur. La fermeture de cette page ne l’arrête pas.</p></div>`;
   }
@@ -271,14 +319,15 @@
     const running = timer?.status === 'running', ended = timer?.status === 'ended', cancelled = item.status === 'cancelled';
     const anotherRunning = communicationSessions().some(other => other.id !== item.id && other.ownTimer?.status === 'running');
     const ready = canMutate() && communicationReady() && !state.busy;
-    const joinUrl = safeZoomUrl(item.joinUrl);
+    const meeting = meetingLink(item);
+    const joinUrl = safeZoomUrl(item.joinUrl) || safeZoomUrl(meeting?.url);
     const status = cancelled ? 'Annulé' : running ? 'Votre chronomètre est en cours' : ended ? 'Votre chronomètre est arrêté' : 'Planifié';
-    const provider = item.kind === 'video' ? 'Lien Zoom externe · aucune réunion créée par le portail' : 'Service téléphonique non connecté · aucun appel lancé';
+    const provider = item.kind === 'video' ? (meeting && !safeZoomUrl(item.joinUrl) ? 'Réunion Zoom créée depuis le portail · salle d’attente active' : 'Lien Zoom externe · aucune réunion créée par le portail') : 'Service téléphonique non connecté · aucun appel lancé';
     const link = item.kind === 'video' && joinUrl && !cancelled && !state.demo && !state.caseLoading
       ? `<a class="button secondary small" href="${esc(joinUrl)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${icon('link')}Ouvrir Zoom <span class="sr-only">dans un nouvel onglet</span></a>`
       : item.kind === 'video' ? `<span class="table-subtext">${state.demo ? 'Aucun lien réel dans l’aperçu.' : item.joinUrl && !joinUrl ? 'Lien de participation non reconnu ; à faire corriger.' : cancelled ? 'Lien désactivé pour ce rendez-vous annulé.' : 'Lien de participation non renseigné.'}</span>` : '';
     const timerCopy = running ? `Démarré le ${date(timer.startedAt, true)}. Arrêtez-le à la fin de votre échange.` : ended ? `Durée enregistrée : ${elapsed(timer.seconds)} · arrêté le ${date(timer.endedAt, true)}.` : 'Aucun chronomètre personnel démarré.';
-    return `<article class="communication-card"><div class="communication-heading"><span class="case-symbol">${icon(item.kind === 'video' ? 'video' : 'phone')}</span><div><span class="case-ref">${esc(kindLabel(item.kind))}${state.demo ? ' · FICTIF' : ''}</span><h3>${esc(item.title)}</h3><time datetime="${esc(item.scheduledAt)}">${esc(date(item.scheduledAt, true))}</time></div><span class="badge ${running ? 'teal' : cancelled ? 'neutral' : 'outline'}">${esc(status)}</span></div><p class="communication-provider">${esc(provider)}</p><div class="communication-timer"><span>${icon('clock')}${esc(timerCopy)}</span>${timer ? `<small>${esc(rateLabel(timer.rateCentsPerMinute))} · aucun débit.</small>` : ''}</div><div class="communication-actions">${link}${running ? `<button type="button" class="button small" data-action="communication-end" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Arrêter mon chronomètre</button>` : !timer && !cancelled ? `<button type="button" class="button secondary small" data-action="communication-start" data-id="${esc(item.id)}"${ready && !anotherRunning ? '' : ' disabled'}>${icon('clock')}Démarrer mon chronomètre</button>` : ''}${!cancelled && !timer && canApprove() ? `<button type="button" class="button subtle small" data-action="communication-cancel" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Annuler le rendez-vous</button>` : ''}</div>${anotherRunning && !timer && !cancelled ? '<p class="table-subtext">Arrêtez votre autre chronomètre actif avant d’en démarrer un.</p>' : ''}</article>`;
+    return `<article class="communication-card"><div class="communication-heading"><span class="case-symbol">${icon(item.kind === 'video' ? 'video' : 'phone')}</span><div><span class="case-ref">${esc(kindLabel(item.kind))}${state.demo ? ' · FICTIF' : ''}</span><h3>${esc(item.title)}</h3><time datetime="${esc(item.scheduledAt)}">${esc(date(item.scheduledAt, true))}</time></div><span class="badge ${running ? 'teal' : cancelled ? 'neutral' : 'outline'}">${esc(status)}</span></div><p class="communication-provider">${esc(provider)}</p><div class="communication-timer"><span>${icon('clock')}${esc(timerCopy)}</span>${timer ? `<small>${esc(rateLabel(timer.rateCentsPerMinute))} · aucun débit.</small>` : ''}</div><div class="communication-actions">${link}${running ? `<button type="button" class="button small" data-action="communication-end" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Arrêter mon chronomètre</button>` : !timer && !cancelled ? `<button type="button" class="button secondary small" data-action="communication-start" data-id="${esc(item.id)}"${ready && !anotherRunning ? '' : ' disabled'}>${icon('clock')}Démarrer mon chronomètre</button>` : ''}${!cancelled && !timer && canApprove() ? `<button type="button" class="button subtle small" data-action="communication-cancel" data-id="${esc(item.id)}"${ready ? '' : ' disabled'}>Annuler le rendez-vous</button>` : ''}</div>${anotherRunning && !timer && !cancelled ? '<p class="table-subtext">Arrêtez votre autre chronomètre actif avant d’en démarrer un.</p>' : ''}${appointmentIntegrations(item)}</article>`;
   }
   function communicationsView() {
     const sessions = communicationSessions();
@@ -305,6 +354,7 @@
     if (state.mode === 'signedout') main.innerHTML = signedOut();
     else if (state.view === 'cases') main.innerHTML = casesView();
     else if (state.view === 'search') main.innerHTML = searchView();
+    else if (state.view === 'integrations') main.innerHTML = integrationsView();
     else if (!state.detail) main.innerHTML = noCase();
     else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView, communications: communicationsView, usage: usageView })[state.view]();
     if (focus) main.focus({ preventScroll: true });
@@ -429,6 +479,54 @@
       if (!await refreshDetail(scope.caseId) || !sameCommunicationScope(scope)) return;
       state.busy = false;
       render(); notify(message);
+    } catch (error) { if (sameCommunicationScope(scope)) notify(error.message, true); }
+    finally { finishCommunicationAction(trigger); }
+  }
+  async function refreshIntegrations(trigger, quiet = false) {
+    if (!canMutate() || state.busy) return;
+    const sessionVersion = state.sessionVersion; state.busy = true; if (trigger) trigger.disabled = true;
+    try {
+      const data = await api('/api/integrations');
+      if (sessionVersion !== state.sessionVersion) return;
+      state.integrations = data; state.busy = false; render();
+      if (!quiet) notify('La liste des intégrations a été actualisée.');
+    } catch (error) { if (sessionVersion === state.sessionVersion) notify(error.message, true); }
+    finally { state.busy = false; if (trigger?.isConnected) trigger.disabled = false; }
+  }
+  // The provider's consent page is a top-level navigation; it returns to /integrations/callback.
+  async function connectIntegration(id, trigger) {
+    if (!canMutate() || state.busy) return;
+    state.busy = true; trigger.disabled = true;
+    try {
+      const result = await api(`/api/integrations/${encodeURIComponent(id)}/connect`, { method: 'POST', body: '{}' });
+      const target = new URL(result.authorizationUrl);
+      if (target.protocol !== 'https:') throw new Error('Adresse d’autorisation refusée.');
+      window.location.assign(target.href);
+    } catch (error) { notify(error.message, true); state.busy = false; if (trigger.isConnected) trigger.disabled = false; }
+  }
+  async function disconnectIntegration(id, trigger) {
+    if (!canMutate() || state.busy) return;
+    const sessionVersion = state.sessionVersion; state.busy = true; trigger.disabled = true;
+    try {
+      const result = await api(`/api/integrations/${encodeURIComponent(id)}/disconnect`, { method: 'POST', body: '{}' });
+      if (sessionVersion !== state.sessionVersion) return;
+      state.integrations = await api('/api/integrations');
+      state.busy = false; render();
+      notify(result.revocation === 'revoked' ? 'Service déconnecté, et autorisation retirée chez le fournisseur.' : 'Service déconnecté. Retirez aussi l’autorisation dans les réglages de votre compte chez le fournisseur.');
+    } catch (error) { if (sessionVersion === state.sessionVersion) notify(error.message, true); }
+    finally { state.busy = false; if (trigger.isConnected) trigger.disabled = false; }
+  }
+  async function linkAppointment(id, provider, trigger, remove = false) {
+    if (!canApprove() || state.busy) return;
+    const item = communicationSessions().find(session => session.id === id);
+    if (!item || item.status === 'cancelled' || !Object.hasOwn(APPOINTMENT_ACTIONS, provider)) return;
+    const scope = communicationScope(); state.busy = true; trigger.disabled = true;
+    try {
+      await api(`/api/cases/${encodeURIComponent(scope.caseId)}/communications/${encodeURIComponent(id)}/integrations/${encodeURIComponent(provider)}${remove ? '/remove' : ''}`, { method: 'POST', body: '{}' });
+      if (!sameCommunicationScope(scope)) return;
+      if (!await refreshDetail(scope.caseId) || !sameCommunicationScope(scope)) return;
+      state.busy = false; render();
+      notify(remove ? 'L’élément a été retiré chez le fournisseur.' : provider === 'zoom' ? 'La réunion Zoom est créée. Le lien de participation est visible par les membres du dossier.' : 'Le rendez-vous est inscrit dans votre agenda.');
     } catch (error) { if (sameCommunicationScope(scope)) notify(error.message, true); }
     finally { finishCommunicationAction(trigger); }
   }
@@ -713,6 +811,11 @@
     if (action === 'communication-end') void mutateCommunication('end', button.dataset.id, button);
     if (action === 'approve-usage') void mutateCommunication('approve', button.dataset.id, button);
     if (action === 'refresh-communications') void refreshCommunications(button);
+    if (action === 'refresh-integrations') void refreshIntegrations(button);
+    if (action === 'integration-connect') void connectIntegration(button.dataset.id, button);
+    if (action === 'integration-disconnect') void disconnectIntegration(button.dataset.id, button);
+    if (action === 'appointment-link') void linkAppointment(button.dataset.id, button.dataset.provider, button);
+    if (action === 'appointment-unlink') void linkAppointment(button.dataset.id, button.dataset.provider, button, true);
     if (action === 'preview') preview(button.dataset.id, Number(button.dataset.page || 1));
     if (action === 'page') void loadPage(button.dataset.id, Number(button.dataset.offset));
     if (action === 'close-dialog') dialog.close();
@@ -785,6 +888,8 @@
     if (!me.user?.active) throw new Error('Cette identité ne dispose pas d’un accès actif.');
     state.user = me.user;
     state.capabilities = await api('/api/capabilities');
+    // An older server without connectors still opens the workspace.
+    state.integrations = await api('/api/integrations').catch(error => { if (error.status === 401) throw error; return null; });
     state.cases = (await api('/api/cases')).cases || [];
     state.mode = 'authenticated';
     if (state.cases.length) { state.selectedId = state.cases[0].id; await refreshDetail(); }
@@ -828,7 +933,12 @@
     fillIcons();
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
     state.health = await publicHealth();
-    try { await loadSession(); render(); }
+    try {
+      await loadSession();
+      // The connector return page links back to /#integrations.
+      if (window.location.hash === '#integrations') state.view = 'integrations';
+      render();
+    }
     catch (error) {
       clearSession(); render();
       if (error.status !== 401) notify(error.message, true);

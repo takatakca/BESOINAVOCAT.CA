@@ -16,6 +16,8 @@
 
 **Lot du 28 octobre validé localement :** [preuve et limites](docs/VALIDATION-LOT-2026-10-28.md). 200 tests Node, 14 tests Python, questionnaire FR/EN, rendez-vous/usages, catalogue optionnel sans paiement, inventaire des contenus. Le déploiement et la connexion réelle restent à faire avec Mike; la présentation est réservée au propriétaire.
 
+**29 octobre — connecteurs du portail (D-027) :** chaque avocat relie son Zoom, son Outlook ou son Google Agenda à ses rendez-vous; DocuSign et Clio se connectent. Le code est testé avec des fournisseurs simulés; il reste à ouvrir les comptes développeur et à vérifier avec de vrais comptes : [INTEGRATIONS](docs/INTEGRATIONS.md).
+
 **État courant du 28 octobre : [liste immédiate pour le développeur](docs/DEV-A-FAIRE-2026-10-28.md).** Le propriétaire a repris le développement. La cible est désormais sans WordPress : vitrine `www/`, portail Node `platform/`, déploiement Coolify depuis GitHub. Les sauvegardes et les contenus sont conservés.
 
 La connexion réelle et le corpus distant restent à valider. Contrôle du 28 octobre : portail `/api/health` 200 avec `identityConfigured:false`, `/demande` 404; DNS encore MochaHost. La présence du code ne prouve pas son déploiement. Le lot validé localement sur `codex/workspaces-appels-2026-10-28` ajoutent le questionnaire FR/EN, les rendez-vous et le chronométrage manuel; [communications et Facturations](docs/COMMUNICATIONS.md). Aucun appel fournisseur ni débit actif.

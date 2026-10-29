@@ -15,7 +15,8 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const unavailable = () => new HttpError(503, 'IDENTITY_UNAVAILABLE', 'Le stockage des sessions est indisponible.');
 const limited = () => new HttpError(429, 'LOGIN_RATE_LIMIT', 'Trop de tentatives. Réessayez plus tard.');
 
-function privatePath(file, { mayCreate = false } = {}) {
+// Also used for the connector vault key (integrations.mjs): same location and permission rules.
+export function privatePath(file, { mayCreate = false } = {}) {
   if (typeof file !== 'string' || !path.isAbsolute(file)) throw unavailable();
   const parent = realpathSync(path.dirname(file));
   const resolved = path.join(parent, path.basename(file));

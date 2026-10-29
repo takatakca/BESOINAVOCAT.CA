@@ -32,6 +32,18 @@ Les sections du 26/27 octobre suivantes restent historiques. Leur arrêt de sess
 
 État du 26 octobre 2026, heure de Montréal. **Arrêt demandé par le propriétaire après lecture des notes GitHub et sauvegarde de cette relève.** Ce fichier décrit le point de reprise, pas une instruction de redémarrage automatique. Reprendre uniquement sur une nouvelle demande. L'automatisation « Compléter le dossier maître 6241 » a été mise en pause et son état `PAUSED` vérifié; ne pas la réactiver sans instruction.
 
+## 29 octobre 2026 — intégrateur de connecteurs du portail (D-027)
+
+Demande du propriétaire : une solution exploitable, d'un niveau premium, avec un intégrateur de connecteurs pour la journée de l'avocat. Il ouvrira les comptes développeur.
+
+- **Fait** :
+  - `platform/lib/integrations.mjs`, l'écran Intégrations et les actions sur les rendez-vous : Zoom, Outlook et Google Agenda;
+  - la connexion DocuSign et Clio Canada;
+  - les réceptions signées;
+  - le guide des comptes développeur [INTEGRATIONS](INTEGRATIONS.md).
+- **Preuves** : section « Connecteurs du portail » de [PROJECT_STATUS](PROJECT_STATUS.md).
+- **Reste à faire** : la clé dans `/data`, les comptes développeur, les variables Coolify, puis la vérification avec de vrais comptes (BA-035). Ensuite, le prochain lot (BA-036).
+
 ## 28 octobre 2026 — copie exacte du site WordPress, couleurs juridiques (D-026)
 
 Le propriétaire a refusé la refonte (D-023). Il a choisi de reconstruire `www/` comme la copie exacte de son site WordPress, avec d'autres couleurs seulement, puis demandé une vérification « mot pour mot », OCR compris, sur toutes les pages.

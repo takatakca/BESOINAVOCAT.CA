@@ -30,9 +30,30 @@ Règles :
 
 Le résultat attend la validation du propriétaire. La bascule DNS reste à faire par son développeur.
 
+## D-027 — Intégrateur de connecteurs dans le portail (29 octobre 2026)
+
+Demande du propriétaire : rendre la solution exploitable, d'un niveau premium, avec un intégrateur de connecteurs pour tout ce qui sert au quotidien d'un avocat. Le propriétaire ouvrira les comptes développeur.
+
+Décisions :
+
+- chaque avocat relie **ses propres comptes** (OAuth 2.0, PKCE quand le fournisseur l'accepte). Aucun mot de passe de fournisseur ne passe par BesoinAvocat;
+- les jetons sont chiffrés au repos avec une clé séparée de la base (`/data/integrations.key`), et jamais renvoyés au navigateur;
+- premier lot :
+  - Zoom, Outlook et Google Agenda, avec des actions réelles sur les rendez-vous;
+  - DocuSign et Clio (région Canada), pour la connexion seulement;
+  - Stripe, Twilio et CanLII, au niveau de la plateforme;
+  - Notarius et QuickBooks à venir;
+- les notifications des fournisseurs sont acceptées seulement avec une signature valide. Elles sont enregistrées une fois, sans action métier pour l'instant;
+- dans le pilote, une connexion ne dépend d'aucun paiement. Les frais de connecteur (D-025) restent à décider; Stripe ne sert qu'aux abonnements de la plateforme, jamais aux avances d'un client (fidéicommis);
+- ce qui est envoyé au fournisseur se limite au titre, à la date et à la durée du rendez-vous;
+- pas d'enregistrement Zoom par défaut, et aucun lien d'hôte conservé;
+- l'évaluation Loi 25 des services situés hors Québec reste à valider par le propriétaire.
+
+Le code est testé avec des fournisseurs simulés. Aucun connecteur n'est annoncé comme actif avant sa vérification avec un vrai compte ([INTEGRATIONS](INTEGRATIONS.md)).
+
 **Premier fichier à lire : [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md).** Fin de session : notes seulement, puis arrêt.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-026 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-027 ci-dessous priment sur les états historiques qu'elles remplacent.
 
 ## D-023 — Refonte D-022 refusée; le propriétaire reprend la vitrine (28 octobre 2026)
 

@@ -6,6 +6,12 @@ Mandat du propriétaire, 28 octobre 2026 : remplacer WordPress par nos solutions
 
 **Code à intégrer : [PR 2 — portail et préservation](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2).** Le code `aaf64ef` inclut maintenant la recherche et la dictée; ses six contrôles GitHub sont verts. `212e8d7` désigne seulement le premier lot. Cette PR reste ouverte pour coordonner la bascule avec Mike; `main` ne contient pas encore ce nouveau lot. Relire [la validation](VALIDATION-LOT-2026-10-28.md), intégrer la PR, puis déployer le SHA résultant. Ne pas confondre le SHA de l'ancienne base avec celui du code livré.
 
+**Mise à jour du 29 octobre — connecteurs du portail (D-027)** : le portail sait relier le compte Zoom, Outlook ou Google de chaque avocat à ses rendez-vous. DocuSign et Clio se connectent; leurs actions viendront au prochain lot. Les tests passent avec des fournisseurs simulés; **aucun compte réel n'est raccordé**. Pour les activer, après le déploiement du portail :
+1. créer `/data/integrations.key` ([COOLIFY](COOLIFY.md), étape 4);
+2. ouvrir les comptes développeur décrits dans [INTEGRATIONS](INTEGRATIONS.md);
+3. ajouter leurs variables dans Coolify;
+4. faire la vérification « avec un vrai compte » de ce guide.
+
 **Mise à jour de la vitrine, fin du 28 octobre (D-026)** : `www/` sert maintenant la **copie exacte** du site WordPress, et seules les couleurs changent (tons juridiques). Elle compte 348 pages et leurs fichiers, prises le 28 octobre à 08:24 UTC.
 - Preuves : texte identique, mot pour mot, au site en ligne sur les 348 pages; mises en page identiques à 1440 et 390 px. Voir [STOREFRONT](STOREFRONT.md#preuves).
 - Le texte importé (`www/content/`) reste conservé et l'inventaire passe.
@@ -75,7 +81,7 @@ Activer `coolify-deploy.yml` uniquement après les essais. Utiliser les secrets 
 - Questionnaires FR/EN adaptés au domaine et récapitulatif avant transmission; source d'inspiration fonctionnelle : <https://jurigo.ca/demande/>. Notre rédaction et notre code restent propres à BesoinAvocat.
 - File opérateur de réception, attribution à un avocat avec accord, états/suivis et notifications testées. Un formulaire enregistré ne constitue pas encore une mise en relation.
 - Workspace avec pièces versionnées, provenance, recherche, chat et temps; aucune décision juridique automatique.
-- Rendez-vous vidéo/téléphone et journal de durée : distinguer chrono manuel de durée attestée par le fournisseur. Connecter Zoom/Twilio seulement après configuration réelle et tests de webhooks.
+- Rendez-vous vidéo/téléphone et journal de durée : distinguer chrono manuel de durée attestée par le fournisseur. Zoom, Outlook et Google sont prêts côté code (D-027, [INTEGRATIONS](INTEGRATIONS.md)); Twilio attend son compte, le consentement des personnes et un budget d'envoi.
 - Adaptateur serveur vers `takatakca/Facturations`, contrats API vérifiés, brouillons avant émission. Pas de duplication de l'identité TAKATAK ni d'affectation de tenant par donnée navigateur.
 - Forfaits avocats demandés : 100 CAD/semaine ou 300 CAD/mois. Prix des appels, stockage client, crédits et commissions à fixer; ne pas transformer les durées en débits sans tarif, accord et fournisseur configuré.
 - Confidentialité/conditions encore incomplètes dans certaines pages : faire valider les textes et le traitement effectif avant ouverture publique des dossiers sensibles. Ne pas inventer une politique ni une offre de cabinet.

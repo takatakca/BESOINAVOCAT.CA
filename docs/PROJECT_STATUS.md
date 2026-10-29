@@ -37,6 +37,21 @@ Les sections antérieures suivantes sont conservées comme historique; leurs con
 | `portail.besoinavocat.ca` | Première version technique Node/Passenger joignable; contrôle HTTP courant health 200 (`mode: pilot`, `identityConfigured: false`), dossiers anonymes 401 | Archive v2 avec connexion/corpus refusée par antivirus; pas de connexion utilisateur réelle ni de corpus distant actif validé |
 | `besoinavocat.onrender.com` | Site d'orientation statique distinct, service Render actif sur `main` | Ne fournit pas le backend ni les dossiers; ne pas déplacer le domaine WordPress vers Render |
 
+## Connecteurs du portail — 29 octobre 2026 (D-027)
+
+- **Fait dans le code** :
+  - chaque avocat relie ses propres comptes : Zoom, Outlook et Google Agenda avec actions sur les rendez-vous; DocuSign et Clio Canada en connexion seulement;
+  - OAuth avec PKCE, état à usage unique, jetons chiffrés AES-256-GCM avec une clé séparée de la base;
+  - notifications Zoom, Stripe, Twilio et DocuSign signées et dédupliquées;
+  - écran **Intégrations** et boutons sur les rendez-vous. Détail : [INTEGRATIONS](INTEGRATIONS.md).
+- **Preuves** :
+  - `node --test platform/test/*.test.mjs` : 210 tests, dont 15 nouveaux. Quatre défauts injectés volontairement (jeton en clair, signature non vérifiée, lien d'hôte gardé, état non lié) sont chacun détectés;
+  - Chromium, sous la CSP réelle du portail, avec des fournisseurs simulés : Connecter, puis consentement, puis retour « Service connecté », puis « Créer la réunion Zoom » sur un rendez-vous. À 1440 et 390 px : aucune erreur de script et aucun débordement;
+  - image Docker du portail construite : `/integrations/callback` 200, notifications refusées tant qu'elles ne sont pas configurées (503), clé créée en `-rw-------` par l'utilisateur `node`.
+- **Non fait** :
+  - aucun compte développeur n'est ouvert et aucun connecteur n'est vérifié avec un vrai compte;
+  - aucun paiement, SMS ni envoi pour signature n'est actif.
+
 ## Preuves de la copie exacte du 28 octobre (D-026)
 
 Détail complet : [STOREFRONT](STOREFRONT.md#preuves).

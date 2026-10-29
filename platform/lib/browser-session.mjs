@@ -21,7 +21,7 @@ const denied = () => new HttpError(403, 'PRODUCT_ACCESS_DENIED', 'Cet accès au 
 const limited = () => new HttpError(429, 'LOGIN_RATE_LIMIT', 'Trop de tentatives. Réessayez plus tard.');
 const hash = value => createHash('sha256').update(value).digest('hex');
 
-function httpsOrigin(value) {
+export function httpsOrigin(value) {
   if (typeof value !== 'string') return null;
   try {
     const url = new URL(value);

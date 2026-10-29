@@ -13,7 +13,8 @@ ENV NODE_ENV=production \
     BESOINAVOCAT_SESSION_DB_PATH=/data/sessions.sqlite \
     BESOINAVOCAT_SESSION_KEY_FILE=/data/session.key \
     BESOINAVOCAT_GRANTS_FILE=/data/grants.json \
-    BESOINAVOCAT_INTAKE_DB_PATH=/data/intake.sqlite
+    BESOINAVOCAT_INTAKE_DB_PATH=/data/intake.sqlite \
+    BESOINAVOCAT_INTEGRATIONS_KEY_FILE=/data/integrations.key
 
 WORKDIR /app
 COPY package.json server.mjs ./

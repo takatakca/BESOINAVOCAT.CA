@@ -19,7 +19,7 @@ test('only portal documents allow same-origin microphone and the dictation asset
   for (const route of ['/', '/index.html', '/?demo=1']) {
     const response = await fetch(base + route);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get('permissions-policy'), 'camera=(), microphone=(self), geolocation=()');
+    assert.equal(response.headers.get('permissions-policy'), 'camera=(self), microphone=(self), geolocation=()');
     assert.ok(response.headers.get('content-security-policy').includes("frame-ancestors 'none'"));
     const html = await response.text();
     assert.ok(html.indexOf('dictation.js') >= 0 && html.indexOf('dictation.js') < html.indexOf('app.js'));

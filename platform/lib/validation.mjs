@@ -21,6 +21,8 @@ export const MIME_TYPES = new Set([
   'application/msword', 'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  // Video and voice messages recorded in the portal, or sent by the client. HTML stays refused.
+  'video/webm', 'video/mp4', 'audio/webm', 'audio/mp4', 'audio/mpeg',
 ]);
 
 export function invalid(message = 'Les données transmises sont invalides.') {

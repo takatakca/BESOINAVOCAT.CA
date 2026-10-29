@@ -25,7 +25,9 @@ const MAX_CONCURRENT_INTAKES = 4;
 // Signed provider notifications, read as raw bytes before any parsing.
 let webhooksInFlight = 0;
 const MAX_CONCURRENT_WEBHOOKS = 8;
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
+// media-src and frame-src blob: let the workspace play a recorded video and preview a PDF from the case's own
+// downloaded bytes (object URLs made by the portal's script); nothing is loaded from another origin.
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
@@ -52,7 +54,8 @@ function securityHeaders(res, requestUrl = '') {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   const portalPage = ['/', '/index.html'].includes(requestUrl.split('?')[0]);
-  res.setHeader('Permissions-Policy', `camera=(), microphone=${portalPage ? '(self)' : '()'}, geolocation=()`);
+  // The workspace records video messages (camera) and dictation (microphone); other pages get neither.
+  res.setHeader('Permissions-Policy', `camera=${portalPage ? '(self)' : '()'}, microphone=${portalPage ? '(self)' : '()'}, geolocation=()`);
   res.setHeader('Cache-Control', 'no-store');
 }
 

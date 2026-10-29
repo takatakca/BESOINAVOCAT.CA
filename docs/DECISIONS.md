@@ -1,5 +1,31 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-029 — Espace de travail premium du portail (29 octobre 2026)
+
+**Demande du propriétaire (29 octobre)** : un tableau de bord « premium », sérieux et vivant, sans allure de gadget ni d'IA. Il veut :
+- les fichiers en petites tuiles qu'on ouvre d'un clic;
+- « Appeler mon avocat » avec un bouton vert à côté, et sous lui les messages vidéo;
+- une vidéo ouverte en plein écran, au tiers de l'écran ou dans un coin;
+- des menus et un glissement gauche-droite sur mobile;
+- un poste de travail façon Word avec document vierge;
+- du dessin, l'édition et l'annotation d'images (« vous étiez ici, vous êtes tombé là »), et une présentation PowerPoint.
+L'IA et les services gratuits par API sont envisagés, facturés à l'heure.
+
+**Décision** :
+- tout est fait dans le navigateur, sous la CSP stricte du portail, sans dépendance ni service externe;
+- chaque création devient une pièce du dossier : « Déclaration » pour une vidéo ou un document rédigé, « Analyse » pour une annotation, un dessin ou une présentation;
+- elle est marquée « à vérifier » avec sa provenance, et l'original n'est jamais modifié;
+- « Appeler » rejoint la réunion Zoom prévue ou dépose une demande de rappel dans les échanges : le portail ne compose aucun numéro tant que la téléphonie n'est pas connectée;
+- l'IA et les éditeurs photo en ligne restent **désactivés et affichés comme « à connecter »**. Les brancher exige un fournisseur choisi, une évaluation Loi 25 avant tout envoi hors Québec, et des prix, taxes et conditions approuvés (D-025).
+
+**Garde-fous** :
+- aucun stockage navigateur;
+- enregistrement lié au dossier ouvert;
+- caméra et micro au clic seulement, et sur la page du portail seulement;
+- HTML et SVG toujours refusés.
+
+Guide, preuves et limites : [ESPACE-DE-TRAVAIL](ESPACE-DE-TRAVAIL.md). Le numéro D-028 appartient déjà à la réception du portail (Codex); cette décision prend le numéro suivant sans renuméroter les autres.
+
 ## D-028 — Code fusionné, réception du portail distincte (29 octobre 2026)
 
 La [PR 2](https://github.com/takatakca/BESOINAVOCAT.CA/pull/2) est fusionnée dans `main` au commit `348d626b76d4adcd874cc7485d2e744006b249c9`. L’intégration du code est achevée; **corpus restauré et connexion configurée, accès utilisateur réel non validé**. Conserver les résultats locaux et la CI comme preuves de code, sans les présenter comme une connexion réelle du propriétaire.
@@ -63,7 +89,7 @@ Le code est testé avec des fournisseurs simulés. Aucun connecteur n'est annonc
 
 **Historique de clôture du 26 octobre :** [REPRISE-SUIVANTE-2026-10-26.md](REPRISE-SUIVANTE-2026-10-26.md). La consigne « notes seulement, puis arrêt » concernait cette étape; la reprise du 28 octobre demeure active.
 
-Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-028 ci-dessous priment sur les états historiques qu'elles remplacent.
+Journal des décisions et hypothèses qui guident le code. Une hypothèse ne devient pas une autorisation métier. Les décisions D-016 à D-029 ci-dessous priment sur les états historiques qu'elles remplacent.
 
 ## D-023 — Refonte D-022 refusée; le propriétaire reprend la vitrine (28 octobre 2026)
 

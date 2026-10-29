@@ -6,7 +6,7 @@ La vitrine besoinavocat.ca, reconstruite sans WordPress, est prévue comme secon
 
 ## État de l’essai distant — 28 octobre 2026
 
-Cette section conserve son ancre de navigation; le point courant est celui du **29 octobre 2026**. La PR 2 a livré `348d626`; le déploiement suivant est au SHA `efef6921201602ede0139af03bbfb92f43e6f90e`, intégrateur de connecteurs inclus. L’application suit `main`, répertoire `/platform`, Dockerfile `/Dockerfile`.
+Cette section conserve son ancre de navigation; le point courant est celui du **29 octobre 2026**. La PR 2 a livré `348d626`; le déploiement suivant est au SHA `efef6921201602ede0139af03bbfb92f43e6f90e`, intégrateur de connecteurs inclus. La [PR 3](https://github.com/takatakca/BESOINAVOCAT.CA/pull/3) est ensuite fusionnée au SHA `ad8e2f4a31ebdafee2bc56acd36e861652d4623c`, six contrôles réussis, mais ce SHA n’est pas encore annoncé déployé. L’application suit `main`, répertoire `/platform`, Dockerfile `/Dockerfile`.
 
 | Ressource | État constaté le 29 octobre |
 |---|---|
@@ -22,20 +22,31 @@ Cette section conserve son ancre de navigation; le point courant est celui du **
 | Corpus | Restauration vérifiée dans `corpus-2026-10-28-v2` : trois dossiers, 1 362 documents, 1 185 blobs; base initiale conservée |
 | Permissions | Propriétaire `1000:1000`; répertoires `0700`, fichiers privés `0600` |
 | Configuration privée | Grants contrôlés par empreinte; clé de session de 32 octets créée une seule fois; variables de connexion et chemins du corpus appliqués par le redéploiement |
-| Accès utilisateur | Une tentative avec le mot de passe historique a été refusée; propriétaire invité à utiliser son mot de passe TAKATAK actuel. Aucune réinitialisation effectuée |
+| Accès utilisateur | Mot de passe historique refusé; TAKATAK utilise un code courriel/SMS personnalisé. Correctif de connexion par code du portail testé et relu, pas encore déployé; aucune réinitialisation effectuée |
+| Code courriel du portail | Supabase OTP distinct du code personnalisé TAKATAK; désactivé par défaut via `BESOINAVOCAT_EMAIL_OTP_ENABLED`. SMTP personnalisé activé, secrets inchangés; modèle avec `{{ .Token }}` FR/EN enregistré, relecture après rechargement confirmée. Livraison réelle du code à tester après déploiement |
 | Recette restante | Consultation authentifiée, recherche, téléchargements et persistance en session réelle |
 
 **Réception et restauration.** Les 35 segments ont été contrôlés, puis l’archive de 362 450 598 octets assemblée et vérifiée par empreinte à 04:16 UTC. La restauration dans une destination neuve, l’empreinte de la base et les permissions ont ensuite été contrôlées. Le gestionnaire de fichiers nécessitait des rafraîchissements; la cause des difficultés avec les gros téléversements n’est pas établie. Les reçus privés conservent les empreintes complètes et le détail opérateur.
 
-**Connexion.** Le formulaire répond « Connexion non valide. Vérifiez vos accès TAKATAK. » à l’unique essai effectué avec le mot de passe historique. Le propriétaire doit saisir son mot de passe actuel directement dans le portail. Aucun accès authentifié, changement de mot de passe ou droit supplémentaire n’est annoncé. Conserver la clé de session et les grants déjà installés; ne pas les régénérer.
+**Connexion.** Le formulaire répond « Connexion non valide. Vérifiez vos accès TAKATAK. » avec le mot de passe historique. Le parcours actuel de TAKATAK utilise un code courriel/SMS personnalisé (`src/lib/auth/otp/service.ts` dans `takatak-v1`), tandis que le portail utilise encore le mot de passe Supabase. Ne pas demander de répéter l’ancien mot de passe. Le correctif de connexion par code courriel Supabase sur `codex/connexion-code-courriel` a réussi 233/233 tests du portail, 12/12 tests du site et 60/60 contrôles ciblés de connexion, avec revue indépendante. Il n’est pas encore déployé. Il conserve la même identité et les mêmes grants; son code n’est pas interchangeable avec celui du service personnalisé TAKATAK. Aucun accès authentifié, changement de mot de passe ou droit supplémentaire n’est annoncé. Conserver la clé de session et les grants déjà installés; ne pas les régénérer.
 
-**Compatibilité des sauvegardes.** `efef692` crée cinq tables `integration_*` au démarrage, même sans connecteur actif. L’ancien outil de sauvegarde refuse ces tables. Le correctif présent ajoute uniquement leurs noms à sa liste fermée, avec un test de sauvegarde, vérification et restauration du vrai schéma : échec reproduit avant correction, **12 tests Python réussis** après correction. Les tables inconnues restent refusées; les jetons restent chiffrés et la clé des connecteurs demeure hors de l’archive corpus. Ce correctif est proposé à la revue, pas encore annoncé déployé. Conserver l’archive antérieure vérifiée et utiliser l’outil corrigé après intégration pour les sauvegardes suivantes.
+**Configuration de l’envoi du code.** Le propriétaire est connecté à Supabase. Le SMTP personnalisé est déjà activé avec `smtp.maileroo.com:465`; ses secrets sont inchangés. Le modèle Magic Link, auparavant rédigé comme une invitation personnalisée, conserve son lien et reçoit une présentation neutre FR/EN du code `{{ .Token }}`. La sauvegarde est effectuée; la relecture après rechargement est en cours. Le correctif reste désactivé par défaut et n’est pas encore déployé. Après contrôle final du modèle et déploiement, activer `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` pour tester la livraison réelle du code puis la connexion. Aucun code n’a été envoyé par l’agent, aucune nouvelle identité n’a été créée. Une suite de tests simulés ne prouve ni la livraison du courriel ni la connexion réelle.
+
+**Procédure de réception du correctif par le propriétaire ou Mike :**
+
+1. Terminer la relecture après rechargement du modèle Magic Link enregistré : code `{{ .Token }}` visible dans la version FR/EN et lien antérieur conservé. Le SMTP personnalisé est activé; sa configuration seule ne prouve pas la réception effective du courriel. Ne publier aucun secret.
+2. Le correctif ayant passé ses tests et sa revue indépendante, déployer son SHA exact sur le même volume. Conserver les fichiers de grants, la clé de session et les chemins de corpus installés. Ne pas recréer le compte ni déduire de nouvelles permissions du courriel.
+3. Activer `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` après ce contrôle final pour la réception réelle. Laisser désactivé si le modèle n’est pas confirmé; ne pas présenter la fonction comme opérationnelle sur la seule base de `loginConfigured:true`.
+4. Le propriétaire demande un code depuis **BesoinAvocat**, puis saisit lui-même le code reçu dans le portail. Ne pas utiliser un code demandé depuis TAKATAK, ne pas inscrire le code dans GitHub et ne pas remplacer ce test par une session fabriquée.
+5. Vérifier les trois catégories, une recherche avec référence de source, un téléchargement, la déconnexion et le refus anonyme. Consigner le SHA déployé, l’heure et les résultats, sans cookie, jeton ou code. Tant que ce parcours n’a pas réussi, garder « accès utilisateur non validé ».
+
+**Compatibilité des sauvegardes.** `efef692` crée cinq tables `integration_*` au démarrage, même sans connecteur actif. L’ancien outil de sauvegarde refuse ces tables. Le correctif ajoute uniquement leurs noms à sa liste fermée, avec un test de sauvegarde, vérification et restauration du vrai schéma : échec reproduit avant correction, **12 tests Python réussis** après correction. Les tables inconnues restent refusées; les jetons restent chiffrés et la clé des connecteurs demeure hors de l’archive corpus. Ce correctif est fusionné par la PR 3 (`ad8e2f4`), six contrôles réussis; l’outil corrigé doit encore être installé/vérifié sur l’hôte avant une nouvelle sauvegarde. Conserver l’archive antérieure vérifiée.
 
 La procédure privée `PROCEDURE-RESTAURATION-HOTE-COOLIFY-2026-10-28.md` et les reçus restent dans OneDrive. Python 3.12.3 et SQLite 3.45.1 sont disponibles sur l’hôte; l’outil utilisé pour restaurer l’archive antérieure était celui du commit `348d626`, contrôlé par empreinte. Ne pas confondre cet outil historique avec le correctif requis pour une sauvegarde après démarrage d’`efef692`. Aucun corpus, grant, clé ou secret dans GitHub.
 
 Contrôle HTTPS distant du 28 octobre : **19/19 réussis**, dont sept assets identiques au code fusionné, cinq routes privées refusées en 401 et six chemins internes en 404. Le rapport `CONTROLE-COOLIFY-HTTPS-2026-10-28T17-33-00-004Z` est conservé dans les reçus privés. Ces contrôles ne testent pas une session utilisateur authentifiée.
 
-Suite : laisser le propriétaire se connecter avec ses accès actuels, puis vérifier les trois dossiers, recherche/citations, téléchargements, déconnexion, refus d’accès et persistance. Aucun fournisseur externe, paiement ou IA générative n’a été activé. Le domaine d’essai et le health ne prouvent aucune bascule DNS ni recette utilisateur complète.
+Suite : terminer la relecture du modèle enregistré, déployer le correctif testé et relu, activer son parcours pour la réception et faire demander au propriétaire un code depuis ce portail. Confirmer la livraison du courriel et sa vérification, puis les trois dossiers, recherche/citations, téléchargements, déconnexion, refus d’accès et persistance. Aucun connecteur métier externe, paiement ou IA générative n’a été activé. Le domaine d’essai et le health ne prouvent aucune bascule DNS ni recette utilisateur complète.
 
 ## Ce qui a été vérifié localement (27 octobre)
 
@@ -47,7 +58,7 @@ Image construite avec `platform/Dockerfile` : Node 24.22.1, 331 Mo, aucune dépe
 - après `docker restart`, la même clé d'idempotence renvoie **la même référence**, et la base contient une seule ligne;
 - fichiers privés en 0600 dans `/data`.
 
-Le service HTTPS de test et son health ont été contrôlés à distance le 28 octobre. La restauration a été vérifiée le 29 octobre; la connexion réelle, les contrôles en session et la persistance après redémarrage restent à vérifier. La compatibilité de sauvegarde après intégration des connecteurs est corrigée dans le lot proposé à la revue.
+Le service HTTPS de test et son health ont été contrôlés à distance le 28 octobre. La restauration a été vérifiée le 29 octobre; la connexion réelle, les contrôles en session et la persistance après redémarrage restent à vérifier. La compatibilité de sauvegarde après intégration des connecteurs est corrigée dans la PR 3 fusionnée; l’outil corrigé n’est pas encore annoncé installé sur l’hôte.
 
 ## Réglages de l'application dans Coolify
 

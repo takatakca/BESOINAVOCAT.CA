@@ -34,7 +34,7 @@ test('cookie-authenticated communication writes require the same origin and AJAX
   assert.equal((await f.request(start, { method: 'POST', body: {}, cookie: signedIn.cookie, headers: csrf })).status, 200);
 });
 
-async function fixture(t, { configured = true } = {}) {
+async function fixture(t, { configured = true, emailCodeEnabled = false } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'ba-auth-http-'));
   const grantsFile = path.join(directory, 'grants.json');
   const grants = { version: 1, grants: {
@@ -45,9 +45,19 @@ async function fixture(t, { configured = true } = {}) {
   await saveGrants();
   let calls = 0;
   let time = Date.parse('2026-10-26T12:00:00Z');
-  const config = configured ? { supabaseUrl: 'https://auth.example.test', publishableKey: 'sb_publishable_SYNTHETIC_NOT_A_REAL_KEY', appOrigin: ORIGIN, grantsFile } : null;
+  const config = configured ? { supabaseUrl: 'https://auth.example.test', publishableKey: 'sb_publishable_SYNTHETIC_NOT_A_REAL_KEY', appOrigin: ORIGIN, grantsFile, emailCodeEnabled } : null;
   const sessions = createBrowserSessions({ config, now: () => time, fetchImpl: async (url, options) => {
     calls++;
+    if (url.endsWith('/otp')) {
+      assert.equal(JSON.parse(options.body).create_user, false);
+      return providerJson({});
+    }
+    if (url.endsWith('/verify')) {
+      const body = JSON.parse(options.body);
+      assert.equal(body.type, 'email');
+      if (body.token !== '00123456' || body.email !== 'alice@example.test') return providerJson({ error: 'private wrong code' }, 403);
+      return providerJson({ access_token: `SYNTHETIC_ACCESS_${SUBJECT}`, token_type: 'bearer', expires_in: 3600, user: { id: SUBJECT } });
+    }
     if (url.includes('/token?')) {
       const body = JSON.parse(options.body);
       if (body.password !== PASSWORD || !['alice@example.test', 'bob@example.test'].includes(body.email)) return providerJson({ error: 'synthetic provider diagnostic, never public' }, 400);
@@ -55,7 +65,7 @@ async function fixture(t, { configured = true } = {}) {
       return providerJson({ access_token: `SYNTHETIC_ACCESS_${id}`, refresh_token: 'SYNTHETIC_REFRESH', token_type: 'bearer', expires_in: 3600, user: { id } });
     }
     const id = options.headers.Authorization.slice('Bearer SYNTHETIC_ACCESS_'.length);
-    return providerJson({ id, email_confirmed_at: '2026-01-01T00:00:00Z', user_metadata: { role: 'owner', tenantId: 'forged' } });
+    return providerJson({ id, email: id === SUBJECT ? 'alice@example.test' : 'bob@example.test', email_confirmed_at: '2026-01-01T00:00:00Z', user_metadata: { role: 'owner', tenantId: 'forged' } });
   } });
   const app = createApp({ dbPath: path.join(directory, 'data.sqlite'), blobDir: path.join(directory, 'blobs'), browserSessions: sessions, env: {},
     authenticate: async token => token === 'synthetic-legacy' ? alice : null });
@@ -110,7 +120,7 @@ test('createApp reads both authentication configurations from its injected envir
   await once(app, 'listening');
   try {
     const response = await fetch(`http://127.0.0.1:${app.address().port}/api/health`);
-    assert.deepEqual(await response.json(), { status: 'ok', mode: 'pilot', identityConfigured: true, loginConfigured: true, intakeConfigured: false });
+    assert.deepEqual(await response.json(), { status: 'ok', mode: 'pilot', identityConfigured: true, loginConfigured: true, emailCodeConfigured: false, intakeConfigured: false });
   } finally { await new Promise((resolve, reject) => app.close(error => error ? reject(error) : resolve())); }
 });
 
@@ -235,4 +245,52 @@ test('the shipped browser auth has no token storage, posts logout, and guards de
   assert.ok(code.indexOf('if (state.demo) { examples = demoData();') < code.indexOf('state.health = await publicHealth();'));
   assert.match(code, /state\.health\?\.loginConfigured === true/);
   assert.match(code, /form\.elements\.password\.value = ''/);
+});
+
+test('email code routes remain disabled until explicitly activated, with truthful health', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.request('/api/health')).json.emailCodeConfigured, false);
+  for (const route of ['/api/auth/email/request', '/api/auth/email/verify']) {
+    const result = await f.request(route, { method: 'POST', headers: csrf, body: { email: 'alice@example.test', code: '00123456' } });
+    assert.equal(result.status, 503); assert.equal(result.headers.has('set-cookie'), false);
+  }
+  assert.equal(f.callCount(), 0);
+});
+
+test('email request and verification require POST, exact origin and strict bounded bodies', async t => {
+  const f = await fixture(t, { emailCodeEnabled: true });
+  assert.equal((await f.request('/api/health')).json.emailCodeConfigured, true);
+  for (const route of ['/api/auth/email/request', '/api/auth/email/verify']) {
+    for (const headers of [{}, { Origin: ORIGIN }, { ...csrf, Origin: 'https://evil.example.test' }]) {
+      assert.equal((await f.request(route, { method: 'POST', headers, body: {} })).status, 403);
+    }
+    assert.equal((await f.request(route)).status, 405);
+    assert.equal((await f.request(route + '?code=000000', { method: 'POST', headers: csrf, body: {} })).status, 400);
+    assert.equal((await f.request(route, { method: 'POST', headers: { ...csrf, Authorization: 'Bearer synthetic-legacy' }, body: {} })).status, 400);
+    assert.equal((await f.request(route, { method: 'POST', headers: csrf, body: { email: 'alice@example.test', create_user: true } })).status, 400);
+    assert.equal((await f.request(route, { method: 'POST', headers: csrf, raw: JSON.stringify({ email: 'x'.repeat(1100) }) })).status, 413);
+  }
+  assert.equal(f.callCount(), 0);
+});
+
+test('request does not sign in; wrong code stays private; successful verification rotates a granted session', async t => {
+  const f = await fixture(t, { emailCodeEnabled: true });
+  const old = await f.login();
+  const request = await f.request('/api/auth/email/request', { method: 'POST', headers: csrf, cookie: old.cookie, body: { email: 'alice@example.test' } });
+  assert.equal(request.status, 200); assert.equal(request.json.accepted, true);
+  assert.equal(request.headers.has('set-cookie'), false); assert.equal(request.headers.get('cache-control'), 'no-store');
+  assert.equal((await f.request('/api/me')).status, 401);
+  const bad = await f.request('/api/auth/email/verify', { method: 'POST', headers: csrf, body: { email: 'alice@example.test', code: '00000000' } });
+  assert.equal(bad.status, 401); assert.equal(bad.headers.has('set-cookie'), false);
+  assert.doesNotMatch(bad.text, /private|alice@example|00000000/u);
+  const good = await f.request('/api/auth/email/verify', { method: 'POST', headers: csrf, cookie: old.cookie, body: { email: 'alice@example.test', code: '00123456' } });
+  assert.equal(good.status, 200, good.text); assert.deepEqual(good.json.user, alice);
+  assert.deepEqual(Object.keys(good.json).sort(), ['expiresAt', 'user']);
+  assert.match(good.headers.get('set-cookie'), /HttpOnly; Secure; SameSite=Strict/u);
+  assert.doesNotMatch(good.text, /SYNTHETIC_ACCESS|00123456/u);
+  assert.equal((await f.request('/api/me', { cookie: old.cookie })).status, 401);
+  assert.equal((await f.request('/api/me', { cookie: good.cookie })).status, 200);
+  f.grants.grants[SUBJECT].active = false; await f.saveGrants();
+  const denied = await f.request('/api/auth/email/verify', { method: 'POST', headers: csrf, body: { email: 'alice@example.test', code: '00123456' } });
+  assert.equal(denied.status, 403); assert.equal(denied.headers.has('set-cookie'), false);
 });

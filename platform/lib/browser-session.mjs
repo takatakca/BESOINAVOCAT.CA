@@ -54,7 +54,7 @@ function normalizeConfiguration(config) {
   if ((config.requirePersistent || process.env.NODE_ENV === 'production') && !persistent) return null;
   if (persistent && (typeof config.sessionDbPath !== 'string' || !path.isAbsolute(config.sessionDbPath) ||
       typeof config.sessionKeyFile !== 'string' || !path.isAbsolute(config.sessionKeyFile))) return null;
-  return Object.freeze({ supabaseUrl, appOrigin, publishableKey: config.publishableKey, grantsFile,
+  return Object.freeze({ supabaseUrl, appOrigin, publishableKey: config.publishableKey, grantsFile, emailCodeEnabled: config.emailCodeEnabled === true,
     ...(persistent ? { sessionDbPath: path.resolve(config.sessionDbPath), sessionKeyFile: path.resolve(config.sessionKeyFile) } : {}),
     requirePersistent: Boolean(config.requirePersistent) });
 }
@@ -64,7 +64,7 @@ export function browserSessionConfiguration(env = process.env) {
     publishableKey: env.TAKATAK_SUPABASE_PUBLISHABLE_KEY,
     grantsFile: env.BESOINAVOCAT_GRANTS_FILE, appOrigin: env.APP_ORIGIN,
     sessionDbPath: env.BESOINAVOCAT_SESSION_DB_PATH, sessionKeyFile: env.BESOINAVOCAT_SESSION_KEY_FILE,
-    requirePersistent: env.NODE_ENV === 'production' });
+    requirePersistent: env.NODE_ENV === 'production', emailCodeEnabled: env.BESOINAVOCAT_EMAIL_OTP_ENABLED === 'true' });
 }
 
 function cookieToken(header) {
@@ -158,41 +158,83 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     }
   }
 
-  async function verifiedSubject(accessToken) {
+  async function verifiedSubject(accessToken, expectedEmail) {
     const user = await provider('/auth/v1/user', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } });
     if (typeof user.id !== 'string' || !UUID.test(user.id) || user.is_anonymous === true ||
         typeof user.email_confirmed_at !== 'string' || !Number.isFinite(Date.parse(user.email_confirmed_at)) ||
-        (user.banned_until && (!Number.isFinite(Date.parse(user.banned_until)) || Date.parse(user.banned_until) > now()))) throw unauthenticated();
+        (user.banned_until && (!Number.isFinite(Date.parse(user.banned_until)) || Date.parse(user.banned_until) > now())) ||
+        (expectedEmail !== undefined && (typeof user.email !== 'string' || user.email.trim().toLowerCase() !== expectedEmail))) throw unauthenticated();
     return user.id;
   }
 
-  async function login(email, password, { clientKey = 'unknown' } = {}) {
+  function loginEmail(email, clientKey) {
     if (!settings || !sessions) throw unavailable();
     if (typeof email !== 'string' || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email.trim()) ||
-        typeof password !== 'string' || password.length < 1 || password.length > 4096 ||
         typeof clientKey !== 'string' || clientKey.length > 256) throw unauthenticated();
-    const normalizedEmail = email.trim().toLowerCase();
+    return email.trim().toLowerCase();
+  }
+
+  async function establishSession(result, startedAt, reservation, expectedEmail) {
+    // The refresh token is deliberately discarded; no automatic renewal or persistence.
+    delete result.refresh_token;
+    const accessToken = result.access_token;
+    if (typeof accessToken !== 'string' || accessToken.length > 8192 || !/^[A-Za-z0-9._~+\/-]+=*$/u.test(accessToken) ||
+        typeof result.token_type !== 'string' || result.token_type.toLowerCase() !== 'bearer' || !Number.isSafeInteger(result.expires_in) || result.expires_in <= 0 ||
+        (result.expires_at !== undefined && (!Number.isSafeInteger(result.expires_at) || result.expires_at <= 0))) throw unavailable();
+    const expiresAt = Math.min(startedAt + SESSION_TTL_MS, startedAt + result.expires_in * 1000,
+      result.expires_at === undefined ? Infinity : result.expires_at * 1000);
+    const subject = await verifiedSubject(accessToken, expectedEmail);
+    if (result.user?.id !== subject || expiresAt <= now()) throw unauthenticated();
+    const identity = await readGrant(settings, subject);
+    if (expiresAt <= now()) throw unauthenticated();
+    const token = randomBytes(32).toString('base64url');
+    sessions.set(hash(token), { accessToken, subject, tenantId: identity.tenantId, expiresAt }, now(), reservation);
+    return Object.freeze({ identity, expiresAt,
+      setCookie: `${BROWSER_SESSION_COOKIE}=${token}; ${COOKIE_ATTRIBUTES}; Max-Age=${Math.max(0, Math.floor((expiresAt - now()) / 1000))}` });
+  }
+
+  async function login(email, password, { clientKey = 'unknown' } = {}) {
+    const normalizedEmail = loginEmail(email, clientKey);
+    if (typeof password !== 'string' || password.length < 1 || password.length > 4096) throw unauthenticated();
     const reservation = sessions.reserveLogin(normalizedEmail, clientKey, now());
     try {
       const startedAt = now();
       const result = await provider('/auth/v1/token?grant_type=password', { method: 'POST',
         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: normalizedEmail, password }) });
-      // The refresh token is deliberately discarded; no automatic renewal or persistence.
-      delete result.refresh_token;
-      const accessToken = result.access_token;
-      if (typeof accessToken !== 'string' || accessToken.length > 8192 || !/^[A-Za-z0-9._~+\/-]+=*$/u.test(accessToken) ||
-          typeof result.token_type !== 'string' || result.token_type.toLowerCase() !== 'bearer' || !Number.isSafeInteger(result.expires_in) || result.expires_in <= 0 ||
-          (result.expires_at !== undefined && (!Number.isSafeInteger(result.expires_at) || result.expires_at <= 0))) throw unavailable();
-      const expiresAt = Math.min(startedAt + SESSION_TTL_MS, startedAt + result.expires_in * 1000,
-        result.expires_at === undefined ? Infinity : result.expires_at * 1000);
-      const subject = await verifiedSubject(accessToken);
-      if (result.user?.id !== subject || expiresAt <= now()) throw unauthenticated();
-      const identity = await readGrant(settings, subject);
-      if (expiresAt <= now()) throw unauthenticated();
-      const token = randomBytes(32).toString('base64url');
-      sessions.set(hash(token), { accessToken, subject, tenantId: identity.tenantId, expiresAt }, now(), reservation);
-      return Object.freeze({ identity, expiresAt,
-        setCookie: `${BROWSER_SESSION_COOKIE}=${token}; ${COOKIE_ATTRIBUTES}; Max-Age=${Math.max(0, Math.floor((expiresAt - now()) / 1000))}` });
+      return await establishSession(result, startedAt, reservation);
+    } finally { sessions.release(reservation); }
+  }
+
+  async function requestEmailCode(email, { clientKey = 'unknown' } = {}) {
+    if (settings?.emailCodeEnabled !== true) throw unavailable();
+    const normalizedEmail = loginEmail(email, clientKey);
+    // Share the same durable account/client/global budgets with verification and password login.
+    const reservation = sessions.reserveLogin(normalizedEmail, clientKey, now());
+    try {
+      try {
+        await provider('/auth/v1/otp', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: normalizedEmail, create_user: false }) });
+      } catch (error) {
+        // Provider account-specific rejection/rate limits must not enumerate accounts.
+        // Local admission limits above remain a genuine, uniform 429 response.
+        if (!(error instanceof HttpError) || ![401, 429].includes(error.status)) throw error;
+      }
+      return Object.freeze({ accepted: true,
+        message: 'Si cette adresse correspond à un compte TAKATAK existant, un code pourra être envoyé. Consultez votre courriel et vos indésirables.' });
+    } finally { sessions.release(reservation); }
+  }
+
+  async function verifyEmailCode(email, code, { clientKey = 'unknown' } = {}) {
+    if (settings?.emailCodeEnabled !== true) throw unavailable();
+    const normalizedEmail = loginEmail(email, clientKey);
+    // Preserve leading zeroes and accept the provider-configured length (6–10 digits).
+    if (typeof code !== 'string' || !/^[0-9]{6,10}$/u.test(code)) throw unauthenticated();
+    const reservation = sessions.reserveLogin(normalizedEmail, clientKey, now());
+    try {
+      const startedAt = now();
+      const result = await provider('/auth/v1/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, token: code, type: 'email' }) });
+      return await establishSession(result, startedAt, reservation, normalizedEmail);
     } finally { sessions.release(reservation); }
   }
 
@@ -223,7 +265,7 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     return { setCookie: `${BROWSER_SESSION_COOKIE}=; ${COOKIE_ATTRIBUTES}; Max-Age=0` };
   }
 
-  return Object.freeze({ configured: Boolean(settings && sessions), login, resolve, logout,
+  return Object.freeze({ configured: Boolean(settings && sessions), emailCodeConfigured: Boolean(settings && sessions && settings.emailCodeEnabled), login, requestEmailCode, verifyEmailCode, resolve, logout,
     assertMutation: req => assertBrowserMutation(req, settings?.appOrigin),
     clear: () => sessions?.close() });
 }

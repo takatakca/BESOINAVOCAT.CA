@@ -6,11 +6,39 @@ Le module `platform/lib/browser-session.mjs` réutilise Supabase Auth, fournisse
 
 Le code TAKATAK-V1 au commit `4e57ccf6a3623548081067263341039aef2fc498` distingue explicitement le projet de production `pcjfahhlozsseqqevimi` et le staging `utuvzrqvivqyziibobvu`. Les références sont des identifiants publics, pas des clés. Voir [la constante de production](https://github.com/takatakca/takatak-v1/blob/4e57ccf6a3623548081067263341039aef2fc498/scripts/phone-email-history.mjs) et [le contrôle de promotion](https://github.com/takatakca/takatak-v1/blob/4e57ccf6a3623548081067263341039aef2fc498/deploy/linux/promote-production.sh).
 
-Le portail envoie les identifiants saisis à `/auth/v1/token?grant_type=password`, puis vérifie le jeton reçu avec `/auth/v1/user`. Ce dernier appel est également effectué à chaque résolution d'une session du portail. Le résultat doit identifier un UUID utilisateur, une adresse confirmée et un compte non anonyme sans bannissement courant. Les erreurs de connexion sont génériques; les réponses et identifiants ne sont pas journalisés par ce module. [Connexion par mot de passe](https://supabase.com/docs/reference/javascript/auth-signinwithpassword) · [Vérification serveur getUser](https://supabase.com/docs/reference/javascript/auth-getuser).
+Le portail conserve le mot de passe existant en solution de repli via `/auth/v1/token?grant_type=password`. Le parcours par code courriel, soumis à une activation explicite, utilise `/auth/v1/otp` puis `/auth/v1/verify`. Les deux parcours vérifient ensuite le jeton reçu avec `/auth/v1/user`. Ce dernier appel est également effectué à chaque résolution d'une session du portail. Le résultat doit identifier un UUID utilisateur, une adresse confirmée et un compte non anonyme sans bannissement courant. Les erreurs de connexion sont génériques; les réponses et identifiants ne sont pas journalisés par ce module. [Connexion par mot de passe](https://supabase.com/docs/reference/javascript/auth-signinwithpassword) · [Vérification serveur getUser](https://supabase.com/docs/reference/javascript/auth-getuser).
 
 L'authentification ne suffit pas à donner accès aux dossiers. Un fichier privé local accorde explicitement l'accès BesoinAvocat à l'UUID renvoyé par le fournisseur, avec un tenant. Ni l'adresse courriel, ni les `user_metadata`, ni un rôle transmis par le navigateur ne créent cette autorisation. Les rôles et appartenances à chaque dossier restent dans la base applicative; le fichier ci-dessous ne confère pas de rôle avocat ou propriétaire.
 
 Le statut du profil métier TAKATAK n'est pas interrogé par ce module. Il contrôle le compte Auth et l'habilitation locale. Aucun contrôle périodique de `auth.sessions` ou de l'ensemble des permissions TAKATAK n'est revendiqué. La fonction TAKATAK `identity-context` a un autre contrat et n'est pas utilisée comme introspection BesoinAvocat.
+
+## Code courriel : activation et réception opérateur
+
+**Contrôle du 29 octobre 2026 :** le propriétaire a ouvert le tableau de bord Supabase. Le SMTP personnalisé était déjà activé; ses identifiants sont restés inchangés. Le modèle partagé « Magic link or OTP » contenait une invitation TAKATAK avec un lien utilisant `.RedirectTo` et `.TokenHash`. Une section FR/EN affichant `{{ .Token }}` a été ajoutée en conservant intégralement l'invitation, son lien et son objet. Enregistrement et relecture après rechargement confirmés; copie préalable et preuve conservées dans le OneDrive privé. La livraison effective du courriel et la connexion utilisateur restent à tester après déploiement du correctif.
+
+Le code est prêt à tester, **désactivé par défaut**. La variable `BESOINAVOCAT_EMAIL_OTP_ENABLED` doit valoir exactement `true` pour l’activer. Sans cette déclaration opérateur, `/api/health` annonce `emailCodeConfigured:false`, les deux routes de code répondent 503 après la garde d’origine et le navigateur conserve le formulaire de mot de passe existant. `loginConfigured` reste distinct. La capacité est une déclaration de configuration locale, pas un test SMTP ni une preuve de livraison.
+
+Avant toute activation, l'opérateur doit :
+
+1. Confirmer que le fournisseur et la clé publique ciblent bien le projet Auth TAKATAK attendu, sans changer de projet ni créer de compte.
+2. Vérifier dans Supabase **Authentication → Email Templates → Magic Link** que le message affiche `{{ .Token }}`. Un modèle avec seulement `{{ .ConfirmationURL }}` envoie un lien magique; le portail ne traite pas ce lien comme un code. Examiner l’impact sur les autres applications du même projet avant toute modification de ce modèle partagé.
+3. Vérifier l’activation de l’authentification email, le SMTP ou hook de livraison réellement utilisé, l’expéditeur, les destinataires autorisés, les limites d’envoi et la durée/longueur du code. Un nouveau projet Free utilisant le SMTP par défaut peut nécessiter un SMTP personnalisé pour modifier le modèle. Aucun abonnement ni identifiant SMTP n'est changé par ce lot; l'ajout au modèle partagé est décrit ci-dessus.
+4. Confirmer les grants BesoinAvocat et les appartenances aux dossiers existants. L’envoi d’un code ne crée ni grant ni appartenance. Ne pas réinitialiser le mot de passe historique pour utiliser ce parcours.
+5. Après ces vérifications, activer explicitement la variable et redéployer. Vérifier `emailCodeConfigured:true` puis faire **une demande réelle volontaire depuis le portail**, saisir le code reçu et confirmer l’accès aux dossiers autorisés, le refus anonyme, puis la déconnexion. Si la livraison ou le modèle ne convient pas, désactiver la variable. Le parcours réel n’a pas été exécuté dans les tests de ce lot.
+
+[Guide officiel des codes et modèles](https://supabase.com/docs/guides/auth/auth-email-passwordless) · [Vérification du code](https://supabase.com/docs/reference/javascript/auth-verifyotp) · [Changement des modèles sur les nouveaux projets Free](https://supabase.com/changelog/46599-changes-to-email-template-customisation-on-free-tier).
+
+### Ne pas confondre les deux systèmes de code
+
+Le code TAKATAK main observé au commit `68cbc860b25d68cf30ef0af3fd89f96bfc937ffe` utilise un OTP applicatif : [`src/app/api/auth/login/route.ts`](https://github.com/takatakca/takatak-v1/blob/68cbc860b25d68cf30ef0af3fd89f96bfc937ffe/src/app/api/auth/login/route.ts) appelle `sendEmailOtp` dans [`src/lib/auth/otp/service.ts`](https://github.com/takatakca/takatak-v1/blob/68cbc860b25d68cf30ef0af3fd89f96bfc937ffe/src/lib/auth/otp/service.ts), avec hash de code dans le profil. Le nouveau parcours du portail appelle **Supabase Auth directement sur la même identité**. Un code demandé sur TAKATAK n’est donc pas annoncé comme utilisable sur le portail. Aucun SSO automatique, transfert de code, changement du service TAKATAK ou réinitialisation n’est ajouté.
+
+### Contrat HTTP
+
+- `POST /api/auth/email/request` avec `{ "email": "member@example.test" }` appelle le fournisseur avec `{email, create_user:false}`. Succès, compte inconnu/refusé et limitation fournisseur liée au compte reçoivent le même résultat public générique `{accepted:true,message}`; cela ne prouve ni l’existence du compte ni l’envoi/livraison du message. Aucun cookie de connexion n’est délivré à cette étape.
+- `POST /api/auth/email/verify` avec `{ "email": "member@example.test", "code": "00123456" }` envoie `{email,token:code,type:"email"}`. Le code reste une chaîne de **6 à 10 chiffres ASCII**, zéros initiaux conservés. Après le jeton fournisseur, `/user` doit confirmer le même UUID, le même courriel normalisé et un compte confirmé non anonyme/non banni. Les grants frais sont ensuite obligatoires. Seuls `{user,expiresAt}` et le cookie opaque sont renvoyés.
+- Les routes refusent query, champs supplémentaires, corps trop volumineux, méthode autre que POST et authentification Bearer. Elles exigent l’origine exacte et `X-Requested-With: XMLHttpRequest`; réponses `no-store`. La vérification n’accepte ni token hash ni type `recovery`, `signup` ou autre fourni par le client.
+- Les limites durables existantes sont **communes** aux demandes de code, vérifications et mots de passe : cinq tentatives par courriel et dix par client sur quinze minutes, soixante au total par minute, quatre requêtes de connexion simultanées. La limitation locale reste un vrai 429 avant réseau. Les erreurs fournisseur ne sont jamais recopiées. Les codes faux, expirés ou réutilisés ne créent pas de session; le fournisseur en contrôle l’usage unique et l’expiration.
+- Aucun code n’est enregistré en base, dans l’URL, dans un stockage navigateur ou dans les logs applicatifs. Le champ est vidé dès la soumission et reste réutilisable après erreur. Les identifiants transitent seulement dans le corps HTTPS. Vérifier que les logs du proxy, du fournisseur et des outils d’observabilité ne capturent pas ces corps.
 
 ## Configuration privée
 
@@ -21,6 +49,7 @@ Le serveur charge uniquement ces variables, sans afficher leur contenu :
 | `TAKATAK_SUPABASE_URL` | Origine HTTPS exacte du fournisseur confirmé, sans chemin, query ou identifiants URL |
 | `TAKATAK_SUPABASE_PUBLISHABLE_KEY` | Clé publique `sb_publishable_…`, ou ancienne clé publique `anon`; jamais `service_role` ou `sb_secret_…` |
 | `BESOINAVOCAT_GRANTS_FILE` | Chemin absolu du fichier JSON privé, hors dépôt, racine de l'application et toutes racines web |
+| `BESOINAVOCAT_EMAIL_OTP_ENABLED` | `true` seulement après vérification du modèle contenant `.Token` et de la livraison; absent/false par défaut |
 | `APP_ORIGIN` | Origine HTTPS exacte du portail déployé, sans chemin ni query |
 | `BESOINAVOCAT_SESSION_DB_PATH` | Chemin absolu d'une base SQLite privée distincte pour les sessions et limites partagées |
 | `BESOINAVOCAT_SESSION_KEY_FILE` | Chemin absolu d'un fichier privé contenant exactement 32 octets binaires aléatoires; jamais une clé en variable d'environnement |
@@ -54,6 +83,9 @@ Le fichier est relu à chaque connexion et résolution. Un retrait ou `active:fa
 |---|---|
 | `configured` | Configuration valide et stockage de session ouvert; ne prouve pas la disponibilité du fournisseur ou du fichier de grants |
 | `await login(email, password, {clientKey}?)` | `{identity, expiresAt, setCookie}`; expiration en millisecondes Unix |
+| `emailCodeConfigured` | Configuration valide, stockage ouvert et activation explicite du code; ne prouve pas une livraison réelle |
+| `await requestEmailCode(email, {clientKey}?)` | `{accepted:true,message}` générique, sans session |
+| `await verifyEmailCode(email, code, {clientKey}?)` | `{identity,expiresAt,setCookie}` après fournisseur, correspondance de courriel et grants |
 | `await resolve(cookieHeader)` | `{subject, tenantId, product: 'besoinavocat', active: true}` |
 | `logout(cookieHeader)` | `{setCookie}` pour supprimer le cookie, et invalidation locale immédiate de cette session |
 | `assertMutation(req)` | Refuse si `Origin` n'est pas exactement `APP_ORIGIN`, ou si `X-Requested-With` n'est pas `XMLHttpRequest` |
@@ -61,7 +93,7 @@ Le fichier est relu à chaque connexion et résolution. Un retrait ou `active:fa
 
 Les erreurs utilisent `HttpError` avec `status`, `code`, `message` : 401 pour une connexion/session invalide, 403 pour l'accès produit ou l'origine refusée, 429 pour la limitation des tentatives, 503 pour une configuration ou un fournisseur indisponible. Le serveur ne doit renvoyer que ces messages publics; jamais les réponses brutes du fournisseur ou les exceptions de fichiers.
 
-Le navigateur reçoit seulement un identifiant opaque aléatoire de 32 octets : `__Host-ba_session`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, sans `Domain`. Seule son empreinte indexe la session. Le mot de passe n'est pas conservé et le refresh token est écarté. Aucun renouvellement automatique n'a lieu. L'expiration est le minimum de l'échéance du fournisseur, de sa durée annoncée et d'une heure.
+Le navigateur reçoit seulement un identifiant opaque aléatoire de 32 octets : `__Host-ba_session`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, sans `Domain`. Seule son empreinte indexe la session. Le mot de passe et le code ne sont pas conservés; le refresh token est écarté. Aucun renouvellement automatique n'a lieu. L'expiration est le minimum de l'échéance du fournisseur, de sa durée annoncée et d'une heure.
 
 En production, `browser-session-store.mjs` stocke le jeton d'accès, le subject et le tenant dans un payload chiffré **AES-256-GCM**. Chaque écriture utilise un nonce aléatoire de 12 octets et un tag de 16 octets. Les données authentifiées lient le ciphertext aux origines du fournisseur et du portail, à l'empreinte de session, à sa révision et à son échéance. La base ne contient ni cookie brut, ni mot de passe, ni refresh token. La clé de chiffrement reste dans un fichier séparé, chargé en mémoire du processus; sa valeur n'est jamais imprimée. [API cryptographique Node](https://nodejs.org/docs/latest-v24.x/api/crypto.html).
 
@@ -86,3 +118,11 @@ Les tests de `platform/test/browser-session.test.mjs` et `browser-session-persis
 Les contrôles de persistance incluent deux instances sur la même base et un véritable second processus Node qui résout puis révoque une session du premier. Ils vérifient également la fermeture isolée d'un worker, le refus d'une mauvaise clé ou liaison d'origine, la détection d'une échéance altérée grâce au GCM, l'absence de jeton/subject/tenant/cookie en clair dans les fichiers SQLite et WAL, les limites partagées et la purge des sessions expirées. Un contrôle copie les modules dans l'arborescence du ZIP déployé : il accepte le stockage privé voisin de l'application et refuse les fichiers privés placés à l'intérieur de celle-ci.
 
 La connexion réelle, les cookies sous le domaine HTTPS final, la confidentialité des logs du proxy, les fichiers privés partagés entre tous les workers Passenger et les contrôles HTTP de bout en bout restent à vérifier lors de l'intégration. Ces tests ne prouvent pas le déploiement effectif. Aucun utilisateur ni paramètre de TAKATAK/Supabase n'a été créé ou modifié par ce lot.
+
+## Vérification du lot code courriel — 29 octobre 2026
+
+Les tests dédiés `email-code.test.mjs`, `workspace-email-code.test.mjs` et les extensions de `auth-http.test.mjs` utilisent uniquement des comptes, codes et réponses fictifs. Ils contrôlent l’activation explicite, `create_user:false`, les réponses génériques, la correspondance UUID/courriel, les droits inchangés, les codes 6/8/10 chiffres, la reprise après code refusé, le retrait des réponses obsolètes et zéro HTTP en démonstration. Les limites sont également contrôlées entre deux instances SQLite. Exécutable de validation : Node **24.19.0**; les commandes reproductibles sont `node --test platform/test/email-code.test.mjs platform/test/workspace-email-code.test.mjs platform/test/auth-http.test.mjs platform/test/browser-session.test.mjs platform/test/browser-session-persistence.test.mjs`, puis `node --test platform/test/*.test.mjs`. Aucun code réel n’a été envoyé et aucune connexion réelle par OTP n’est certifiée.
+
+Résultat du contrôle local du 29 octobre : **60/60** tests ciblés auth/OTP/session/UI, **233/233** tests du pilote et **12/12** tests du site historique réussis. Le test intégrations portant sur le mode Unix `0644` a été conditionné aux systèmes POSIX; les contrôles de rotation de clé et de reconnexion restent exécutés sur toutes les plateformes. La revue indépendante de l’authentification et de la reprise UI après erreur n’a relevé aucun blocage. Cette validation reste synthétique et ne remplace pas le test de livraison réelle à effectuer après configuration.
+
+La première CI a aussi révélé une attente Passenger à actualiser pour le nouveau champ public `emailCodeConfigured:false`. Après correction de cette seule attente, la commande CI complète (`node --test platform/test/*.test.mjs platform/deploy/passenger.test.cjs wordpress/besoinavocat-experience/checks/funnel.test.mjs`) réussit **257/257 tests** sous Node 24.19.0.

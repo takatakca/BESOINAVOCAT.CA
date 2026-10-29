@@ -100,6 +100,7 @@ export function createApp({
   if (typeof verifyIdentity !== 'function') throw new TypeError('authenticate must be a function');
   if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
   const loginConfigured = browserSessions.configured === true;
+  const emailCodeConfigured = loginConfigured && browserSessions.emailCodeConfigured === true;
   // Neither configuration path may be placed within the public asset directory.
   const insidePublic = path => { const rel = relative(PUBLIC, resolve(path)); return !rel || (!rel.startsWith('..') && !isAbsolute(rel)); };
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
@@ -116,7 +117,7 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, intakeConfigured: intake.configured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured });
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       const asset = assets.get(path);
@@ -179,18 +180,28 @@ export function createApp({
     const hasSessionCookie = typeof cookieHeader === 'string' && cookieHeader.split(';').some(part => part.trim().split('=', 1)[0].trim() === BROWSER_SESSION_COOKIE);
     const hasAuthorization = Object.hasOwn(req.headers, 'authorization');
     if (hasSessionCookie && hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Utilisez une seule méthode de connexion.');
-    if (path === '/api/auth/login' || path === '/api/auth/logout') {
+    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify'].includes(path)) {
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Cette connexion utilise une session de navigateur.');
       browserSessions.assertMutation(req);
-      if (path === '/api/auth/login') {
-        const body = fields(await readJson(req, 4096), ['email', 'password'], ['email', 'password']);
+      if (path.startsWith('/api/auth/email/') && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
+      if (path === '/api/auth/email/request') {
+        const body = fields(await readJson(req, 1024), ['email'], ['email']);
+        if (typeof browserSessions.requestEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        return json(res, 200, await browserSessions.requestEmailCode(text(body.email, 'Adresse courriel', 320), { clientKey: clientAddress(req, trustProxy) }));
+      }
+      if (path === '/api/auth/login' || path === '/api/auth/email/verify') {
+        const otp = path === '/api/auth/email/verify';
+        const allowed = otp ? ['email', 'code'] : ['email', 'password'];
+        const body = fields(await readJson(req, otp ? 1024 : 4096), allowed, allowed);
         const email = text(body.email, 'Adresse courriel', 320).trim();
-        const password = text(body.password, 'Mot de passe', 4096);
         // Only the socket address is trusted for rate limiting; forwarded client
         // headers are arbitrary unless a separate proxy policy is configured.
-        const session = await browserSessions.login(email, password, { clientKey: clientAddress(req, trustProxy) });
+        if (otp && typeof browserSessions.verifyEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        const session = otp
+          ? await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy) })
+          : await browserSessions.login(email, text(body.password, 'Mot de passe', 4096), { clientKey: clientAddress(req, trustProxy) });
         if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);

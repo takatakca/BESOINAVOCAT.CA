@@ -338,10 +338,13 @@ test('a different vault key cannot open stored tokens: those accounts are asked 
   const rotated = f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: otherKey });
   assert.equal(rotated.list(users.lawyer).providers.find(item => item.id === 'zoom').state, 'reconnect_required');
   await rejects(rotated.linkAppointment(users.lawyer, f.caseId, f.appointment().id, 'zoom'), 409, 'RECONNECT_REQUIRED');
-  // A key file that others can read is refused.
-  const open = join(f.dir, 'open.key');
-  writeFileSync(open, randomBytes(32), { mode: 0o644, flag: 'wx' });
-  assert.equal(f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: open }).list(users.lawyer).engine.reason, 'key_invalid');
+  // privatePath enforces POSIX permission bits only on POSIX systems; Windows
+  // uses ACLs, so mode 0644 cannot exercise this check. Rotation above is universal.
+  if (process.platform !== 'win32') {
+    const open = join(f.dir, 'open.key');
+    writeFileSync(open, randomBytes(32), { mode: 0o644, flag: 'wx' });
+    assert.equal(f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: open }).list(users.lawyer).engine.reason, 'key_invalid');
+  }
 });
 
 test('provider notifications are accepted once, and only with a valid, recent signature', t => {

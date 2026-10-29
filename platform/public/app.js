@@ -33,6 +33,7 @@
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
     mode: 'loading', view: 'cases', cases: [], selectedId: null, detail: null,
     capabilities: null, health: null, user: null, integrations: null,
+    loginStep: 'email', loginEmail: '', loginNotice: '',
     documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
     searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
     dictationLanguage: 'fr-CA', dictationAutoSearch: true, dictationStatus: 'idle', dictationMessage: '',
@@ -92,8 +93,9 @@
     const response = await fetch(path, { cache: 'no-store', ...options, credentials: 'same-origin', headers });
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
     if (response.status === 401) {
-      clearSession(); render();
-      const error = new Error(path === '/api/auth/login' ? 'Connexion non valide. Vérifiez vos accès TAKATAK.' : 'La session a expiré. Reconnectez-vous avec TAKATAK.');
+      const authAttempt = path.startsWith('/api/auth/');
+      if (!authAttempt) { clearSession(); render(); }
+      const error = new Error(path === '/api/auth/email/verify' ? 'Code non valide ou expiré. Vérifiez le code reçu pour ce portail.' : authAttempt ? 'Connexion non valide. Vérifiez vos accès TAKATAK.' : 'La session a expiré. Reconnectez-vous avec TAKATAK.');
       error.status = 401;
       throw error;
     }
@@ -186,9 +188,21 @@
   }
   function signedOut() {
     const login = state.health?.loginConfigured === true;
+    const emailCode = login && state.health?.emailCodeConfigured === true;
     const unavailable = state.health === null;
-    const loginForm = `<form id="login-form"><label for="login-email">Adresse courriel TAKATAK</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" required><label for="login-password">Mot de passe</label><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="2048" required><button class="button" type="submit"${state.busy ? ' disabled' : ''}>${state.busy ? 'Connexion en cours…' : 'Se connecter avec TAKATAK'} ${icon('arrow')}</button></form>`;
-    return `${intro('VOTRE ESPACE, EN CLAIR', 'Chaque dossier mérite de la clarté.', 'Rassemblez vos pièces. Préparez vos échanges. Gardez le fil.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU SUIVI</span><h2>Tout retrouver.<br>Mieux se préparer.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${login ? 'La session est conservée dans un cookie sécurisé. Aucun jeton n’est à copier. Aucun compte n’est créé depuis ce formulaire.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot"><p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
+    const disabled = state.busy ? ' disabled' : '';
+    const emailField = `<label for="login-email">Adresse courriel de votre compte TAKATAK</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}>`;
+    const notice = state.loginNotice ? `<p class="auth-notice" role="status">${esc(state.loginNotice)}</p>` : '';
+    const switchButton = (mode, label) => `<button class="button subtle" type="button" data-action="login-mode" data-mode="${mode}"${disabled}>${label}</button>`;
+    let loginForm;
+    if (emailCode && state.loginStep === 'code') {
+      loginForm = `${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="email-code-verify-form" class="auth-form"><label for="login-code">Code reçu par courriel pour ce portail</label><input id="login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="login-code-help" required${disabled}><small id="login-code-help">Saisissez les 6 à 10 chiffres, y compris les zéros au début. Utilisez le code demandé sur cette page.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Vérifier le code'} ${icon('arrow')}</button></form>${switchButton('email', 'Modifier l’adresse ou demander un autre code')}`;
+    } else if (!emailCode || state.loginStep === 'password') {
+      loginForm = `${notice}<form id="login-form" class="auth-form">${emailField}<label for="login-password">Mot de passe existant, si vous en avez un</label><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="2048" required${disabled}><button class="button" type="submit"${disabled}>${state.busy ? 'Connexion en cours…' : 'Se connecter avec le mot de passe'} ${icon('arrow')}</button></form>${emailCode ? switchButton('email', 'Recevoir plutôt un code par courriel') : '<p>La connexion par code courriel est en préparation.</p>'}`;
+    } else {
+      loginForm = `${notice}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}`;
+    }
+    return `${intro('VOTRE ESPACE, EN CLAIR', 'Chaque dossier mérite de la clarté.', 'Rassemblez vos pièces. Préparez vos échanges. Gardez le fil.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU SUIVI</span><h2>Tout retrouver.<br>Mieux se préparer.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot"><p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
   }
   function noCase() {
     return `${intro('VOTRE ESPACE DE TRAVAIL', VIEW_LABELS[state.view], 'Chaque pièce et chaque échange sont rattachés à un dossier.')}<section class="panel empty-state">${icon('folder')}<h2>Commencez par un dossier.</h2><p>Ouvrez un dossier existant ou créez-en un depuis la page Dossiers.</p><button class="button" data-action="go-cases">Voir mes dossiers ${icon('arrow')}</button></section>`;
@@ -794,6 +808,10 @@
     if (!button || button.disabled) return;
     if (button.dataset.view) { navigate(button.dataset.view); return; }
     const action = button.dataset.action;
+    if (action === 'login-mode' && !state.busy && !state.demo) {
+      state.loginStep = button.dataset.mode === 'password' ? 'password' : 'email';
+      state.loginNotice = ''; render();
+    }
     if (action === 'go-cases') navigate('cases');
     if (action === 'open-search') openSearch(button.dataset.scope);
     if (action === 'dictate') beginDictation();
@@ -829,6 +847,8 @@
     if (!(form instanceof HTMLFormElement)) return;
     event.preventDefault();
     if (form.id === 'login-form') void login(form);
+    else if (form.id === 'email-code-request-form') void requestEmailCode(form);
+    else if (form.id === 'email-code-verify-form') void verifyEmailCode(form);
     else if (['search-form', 'dashboard-search-form', 'case-search-form'].includes(form.id)) void submitSearch(form);
     else if (form.id === 'page-jump-form') void jumpPage(form);
     else if (['communication-form', 'communication-cancel-form'].includes(form.id)) void submitCommunication(form);
@@ -893,6 +913,50 @@
     state.cases = (await api('/api/cases')).cases || [];
     state.mode = 'authenticated';
     if (state.cases.length) { state.selectedId = state.cases[0].id; await refreshDetail(); }
+  }
+  async function requestEmailCode(form) {
+    if (state.demo || state.health?.emailCodeConfigured !== true || state.busy) return;
+    const email = form.elements.email.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) || email.length > 320) { notify('Vérifiez votre adresse courriel.', true); return; }
+    state.busy = true; clearSession();
+    const generation = state.sessionVersion;
+    state.loginEmail = email; state.loginNotice = '';
+    const button = form.querySelector('button[type="submit"]'); if (button) button.disabled = true;
+    try {
+      const result = await api('/api/auth/email/request', { method: 'POST', body: JSON.stringify({ email }) });
+      if (generation !== state.sessionVersion) return;
+      state.loginStep = 'code';
+      state.loginNotice = result.message || 'Si ce compte existe, un code pourra être envoyé. Consultez votre courriel et vos indésirables.';
+    } catch (error) {
+      if (generation === state.sessionVersion) { state.loginNotice = error.message; notify(error.message, true); }
+    } finally {
+      state.busy = false;
+      if (generation === state.sessionVersion) { render(); if (state.loginStep === 'code') document.getElementById('login-code')?.focus(); }
+    }
+  }
+  async function verifyEmailCode(form) {
+    if (state.demo || state.health?.emailCodeConfigured !== true || state.busy || state.loginStep !== 'code') return;
+    let code = form.elements.code.value;
+    form.elements.code.value = '';
+    if (!/^[0-9]{6,10}$/u.test(code)) { code = ''; notify('Saisissez le code de 6 à 10 chiffres reçu par courriel.', true); return; }
+    const email = state.loginEmail;
+    state.busy = true; clearSession();
+    const generation = state.sessionVersion;
+    const button = form.querySelector('button[type="submit"]'); if (button) button.disabled = true;
+    try {
+      const pending = api('/api/auth/email/verify', { method: 'POST', body: JSON.stringify({ email, code }) });
+      code = ''; await pending;
+      if (generation !== state.sessionVersion) return;
+      await loadSession();
+      if (generation !== state.sessionVersion) return;
+      state.loginEmail = ''; state.loginNotice = ''; state.loginStep = 'email';
+      notify('Vous êtes connecté à votre espace.');
+    } catch (error) {
+      if (generation === state.sessionVersion) { clearSession(); state.loginNotice = error.message; notify(error.message, true); render(); }
+    } finally {
+      code = ''; state.busy = false;
+      render(true);
+    }
   }
   async function login(form) {
     if (state.demo || state.health?.loginConfigured !== true || state.busy) return;

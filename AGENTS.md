@@ -6,6 +6,23 @@
 3. Vérifier le service Render réel et le dernier déploiement, puis reprendre la première tâche **autorisée et non bloquée**.
 4. Garder le site opérationnel; ne pas recréer l'application de zéro ni effacer le travail d'un autre agent.
 
+## Notes, signatures et coordination — obligatoire (propriétaire, 29 octobre 2026)
+Chaque agent laisse une trace de tout ce qu'il fait, **avant, pendant et après**, sur **GitHub et Google Drive**, pour que personne n'écrase le travail d'un autre.
+1. **Avant de toucher au code** : lire [docs/JOURNAL-AGENTS.md](docs/JOURNAL-AGENTS.md), puis y ajouter une entrée `DÉBUT`. Elle donne :
+   - la signature et l'heure;
+   - la branche;
+   - les fichiers ou zones réservés;
+   - le but.
+   Pousser cette entrée sur GitHub et la recopier dans le journal Drive (dossier partagé `11B5CeNU_lZgO2VFA_fzejoLJNkSZdnv-`, fichier « BesoinAvocat — JOURNAL DES AGENTS »).
+2. **Pendant** : ajouter une entrée `ÉTAPE` à chaque livraison partielle, et signer chaque commit dans son message.
+3. **À la fin** : ajouter une entrée `FIN` avec le résultat, les preuves, ce qui reste et les zones libérées. Mettre aussi à jour les cinq documents de statut.
+4. **Format d'une ligne** : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branche · zones · résumé`. Étiquettes : `DÉBUT`, `ÉTAPE`, `FIN`, `ALERTE`, `REPRISE`.
+5. **Ne jamais écraser le travail d'un autre** :
+   - une zone réservée dans une entrée `DÉBUT` sans `FIN` appartient à son agent : se coordonner par une entrée `ALERTE` avant d'y toucher;
+   - le journal est en ajout seul : on ne supprime ni ne réécrit la note d'un autre;
+   - avant chaque push : `git fetch`, puis intégrer `main` sans réécriture d'historique.
+6. **Aucun secret** dans le journal, ni sur GitHub ni sur Drive.
+
 ## Processus de livraison
 - Utiliser des commits traçables et pousser sur `main` lorsque la version est sûre. Aucune réécriture d'historique, aucun force-push.
 - Faire au minimum : `node --check site/app.js`, `node --check site/guide.mjs`, `node --test tests/*.test.mjs` avant la publication (ou vérifier la CI correspondante).

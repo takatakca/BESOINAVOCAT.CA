@@ -8,8 +8,8 @@ const ITEMS = [
   },
   {
     id: 'zoom', label: 'Zoom', kind: 'external_connector',
-    availability: 'external_link_only', connectionState: 'oauth_planned',
-    description: 'Ajout d’un lien de participation Zoom existant. La connexion OAuth et la création de réunions par API restent à réaliser.',
+    availability: 'connector_pilot', connectionState: 'oauth_in_integrations',
+    description: 'La connexion OAuth de votre propre compte Zoom se fait dans Intégrations : création de la réunion d’un rendez-vous, salle d’attente active, sans enregistrement. Aucun frais d’installation n’est fixé.',
   },
   {
     id: 'phone', label: 'Téléphone intégré', kind: 'external_connector',
@@ -22,7 +22,7 @@ const ITEMS = [
 // caller's mutation as a price or an enabled payment/install capability.
 export function publicAddonCatalog() {
   return {
-    version: '2026-10-28.1', checkoutEnabled: false,
+    version: '2026-10-29.1', checkoutEnabled: false,
     items: ITEMS.map(item => ({ ...item,
       price: { currency: 'CAD', amountCents: null, status: 'unset' },
       canPurchase: false, canConnect: false, caseAccessGranted: false,

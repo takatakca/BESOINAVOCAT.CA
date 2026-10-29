@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publicAddonCatalog } from '../lib/addon-catalog.mjs';
 
-test('catalogue distinguishes the working pilot chat, external Zoom links and planned phone', () => {
+test('catalogue distinguishes the working pilot chat, the Zoom connector of Intégrations and planned phone', () => {
   const catalog = publicAddonCatalog();
   assert.equal(catalog.items.length, 3);
   assert.deepEqual(catalog.items.map(item => [item.id, item.kind, item.availability, item.connectionState]), [
     ['internal_chat', 'internal_service', 'available_pilot', 'internal'],
-    ['zoom', 'external_connector', 'external_link_only', 'oauth_planned'],
+    ['zoom', 'external_connector', 'connector_pilot', 'oauth_in_integrations'],
     ['phone', 'external_connector', 'planned', 'provider_not_connected'],
   ]);
 });

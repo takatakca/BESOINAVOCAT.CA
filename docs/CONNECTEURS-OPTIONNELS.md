@@ -1,5 +1,7 @@
 # Services internes et connecteurs optionnels
 
+> **29 octobre 2026 (D-027)** : la connexion des comptes (OAuth Zoom, Outlook, Google, DocuSign, Clio) et les réceptions signées sont réalisées : voir [INTEGRATIONS](INTEGRATIONS.md). La partie commerciale de ce document reste à faire et **désactivée** : offres, prix, Stripe Checkout, droits payés. Une connexion ne dépend d'aucun paiement dans le pilote.
+
 Décision de travail du 28 octobre 2026 : un client pourra ajouter des connecteurs, éventuellement avec des frais ponctuels d'installation. **50 CAD est un exemple à confirmer, pas un prix autorisé.** Une offre interne gratuite ou un service exploité sur notre serveur pourra être étudié séparément. Aucun prix, abonnement, paiement, compte fournisseur ou accès OAuth n'est créé par ce lot.
 
 ## Catalogue réellement livré

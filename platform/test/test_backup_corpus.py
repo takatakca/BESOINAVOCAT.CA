@@ -165,6 +165,70 @@ class BackupCorpusTests(unittest.TestCase):
                     restored.execute(statement)
                 restored.rollback()
 
+    def test_real_integrations_schema_round_trip_preserves_rows_and_excludes_vault_key(self):
+        node = os.environ.get("BESOINAVOCAT_TEST_NODE") or shutil.which("node")
+        if not node:
+            self.skipTest("Node 24 is required for the real integrations fixture")
+        script = r"""
+          import {pathToFileURL} from 'node:url';
+          import path from 'node:path';
+          import {writeFileSync} from 'node:fs';
+          import {randomBytes} from 'node:crypto';
+          const [project, directory] = process.argv.slice(1);
+          const {createStore} = await import(pathToFileURL(path.join(project,'platform/lib/store.mjs')));
+          const {createCommunications} = await import(pathToFileURL(path.join(project,'platform/lib/communications.mjs')));
+          const {createIntegrations,integrationConfiguration} = await import(pathToFileURL(path.join(project,'platform/lib/integrations.mjs')));
+          const store=createStore({dbPath:path.join(directory,'integrations.sqlite'),blobDir:path.join(directory,'integrations-blobs')});
+          const owner={tenantId:'synthetic-integration-tenant',subject:'synthetic-owner'};
+          const item=store.createCase(owner,{title:'Synthetic integrations backup',reference:'SYNTHETIC'});
+          store.provisionMembership({...owner,caseId:item.id,role:'owner'});
+          const communications=createCommunications({db:store.db,access:store.access,audit:store.audit});
+          const appointment=communications.schedule(owner,item.id,{title:'Synthetic appointment',kind:'video',scheduledAt:'2026-11-01T18:00:00Z'},'synthetic-integrations-backup');
+          const keyFile=path.join(directory,'synthetic-integrations.key');
+          writeFileSync(keyFile,randomBytes(32),{mode:0o600,flag:'wx'});
+          const env={APP_ORIGIN:'https://portal.example.test',BESOINAVOCAT_INTEGRATIONS_KEY_FILE:keyFile,
+            BESOINAVOCAT_ZOOM_CLIENT_ID:'synthetic-client-id',BESOINAVOCAT_ZOOM_CLIENT_SECRET:'synthetic-client-secret',
+            BESOINAVOCAT_DOCUSIGN_CONNECT_HMAC_KEY:'synthetic-webhook-secret'};
+          const fetch=async url=>{
+            if(url==='https://zoom.us/oauth/token') return Response.json({access_token:'synthetic-access-token',refresh_token:'synthetic-refresh-token',expires_in:3600});
+            if(url==='https://api.zoom.us/v2/users/me') return Response.json({id:'synthetic-account',email:'example@example.test'});
+            if(url==='https://api.zoom.us/v2/users/me/meetings') return Response.json({id:123456789,join_url:'https://zoom.us/j/123456789'},{status:201});
+            throw new Error('Unexpected provider request in synthetic-only fixture');
+          };
+          const api=createIntegrations({db:store.db,access:store.access,audit:store.audit,config:integrationConfiguration(env),fetch});
+          const first=api.connect(owner,'zoom');
+          await api.complete(owner,{state:new URL(first.authorizationUrl).searchParams.get('state'),code:'synthetic-code'});
+          api.connect(owner,'zoom'); // A pending, sealed authorization is part of the snapshot too.
+          await api.linkAppointment(owner,item.id,appointment.id,'zoom');
+          const raw=Buffer.from(JSON.stringify({event:'synthetic.backup'}));
+          const {createHmac}=await import('node:crypto');
+          api.webhook('docusign',{raw,headers:{'x-docusign-signature-1':createHmac('sha256',env.BESOINAVOCAT_DOCUSIGN_CONNECT_HMAC_KEY).update(raw).digest('base64')}});
+          store.close();
+        """
+        result = subprocess.run([node, "--input-type=module", "-e", script, str(PROJECT), str(self.root)], capture_output=True, text=True, timeout=30, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        database = self.root / "integrations.sqlite"
+        tables = ("integration_meta", "integration_states", "integration_connections", "integration_links", "integration_events")
+        with closing(sqlite3.connect(database)) as source:
+            expected = {table: source.execute(f'SELECT * FROM "{table}"').fetchall() for table in tables}
+        manifest = backup.create_backup(database, self.root / "integrations-blobs", self.archive)
+        for table in tables:
+            self.assertEqual(manifest["counts"][table], 1)
+        self.assertEqual(backup.verify_archive(self.archive), manifest)
+        destination = self.root / "restored-integrations"
+        self.assertEqual(backup.restore_archive(self.archive, destination), manifest)
+        with closing(sqlite3.connect(destination / "platform.sqlite")) as restored:
+            self.assertEqual(restored.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+            self.assertEqual(restored.execute("PRAGMA foreign_key_check").fetchall(), [])
+            for table in tables:
+                self.assertEqual(restored.execute(f'SELECT * FROM "{table}"').fetchall(), expected[table])
+        with zipfile.ZipFile(self.archive) as archive:
+            self.assertNotIn("synthetic-integrations.key", archive.namelist())
+            snapshot = archive.read("platform.sqlite")
+            self.assertNotIn(b"synthetic-access-token", snapshot)
+            self.assertNotIn(b"synthetic-refresh-token", snapshot)
+        self.assertTrue((self.root / "synthetic-integrations.key").exists(), "the source key is not consumed by backup")
+
     def test_unrecognized_tables_remain_rejected(self):
         self.db.execute("CREATE TABLE communication_unrecognized(id TEXT)")
         self.db.commit()

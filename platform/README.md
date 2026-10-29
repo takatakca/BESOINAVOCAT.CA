@@ -77,8 +77,13 @@ Toutes les routes ci-dessous, sauf health, sont protégées :
 | `POST /api/cases/:caseId/time` | Temps : `{ "description": "...", "minutes": 30 }` |
 | `POST /api/cases/:caseId/time/:timeId/approve` | Validation indépendante, corps `{}` |
 | `GET /api/cases/:caseId/audit` | Journal pour owner/lawyer |
+| `GET /api/integrations` | Connecteurs de la personne et leur état réel |
+| `POST /api/integrations/:id/connect` · `/disconnect` | Démarre le consentement OAuth chez le fournisseur · retire le compte |
+| `POST /api/integrations/complete` | Appelé par `/integrations/callback` : `{ "state", "code" }` |
+| `POST /api/cases/:caseId/communications/:sessionId/integrations/:id` (`/remove`) | Réunion Zoom ou inscription Outlook/Google d'un rendez-vous (owner/lawyer) |
+| `POST /api/webhooks/:provider` | Notifications signées de Zoom, Stripe, Twilio et DocuSign, sans session |
 
-La recherche est une sous-chaîne littérale SQLite, limitée à 100 résultats; elle n’est pas une recherche sémantique ni une garantie de couverture documentaire. Les outils d’IA, paiements et Twilio ne sont pas raccordés.
+La recherche est une sous-chaîne littérale SQLite, limitée à 100 résultats; elle n’est pas une recherche sémantique ni une garantie de couverture documentaire. Les outils d’IA, paiements et Twilio ne sont pas raccordés. Les connecteurs Zoom, Outlook et Google fonctionnent dès que leurs accès développeur sont configurés : voir [INTEGRATIONS](../docs/INTEGRATIONS.md).
 
 ## Préparer un import du dossier maître
 

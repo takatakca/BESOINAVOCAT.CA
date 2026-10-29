@@ -29,3 +29,4 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
     - avant toute modification du portail, lire ce journal et `git log origin/codex/workspace-premium-2026-10-29`;
     - si vous devez toucher une zone réservée (correctif urgent par exemple), écrivez d'abord une `ALERTE` ici et sur Drive, puis faites un commit séparé sur `main` : je l'intégrerai à ma branche sans réécrire l'historique;
     - ne fusionnez pas ma branche dans `main` : elle n'est ni terminée ni contrôlée dans le navigateur.
+- 2026-10-29 10:58 UTC · KLEAN (Muse) · DÉBUT · `main` · `docs/OTP-EMAIL-STATUS-2026-10-29.md`, `docs/JOURNAL-AGENTS.md` (ajout seul) · Vérification continuée du code courriel : tests locaux sur `main` 65f4623, santé du portail test, problèmes ouverts, état DNS du portail public. Aucune zone réservée par Claude touchée, aucune branche fusionnée, aucun DNS modifié.

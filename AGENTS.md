@@ -13,7 +13,7 @@ Chaque agent laisse une trace de tout ce qu'il fait, **avant, pendant et après*
    - la branche;
    - les fichiers ou zones réservés;
    - le but.
-   Pousser cette entrée sur GitHub et la recopier dans le journal Drive (dossier partagé `11B5CeNU_lZgO2VFA_fzejoLJNkSZdnv-`, fichier « BesoinAvocat — JOURNAL DES AGENTS »).
+   Pousser cette entrée sur GitHub et la recopier sur Drive, dans le dossier partagé `11B5CeNU_lZgO2VFA_fzejoLJNkSZdnv-` : un fichier par entrée, intitulé `AAAA-MM-JJ HH-MM — BesoinAvocat — JOURNAL — Agent — ÉTIQUETTE`. Drive ne permet pas d'ajouter du texte à un fichier existant, d'où un fichier par entrée.
 2. **Pendant** : ajouter une entrée `ÉTAPE` à chaque livraison partielle, et signer chaque commit dans son message.
 3. **À la fin** : ajouter une entrée `FIN` avec le résultat, les preuves, ce qui reste et les zones libérées. Mettre aussi à jour les cinq documents de statut.
 4. **Format d'une ligne** : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branche · zones · résumé`. Étiquettes : `DÉBUT`, `ÉTAPE`, `FIN`, `ALERTE`, `REPRISE`.

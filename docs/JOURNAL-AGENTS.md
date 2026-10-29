@@ -1,6 +1,6 @@
 # Journal des agents — BesoinAvocat
 
-Règle du propriétaire (29 octobre 2026), reprise dans [AGENTS.md](../AGENTS.md) : tout agent écrit ici **avant, pendant et après** son travail, et recopie chaque entrée dans le journal Drive « BesoinAvocat — JOURNAL DES AGENTS » (dossier partagé `11B5CeNU_lZgO2VFA_fzejoLJNkSZdnv-`). Le journal est en ajout seul : ajouter des lignes en bas, ne jamais supprimer ni réécrire celles d'un autre agent.
+Règle du propriétaire (29 octobre 2026), reprise dans [AGENTS.md](../AGENTS.md) : tout agent écrit ici **avant, pendant et après** son travail, et recopie chaque entrée sur Drive, dans le dossier partagé `11B5CeNU_lZgO2VFA_fzejoLJNkSZdnv-` : un fichier par entrée, intitulé `AAAA-MM-JJ HH-MM — BesoinAvocat — JOURNAL — Agent — ÉTIQUETTE`. Le journal est en ajout seul : ajouter des lignes en bas, ne jamais supprimer ni réécrire celles d'un autre agent.
 
 Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branche · zones · résumé`.
 Étiquettes : `DÉBUT` (réserve des zones), `ÉTAPE`, `FIN` (libère les zones), `ALERTE` (conflit ou risque), `REPRISE`.

@@ -1,6 +1,12 @@
 # Relève — BESOINAVOCAT.CA
 
-## Point de reprise — 30 octobre 2026, 11:15 UTC
+## ALERTE — 30 octobre 2026, 11:24 UTC
+
+**Le portail est actuellement indisponible.** Le contrôle HTTPS avec validation TLS normale du **30 octobre à 11:22:04 UTC** renvoie 503 pour la page, les ressources et les routes contrôlées; la santé renvoie du HTML au lieu du JSON attendu. Coolify présente aussi des erreurs 500 (limite mémoire de 256 Mio) et 504 sur ses vues. La cause de l'incident n'est pas établie; aucun déploiement concurrent ne doit être désigné comme cause sans preuve.
+
+Le rattachement historique a été réparé **avant** cet incident et le contrôle serveur avait trouvé trois dossiers accessibles; cela ne prouve ni leur affichage après reconnexion ni l'état courant du service. L'accès à la console VPS a été demandé et une alerte de coordination a été envoyée au seul compte du propriétaire. **Priorité : rétablir l'hôte et vérifier le portail avant de reprendre l'import CNESST ou la bascule de vitrine.** Aucun changement DNS ni pièce juridique d'origine par cet incident de contrôle. [Réception et preuves](RECEPTION-RATTACHEMENT-2026-10-30.md) · [Fiche pour l'intervenant VPS](INCIDENT-COOLIFY-2026-10-30.md).
+
+## Historique — point consigné à 11:15 UTC
 
 **Rattachement serveur corrigé, recette utilisateur en attente.** La session active affichait zéro dossier, mais la base active contient bien **trois dossiers, 1 362 documents et 3 101 unités**. Après sauvegarde privée, le seul rattachement d'espace du propriétaire historique a été restauré à l'identique de l'original vérifié : contrôle serveur **3 dossiers accessibles**, fichier en mode 0600, compteurs inchangés. Aucune nouvelle identité ou appartenance créée. La reconnexion est demandée; l'affichage et l'ouverture des pièces après correction restent à confirmer.
 

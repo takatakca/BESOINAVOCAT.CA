@@ -1,6 +1,22 @@
 # Réception du rattachement des dossiers — 30 octobre 2026
 
-État consigné à **11:15 UTC (07:15 à Montréal)**. Cette note remplace les anciennes prochaines étapes Maileroo et distingue les contrôles serveur de la réception utilisateur.
+## Incident d'hébergement — 11:24 UTC (07:24 à Montréal)
+
+**Portail indisponible au contrôle du 30 octobre à 11:22:04.614 UTC, avec validation TLS normale.** La page, les fichiers publics et les routes contrôlées renvoient 503; l'endpoint de santé renvoie du HTML au lieu du JSON attendu. Coolify échoue également : création de ressource et terminal en erreur 500 avec une limite mémoire de 268435456 octets, vues canvas et Files en 504. La cause n'est pas établie. Un déploiement concurrent observé ne constitue pas une preuve de causalité.
+
+Le contrôle de rattachement réussi ci-dessous précède cet incident. Il reste une preuve de trois dossiers accessibles sur le serveur à ce moment, **pas une recette utilisateur ni une preuve de disponibilité actuelle**. Le principal a demandé l'accès à la console VPS et envoyé une alerte de coordination au seul compte du propriétaire. Aucune ressource vitrine créée ni bascule DNS confirmée. Reprendre par la disponibilité de l'hôte et la santé du portail avant import CNESST ou changement DNS.
+
+Preuves dans le dossier de travail privé OneDrive `scripts/.build-livrables/node-portal-2026-10-30/` :
+
+- `CONTROLE-HTTPS-2026-10-30T11-22-04-614Z.json` : résultat daté en échec;
+- `COOLIFY-CREATION-VITRINE-500.png` : erreur de création de ressource;
+- `RATTACHEMENT-RESTAURE.png` : contrôle antérieur de la correction.
+
+**Traçabilité des contrôles :** le fichier JSON utilisé pour le contrôle de 09:51 avait été écrasé par une nouvelle exécution à 11:20, en échec DNS dans le sandbox. Ce dernier résultat a été archivé comme `CONTROLE-SANDBOX-2026-10-30T112054.json`; il ne doit pas être présenté comme le reçu original de 09:51. Les comptes rendus et la capture de 09:51 restent disponibles. Le script privé écrit désormais des noms horodatés avec création exclusive pour éviter cet écrasement. Aucune reconstitution du JSON original n'est annoncée, et aucune pièce juridique d'origine n'a été touchée.
+
+[Fiche de diagnostic et option encadrée pour l'intervenant VPS](INCIDENT-COOLIFY-2026-10-30.md). Cette procédure préparée ne constitue pas une réparation exécutée.
+
+## Historique de réception — 11:15 UTC
 
 ## Accès et correction effectuée
 

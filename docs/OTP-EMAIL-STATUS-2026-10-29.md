@@ -1,5 +1,25 @@
 # BesoinAvocat — statut code courriel — 2026-10-29
 
+## Point de reprise — 30 octobre 2026
+
+Le portail déployé reste au SHA `2c41af9fbe413705b2ce8935d6b3c7b63f81e90c`, avec l'espace de travail D-029. Le contrôle du 30 octobre à 04:35–04:36 UTC confirme HTTPS avec validation TLS normale, les trois fichiers principaux identiques à ce commit, la santé 200, les dossiers anonymes refusés en 401 et trois chemins privés en 404. Le déploiement Coolify `w0vtdti0dfz83yem8gn3byoa` est affiché **Success**. Ces preuves restent datées; la connexion réelle n'en découle pas.
+
+**Cause de non-réception confirmée à 09:40 UTC : blocage Maileroo du domaine de test.** Trois messages destinés au propriétaire sont marqués « Suppressed »; l'événement consulté indique un destinataire hors liste autorisée. Son ajout a été refusé car le nombre maximal de destinataires autorisés du domaine de test est atteint; aucune entrée existante n'a été supprimée. Le domaine propre `takatak.ca` est encore inactif, avec vérification DNS SPF/DKIM incomplète. Le quota d'envoi affiché n'est pas consommé : ce refus ne vient pas de ce quota. [Diagnostic et voie de résolution](DIAGNOSTIC-ENVOI-2026-10-30.md). Le blocage fournisseur reste non résolu; réception du code et consultation authentifiée des trois dossiers toujours non confirmées.
+
+**Cinq correctifs du workspace sont terminés et contrôlés localement**, sur `codex/reprise-portail-2026-10-30` : caméra après fermeture/remplacement, éditeur pendant le chargement, sauvegarde de l'éditeur, réponse tardive d'envoi vidéo et décompression DOCX bornée. Résultats : **276/276 tests de la suite plateforme**, dont les **10 tests de fiabilité** (inclus dans 276), et **12/12 tests du site**; revue indépendante sans bloqueur. Le contrôle navigateur sur données fictives a vérifié l'éditeur au tiers de l'écran et l'export d'un véritable fichier DOCX. **Ce lot est maintenant commité localement dans `7a920ee195d7a492a4a95d7dacbd8b6d3e5732ca`, sans push ni déploiement encore confirmé.** Il ne fait pas partie du SHA en ligne contrôlé. Le constat de 09:29 UTC, antérieur au commit, reste historique.
+
+L'écran propose la demande et la saisie du code. Un accusé générique ne prouve pas l'envoi; les journaux Maileroo confirment le refus du destinataire par le domaine de test. Ne pas multiplier les essais sans lecture des journaux ni inscrire de code, jeton ou secret dans les notes. [Réception et recette restante](RECEPTION-2026-10-30.md) · [Vision premium](VISION-PREMIUM-2026-10-29.md), dont l'activation reste séparée de la connexion.
+
+## Clarification du contrat de demande de code — 30 octobre
+
+La formulation historique « renvoie toujours `accepted: true` » ci-dessous est trop absolue. Le code actuel neutralise les rejets d’authentification du fournisseur normalisés en **401** et ses limites de débit **429**, afin de ne pas révéler l’existence d’un compte. En revanche, une erreur serveur du fournisseur, un délai dépassé ou une réponse fournisseur invalide restent des erreurs **503**; les limites locales de tentative restent des **429**. Une mauvaise configuration ou une saisie invalide n’est pas transformée en succès par cette protection.
+
+Lecture du code : [service de session navigateur](../platform/lib/browser-session.mjs) et [route HTTP](../platform/server.mjs). Un accusé neutre confirme seulement le traitement de la demande; il ne prouve ni l’envoi SMTP ni la livraison. Ici, les journaux Maileroo apportent la cause précise du refus après demande : [diagnostic du 30 octobre](DIAGNOSTIC-ENVOI-2026-10-30.md). Les notes historiques signées restent conservées sans réécriture.
+
+## Historique du 29 octobre
+
+Les lectures et diagnostics ci-dessous sont conservés avec leurs dates. L'état du domaine et du déploiement ci-dessus remplace leurs mentions encore ouvertes de bascule DNS.
+
 ## GitHub : complet
 - Fusion PR #4, `main` 342e3fc, 2026-10-29 00:54 EDT : « Merge verified email-code portal login (#4) ».
 - Les 6 contrôles sont passés au SHA 3bb10db.

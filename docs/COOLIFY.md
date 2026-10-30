@@ -1,12 +1,26 @@
 # Déployer le portail Node sur Coolify
 
+## Point de reprise — 30 octobre 2026
+
+Le portail déployé reste au SHA `2c41af9fbe413705b2ce8935d6b3c7b63f81e90c`, avec l'espace de travail D-029. Le contrôle du 30 octobre à 04:35–04:36 UTC confirme HTTPS avec validation TLS normale, les trois fichiers principaux identiques à ce commit, la santé 200, les dossiers anonymes refusés en 401 et trois chemins privés en 404. Le déploiement Coolify `w0vtdti0dfz83yem8gn3byoa` est affiché **Success**. Ces preuves restent datées; la connexion réelle n'en découle pas.
+
+**Cause de non-réception confirmée à 09:40 UTC : blocage Maileroo du domaine de test.** Trois messages destinés au propriétaire sont marqués « Suppressed »; l'événement consulté indique un destinataire hors liste autorisée. Son ajout a été refusé car le nombre maximal de destinataires autorisés du domaine de test est atteint; aucune entrée existante n'a été supprimée. Le domaine propre `takatak.ca` est encore inactif, avec vérification DNS SPF/DKIM incomplète. Le quota d'envoi affiché n'est pas consommé : ce refus ne vient pas de ce quota. [Diagnostic et voie de résolution](DIAGNOSTIC-ENVOI-2026-10-30.md). Le blocage fournisseur reste non résolu; réception du code et consultation authentifiée des trois dossiers toujours non confirmées.
+
+**Cinq correctifs du workspace sont terminés et contrôlés localement**, sur `codex/reprise-portail-2026-10-30` : caméra après fermeture/remplacement, éditeur pendant le chargement, sauvegarde de l'éditeur, réponse tardive d'envoi vidéo et décompression DOCX bornée. Résultats : **276/276 tests de la suite plateforme**, dont les **10 tests de fiabilité** (inclus dans 276), et **12/12 tests du site**; revue indépendante sans bloqueur. Le contrôle navigateur sur données fictives a vérifié l'éditeur au tiers de l'écran et l'export d'un véritable fichier DOCX. **Ce lot est maintenant commité localement dans `7a920ee195d7a492a4a95d7dacbd8b6d3e5732ca`, sans push ni déploiement encore confirmé.** Il ne fait pas partie du SHA en ligne contrôlé. Le constat de 09:29 UTC, antérieur au commit, reste historique.
+
+[Preuves détaillées et recette restante](RECEPTION-2026-10-30.md). Le certificat et la bascule du portail ne sont plus les blocages constatés. Conserver le volume et la configuration existants; aucune nouvelle restauration n'est indiquée par ces contrôles. [Vision premium](VISION-PREMIUM-2026-10-29.md) : modules externes non activés, portions workspace D-029 déjà livrées.
+
+## Historique et configuration conservée
+
+Les configurations et états datés ci-dessous sont conservés pour la traçabilité. Le point courant est la réception du 30 octobre ci-dessus; ne pas répéter une restauration, une bascule ou un déploiement ancien à partir de ces traces.
+
 Décision du 27 octobre 2026 : héberger le portail Node sur le serveur Coolify du propriétaire avec une image construite depuis GitHub. L’étape sans accès au serveur est historique : une instance HTTPS de test est désormais joignable. **Corpus restauré, connexion configurée, accès utilisateur réel non validé.** Le refus antérieur du paquet MochaHost reste conservé dans son historique; aucune protection de cet hébergeur n’a été désactivée.
 
 La vitrine besoinavocat.ca, reconstruite sans WordPress, est prévue comme seconde application Coolify. Ses réglages et **l'ordre de bascule DNS sont décrits dans [STOREFRONT](STOREFRONT.md)**. Il faut d'abord détacher le courriel, car le MX pointe sur le domaine, puis déployer le portail et enfin la vitrine.
 
 ## État de l’essai distant — 28 octobre 2026
 
-Cette section conserve son ancre de navigation; le point courant est celui du **29 octobre 2026**. La PR 2 a livré `348d626`; le déploiement suivant est au SHA `efef6921201602ede0139af03bbfb92f43e6f90e`, intégrateur de connecteurs inclus. La [PR 3](https://github.com/takatakca/BESOINAVOCAT.CA/pull/3) est ensuite fusionnée au SHA `ad8e2f4a31ebdafee2bc56acd36e861652d4623c`, six contrôles réussis, mais ce SHA n’est pas encore annoncé déployé. L’application suit `main`, répertoire `/platform`, Dockerfile `/Dockerfile`.
+Cette section conserve son ancre de navigation et l'état historique du **29 octobre 2026**; le point courant est la réception du 30 octobre en tête du document. La PR 2 a livré `348d626`; le déploiement suivant était au SHA `efef6921201602ede0139af03bbfb92f43e6f90e`, intégrateur de connecteurs inclus. La [PR 3](https://github.com/takatakca/BESOINAVOCAT.CA/pull/3) a ensuite été fusionnée au SHA `ad8e2f4a31ebdafee2bc56acd36e861652d4623c`, six contrôles réussis. L’application suit `main`, répertoire `/platform`, Dockerfile `/Dockerfile`.
 
 | Ressource | État constaté le 29 octobre |
 |---|---|

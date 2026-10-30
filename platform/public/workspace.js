@@ -59,33 +59,60 @@
     for (const part of parts) { out.set(part, at); at += part.length; }
     return out;
   }
-  async function inflateRaw(bytes) {
+  const OFFICE_ENTRY_LIMIT = 8 * 1024 * 1024, OFFICE_TOTAL_LIMIT = 16 * 1024 * 1024;
+  async function inflateRaw(bytes, limit) {
     if (typeof DecompressionStream !== 'function') throw new Error('Ce navigateur ne sait pas lire ce document compressé.');
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
+    const reader = stream.getReader(), chunks = [];
+    let length = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value.byteLength > limit - length) throw new Error('Document trop volumineux : limite de décompression dépassée.');
+        chunks.push(value); length += value.byteLength;
+      }
+    } catch (error) {
+      try { await reader.cancel(); } catch { /* retain the validation/decompression error */ }
+      throw error;
+    } finally { reader.releaseLock(); }
+    const result = new Uint8Array(length);
+    let at = 0;
+    for (const chunk of chunks) { result.set(chunk, at); at += chunk.byteLength; }
+    return result;
   }
   // Reads the entries named in `wanted` (or all) from a ZIP; stored and deflated entries only.
   async function unzip(bytes, wanted = null) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let end = -1;
     for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i -= 1) if (view.getUint32(i, true) === 0x06054b50) { end = i; break; }
-    if (end < 0) throw new Error('Document illisible : archive Office incomplète.');
+    const invalid = () => new Error('Document illisible : archive Office incomplète ou incohérente.');
+    if (end < 0 || end + 22 + view.getUint16(end + 20, true) !== bytes.length) throw invalid();
     const count = view.getUint16(end + 10, true);
-    let at = view.getUint32(end + 16, true);
+    const centralStart = view.getUint32(end + 16, true), centralEnd = centralStart + view.getUint32(end + 12, true);
+    if (view.getUint16(end + 4, true) || view.getUint16(end + 6, true) || view.getUint16(end + 8, true) !== count || count > 4096 || centralEnd > end) throw invalid();
+    let at = centralStart, total = 0;
     const entries = new Map(), decoder = new TextDecoder();
-    for (let n = 0; n < count && at + 46 <= bytes.length; n += 1) {
-      if (view.getUint32(at, true) !== 0x02014b50) break;
+    for (let n = 0; n < count; n += 1) {
+      if (at + 46 > centralEnd || view.getUint32(at, true) !== 0x02014b50) throw invalid();
       const method = view.getUint16(at + 10, true), compressed = view.getUint32(at + 20, true), size = view.getUint32(at + 24, true);
+      const flags = view.getUint16(at + 8, true), expectedCrc = view.getUint32(at + 16, true);
       const nameLength = view.getUint16(at + 28, true), extra = view.getUint16(at + 30, true), comment = view.getUint16(at + 32, true);
       const local = view.getUint32(at + 42, true);
+      if (at + 46 + nameLength + extra + comment > centralEnd) throw invalid();
       const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
       at += 46 + nameLength + extra + comment;
       if (wanted && !wanted.includes(name)) continue;
+      if (entries.has(name) || flags & 1 || ![0, 8].includes(method) || local + 30 > centralStart || view.getUint32(local, true) !== 0x04034b50 || view.getUint16(local + 8, true) !== method) throw invalid();
+      if (size > OFFICE_ENTRY_LIMIT || size > OFFICE_TOTAL_LIMIT - total) throw new Error('Document trop volumineux : limite de taille du texte dépassée. Téléchargez-le pour le consulter.');
       const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
-      const raw = bytes.subarray(start, start + (method === 0 ? size : compressed));
-      if (method === 0) entries.set(name, raw);
-      else if (method === 8) entries.set(name, await inflateRaw(raw));
+      if (start > centralStart || compressed > centralStart - start || (method === 0 && compressed !== size)) throw invalid();
+      const raw = bytes.subarray(start, start + compressed);
+      const data = method === 0 ? raw : await inflateRaw(raw, Math.min(size, OFFICE_ENTRY_LIMIT, OFFICE_TOTAL_LIMIT - total));
+      if (data.byteLength !== size || crc32(data) !== expectedCrc) throw new Error('Document illisible : taille ou intégrité de l’archive incorrecte.');
+      entries.set(name, data); total += data.byteLength;
     }
+    if (at !== centralEnd) throw invalid();
     return entries;
   }
   const xml = (value) => String(value ?? '').replace(/[^\u0009\u000a\u000d -퟿-�]/gu, '')
@@ -518,12 +545,12 @@
   async function openEditor(source = null) {
     if (!bridge) return;
     const caseId = bridge.caseId();
-    let dirty = false, savedId = source && kindOf(source) === 'docx' ? source.id : null, versionOf = source?.id || null;
+    let ready = !source, dirty = false, savedId = source && kindOf(source) === 'docx' ? source.id : null, versionOf = source?.id || null;
     const baseTitle = source ? source.name.replace(/\.(docx|txt|csv|json|eml)$/iu, '') : 'Document sans titre';
     const titleInput = el('input', { class: 'doc-title', type: 'text', value: baseTitle, maxlength: '180', 'aria-label': 'Titre du document', oninput: () => { dirty = true; } });
-    const page = el('div', { class: 'doc-page', contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Texte du document', spellcheck: 'true', lang: 'fr-CA', 'data-placeholder': 'Commencez à écrire. Décrivez les faits dans l’ordre, avec les dates et les pièces qui s’y rapportent.' });
+    const page = el('div', { class: 'doc-page', contenteditable: ready ? 'true' : 'false', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Texte du document', spellcheck: 'true', lang: 'fr-CA', 'data-placeholder': 'Commencez à écrire. Décrivez les faits dans l’ordre, avec les dates et les pièces qui s’y rapportent.' });
     const status = el('div', { class: 'doc-status', role: 'status', text: source ? 'Ouverture du document…' : 'Nouveau document · rien n’est enregistré tant que vous ne cliquez pas « Enregistrer ».' });
-    const command = (name, value = null) => { page.focus(); document.execCommand(name, false, value); dirty = true; refreshState(); };
+    const command = (name, value = null) => { if (!ready) return; page.focus(); document.execCommand(name, false, value); dirty = true; refreshState(); };
     const format = el('select', { 'aria-label': 'Style du paragraphe', onchange: (event) => command('formatBlock', event.target.value) }, [
       el('option', { value: 'p', text: 'Paragraphe' }), el('option', { value: 'h1', text: 'Titre 1' }), el('option', { value: 'h2', text: 'Titre 2' }),
     ]);
@@ -551,18 +578,27 @@
     // Pasted content keeps its text only: no foreign styles, images or links enter the document.
     page.addEventListener('paste', (event) => { event.preventDefault(); const text = event.clipboardData?.getData('text/plain') || ''; document.execCommand('insertText', false, text); });
     page.addEventListener('drop', (event) => event.preventDefault());
-    const saveButton = button(bridge.canSave() ? 'Enregistrer dans le dossier' : 'Enregistrement indisponible', { cls: 'button small', glyph: 'check', disabled: !bridge.canSave() });
-    const exportButton = button('Télécharger .docx', { glyph: 'download' });
+    const saveButton = button(bridge.canSave() ? 'Enregistrer dans le dossier' : 'Enregistrement indisponible', { cls: 'button small', glyph: 'check', disabled: !ready || !bridge.canSave() });
+    const exportButton = button('Télécharger .docx', { glyph: 'download', disabled: !ready });
+    const setReady = (value) => {
+      ready = value;
+      page.setAttribute('contenteditable', String(value));
+      page.setAttribute('aria-busy', String(!value));
+      for (const control of [titleInput, format, ...toolbar.querySelectorAll('button')]) control.disabled = !value;
+      saveButton.disabled = !value || !bridge.canSave(); exportButton.disabled = !value;
+    };
+    if (!ready) { status.dataset.locked = '1'; setReady(false); }
     const build = () => {
       const blocks = blocksFromEditor(page);
       const title = titleInput.value.trim() || 'Document sans titre';
       return { blocks, title, bytes: docxFromBlocks(blocks, { title }), text: blocksText(blocks) };
     };
-    exportButton.addEventListener('click', () => { const { bytes, title } = build(); downloadBlob(new Blob([bytes], { type: MIME.docx }), safeName(title, 'docx')); });
+    exportButton.addEventListener('click', () => { if (!ready || dock.node !== opened) return; const { bytes, title } = build(); downloadBlob(new Blob([bytes], { type: MIME.docx }), safeName(title, 'docx')); });
     saveButton.addEventListener('click', async () => {
+      if (!ready || dock.node !== opened) return;
       const { bytes, title, text, blocks } = build();
       if (!blocks.length) { bridge.notify('Le document est vide.', true); return; }
-      saveButton.disabled = true; status.dataset.locked = '1'; status.textContent = 'Enregistrement dans le dossier…';
+      setReady(false); status.dataset.locked = '1'; status.textContent = 'Enregistrement dans le dossier…';
       try {
         const created = await bridge.save(new Blob([bytes], { type: MIME.docx }), {
           caseId, name: safeName(title, 'docx'), mimeType: MIME.docx, sourceType: 'declaration', extractedText: text.slice(0, 200000), versionOf,
@@ -573,7 +609,7 @@
         status.textContent = `Enregistré dans le dossier · version ${created?.versionNumber || 1} · ${stampLabel()}`;
         bridge.notify('Le document est enregistré dans le dossier. Son contenu reste à vérifier.');
       } catch (error) { delete status.dataset.locked; status.textContent = error.message; bridge.notify(error.message, true); }
-      finally { saveButton.disabled = !bridge.canSave(); }
+      finally { if (dock.node === opened) setReady(true); }
     });
     const editor = el('div', { class: 'doc-editor' }, [toolbar, el('div', { class: 'doc-stage' }, [page]), status]);
     const opened = openDock({ title: source ? `Modifier — ${source.name}` : 'Nouveau document', kind: 'editor', body: editor, defaultMode: 'full', label: 'l’éditeur',
@@ -587,12 +623,17 @@
         else {
           const blob = await cachedBlob(source);
           const blocks = kindOf(source) === 'docx' ? await readDocx(blob) : (await blob.slice(0, 2 * 1024 * 1024).text()).split(/\r?\n/u).map((line) => ({ type: 'p', runs: line ? [{ text: line }] : [] }));
+          if (dock.node !== opened) return;
           renderBlocks(page, blocks);
         }
+        delete status.dataset.locked; setReady(true);
         refreshState();
-      } catch (error) { status.textContent = error.message; }
+      } catch (error) {
+        if (dock.node !== opened) return;
+        setReady(false); page.setAttribute('aria-busy', 'false'); status.textContent = error.message;
+      }
     } else { page.append(el('p', {}, [el('br')])); refreshState(); }
-    page.focus();
+    if (dock.node === opened && ready) page.focus();
   }
 
   // ---------- Drawing board and image editor ----------
@@ -940,6 +981,7 @@
     if (!bridge) return;
     const caseId = bridge.caseId();
     let stream = null, recorder = null, chunks = [], timer = 0, cap = 0, recorded = null, reviewUrl = null, startedAt = 0;
+    let recorderNode = null, disposed = false;
     const supported = Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
     const video = el('video', { playsinline: true, muted: true, autoplay: true, hidden: true, 'aria-label': 'Aperçu de la caméra' });
     const state = el('p', { class: 'rec-state', role: 'status' }, [el('span', { class: 'rec-dot', 'aria-hidden': 'true' }), el('span', { text: 'Caméra éteinte' })]);
@@ -968,10 +1010,11 @@
       enable.disabled = true; setState('Autorisation demandée au navigateur…');
       try {
         stream = await navigator.mediaDevices.getUserMedia(audioOnly.checked ? { audio: true } : { audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } });
-        if (!dock.node) { release(); return; }
+        if (disposed || dock.node !== recorderNode) { release(); return; }
         video.srcObject = stream; video.muted = true;
         setState(audioOnly.checked ? 'Micro prêt' : 'Caméra prête'); layout('ready');
       } catch (error) {
+        if (disposed || dock.node !== recorderNode) return;
         enable.disabled = false;
         setState(error?.name === 'NotAllowedError' ? 'Accès refusé. Autorisez la caméra et le micro dans les réglages du navigateur.' : 'Aucune caméra ou micro disponible sur cet appareil.');
       }
@@ -984,6 +1027,7 @@
       recorder.addEventListener('dataavailable', (event) => { if (event.data?.size) chunks.push(event.data); });
       recorder.addEventListener('stop', () => {
         window.clearInterval(timer); window.clearTimeout(cap);
+        if (disposed) return;
         const mime = (recorder.mimeType || type || (audioOnly.checked ? 'audio/webm' : 'video/webm')).split(';')[0];
         recorded = new Blob(chunks, { type: mime });
         reviewUrl = URL.createObjectURL(recorded);
@@ -998,7 +1042,7 @@
     }
     function stop() { if (recorder?.state === 'recording') recorder.stop(); }
     send.addEventListener('click', async () => {
-      if (!recorded?.size) return;
+      if (!recorded?.size || disposed || dock.node !== recorderNode || send.disabled) return;
       send.disabled = true; again.disabled = true; setState('Envoi au dossier…');
       const isVideo = recorded.type.startsWith('video/'), extension = recorded.type.includes('mp4') ? (isVideo ? 'mp4' : 'm4a') : 'webm';
       const topic = subject.value.trim();
@@ -1008,15 +1052,16 @@
           sourceReference: `${isVideo ? 'Message vidéo' : 'Message vocal'} enregistré dans le portail le ${stampLabel()}${topic ? `. Objet : ${topic}` : ''}.`.slice(0, 2048),
         });
         release(); bridge.notify('Votre message est au dossier. Votre avocat le retrouve sous « Messages vidéo ».');
+        if (disposed || dock.node !== recorderNode) return;
         closeDock(true);
         if (created) openFile(created);
-      } catch (error) { setState(error.message); send.disabled = false; again.disabled = false; }
+      } catch (error) { if (!disposed && dock.node === recorderNode) { setState(error.message); send.disabled = false; again.disabled = false; } }
     });
     const body = el('div', { class: 'recorder' }, [intro, video, state, subject, controls,
       el('p', { class: 'recorder-note', text: 'Le message est versé au dossier comme « Déclaration ». Il n’est ni transcrit ni analysé automatiquement, et seules les personnes habilitées au dossier peuvent le voir.' })]);
     layout('idle');
-    openDock({ title: 'Message vidéo pour votre avocat', kind: 'recorder', body, defaultMode: 'third', label: 'l’enregistreur',
-      cleanup: () => { window.clearInterval(timer); window.clearTimeout(cap); if (recorder?.state === 'recording') recorder.stop(); release(); if (reviewUrl) URL.revokeObjectURL(reviewUrl); },
+    recorderNode = openDock({ title: 'Message vidéo pour votre avocat', kind: 'recorder', body, defaultMode: 'third', label: 'l’enregistreur',
+      cleanup: () => { disposed = true; window.clearInterval(timer); window.clearTimeout(cap); if (recorder?.state === 'recording') recorder.stop(); release(); if (reviewUrl) URL.revokeObjectURL(reviewUrl); },
       guard: () => !(recorder?.state === 'recording' || (recorded && !send.disabled)) || window.confirm('Fermer sans envoyer le message enregistré ?') });
   }
 

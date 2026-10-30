@@ -176,7 +176,7 @@ function loadWorkspace() {
   return context.window.BAWorkspace.internals;
 }
 function python(script, args) {
-  const result = spawnSync('python3', ['-I', '-c', script, ...args], { encoding: 'utf8' });
+  const result = spawnSync(process.env.PYTHON || 'python3', ['-I', '-c', script, ...args], { encoding: 'utf8' });
   return result.error ? null : result;
 }
 const CHECK_ZIP = `

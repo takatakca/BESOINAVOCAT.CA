@@ -95,6 +95,17 @@ function wireButtons(html, domainId, page) {
   });
 }
 
+// Approved migration repairs: keep the mirror unchanged and repair only known dead destinations in the build.
+function repairKnownReferences(html) {
+  const images = {
+    'https://jurigo.ca/images/regroupement-familial-quebec/document-parrainage-familial?': '/wp-content/uploads/2025/10/fonctionnement-demande-parrainage-canada.webp',
+    'https://jurigo.ca/images/regroupement-familial-quebec/restrictions-parrainage-familial?': '/wp-content/uploads/2025/10/regroupement-familial-canada.webp',
+  };
+  return html.replace(/(\ssrc=["'])([^"']+)(["'])/g, (m, before, url, after) => images[url] ? before + images[url] + after : m)
+    .replace(/(\shref=["'])\/contact\/?(["'])/g, (m, before, after) => before + new URL('/demande', PORTAL).href + after)
+    .replace(/(\shref=["'])\/wp-login\.php\?action=(lostpassword|register)(["'])/g, (m, before, action, after) => before + (action === 'register' ? new URL('/demande', PORTAL).href : PORTAL) + after);
+}
+
 // Colours of inline styles, style blocks and SVG attributes.
 function recolourHtml(html) {
   return html
@@ -108,11 +119,29 @@ function recolourHtml(html) {
 // Readability fixes of the colour change, loaded after every other stylesheet.
 const withPaletteFixes = (html) => html.replace(/<\/head>/i, '<link rel="stylesheet" href="/assets/palette-fixes.css">\n</head>');
 
-// Forms and login depend on WordPress; a small script sends them to the portal instead.
+// Keep the historical form and labels, but make it inactive before scripts run: collecting fields here would lose them.
+// MetForm builds its actual form from a script template, so lock its real outer wrapper, not that template.
+function prepareLegacyForms(html) {
+  let count = 0;
+  return html.replace(/<(div|form)\b([^>]*)>/gi, (tag, element, attrs) => {
+    const classes = (attrs.match(/\bclass\s*=\s*["']([^"']*)["']/i) || [])[1] || '';
+    const id = (attrs.match(/\bid\s*=\s*["']([^"']*)["']/i) || [])[1] || '';
+    const professional = element.toLowerCase() === 'div' && /(?:^|\s)mf-form-wrapper(?:\s|$)/.test(classes);
+    const login = element.toLowerCase() === 'form' && (/(?:^|\s)(?:elementor-login|elementor-form)(?:\s|$)/.test(classes) || id === 'lostpasswordform');
+    if (!professional && !login) return tag;
+    const noticeId = `ba-migration-form-${++count}`;
+    const destination = professional ? new URL('/demande?role=professional', PORTAL).href : PORTAL;
+    const label = professional ? 'Préparer ma demande professionnelle dans le portail' : 'Accéder au portail';
+    const notice = `<aside data-ba-migration-notice="true" id="${noticeId}" lang="fr"><p>Ce formulaire est conservé pour référence et ses champs sont inactifs. Ouvrez le portail pour saisir vos informations.</p><p><a class="elementor-button" href="${destination}">${label}</a></p></aside>`;
+    return notice + `<${element}${attrs} inert aria-disabled="true" aria-describedby="${noticeId}" data-ba-legacy-form="true">`;
+  });
+}
+
+// The defensive submit handler never transfers values from the archived forms.
 function bridge(html) {
   if (!/metform|elementor-login|elementor-form|lostpasswordform/i.test(html)) return html;
   const tag = `<script src="/assets/static-bridge.js" data-professional="${new URL('/demande?role=professional', PORTAL).href}" data-portal="${PORTAL}" defer></script>`;
-  return html.replace(/<\/body>/i, `${tag}\n</body>`);
+  return prepareLegacyForms(html).replace(/<\/body>/i, `${tag}\n</body>`);
 }
 
 // WordPress sent its styles and images with a one-year cache. Every file the copy changes gets a new address
@@ -150,7 +179,7 @@ for (const { file, path } of files) {
   if (!/\.html$/i.test(file)) continue;
   const pagePath = path.replace(/index\.html$/, '');
   let html = readFileSync(file, 'utf8');
-  html = withoutWordPressEndpoints(localFonts(relativeLinks(html)));
+  html = repairKnownReferences(withoutWordPressEndpoints(localFonts(relativeLinks(html))));
   html = withPaletteFixes(bridge(recolourHtml(wireButtons(html, domains.get(pagePath), pagePath))));
   writeFileSync(file, withFreshAddresses(html));
   report.pages++;

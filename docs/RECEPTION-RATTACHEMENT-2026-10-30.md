@@ -1,6 +1,24 @@
 # Réception du rattachement des dossiers — 30 octobre 2026
 
-## Incident d'hébergement — 11:24 UTC (07:24 à Montréal)
+## Remise du lot local — 11:34 UTC (07:34 à Montréal)
+
+Le propriétaire confie le rétablissement VPS à **Mike ou à l'agent serveur**. Ce relais est consigné dans le fil de coordination. Le dernier contrôle public disponible reste celui de 11:22:04 UTC, en échec; aucun rétablissement du portail n'est confirmé. Les manipulations VPS sont laissées à cet intervenant pour éviter des actions concurrentes.
+
+Les résultats prêts à reprendre sont distincts :
+
+| Élément | Preuve disponible | Limite |
+| --- | --- | --- |
+| Rattachement historique | Sauvegarde privée, restauration identique à l'original, contrôle serveur de trois dossiers accessibles | Avant l'incident; pas de recette authentifiée après correction |
+| CNESST v2 | Paquet privé testé sur une copie : 4 dossiers / 1 368 documents / 3 128 unités | Aucun import serveur confirmé |
+| Vitrine GitHub | Deux images et lien contact réparés; avis et liens avant les formulaires rendus inactifs; source préservée | Ressource Coolify non créée, DNS inchangé |
+| Fiabilité du contrôle vitrine | Revue indépendante; détection autonome des formulaires historiques, mutations rejetées; 10/10 tests réussis | Ne remplace pas la réception sur l'hébergement final |
+| Visuel local | Page professionnelle contrôlée sur ordinateur; `VITRINE-PROFESSIONNELS-LOCAL.png` dans les preuves privées | Autres formats et parcours à distinguer selon leurs preuves |
+
+Le contrôle de construction ne peut plus accepter silencieusement les formulaires historiques lorsque le marquage de préparation a été omis. Il exige leur état inactif et une notice correspondante placée avant le formulaire. Les originaux non préparés et les mutations testées sont rejetés.
+
+**Publication de ce lot :** les références de commit, PR, CI et éventuel déploiement seront complétées par le principal après leurs résultats effectifs. Le présent état ne vaut pas publication ou disponibilité en production. Après rétablissement : santé HTTPS, nouvelle session et pièces, recherche/source/téléchargement, import CNESST contrôlé, puis recette de la vitrine et bascule avec continuité du courrier. Aucun dossier exhaustif ni parcours intégralement terminé n'est annoncé.
+
+## Historique — incident d'hébergement à 11:24 UTC
 
 **Portail indisponible au contrôle du 30 octobre à 11:22:04.614 UTC, avec validation TLS normale.** La page, les fichiers publics et les routes contrôlées renvoient 503; l'endpoint de santé renvoie du HTML au lieu du JSON attendu. Coolify échoue également : création de ressource et terminal en erreur 500 avec une limite mémoire de 268435456 octets, vues canvas et Files en 504. La cause n'est pas établie. Un déploiement concurrent observé ne constitue pas une preuve de causalité.
 

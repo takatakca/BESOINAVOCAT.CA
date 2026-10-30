@@ -1,5 +1,13 @@
 # BESOINAVOCAT.CA
 
+## Reprise serveur et vitrine — 30 octobre 2026, 11:43 UTC
+
+Le portail répond encore 503 au contrôle de 11:35 UTC. **Mike ou l'agent serveur prend le rétablissement du VPS**, selon le propriétaire. [Fiche courte de reprise](docs/REPRISE-MIKE-2026-10-30.md).
+
+Les correctifs de vitrine et les notes sont publiés dans la [PR 12](https://github.com/takatakca/BESOINAVOCAT.CA/pull/12) : 348 pages conservées et contrôlées, 10 tests de formulaires, 12 tests du site, revue indépendante et contrôle visuel local. Les six contrôles GitHub ont réussi sur le code `47ec80e`; les ajouts documentaires suivants ont leur propre CI à vérifier dans la PR. La vitrine n'est pas encore créée ni déployée sur Coolify et aucun DNS n'a changé.
+
+Rattachement historique restauré avant la panne : trois dossiers accessibles au contrôle serveur, recette utilisateur encore ouverte. CNESST v2 validé sur copie (4 dossiers / 1 368 documents / 3 128 pages), **pas importé en production**. Le choix de cookies et les textes juridiques restent à contrôler; aucun service payant activé.
+
 ## Point de reprise — 30 octobre 2026, 11:15 UTC
 
 **Rattachement serveur corrigé, recette utilisateur en attente.** La session active affichait zéro dossier, mais la base active contient bien **trois dossiers, 1 362 documents et 3 101 unités**. Après sauvegarde privée, le seul rattachement d'espace du propriétaire historique a été restauré à l'identique de l'original vérifié : contrôle serveur **3 dossiers accessibles**, fichier en mode 0600, compteurs inchangés. Aucune nouvelle identité ou appartenance créée. La reconnexion est demandée; l'affichage et l'ouverture des pièces après correction restent à confirmer.

@@ -1,6 +1,20 @@
 # DEPLOYMENT — BESOINAVOCAT.CA
 
+**Point courant — 29 octobre 2026 (soir), espace de travail premium (D-029, BA-037) :** pièces en tuiles avec glisser-déposer, visionneuse plein écran / tiers / coin, bouton vert « Appeler mon avocat » (réunion Zoom prévue ou demande de rappel au dossier, sans téléphonie), messages vidéo, éditeur Word `.docx`, annotation d'image avec repères et légende, présentation `.pptx`, navigation mobile par glissement. Guide et preuves : [ESPACE-DE-TRAVAIL](ESPACE-DE-TRAVAIL.md). Tests 242/242 portail et 12/12 site; QA Chromium ordinateur et mobile sans erreur, axe A/AA sans violation. Livré par la [PR 7](https://github.com/takatakca/BESOINAVOCAT.CA/pull/7). **Pas encore en ligne :** après la fusion, le portail Coolify doit être redéployé (bouton Redeploy ou déploiement automatique, voir [DEPLOYMENT](DEPLOYMENT.md)); `portail.besoinavocat.ca` attend toujours la bascule DNS de Mike (DEV-A-FAIRE §3.4). IA, téléphonie et facturation à l'heure restent à connecter.
+
 **Point courant — 29 octobre 2026, connexion à corriger :** la [PR 3](https://github.com/takatakca/BESOINAVOCAT.CA/pull/3) est fusionnée au SHA `ad8e2f4a31ebdafee2bc56acd36e861652d4623c`, six contrôles réussis, avec la réception et le correctif de sauvegarde des cinq tables d’intégration. Le serveur reste au SHA `efef692`; l’accès utilisateur réel n’est pas validé. TAKATAK utilise son propre code courriel/SMS, alors que ce portail demande encore un mot de passe. Le correctif de code courriel Supabase sur `codex/connexion-code-courriel` a réussi 233/233 tests du portail, 12/12 tests du site et 60/60 contrôles ciblés de connexion, avec revue indépendante; il n’est pas encore déployé. Ce code est distinct du code TAKATAK. Le propriétaire est connecté à Supabase : SMTP personnalisé déjà activé (`smtp.maileroo.com:465`), secrets inchangés. Le modèle Magic Link a reçu un code `{{ .Token }}` FR/EN en conservant son lien; sauvegarde effectuée, relecture après rechargement confirmée. Activation désactivée par défaut (`BESOINAVOCAT_EMAIL_OTP_ENABLED`); après contrôle final du modèle et déploiement, la livraison réelle du code puis la connexion restent à tester. Aucun code envoyé, réinitialisation, nouveau compte ou droit ajouté. [Réception et étapes restantes](COOLIFY.md#état-de-lessai-distant--28-octobre-2026).
+
+## Redéployer le portail après l'espace de travail (PR 7, 29 octobre 2026)
+
+Le déploiement automatique est inactif tant que les variables et secrets `production` ne sont pas posés (voir [COOLIFY](COOLIFY.md) et la carte de KLEAN, PR 6). Les agents n'ont ni accès à Coolify ni droit sur ces réglages. Après la fusion de la PR 7 dans `main` :
+
+1. Dans Coolify, ouvrir le projet `BESOINAVOCAT` puis l'application du portail (`besoinavocat-portail`), et cliquer **Redeploy** (source `main`).
+2. Contrôler sur l'adresse d'essai <https://fluzlqgkhifrgkmygknj4mjj.31.220.96.134.sslip.io> :
+   - `/api/health` répond 200, avec `loginConfigured` et `emailCodeConfigured`;
+   - `/workspace.js` répond 200 en `text/javascript`;
+   - l'en-tête `Content-Security-Policy` de `/` contient `media-src 'self' blob:`, et `Permissions-Policy` contient `camera=(self)`.
+3. Se connecter, ouvrir **Pièces et sources** : les tuiles, la carte « Appeler mon avocat » et la barre d'actions s'affichent. Essayer un message vidéo avec la vraie caméra.
+4. `portail.besoinavocat.ca` ne montrera ce portail qu'après la bascule DNS de Mike ([DEV-A-FAIRE](DEV-A-FAIRE-2026-10-28.md) §3.4).
 
 ## Cible confirmée le 28 octobre 2026
 

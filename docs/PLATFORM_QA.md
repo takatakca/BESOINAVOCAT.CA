@@ -1,5 +1,18 @@
 # Contrôles de la plateforme — 26 octobre 2026
 
+## Espace de travail premium — 29 octobre 2026 (D-029)
+
+| Exécution | Résultat | Portée |
+|---|---|---|
+| Portail, Node 22 local (CI : 24.19) | **242/242 réussis** | Dont `workspace-premium` (8) et `workspace-media`; quatre défauts injectés détectés. |
+| Site d'orientation | **12/12 réussis** | `node --check` de `site/app.js` et `site/guide.mjs` compris. |
+| Archive MochaHost | **réussi** | `workspace.js` ajouté à la liste. |
+| Chromium, 1440 px et 390 px | **parcours complet, 0 erreur de console ou CSP, 0 débordement mobile** | Tuiles, visionneuse 3 tailles, PDF, Word, version 2, annotation, dessin, rappel, vidéo par caméra simulée, présentation, tiroir, glissement. |
+| axe-core WCAG A/AA (mouvement réduit) | **0 violation** | Pièces et tableau de bord, session et aperçu, ordinateur et mobile. |
+| python-docx, python-pptx, LibreOffice | **fichiers ouverts et rendus** | `.docx` et `.pptx` produits par `workspace.js`. |
+
+Une QA Chromium n'est ni une certification WCAG, ni un essai sur un vrai téléphone, ni un test avec lecteur d'écran. Détails : [ESPACE-DE-TRAVAIL](ESPACE-DE-TRAVAIL.md).
+
 Le code final a été vérifié localement, y compris les sessions partagées et la restauration du corpus. **Cette version n'est pas encore installée sur le portail public.** Le serveur initial fonctionne chez MochaHost, mais cPanel a refusé la nouvelle archive avant son installation. Aucune connexion réelle ni activation du corpus distant n'est attestée ici.
 
 ## Tests locaux exécutés

@@ -28,6 +28,34 @@
     send: '<path d="m3 3 19 9-19 9 4-9zm4 9h15"/>',
     eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     link: '<path d="m9 15 6-6M8 16l-2 2a3 3 0 0 1-4-4l5-5a3 3 0 0 1 4 0m2 6a3 3 0 0 0 4 0l5-5a3 3 0 0 0-4-4l-2 2"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    grid: '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+    full: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+    third: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',
+    corner: '<rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="12" width="6" height="5" rx="1"/>',
+    pen: '<path d="m4 20 4-1L19 8l-3-3L5 16z"/><path d="m14 7 3 3"/>',
+    highlighter: '<path d="m9 14-4 5h6l2-2"/><path d="m8 12 8-8 4 4-8 8z"/>',
+    eraser: '<path d="M9 20h11"/><path d="m5 15 9-9 5 5-8 8H9z"/>',
+    line: '<path d="M5 19 19 5"/>',
+    arrowTool: '<path d="M5 19 19 5M10 5h9v9"/>',
+    rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+    text: '<path d="M5 7V5h14v2M12 5v14M9 19h6"/>',
+    marker: '<rect x="5" y="3" width="14" height="13" rx="2"/><path d="M12 16v5M11 7h1v5"/>',
+    mask: '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>',
+    crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/>',
+    rotate: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+    redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m21 16-5-5-9 9"/><path d="M8.5 9.5h.01"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 20h7"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    record: '<rect x="7" y="7" width="10" height="10" rx="5"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
+    play: '<path d="M8 5v14l11-7z"/>',
+    slides: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/>',
+    listBullet: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+    listNumber: '<path d="M10 6h10M10 12h10M10 18h10M4 5h1v4M4 15h2l-2 3h2"/>',
   };
   const state = {
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
@@ -37,6 +65,7 @@
     documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
     searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
     dictationLanguage: 'fr-CA', dictationAutoSearch: true, dictationStatus: 'idle', dictationMessage: '',
+    docLayout: 'grid', uploads: [],
   };
   const main = document.getElementById('main-content');
   const dialog = document.getElementById('workspace-dialog');
@@ -82,7 +111,9 @@
     state.caseLoading = false;
     state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null;
     state.selectedId = null; state.capabilities = null; state.integrations = null; state.searchResults = null; state.searchQuery = ''; state.searchMeta = null;
+    state.uploads = [];
     if (dialog.open) dialog.close();
+    window.BAWorkspace?.reset();
   }
   async function api(path, options = {}) {
     // Preview never falls through to a real API, including read-only requests.
@@ -106,7 +137,11 @@
     }
     const payload = await response.json().catch(() => ({}));
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
-    if (!response.ok) throw new Error(payload.error?.message || `La demande n’a pas abouti (${response.status}).`);
+    if (!response.ok) {
+      const error = new Error(payload.error?.message || `La demande n’a pas abouti (${response.status}).`);
+      error.status = response.status;
+      throw error;
+    }
     return payload;
   }
   async function publicHealth() {
@@ -225,15 +260,64 @@
     const entries = state.detail?.timeEntries || [];
     const pending = entries.filter((entry) => entry.status === 'submitted').reduce((sum, entry) => sum + entry.minutes, 0);
     const cards = state.cases.map((item) => `<article class="case-card${item.id === state.selectedId ? ' selected' : ''}" data-case-filter="${esc(fold(`${item.title} ${item.reference}`))}"><span class="case-symbol">${icon('folder')}</span><div class="case-card-content"><div class="case-ref">${esc(item.reference || 'Référence à préciser')}${state.demo ? ' · FICTIF' : ''}</div><button class="case-title" data-action="open-case" data-id="${esc(item.id)}">${esc(item.title)}</button><p>${state.demo ? 'Exemple de présentation, sans affaire réelle.' : `Créé le ${esc(date(item.createdAt))}`}</p><div class="case-card-foot"><span class="badge${item.id === state.selectedId ? ' teal' : ' neutral'}">${item.id === state.selectedId ? 'Dossier sélectionné' : 'Dossier de travail'}</span>${item.id === state.selectedId ? `<span>${docs.length} pièce${docs.length > 1 ? 's' : ''}</span>` : ''}<span>${state.demo ? 'Lecture seule' : `Accès ${esc(({ owner: 'responsable', lawyer: 'avocat', client: 'client' })[item.role] || 'autorisé')}`}</span></div></div><button class="icon-button case-arrow" data-action="open-case" data-id="${esc(item.id)}" aria-label="${esc(`Ouvrir ${item.title}`)}">${icon('arrow')}</button></article>`).join('');
-    return `${intro('L’ESSENTIEL, AU MÊME ENDROIT', 'Vos dossiers, en ordre.', 'Un point de départ clair pour préparer la prochaine étape.', `<button class="button" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button>`)}<div class="metrics">${metric('Dossiers accessibles', state.cases.length, state.demo ? 'Exemples fictifs' : 'Selon vos habilitations', 'folder')}${metric('Pièces du dossier sélectionné', docs.length, `${docs.filter((doc) => doc.reviewStatus !== 'controle_visuel').length} à vérifier`, 'document')}${metric('Temps soumis du dossier', duration(pending), 'Aucune facturation automatique', 'clock')}</div>${quickSearch()}<div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Votre bibliothèque de dossiers</h2><p>Ouvrez un dossier pour retrouver ses pièces et son suivi.</p></div><span class="badge outline">${state.cases.length} dossier${state.cases.length > 1 ? 's' : ''}</span></div><div class="panel-body"><label class="searchbox" for="case-filter">${icon('search')}<input id="case-filter" type="search" placeholder="Rechercher un titre ou une référence…" autocomplete="off" aria-label="Rechercher un dossier"></label><div class="case-list">${cards || '<div class="empty-state"><h2>Votre premier dossier commence ici.</h2><p>Créez un dossier pour y classer les pièces et leurs sources.</p></div>'}</div><p id="case-filter-empty" class="table-empty" hidden>Aucun dossier ne correspond à cette recherche.</p>${readOnlyNote()}</div></section><aside class="section-stack" aria-label="Repères de travail">${principles()}${connections()}</aside></div>`;
+    return `${intro('L’ESSENTIEL, AU MÊME ENDROIT', 'Vos dossiers, en ordre.', 'Un point de départ clair pour préparer la prochaine étape.', `<button class="button" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button>`)}<div class="metrics">${metric('Dossiers accessibles', state.cases.length, state.demo ? 'Exemples fictifs' : 'Selon vos habilitations', 'folder')}${metric('Pièces du dossier sélectionné', docs.length, `${docs.filter((doc) => doc.reviewStatus !== 'controle_visuel').length} à vérifier`, 'document')}${metric('Temps soumis du dossier', duration(pending), 'Aucune facturation automatique', 'clock')}</div>${state.detail ? workbar() : ''}${quickSearch()}<div class="layout-two"><section class="panel"><div class="panel-heading"><div><h2>Votre bibliothèque de dossiers</h2><p>Ouvrez un dossier pour retrouver ses pièces et son suivi.</p></div><span class="badge outline">${state.cases.length} dossier${state.cases.length > 1 ? 's' : ''}</span></div><div class="panel-body"><label class="searchbox" for="case-filter">${icon('search')}<input id="case-filter" type="search" placeholder="Rechercher un titre ou une référence…" autocomplete="off" aria-label="Rechercher un dossier"></label><div class="case-list">${cards || '<div class="empty-state"><h2>Votre premier dossier commence ici.</h2><p>Créez un dossier pour y classer les pièces et leurs sources.</p></div>'}</div><p id="case-filter-empty" class="table-empty" hidden>Aucun dossier ne correspond à cette recherche.</p>${readOnlyNote()}</div></section><aside class="section-stack" aria-label="Repères de travail">${contactCard()}${principles()}${connections()}</aside></div>`;
+  }
+  // Workspace (D-029): files as tiles or a list, quick upload, the call card and video messages.
+  const DOC_KINDS = { 'image/jpeg': 'image', 'image/png': 'image', 'image/webp': 'image', 'application/pdf': 'pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx' };
+  function docKind(doc) {
+    const type = doc?.mimeType || '';
+    return DOC_KINDS[type] || (type.startsWith('video/') ? 'video' : type.startsWith('audio/') ? 'audio' : ['text/plain', 'text/csv', 'application/json', 'message/rfc822'].includes(type) ? 'text' : 'other');
+  }
+  const KIND_ICONS = { image: 'image', video: 'video', audio: 'mic', pdf: 'document', docx: 'edit', pptx: 'slides', text: 'document', other: 'document' };
+  function extension(doc) { return (/\.([a-z0-9]{1,5})$/iu.exec(doc.name || '')?.[1] || docKind(doc)).toUpperCase(); }
+  function workspaceReady() { return Boolean(window.BAWorkspace) && Boolean(state.detail); }
+  function workbar() {
+    const tools = workspaceReady() ? '' : ' disabled';
+    const upload = canMutate() && state.selectedId ? '' : ' disabled';
+    const item = (action, glyph, title, text, disabled) => `<button type="button" class="workbar-action" data-action="${action}"${disabled}><span class="workbar-icon">${icon(glyph)}</span><span><strong>${esc(title)}</strong><small>${esc(text)}</small></span></button>`;
+    return `<div class="workbar" role="group" aria-label="Créer ou ajouter une pièce">${item('pick-files', 'upload', 'Téléverser', 'PDF, photos, vidéos, Word', upload)}${item('new-doc', 'edit', 'Document vierge', 'Rédiger, enregistrer en .docx', tools)}${item('new-drawing', 'pen', 'Tableau à dessin', 'Dessiner un plan, situer un lieu', tools)}${item('record-video', 'video', 'Message vidéo', '5 minutes au plus', tools)}</div>`;
+  }
+  function nextMeeting() {
+    const now = Date.now();
+    return communicationSessions().filter(item => item.status !== 'cancelled' && new Date(item.scheduledAt).getTime() > now - 2 * 3600 * 1000)
+      .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))[0] || null;
+  }
+  function joinUrlFor(item) { return item?.kind === 'video' ? safeZoomUrl(item.joinUrl) || safeZoomUrl(meetingLink(item)?.url) : null; }
+  function isClientSide() { return !['owner', 'lawyer'].includes(currentCase()?.role); }
+  function contactCard() {
+    if (!state.detail) return '';
+    const client = isClientSide(), next = nextMeeting(), join = !state.demo && joinUrlFor(next);
+    const media = (state.detail.documents || []).filter(doc => ['video', 'audio'].includes(docKind(doc))).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 6);
+    const callable = state.demo || canMutate() ? '' : ' disabled';
+    const record = workspaceReady() ? '' : ' disabled';
+    const list = media.length ? `<div class="media-list">${media.map(doc => `<button type="button" class="media-item" data-action="open-file" data-id="${esc(doc.id)}">${icon(docKind(doc) === 'audio' ? 'mic' : 'play')}<span>${esc(doc.name)}</span><small>${esc(date(doc.createdAt))}</small></button>`).join('')}</div>` : '<p class="media-empty">Aucun message vidéo dans ce dossier pour l’instant.</p>';
+    return `<section class="contact-card" aria-labelledby="contact-title"><h3 id="contact-title">${client ? 'Votre avocat' : 'La personne cliente'}</h3><p>${next ? `Prochain rendez-vous : ${esc(date(next.scheduledAt, true))}` : 'Aucun rendez-vous planifié dans ce dossier.'}</p><div class="contact-call"><span><strong>${client ? 'Appeler mon avocat' : 'Joindre la personne cliente'}</strong><small>${join ? 'Rejoindre la réunion Zoom prévue' : 'Demande de rappel déposée au dossier'}</small></span><button type="button" class="button call" data-action="call-lawyer"${callable}>${icon('phone')}Appeler</button></div><div class="contact-row"><span><strong>Messages vidéo</strong><small>Expliquez en images, 5 minutes au plus.</small></span><button type="button" class="button secondary small" data-action="record-video"${record}>${icon('video')}Enregistrer</button></div>${list}</section>`;
+  }
+  function uploadsHtml() {
+    const label = { queued: 'En attente', sending: 'Envoi…', done: 'Ajoutée', failed: 'Échec' };
+    return state.uploads.map(item => `<div class="upload-item ${item.status}"><span>${esc(item.name)}</span><small>${esc(item.status === 'failed' && item.message ? item.message : label[item.status])}</small><span class="bar"><i></i></span></div>`).join('');
+  }
+  function fileTile(doc) {
+    const kind = docKind(doc), id = esc(doc.id), name = esc(doc.name);
+    const actions = [`<button type="button" class="icon-button" data-action="preview" data-id="${id}" title="Provenance" aria-label="${esc(`Provenance de ${doc.name}`)}">${icon('info')}</button>`];
+    if (kind === 'image') actions.push(`<button type="button" class="icon-button" data-action="annotate" data-id="${id}" title="Annoter" aria-label="${esc(`Annoter ${doc.name}`)}"${workspaceReady() ? '' : ' disabled'}>${icon('pen')}</button>`);
+    if (kind === 'docx' || kind === 'text') actions.push(`<button type="button" class="icon-button" data-action="edit-doc" data-id="${id}" title="Modifier" aria-label="${esc(`Modifier ${doc.name}`)}"${workspaceReady() ? '' : ' disabled'}>${icon('edit')}</button>`);
+    actions.push(`<button type="button" class="icon-button" data-action="download" data-id="${id}" title="Télécharger" aria-label="${esc(`Télécharger ${doc.name}`)}"${canMutate() ? '' : ' disabled'}>${icon('download')}</button>`);
+    return `<article class="file-tile"><button type="button" class="file-open" data-action="open-file" data-id="${id}"><span class="file-thumb" data-thumb="${id}">${icon(KIND_ICONS[kind])}<span class="file-type">${esc(extension(doc))}</span></span><span class="file-meta"><strong>${name}</strong><small>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Document fictif' : esc(bytes(doc.bytes))} · ${esc(date(doc.createdAt))}</small><span class="file-badges">${sourceBadge(doc.sourceType)}${reviewBadge(doc.reviewStatus)}</span></span></button><div class="file-actions">${actions.join('')}</div></article>`;
   }
   function documentsView() {
     const allDocuments = state.detail.documents || [];
     const categories = [...new Set(allDocuments.map(doc => doc.category).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
     const documents = allDocuments.filter(doc => (!state.documentCategory || doc.category === state.documentCategory) && (!state.onlyUnresolved || (doc.missingTextPages?.length || doc.ocrPagesToVerify?.length || doc.lowTextPagesToVerify?.length)));
     const filters = `<div class="document-filters"><label for="document-category">Catégorie du registre<select id="document-category"><option value="">Toutes les catégories (${allDocuments.length})</option>${categories.map(category => `<option value="${esc(category)}"${category === state.documentCategory ? ' selected' : ''}>${esc(category)}</option>`).join('')}</select></label><label class="checkbox-filter"><input id="document-unresolved" type="checkbox"${state.onlyUnresolved ? ' checked' : ''}> Registre : texte manquant ou extraction à contrôler</label></div>`;
-    const rows = documents.map((doc) => `<tr><td><div class="document-name">${icon('document')}<div><button data-action="preview" data-id="${esc(doc.id)}">${esc(doc.name)}</button><small>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Document fictif' : esc(bytes(doc.bytes))}${doc.pageCount ? ` · ${doc.pageCount} pages/unités` : ''}</small>${doc.category ? `<small>${esc(doc.category)}</small>` : ''}</div></div></td><td>${sourceBadge(doc.sourceType)}${duplicateNote(doc)}<small class="table-subtext">${esc(date(doc.createdAt))}</small></td><td>${reviewBadge(doc.reviewStatus)}${(doc.missingTextPages?.length || doc.ocrPagesToVerify?.length) ? `<small class="table-subtext">${doc.missingTextPages?.length || 0} sans texte · ${doc.ocrPagesToVerify?.length || 0} OCR à contrôler</small>` : ""}</td><td><button class="icon-button" data-action="preview" data-id="${esc(doc.id)}" aria-label="${esc(`Voir la provenance de ${doc.name}`)}">${icon('eye')}</button></td></tr>`).join('');
-    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Retrouvez un passage. Contrôlez le document auquel il se rapporte.', `<button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter une pièce</button>`)}${context()}<div class="layout-two"><div class="section-stack main-stack">${quickSearch('case')}<section class="panel"><div class="panel-heading"><div><h2>Registre des pièces</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''} dans ce dossier${state.demo ? ' fictif' : ''}.</p></div></div>${filters}${documents.length ? `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>'}</section></div><aside class="section-stack" aria-label="Repères sur les pièces">${principles()}${connections()}</aside></div>${readOnlyNote()}`;
+    const grid = state.docLayout !== 'list';
+    const rows = documents.map((doc) => `<tr><td><div class="document-name">${icon(KIND_ICONS[docKind(doc)])}<div><button data-action="open-file" data-id="${esc(doc.id)}">${esc(doc.name)}</button><small>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Document fictif' : esc(bytes(doc.bytes))}${doc.pageCount ? ` · ${doc.pageCount} pages/unités` : ''}</small>${doc.category ? `<small>${esc(doc.category)}</small>` : ''}</div></div></td><td>${sourceBadge(doc.sourceType)}${duplicateNote(doc)}<small class="table-subtext">${esc(date(doc.createdAt))}</small></td><td>${reviewBadge(doc.reviewStatus)}${(doc.missingTextPages?.length || doc.ocrPagesToVerify?.length) ? `<small class="table-subtext">${doc.missingTextPages?.length || 0} sans texte · ${doc.ocrPagesToVerify?.length || 0} OCR à contrôler</small>` : ""}</td><td><button class="icon-button" data-action="preview" data-id="${esc(doc.id)}" aria-label="${esc(`Voir la provenance de ${doc.name}`)}">${icon('eye')}</button></td></tr>`).join('');
+    const toggle = `<div class="view-toggle" role="group" aria-label="Affichage des pièces"><button type="button" data-action="doc-layout" data-layout="grid" aria-pressed="${grid}">${icon('grid')}Tuiles</button><button type="button" data-action="doc-layout" data-layout="list" aria-pressed="${!grid}">${icon('list')}Liste</button></div>`;
+    const accept = '.pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.txt,.csv,.json,.eml,.doc,.docx,.xls,.xlsx,.pptx,.webm,.mp4,.m4a,.mp3';
+    const dropzone = canMutate() ? `<div class="dropzone" id="dropzone">${icon('upload')}<span><strong>Déposez vos fichiers ici</strong> ou <button type="button" class="text-button" data-action="pick-files">choisissez-les</button> · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} au plus par fichier, 20 à la fois</span><input id="drop-input" class="dropzone-input" type="file" multiple accept="${accept}" tabindex="-1" aria-hidden="true"></div>` : '';
+    const images = allDocuments.some(doc => docKind(doc) === 'image');
+    const body = documents.length ? grid ? `<div class="file-grid">${documents.map(fileTile).join('')}</div>` : `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>';
+    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Ouvrez, annotez et complétez vos pièces. Chacune garde sa provenance.', `<button class="button secondary" data-action="new-presentation"${workspaceReady() && images ? '' : ' disabled'}>${icon('slides')}Présentation</button><button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter avec provenance</button>`)}${context()}${workbar()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel workspace-files" data-dropzone aria-labelledby="files-title"><div class="panel-heading"><div><h2 id="files-title">Pièces du dossier</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''}${state.demo ? ' fictive' + (documents.length > 1 ? 's' : '') : ''} · cliquez pour ouvrir.</p></div>${toggle}</div>${filters}${dropzone}<div class="upload-queue" id="upload-queue" aria-live="polite">${uploadsHtml()}</div>${body}</section>${quickSearch('case')}</div><aside class="section-stack" aria-label="Contact et repères">${contactCard()}${principles()}</aside></div>${readOnlyNote()}`;
   }
   function searchResults() {
     if (state.searchResults === null) return '<p class="table-subtext">Saisissez des mots ou une question : la recherche extrait des termes et retrouve les passages correspondants. Elle ne rédige pas de réponse juridique.</p>';
@@ -365,12 +449,16 @@
   function render(focus = false) {
     header();
     if (state.mode === 'loading') return;
+    const shown = `${state.mode}:${state.view}:${state.selectedId || ''}`;
+    main.classList.toggle('enter', main.dataset.shown !== shown);
+    main.dataset.shown = shown;
     if (state.mode === 'signedout') main.innerHTML = signedOut();
     else if (state.view === 'cases') main.innerHTML = casesView();
     else if (state.view === 'search') main.innerHTML = searchView();
     else if (state.view === 'integrations') main.innerHTML = integrationsView();
     else if (!state.detail) main.innerHTML = noCase();
     else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView, communications: communicationsView, usage: usageView })[state.view]();
+    window.BAWorkspace?.afterRender(main);
     if (focus) main.focus({ preventScroll: true });
   }
   function showDialog(title, subtitle, body) {
@@ -387,7 +475,7 @@
   function openUpload() {
     if (!canMutate() || !state.selectedId) return;
     const options = (state.detail.documents || []).map((doc) => `<option value="${esc(doc.id)}">${esc(doc.name)} — v${esc(doc.versionNumber || 1)}</option>`).join('');
-    showDialog('Ajouter une pièce', 'Le fichier est conservé avec son empreinte et sa provenance.', `<form id="upload-form"><div class="field"><label for="document-file">Fichier original</label><input id="document-file" class="file-input" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.txt,.csv,.json,.eml,.doc,.docx,.xls,.xlsx" required><small>Un fichier à la fois · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} maximum. PDF, images, texte, courriel et documents bureautiques.</small></div><div class="form-grid"><div class="field"><label for="source-type">Nature de la source</label><select id="source-type" name="sourceType"><option value="original">Original</option><option value="declaration">Déclaration</option><option value="analyse">Analyse</option><option value="ocr">Extraction OCR</option></select></div><div class="field"><label for="version-of">Lien à une version antérieure</label><select id="version-of" name="versionOf"><option value="">Nouvelle pièce</option>${options}</select></div></div><div class="field"><label for="source-reference">Provenance et référence</label><textarea id="source-reference" name="sourceReference" rows="2" maxlength="2048" placeholder="Origine, auteur, date, référence du courriel ou de la pièce…"></textarea><small>Décrivez ce qui est connu ; signalez ce qui reste à établir.</small></div><div class="field"><label for="extracted-text">Texte saisi ou extrait — facultatif</label><textarea id="extracted-text" name="extractedText" maxlength="200000" placeholder="Texte de travail destiné à la recherche, à comparer au fichier original…"></textarea><small>Aucun OCR automatique n’est lancé. Ce texte reste marqué « À vérifier », même si vous l’avez relu.</small></div><div class="callout warning">${icon('info')}<p>Le serveur calcule l’empreinte du fichier. Une empreinte identique permet de repérer un doublon ; elle ne prouve ni l’authenticité du document ni la véracité de son contenu.</p></div>${formFooter('Ajouter au dossier')}</form>`);
+    showDialog('Ajouter une pièce', 'Le fichier est conservé avec son empreinte et sa provenance.', `<form id="upload-form"><div class="field"><label for="document-file">Fichier original</label><input id="document-file" class="file-input" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.txt,.csv,.json,.eml,.doc,.docx,.xls,.xlsx,.pptx,.webm,.mp4,.m4a,.mp3" required><small>Un fichier à la fois · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} maximum. PDF, images, texte, courriel, documents bureautiques, vidéo et audio.</small></div><div class="form-grid"><div class="field"><label for="source-type">Nature de la source</label><select id="source-type" name="sourceType"><option value="original">Original</option><option value="declaration">Déclaration</option><option value="analyse">Analyse</option><option value="ocr">Extraction OCR</option></select></div><div class="field"><label for="version-of">Lien à une version antérieure</label><select id="version-of" name="versionOf"><option value="">Nouvelle pièce</option>${options}</select></div></div><div class="field"><label for="source-reference">Provenance et référence</label><textarea id="source-reference" name="sourceReference" rows="2" maxlength="2048" placeholder="Origine, auteur, date, référence du courriel ou de la pièce…"></textarea><small>Décrivez ce qui est connu ; signalez ce qui reste à établir.</small></div><div class="field"><label for="extracted-text">Texte saisi ou extrait — facultatif</label><textarea id="extracted-text" name="extractedText" maxlength="200000" placeholder="Texte de travail destiné à la recherche, à comparer au fichier original…"></textarea><small>Aucun OCR automatique n’est lancé. Ce texte reste marqué « À vérifier », même si vous l’avez relu.</small></div><div class="callout warning">${icon('info')}<p>Le serveur calcule l’empreinte du fichier. Une empreinte identique permet de repérer un doublon ; elle ne prouve ni l’authenticité du document ni la véracité de son contenu.</p></div>${formFooter('Ajouter au dossier')}</form>`);
   }
   function openTime() {
     if (!canMutate()) return;
@@ -556,7 +644,7 @@
     if (!doc) return;
     const searchHit = state.searchResults?.find((item) => item.id === id && (item.citation?.ordinal || 1) === ordinal);
     const text = doc.extractedText || searchHit?.excerpt || '';
-    showDialog('Pièce et provenance', doc.name, `<dl class="metadata-grid"><div><dt>Nature</dt><dd>${sourceBadge(doc.sourceType)}</dd></div><div><dt>État</dt><dd>${reviewBadge(doc.reviewStatus)}</dd></div><div><dt>Ajoutée le</dt><dd>${esc(date(doc.createdAt))}</dd></div><div><dt>Version et taille</dt><dd>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Exemple fictif' : esc(bytes(doc.bytes))}</dd></div><div class="full-width"><dt>Provenance déclarée</dt><dd>${esc(doc.sourceReference || 'Non précisée dans les données disponibles.')}</dd></div><div class="full-width"><dt>Empreinte SHA-256</dt><dd class="hash-value">${esc(state.demo ? 'Aucune empreinte réelle — document fictif.' : doc.sha256 || 'Non fournie.')}</dd></div>${duplicateDetails(doc)}${doc.versionOf ? `<div class="full-width"><dt>Version précédente</dt><dd>${esc(doc.versionOf)}</dd></div>` : ''}</dl><div class="callout warning">${icon('info')}<p>La nature et le contrôle sont des informations déclarées. Une lecture visuelle ou un texte saisi ne constitue pas une authentification de la pièce.</p></div><h3 class="transcription-title">${doc.extractedText ? 'Texte saisi ou extrait — à contrôler' : text ? 'Extrait retrouvé par la recherche — à contrôler' : 'Texte de recherche'}</h3><div class="transcription">${esc(text || 'Aucun texte fourni dans cette vue. Recherchez un passage ou téléchargez le fichier versé pour le consulter.')}</div><div class="form-actions"><button class="button secondary" type="button" data-action="close-dialog">Fermer</button><button class="button" type="button" data-action="download" data-id="${esc(doc.id)}"${canMutate() ? '' : ' disabled'}>${icon('download')}${state.demo ? 'Exemple sans original réel' : 'Télécharger le fichier versé'}</button></div>`);
+    showDialog('Pièce et provenance', doc.name, `<dl class="metadata-grid"><div><dt>Nature</dt><dd>${sourceBadge(doc.sourceType)}</dd></div><div><dt>État</dt><dd>${reviewBadge(doc.reviewStatus)}</dd></div><div><dt>Ajoutée le</dt><dd>${esc(date(doc.createdAt))}</dd></div><div><dt>Version et taille</dt><dd>Version ${esc(doc.versionNumber || 1)} · ${state.demo ? 'Exemple fictif' : esc(bytes(doc.bytes))}</dd></div><div class="full-width"><dt>Provenance déclarée</dt><dd>${esc(doc.sourceReference || 'Non précisée dans les données disponibles.')}</dd></div><div class="full-width"><dt>Empreinte SHA-256</dt><dd class="hash-value">${esc(state.demo ? 'Aucune empreinte réelle — document fictif.' : doc.sha256 || 'Non fournie.')}</dd></div>${duplicateDetails(doc)}${doc.versionOf ? `<div class="full-width"><dt>Version précédente</dt><dd>${esc(doc.versionOf)}</dd></div>` : ''}</dl><div class="callout warning">${icon('info')}<p>La nature et le contrôle sont des informations déclarées. Une lecture visuelle ou un texte saisi ne constitue pas une authentification de la pièce.</p></div><h3 class="transcription-title">${doc.extractedText ? 'Texte saisi ou extrait — à contrôler' : text ? 'Extrait retrouvé par la recherche — à contrôler' : 'Texte de recherche'}</h3><div class="transcription">${esc(text || 'Aucun texte fourni dans cette vue. Recherchez un passage ou téléchargez le fichier versé pour le consulter.')}</div><div class="form-actions"><button class="button secondary" type="button" data-action="close-dialog">Fermer</button>${window.BAWorkspace && state.detail?.documents.some(item => item.id === doc.id) ? `<button class="button secondary" type="button" data-action="open-file" data-id="${esc(doc.id)}">${icon('eye')}Ouvrir la pièce</button>` : ''}<button class="button" type="button" data-action="download" data-id="${esc(doc.id)}"${canMutate() ? '' : ' disabled'}>${icon('download')}${state.demo ? 'Exemple sans original réel' : 'Télécharger le fichier versé'}</button></div>`);
     if (!state.demo && doc.pageCount) {
       const panel = document.createElement('section'); panel.id = 'document-page-reader'; panel.className = 'document-page-reader';
       const actions = dialog.querySelector('.form-actions'); actions.before(panel);
@@ -592,6 +680,7 @@
     const sessionVersion = state.sessionVersion;
     state.caseLoading = true;
     if (dialog.open) dialog.close();
+    if (id !== state.selectedId) window.BAWorkspace?.closeDock();
     render();
     try {
       const detail = state.demo ? examples[id] : await api(`/api/cases/${encodeURIComponent(id)}`);
@@ -735,10 +824,19 @@
   }
   function mimeFor(file) {
     const ext = file.name.split('.').pop().toLowerCase();
-    const known = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff', txt: 'text/plain', csv: 'text/csv', json: 'application/json', eml: 'message/rfc822', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+    const known = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff', txt: 'text/plain', csv: 'text/csv', json: 'application/json', eml: 'message/rfc822', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', webm: file.type.startsWith('audio/') ? 'audio/webm' : 'video/webm', mp4: 'video/mp4', m4a: 'audio/mp4', mp3: 'audio/mpeg' };
     return known[ext] || file.type || 'application/octet-stream';
   }
   async function fileBase64(file) {
+    if (typeof FileReader === 'function') {
+      // The browser's own encoder: faster and lighter than building a binary string for large videos.
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => { const value = String(reader.result); resolve(value.slice(value.indexOf(',') + 1)); };
+        reader.onerror = () => reject(reader.error || new Error('Lecture du fichier impossible.'));
+        reader.readAsDataURL(file);
+      });
+    }
     const array = new Uint8Array(await file.arrayBuffer());
     let binary = '';
     for (let i = 0; i < array.length; i += 16384) binary += String.fromCharCode(...array.subarray(i, i + 16384));
@@ -794,6 +892,110 @@
       await refreshDetail(caseId); render(); notify('L’entrée de temps a été validée. Aucun paiement n’a été déclenché.');
     } catch (error) { notify(error.message, true); trigger.disabled = false; }
   }
+  // The server takes one upload at a time: every file of the workspace goes through this queue.
+  let uploadChain = Promise.resolve();
+  function queueUpload(task) { const run = uploadChain.then(task, task); uploadChain = run.catch(() => {}); return run; }
+  function wait(ms) { return new Promise(resolve => window.setTimeout(resolve, ms)); }
+  async function postDocument(caseId, payload) {
+    for (let attempt = 0; ; attempt += 1) {
+      try { return await api(`/api/cases/${encodeURIComponent(caseId)}/documents`, { method: 'POST', body: JSON.stringify(payload) }); }
+      catch (error) { if (error.status !== 429 || attempt >= 5) throw error; await wait(800 * (attempt + 1)); }
+    }
+  }
+  function cleanName(name) {
+    const value = String(name || '').normalize('NFC').replace(/[\\/:<>"|?*\u0000-\u001f\u007f]+/gu, ' ').replace(/\s+/gu, ' ').replace(/\s+\./gu, '.').replace(/^[\s.]+|[\s.]+$/gu, '');
+    return (value || 'Pièce sans nom').slice(-240);
+  }
+  function paintUploads() { const node = document.getElementById('upload-queue'); if (node) node.innerHTML = uploadsHtml(); }
+  function pickFiles() {
+    if (!canMutate() || !state.selectedId) return;
+    if (state.view !== 'documents') navigate('documents');
+    document.getElementById('drop-input')?.click();
+  }
+  // Quick upload: originals marked « à vérifier », with an honest provenance note to complete later.
+  function enqueueFiles(list) {
+    if (!canMutate() || !state.selectedId || !list?.length) return;
+    const caseId = state.selectedId, session = state.sessionVersion, max = state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES;
+    const files = [...list];
+    if (files.length > 20) notify('20 fichiers au plus à la fois : les suivants n’ont pas été ajoutés.', true);
+    const items = files.slice(0, 20).map(file => ({ file, name: cleanName(file.name), status: 'queued', message: '' }));
+    state.uploads = [...state.uploads.filter(item => item.status === 'sending' || item.status === 'queued'), ...items];
+    for (const item of items) {
+      if (!item.file.size) { item.status = 'failed'; item.message = 'Fichier vide'; continue; }
+      if (item.file.size > max) { item.status = 'failed'; item.message = 'Fichier trop volumineux'; continue; }
+      void queueUpload(async () => {
+        if (session !== state.sessionVersion) return;
+        item.status = 'sending'; paintUploads();
+        try {
+          await postDocument(caseId, { name: item.name, mimeType: mimeFor(item.file), contentBase64: await fileBase64(item.file), sourceType: 'original', reviewStatus: 'a_verifier', extractedText: '',
+            sourceReference: `Ajout rapide depuis l’espace de travail le ${date(new Date().toISOString(), true)} : provenance à préciser.` });
+          item.status = 'done';
+        } catch (error) { item.status = 'failed'; item.message = error.message; }
+        if (session === state.sessionVersion) paintUploads();
+      });
+    }
+    paintUploads();
+    void queueUpload(async () => {
+      if (session !== state.sessionVersion) return;
+      const done = items.filter(item => item.status === 'done').length, failed = items.length - done;
+      if (done && caseId === state.selectedId) { await refreshDetail(caseId).catch(() => false); render(); }
+      notify(done ? `${done} pièce${done > 1 ? 's' : ''} ajoutée${done > 1 ? 's' : ''} au dossier${failed ? `, ${failed} refusée${failed > 1 ? 's' : ''}` : ''}. Précisez la provenance si elle est connue.` : 'Aucune pièce n’a été ajoutée.', !done);
+    });
+  }
+  // Files made in the workspace (video, document, drawing, presentation) are saved to the case they were opened from.
+  async function saveFromWorkspace(blob, meta) {
+    const caseId = meta.caseId;
+    if (!canMutate() || !caseId || caseId !== state.selectedId) throw new Error('Enregistrement impossible : ouvrez l’outil depuis le dossier concerné.');
+    const session = state.sessionVersion;
+    return queueUpload(async () => {
+      if (session !== state.sessionVersion) throw new Error('La session a été fermée.');
+      const payload = { name: cleanName(meta.name), mimeType: meta.mimeType, contentBase64: await fileBase64(blob), sourceType: meta.sourceType, reviewStatus: 'a_verifier',
+        sourceReference: String(meta.sourceReference || '').slice(0, 2048), extractedText: String(meta.extractedText || '').slice(0, 200000) };
+      if (meta.versionOf) payload.versionOf = meta.versionOf;
+      const result = await postDocument(caseId, payload);
+      if (caseId === state.selectedId && session === state.sessionVersion) { await refreshDetail(caseId).catch(() => false); render(); }
+      return result.document;
+    });
+  }
+  function workspaceTool(name, id) {
+    const tools = window.BAWorkspace;
+    if (!tools || !state.detail) { notify('Cet outil n’est pas disponible dans ce navigateur.', true); return; }
+    const doc = id ? state.detail.documents.find(item => item.id === id) : null;
+    if (id && !doc) return;
+    tools[name](doc);
+  }
+  function openCall() {
+    if (!state.detail) return;
+    const client = isClientSide(), next = nextMeeting(), join = !state.demo && joinUrlFor(next);
+    const send = state.demo || !canMutate() ? ' disabled' : '';
+    const meeting = join ? `<section class="call-option"><h3>Rejoindre la réunion prévue</h3><p>${esc(next.title)} · ${esc(date(next.scheduledAt, true))}</p><div><a class="button call" href="${esc(join)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${icon('video')}Rejoindre sur Zoom<span class="sr-only"> dans un nouvel onglet</span></a></div></section>` : '';
+    showDialog(client ? 'Appeler mon avocat' : 'Joindre la personne cliente', join ? 'Rejoignez la réunion prévue ou demandez un rappel.' : 'Votre demande de rappel arrive dans les échanges du dossier.', `<div class="call-options">${meeting}<section class="call-option"><h3>Demander un rappel</h3><p>${client ? 'Votre avocat' : 'La personne cliente'} voit la demande dans les échanges de ce dossier et vous rappelle au moment indiqué.</p><form id="call-form"><div class="form-grid"><div class="field"><label for="call-when">Moment souhaité</label><select id="call-when" name="when"><option>Dès que possible</option><option>Aujourd’hui, avant midi</option><option>Aujourd’hui, après-midi</option><option>En soirée</option><option>Demain</option></select></div><div class="field"><label for="call-phone">Numéro où vous joindre, facultatif</label><input id="call-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40"></div></div><div class="field"><label for="call-topic">Sujet en quelques mots, facultatif</label><input id="call-topic" name="topic" maxlength="200" autocomplete="off" placeholder="Ex. la mise en demeure reçue hier"></div><p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button secondary" type="button" data-action="close-dialog">Annuler</button><button class="button call" type="submit"${send}>${icon('phone')}Demander un rappel</button></div></form></section><div class="callout">${icon('info')}<p><strong>Téléphonie à connecter</strong>${state.demo ? 'Aperçu : aucune demande n’est envoyée.' : 'Le portail ne compose aucun numéro lui-même : la demande est un message du dossier.'}</p></div></div>`);
+  }
+  async function submitCall(form) {
+    if (!canMutate() || state.busy || !state.selectedId) return;
+    const caseId = state.selectedId, data = new FormData(form);
+    const button = form.querySelector('[type="submit"]'), errorNode = form.querySelector('.form-error');
+    const when = String(data.get('when') || 'Dès que possible'), phone = String(data.get('phone') || '').trim(), topic = String(data.get('topic') || '').trim();
+    if (phone && !/^\+?[0-9 ().-]{7,24}(?:\s*(?:poste|ext\.?|x)\s*[0-9]{1,6})?$/iu.test(phone)) { errorNode.textContent = 'Vérifiez le numéro de téléphone, ou laissez ce champ vide.'; errorNode.hidden = false; return; }
+    state.busy = true; button.disabled = true; errorNode.hidden = true;
+    try {
+      const body = `Demande d’appel — moment souhaité : ${when}${phone ? ` · numéro : ${phone}` : ''}${topic ? ` · sujet : ${topic}` : ''}`;
+      await api(`/api/cases/${encodeURIComponent(caseId)}/messages`, { method: 'POST', body: JSON.stringify({ body }) });
+      if (caseId === state.selectedId) await refreshDetail(caseId);
+      if (dialog.open) dialog.close();
+      state.busy = false; render();
+      notify('Votre demande de rappel est déposée dans les échanges du dossier.');
+    } catch (error) { if (errorNode.isConnected) { errorNode.textContent = error.message; errorNode.hidden = false; } else notify(error.message, true); }
+    finally { state.busy = false; button.disabled = false; }
+  }
+  const workspaceBridge = {
+    icon, esc, notify, bytes, sourceLabel: type => SOURCE_LABELS[type] || 'Type à préciser',
+    navigate: view => navigate(view), views: () => Object.keys(VIEW_LABELS), currentView: () => state.view,
+    isDemo: () => state.demo, canSave: () => canMutate() && Boolean(state.selectedId), caseId: () => state.selectedId,
+    docs: () => state.detail?.documents || [], caseTitle: () => currentCase()?.title || '',
+    fetchBlob: doc => api(`/api/cases/${encodeURIComponent(state.selectedId)}/documents/${encodeURIComponent(doc.id)}/download`, { asBlob: true }),
+    save: saveFromWorkspace, provenance: id => preview(id), download: (id, trigger) => download(id, trigger),
+  };
   function help() {
     showDialog('Un espace pour préparer', 'Le document, sa source et ses limites restent accessibles.', `<p>Les dossiers regroupent les pièces, les échanges et le suivi du temps. Les droits sont contrôlés par le serveur pour chaque dossier.</p><div class="callout">${icon('info')}<p><strong>Une source reste à apprécier</strong>Un original, une déclaration, une analyse et une extraction OCR sont des natures distinctes. Un texte extrait reste à contrôler sur la pièce. Les doublons ne s’additionnent pas.</p></div><p>L’aperçu ne contient que des exemples fictifs et n’envoie aucune information au serveur. La connexion TAKATAK, l’assistant IA, les crédits et les appels ne sont pas présentés comme actifs lorsqu’ils ne sont pas configurés.</p><div class="form-actions"><button class="button" data-action="close-dialog">Compris</button></div>`);
   }
@@ -839,6 +1041,19 @@
     if (action === 'close-dialog') dialog.close();
     if (action === 'download') void download(button.dataset.id, button);
     if (action === 'approve-time') void approveTime(button.dataset.id, button);
+    if (action === 'open-file') workspaceTool('openFile', button.dataset.id);
+    if (action === 'annotate') workspaceTool('openStudio', button.dataset.id);
+    if (action === 'edit-doc') workspaceTool('openEditor', button.dataset.id);
+    if (action === 'new-doc') workspaceTool('openEditor');
+    if (action === 'new-drawing') workspaceTool('openStudio');
+    if (action === 'record-video') workspaceTool('recordVideo');
+    if (action === 'new-presentation') workspaceTool('openPresentation');
+    if (action === 'call-lawyer') openCall();
+    if (action === 'pick-files') pickFiles();
+    if (action === 'doc-layout') {
+      state.docLayout = button.dataset.layout === 'list' ? 'list' : 'grid';
+      render();
+    }
     if (button.id === 'help-button') help();
     if (button.id === 'logout-button') void logout(button);
   });
@@ -853,6 +1068,7 @@
     else if (form.id === 'page-jump-form') void jumpPage(form);
     else if (['communication-form', 'communication-cancel-form'].includes(form.id)) void submitCommunication(form);
     else if (['case-form', 'upload-form', 'message-form', 'time-form'].includes(form.id)) void submitMutation(form);
+    else if (form.id === 'call-form') void submitCall(form);
   });
   document.addEventListener('change', (event) => {
     if (event.target.id === 'search-scope' || event.target.id === 'search-mode') {
@@ -868,6 +1084,7 @@
     if (event.target.id === 'dictation-language') { cancelSearchWork(); state.dictationLanguage = event.target.value === 'en-CA' ? 'en-CA' : 'fr-CA'; render(); }
     if (event.target.id === 'dictation-auto-search') state.dictationAutoSearch = event.target.checked;
     if (event.target.id === 'case-select') void loadCase(event.target.value);
+    if (event.target.id === 'drop-input') { enqueueFiles(event.target.files); event.target.value = ''; }
     if (event.target.id === 'document-category') { state.documentCategory=event.target.value; render(); }
     if (event.target.id === 'document-unresolved') { state.onlyUnresolved=event.target.checked; render(); }
     if (event.target.id === 'communication-kind') {
@@ -900,6 +1117,21 @@
     let count = 0;
     document.querySelectorAll('[data-case-filter]').forEach((card) => { card.hidden = !card.dataset.caseFilter.includes(query); if (!card.hidden) count += 1; });
     document.getElementById('case-filter-empty').hidden = count !== 0 || state.cases.length === 0;
+  });
+  // Files dropped on the pieces panel join the upload queue; elsewhere the browser does not open them.
+  document.addEventListener('dragover', (event) => {
+    if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
+    event.preventDefault();
+    const zone = event.target.closest?.('[data-dropzone]');
+    document.getElementById('dropzone')?.classList.toggle('active', Boolean(zone) && canMutate());
+    if (event.dataTransfer) event.dataTransfer.dropEffect = zone && canMutate() ? 'copy' : 'none';
+  });
+  document.addEventListener('dragleave', (event) => { if (!event.relatedTarget) document.getElementById('dropzone')?.classList.remove('active'); });
+  document.addEventListener('drop', (event) => {
+    if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
+    event.preventDefault();
+    document.getElementById('dropzone')?.classList.remove('active');
+    if (event.target.closest?.('[data-dropzone]')) enqueueFiles(event.dataTransfer.files);
   });
   dialog.addEventListener('click', (event) => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
 
@@ -995,6 +1227,7 @@
   }
   async function start() {
     fillIcons();
+    window.BAWorkspace?.init(workspaceBridge);
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
     state.health = await publicHealth();
     try {

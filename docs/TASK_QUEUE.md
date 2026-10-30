@@ -1,6 +1,14 @@
 # TASK_QUEUE — BESOINAVOCAT.CA
 
-## File active — 30 octobre 2026, 09:52 UTC
+## Point de reprise — 30 octobre 2026, 11:15 UTC
+
+**Rattachement serveur corrigé, recette utilisateur en attente.** La session active affichait zéro dossier, mais la base active contient bien **trois dossiers, 1 362 documents et 3 101 unités**. Après sauvegarde privée, le seul rattachement d'espace du propriétaire historique a été restauré à l'identique de l'original vérifié : contrôle serveur **3 dossiers accessibles**, fichier en mode 0600, compteurs inchangés. Aucune nouvelle identité ou appartenance créée. La reconnexion est demandée; l'affichage et l'ouverture des pièces après correction restent à confirmer.
+
+**CNESST :** six PDF / 27 pages préparés localement avec provenance; import serveur encore à faire. **Courriel :** TWILO annonce la résolution via Resend à 10:43 UTC et une session active a été observée; les anciennes consignes Maileroo ci-dessous sont historiques, à ne pas réappliquer sans recontrôle. **Vitrine :** WordPress reste public; une ressource Coolify distincte pour `www/` est en préparation. Séparer le courrier de l'apex avant la bascule DNS. Aucune bascule de vitrine confirmée.
+
+Priorité : vérifier la nouvelle session et ses pièces, importer puis contrôler CNESST, déployer et contrôler la copie `www/`, ensuite effectuer la bascule avec continuité du courrier. [Réception détaillée, preuves et limites](RECEPTION-RATTACHEMENT-2026-10-30.md). Le workspace déjà déployé au SHA `a3e20cc` reste inchangé par cette correction.
+
+## Historique — point consigné à 09:52 UTC
 
 1. **BA-019 / BA-020 / BA-030 — code courriel et réception utilisateur :** cause confirmée côté Maileroo : domaine de test limité aux destinataires autorisés, propriétaire absent et ajout refusé car la liste est au maximum. Domaine propre inactif, SPF/DKIM à vérifier; quota d'envoi non consommé. Faire appliquer la fiche DNS privée par Mike, vérifier le domaine, puis raccorder le SMTP du domaine avec saisie des identifiants par le propriétaire. [Diagnostic](DIAGNOSTIC-ENVOI-2026-10-30.md). DNS et SMTP non modifiés, question DNS encore en attente. Aucun nouvel OTP envoyé; réception et session réelle toujours non confirmées.
 2. **Lot de fiabilité livré :** cinq correctifs (caméra tardive, chargement et sauvegarde de l’éditeur, envoi vidéo tardif, décompression DOCX bornée), fusionnés par la PR 10 au `main` `a3e20ccbadd182fb819337c79e5b931060316af0`. 276/276 tests plateforme, dont 10 de fiabilité inclus, 12/12 site, revue indépendante sans bloqueur et QA fictive validés. Six CI PR réussies, puis validation, Chromium, vitrine, plateforme et smoke main réussis; tâches de déploiement CI ignorées. Coolify déployé séparément, Success, santé et empreintes vérifiées à 09:51:42.941 UTC. Ne pas relancer ce lot à partir de son ancien état local.

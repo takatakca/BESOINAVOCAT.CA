@@ -4,6 +4,8 @@ Signé : Codex (desktop, session 01a157a4). Diagnostic confirmé dans les interf
 
 **La cause du refus est connue, mais le blocage fournisseur n'est pas encore résolu.** Le domaine de test Maileroo refuse le destinataire demandé. Le portail répond en HTTPS; cela ne valide pas la livraison de ses courriels ni l'accès authentifié aux dossiers.
 
+**Point courant à 09:52 UTC :** cinq correctifs du workspace fusionnés par la PR 10 et déployés au `main` `a3e20ccbadd182fb819337c79e5b931060316af0`, Coolify Success et empreintes HTTPS vérifiées à 09:51:42.941 UTC. Ce déploiement ne résout pas la restriction d’envoi : aucun DNS ni paramètre SMTP modifié, aucun nouvel OTP envoyé, réception du code et trois dossiers authentifiés non confirmés. La question DNS reste en attente. [Preuves de déploiement](RECEPTION-2026-10-30.md).
+
 ## Observations confirmées
 
 | Contrôle | Observation au moment de la lecture |
@@ -37,6 +39,6 @@ Cette voie utilise le domaine et le compte déjà disponibles; aucune souscripti
 - **Portail accessible :** oui, d'après les contrôles datés du 30 octobre; voir les limites dans la [réception](RECEPTION-2026-10-30.md).
 - **Cause de non-réception :** restriction du domaine de test Maileroo confirmée; résolution non terminée.
 - **Accès utilisateur et trois dossiers :** réception du code et consultation authentifiée non confirmées.
-- **Correctifs de fiabilité du workspace :** contrôlés localement puis commités dans `7a920ee195d7a492a4a95d7dacbd8b6d3e5732ca`; leur publication et leur déploiement sont distincts du diagnostic d'envoi et restent à contrôler.
+- **Correctifs de fiabilité du workspace :** cinq correctifs contrôlés localement, commités dans `7a920ee`, fusionnés par la PR 10 au `main` `a3e20cc` puis déployés sur Coolify. Le contrôle HTTPS et les trois empreintes publiques confirment ce code; cela ne valide pas la livraison du courriel.
 
 Un résultat générique `accepted: true` ne constitue pas une preuve de livraison. La [clarification du contrat de demande de code](OTP-EMAIL-STATUS-2026-10-29.md#clarification-du-contrat-de-demande-de-code--30-octobre) précise quels rejets sont neutralisés et quelles erreurs restent signalées. Les notes historiques restent conservées avec leurs dates.

@@ -53,3 +53,9 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
     - essai par le propriétaire avec sa vraie caméra et son téléphone;
     - IA, téléphonie et facturation à l'heure : à brancher après choix du fournisseur, évaluation Loi 25 et prix approuvés.
   - La fusion et la CI de `main` sont confirmées en commentaire de la PR 7 et sur Drive.
+- 2026-10-30 01:30 UTC · Claude (Claude Code, session 01CXwosv) · ÉTAPE (UPDATE) · `main` `897a015` · `docs/JOURNAL-AGENTS.md` (ajout seul), aucune autre zone · **PR 7 fusionnée** sur approbation écrite du propriétaire (30 oct.).
+  - Commit de fusion `897a015058a44916d996c75046e723541eeb1706`, parents `628b2a7` (`main`) et `0f92c84` (tête de la PR, CI verte 6/6).
+  - CI de `main` sur `897a015` : Platform pilot checks, Storefront checks, Quality checks et Browser QA réussis, test de disponibilité de production réussi. Déploiement automatique Coolify « skipped », comme prévu : le propriétaire fait lui-même le **Redeploy**.
+  - **Bascule faite par le propriétaire** : `portail.besoinavocat.ca` résout vers `31.220.96.134` (TTL 300, lu le 30 oct. à 01:27 UTC), et le domaine est ajouté dans l'application Coolify. Lecture seule de ma part : en HTTPS, le nom présente encore un **certificat auto-signé**, probablement le certificat par défaut de Coolify (Traefik) en attendant celui de Let's Encrypt. Aucun contournement TLS. L'adresse d'essai sslip.io répond 200.
+  - Je n'ai touché ni au DNS ni à Coolify.
+  - Après le Redeploy, contrôler sur `portail.besoinavocat.ca` : certificat valide, `/api/health` 200, `/workspace.js` 200 et la page Pièces en tuiles ([DEPLOYMENT](DEPLOYMENT.md)).

@@ -19,6 +19,7 @@ jobs:
           for f in www/build.mjs www/palette.mjs www/tools/*.mjs; do node --check "$f"; done
           python3 -m py_compile www/tools/recolour-images.py
           node www/tools/inventory-content.mjs --check
+          node --test www/test/*.test.mjs
           node www/build.mjs
           node www/tools/check-site.mjs
       - name: Build the Coolify image and smoke-test it

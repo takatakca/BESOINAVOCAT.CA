@@ -1,6 +1,30 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
-## Point de reprise — 30 octobre 2026, 09:52 UTC
+## État de remise du lot local — 30 octobre 2026, 11:34 UTC
+
+**Le portail reste à rétablir par Mike ou l'agent serveur**, désigné par le propriétaire. Dernier contrôle public disponible : réponses 503 à 11:22:04 UTC, avec validation TLS normale. L'agent chargé des dossiers ne poursuit pas d'intervention sur le VPS; la [fiche de diagnostic](INCIDENT-COOLIFY-2026-10-30.md) et l'alerte de coordination lui ont été transmises. Aucun retour de disponibilité confirmé.
+
+**Rattachement réparé avant l'incident :** même propriétaire et produit, trois dossiers accessibles au contrôle serveur, base inchangée (1 362 documents / 3 101 unités). La reconnexion et la recette authentifiée après correction restent ouvertes. **CNESST v2 :** paquet privé testé sur une copie, donnant **4 dossiers / 1 368 documents / 3 128 unités**; aucune importation serveur confirmée.
+
+**Vitrine :** corrections locales des deux images, du lien contact et des formulaires historiques; contenu source préservé. Revue indépendante effectuée, défaut du contrôle de formulaires corrigé et **10/10 tests** réussis. Contrôle visuel de la page professionnelle sur ordinateur effectué, capture privée conservée. La vitrine n'est pas créée sur Coolify et aucun DNS n'est modifié. Publication GitHub, CI et réception distante doivent être consignées par le principal avant d'annoncer une livraison en ligne.
+
+[Réception détaillée et suites](RECEPTION-RATTACHEMENT-2026-10-30.md). Priorité : rétablissement VPS, recette des trois dossiers, import CNESST contrôlé, puis vitrine et bascule DNS avec courrier préservé.
+
+## Historique — alerte consignée à 11:24 UTC
+
+**Le portail est actuellement indisponible.** Le contrôle HTTPS avec validation TLS normale du **30 octobre à 11:22:04 UTC** renvoie 503 pour la page, les ressources et les routes contrôlées; la santé renvoie du HTML au lieu du JSON attendu. Coolify présente aussi des erreurs 500 (limite mémoire de 256 Mio) et 504 sur ses vues. La cause de l'incident n'est pas établie; aucun déploiement concurrent ne doit être désigné comme cause sans preuve.
+
+Le rattachement historique a été réparé **avant** cet incident et le contrôle serveur avait trouvé trois dossiers accessibles; cela ne prouve ni leur affichage après reconnexion ni l'état courant du service. L'accès à la console VPS a été demandé et une alerte de coordination a été envoyée au seul compte du propriétaire. **Priorité : rétablir l'hôte et vérifier le portail avant de reprendre l'import CNESST ou la bascule de vitrine.** Aucun changement DNS ni pièce juridique d'origine par cet incident de contrôle. [Réception et preuves](RECEPTION-RATTACHEMENT-2026-10-30.md) · [Fiche pour l'intervenant VPS](INCIDENT-COOLIFY-2026-10-30.md).
+
+## Historique — point consigné à 11:15 UTC
+
+**Rattachement serveur corrigé, recette utilisateur en attente.** La session active affichait zéro dossier, mais la base active contient bien **trois dossiers, 1 362 documents et 3 101 unités**. Après sauvegarde privée, le seul rattachement d'espace du propriétaire historique a été restauré à l'identique de l'original vérifié : contrôle serveur **3 dossiers accessibles**, fichier en mode 0600, compteurs inchangés. Aucune nouvelle identité ou appartenance créée. La reconnexion est demandée; l'affichage et l'ouverture des pièces après correction restent à confirmer.
+
+**CNESST :** six PDF / 27 pages préparés localement avec provenance; import serveur encore à faire. **Courriel :** TWILO annonce la résolution via Resend à 10:43 UTC et une session active a été observée; les anciennes consignes Maileroo ci-dessous sont historiques, à ne pas réappliquer sans recontrôle. **Vitrine :** WordPress reste public; une ressource Coolify distincte pour `www/` est en préparation. Séparer le courrier de l'apex avant la bascule DNS. Aucune bascule de vitrine confirmée.
+
+Priorité : vérifier la nouvelle session et ses pièces, importer puis contrôler CNESST, déployer et contrôler la copie `www/`, ensuite effectuer la bascule avec continuité du courrier. [Réception détaillée, preuves et limites](RECEPTION-RATTACHEMENT-2026-10-30.md). Le workspace déjà déployé au SHA `a3e20cc` reste inchangé par cette correction.
+
+## Historique — point consigné à 09:52 UTC
 
 **Les cinq correctifs du workspace sont déployés**, au `main` `a3e20ccbadd182fb819337c79e5b931060316af0`, après fusion de la [PR 10](https://github.com/takatakca/BESOINAVOCAT.CA/pull/10). Coolify `ocvuihsmpnffpbabg07r5ekh` affiche **Success** (48 s), application saine à 09:50:48 UTC. Le contrôle HTTPS du 30 octobre à 09:51:42.941 UTC, avec validation TLS normale, obtient 200 pour la page, la santé et les trois fichiers publics; leurs empreintes correspondent exactement à ce `main`. Les dossiers anonymes restent refusés en 401 et trois chemins privés en 404. Ces preuves de déploiement ne confirment pas la connexion réelle.
 

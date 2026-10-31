@@ -81,3 +81,23 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
 - 2026-10-30 11:34 UTC · Codex (desktop, session 01a157a4; coordination notes_rattachement30) · FIN DU LOT LOCAL / RELAIS VPS · `codex/reprise-portail-2026-10-30` · documentation de réception et cinq statuts, journal en ajout seul · Le propriétaire confie explicitement le rétablissement VPS à Mike ou à l'agent serveur; relais transmis dans le fil de coordination, aucune intervention VPS concurrente par ce lot. Dernier contrôle public disponible : 503 à 11:22:04 UTC, rétablissement non confirmé. Rattachement historique réparé avant l'incident avec trois dossiers accessibles au contrôle serveur; recette authentifiée toujours ouverte. Paquet CNESST v2 testé sur copie : quatre dossiers / 1 368 documents / 3 128 unités, sans import serveur confirmé. Vitrine corrigée localement, miroir préservé; revue indépendante, défaut du garde de formulaires corrigé, 10/10 tests réussis; contrôle visuel professionnel sur ordinateur avec capture privée. Ressource vitrine non créée, aucun DNS modifié. SHA, PR, CI et réception distante à compléter par le principal après résultats, sans prétendre au fonctionnement intégral. Zones documentaires remises au principal; zones de code à libérer après sa livraison. Originaux et 312 annexes préservés.
 
 - 2026-10-30 11:43 UTC · Codex (desktop, session 01a157a4) · ÉTAPE PUBLICATION · codex/reprise-portail-2026-10-30 · README, fiche courte de reprise et journal · Correctifs et notes publiés dans PR12 au SHA47ec80e; CI à suivre avant fusion. Construction stable348pages/0erreur,10testsrégression,12testssite; contrôle visuel local accueil/professionnels/connexion, preuves privées et limites conservées. Aucun import CNESST, DNS ou intervention VPS. Les variables Actions et la liste des webhooks du dépôt sont vides au contrôle de cette session; aucun déclencheur Coolify configuré dans le workflow actuel. Relais serveur Mike/agentserveur confirmé. Fiche courte de reprise préparée pour éviter la lecture de tout l'historique.
+
+- 2026-10-31 08:52 UTC · Claude (Claude Code, session 01CXwosv) · REPRISE (relecture 30 min, rattrapage des notes) · `main` `2d193a3` · aucune zone réservée (journal en ajout seul) · Règles relues dans le fichier maître de Drive : n° 12 (notes avant, pendant et après, signées) et « rendez-vous relecture 30 minutes ». Entrées manquantes depuis 2026-10-30 01:30 :
+  - **2026-10-30 03:39 UTC, lecture seule, mimt.ca et Resend** :
+    - les trois enregistrements Resend de `mimt.ca` sont absents des DNS publics (Google et Cloudflare), et la série de zone MochaHost est restée à `2026102602` : rien n'a été ajouté dans cPanel;
+    - `rmta.net` identifié comme l'infrastructure de Resend;
+    - takatak.ca et ocarinaspa.ca n'ont aucun enregistrement Resend publié, d'où leur statut « Failed »;
+    - une clé Resend affichée en clair dans le clavardage : recommandation de la supprimer et d'en recréer une, posée directement dans Coolify. Elle n'a été copiée nulle part.
+  - **2026-10-30 (heure non notée sur le moment), diagnostic en lecture seule** des 503 `EMAIL_CODE_UNAVAILABLE` et `IDENTITY_UNAVAILABLE` après le changement d'`APP_ORIGIN` :
+    - la base de sessions est liée au couple [`TAKATAK_SUPABASE_URL`, `APP_ORIGIN`] (`platform/lib/browser-session-store.mjs`, lignes 87 à 103) et refuse de s'ouvrir quand ce couple change;
+    - correctif recommandé : `BESOINAVOCAT_SESSION_DB_PATH=/data/sessions-portail.sqlite`, en gardant la même clé de session, sans aucun changement Supabase;
+    - ni Coolify ni le DNS n'ont été touchés.
+  - **2026-10-31 08:52 UTC, relecture** :
+    - Codex a fusionné les PR 10 à 12;
+    - la PR 13 de Juriste (Claude, Chrome, session 013t9Lux) est ouverte et réserve `platform/public/*` : je n'y touche pas;
+    - le portail est actuellement injoignable (connexion réinitialisée), une panne confiée à Mike ou à l'agent serveur.
+  - **Limites de cette session** :
+    - takatak.ca@gmail.com est illisible ici (le connecteur Gmail lit une autre boîte, le second connecteur est en échec);
+    - le tableau foodhubca nº 105 est inaccessible;
+    - aucune relecture automatique aux 30 minutes n'est en place, et elle attend l'accord du propriétaire.
+  - — signé : Claude (Claude Code, session 01CXwosv) @ cloud · 2026-10-31 08:52 UTC

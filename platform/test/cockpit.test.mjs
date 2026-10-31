@@ -10,7 +10,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 const index = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-const exported = ['state', 'start', 'render', 'navigate', 'statusLights', 'workItems', 'activityEntries', 'openIntegrationModal', 'startTour', 'endTour', 'showTourStep', 'tutorialMemory', 'localResults', 'TOUR_STEPS', 'ACADEMY_URL', 'MIMT_STEPS', 'mimtMemory', 'instruments', 'guideMemory', 'helpMemory', 'GUIDE_TEXT', 'GUIDE_DISCLAIMER'];
+const exported = ['state', 'start', 'render', 'navigate', 'statusLights', 'workItems', 'activityEntries', 'openIntegrationModal', 'startTour', 'endTour', 'showTourStep', 'tutorialMemory', 'localResults', 'TOUR_STEPS', 'ACADEMY_URL', 'MIMT_STEPS', 'mimtMemory', 'instruments', 'guideMemory', 'helpMemory', 'GUIDE_TEXT', 'GUIDE_DISCLAIMER', 'workspaceView', 'wsMemory'];
 assert.equal(source.split('  void start();').length, 2, 'The harness must replace exactly one bootstrap call.');
 
 function harness(demo = false) {
@@ -441,4 +441,46 @@ test('BesoinAvocat guide: exact text, disclaimer, existing actions only, once pe
   assert.match(demo.node('cockpit-guide').innerHTML, /data-view="documents"/u);
   assert.equal(h.requests.length, 0); assert.equal(demo.requests.length, 0);
   assert.deepEqual(source.match(/\bfetch\([^,)]*/gu), ['fetch(path', "fetch('/api/health'"], 'same-origin api() and health only: no other network call');
+});
+
+// Desktop workspace (31 October 2026): three panes on wide screens, built from loaded data only.
+test('desktop workspace: dossiers list, selected dossier stage with tabs, guide and MIMT calls; nothing invented', () => {
+  const h = harness();
+  signedIn(h);
+  const html = h.ui.workspaceView();
+  assert.match(html, /<div class="ws" id="ws">/u);
+  assert.equal((html.match(/class="ws-case[^"]*" data-action="ws-select"/gu) || []).length, 2, 'one row per accessible dossier');
+  assert.match(html, /class="ws-case is-active" data-action="ws-select" data-id="case-a"[^>]*aria-current="true"/u);
+  assert.doesNotMatch(html, /style="/u, 'the CSP forbids style attributes');
+  assert.match(html, /class="ws-ring" data-p="33"/u, "one of three documents has a visual check");
+  assert.match(html, /Vérifier 2 pièces/u);
+  for (const view of ['documents', 'messages', 'communications', 'time', 'search']) assert.match(html, new RegExp(`class="ws-tab" data-view="${view}"`, 'u'));
+  assert.match(html, /id="cockpit-dials"/u, 'the instruments stay on the stage');
+  assert.match(html, /id="work-queue"/u); assert.match(html, /id="activity-feed"/u);
+  assert.match(html, /data-action="mimt-board"[^>]*>.*?à venir/su, 'calls come from MIMT only and say « à venir »');
+  assert.match(html, /data-action="mimt-group"/u);
+  assert.match(html, /IA bientôt/u, 'no AI answer is pretended');
+  assert.ok(html.includes(h.ui.GUIDE_DISCLAIMER.replace(/’/gu, '&#39;').slice(0, 30)) || html.includes(h.ui.GUIDE_DISCLAIMER.slice(0, 30)));
+  assert.match(html, /Rencontre fictive/u, 'upcoming meeting from the loaded dossier');
+  assert.equal(h.requests.length, 0);
+});
+
+test('desktop workspace: the dossier filter is local and an empty list says so', () => {
+  const h = harness();
+  signedIn(h);
+  h.ui.wsMemory.query = 'fictif b';
+  let html = h.ui.workspaceView();
+  assert.equal((html.match(/data-action="ws-select"/gu) || []).length, 1);
+  h.ui.wsMemory.query = 'introuvable';
+  html = h.ui.workspaceView();
+  assert.match(html, /Aucun dossier ne correspond au filtre/u);
+  h.ui.wsMemory.query = '';
+  assert.equal(h.requests.length, 0);
+});
+
+test('without a wide screen (or matchMedia) the home stays the cockpit', () => {
+  const h = harness();
+  signedIn(h); h.ui.render();
+  assert.doesNotMatch(h.main(), /id="ws"/u);
+  assert.match(h.main(), /class="cockpit"/u);
 });

@@ -6,8 +6,8 @@
   <meta name="color-scheme" content="light">
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="same-origin">
-  <meta name="description" content="Espace de préparation de dossiers BesoinAvocat : pièces, provenance, échanges et suivi du temps.">
-  <title>Votre espace de travail · BesoinAvocat</title>
+  <meta name="description" content="Centre de commandement BesoinAvocat : dossiers, pièces, provenance, échanges et suivi du temps.">
+  <title>Centre de commandement · BesoinAvocat</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./dictation.js" defer></script>
   <script src="./workspace.js" defer></script>
@@ -17,40 +17,71 @@
   <a class="skip-link" href="#main-content">Aller au contenu</a>
   <div class="app-shell">
     <aside class="sidebar" id="workspace-nav" aria-label="Espace de travail">
-      <a class="brand" href="./" aria-label="BesoinAvocat — accueil du portail"><span class="brand-mark" aria-hidden="true">b<span>.</span></span><span>besoin<span class="brand-light">avocat</span><small>ESPACE DE TRAVAIL</small></span></a>
+      <a class="brand" href="./" aria-label="BesoinAvocat — accueil du portail"><span class="brand-mark" aria-hidden="true">b<span>.</span></span><span class="brand-text">besoin<span class="brand-light">avocat</span><small>CENTRE DE COMMANDEMENT</small></span></a>
       <div class="workspace-label"><span class="workspace-symbol" aria-hidden="true">§</span><div>Votre espace<small id="workspace-subtitle">Préparer. Comprendre. Avancer.</small></div></div>
-      <p class="nav-label">MON DOSSIER</p>
+      <p class="nav-label">NAVIGATION</p>
       <nav class="primary-nav" aria-label="Navigation principale">
-        <button type="button" data-view="cases" aria-current="page"><span class="nav-icon" data-icon="folder"></span>Dossiers<span class="nav-count" id="case-count"></span></button>
-        <button type="button" data-view="search"><span class="nav-icon" data-icon="search"></span>Recherche</button>
-        <button type="button" data-view="documents"><span class="nav-icon" data-icon="document"></span>Pièces et sources</button>
-        <button type="button" data-view="messages"><span class="nav-icon" data-icon="message"></span>Échanges</button>
-        <button type="button" data-view="communications"><span class="nav-icon" data-icon="calendar"></span>Rendez-vous</button>
-        <button type="button" data-view="usage"><span class="nav-icon" data-icon="layers"></span>Usages</button>
-        <button type="button" data-view="time"><span class="nav-icon" data-icon="clock"></span>Suivi du temps</button>
-        <button type="button" data-view="integrations"><span class="nav-icon" data-icon="link"></span>Intégrations</button>
+        <button type="button" data-view="home" title="Accueil" aria-current="page"><span class="nav-icon" data-icon="home"></span><span class="nav-text">Accueil</span></button>
+        <button type="button" data-view="cases" title="Dossiers"><span class="nav-icon" data-icon="folder"></span><span class="nav-text">Dossiers</span><span class="nav-count" id="case-count"></span></button>
+        <button type="button" data-view="documents" title="Pièces et sources"><span class="nav-icon" data-icon="document"></span><span class="nav-text">Pièces</span></button>
+        <button type="button" data-view="clients" title="Clients"><span class="nav-icon" data-icon="users"></span><span class="nav-text">Clients</span></button>
+        <button type="button" data-view="integrations" title="Intégrations"><span class="nav-icon" data-icon="link"></span><span class="nav-text">Intégrations</span></button>
+        <button type="button" data-view="settings" title="Réglages"><span class="nav-icon" data-icon="settings"></span><span class="nav-text">Réglages</span></button>
+      </nav>
+      <p class="nav-label">OUTILS DU DOSSIER</p>
+      <nav class="primary-nav secondary-nav" aria-label="Outils du dossier">
+        <button type="button" data-view="search" title="Recherche dans les pièces"><span class="nav-icon" data-icon="search"></span><span class="nav-text">Recherche</span></button>
+        <button type="button" data-view="messages" title="Échanges"><span class="nav-icon" data-icon="message"></span><span class="nav-text">Échanges</span></button>
+        <button type="button" data-view="communications" title="Rendez-vous"><span class="nav-icon" data-icon="calendar"></span><span class="nav-text">Rendez-vous</span></button>
+        <button type="button" data-view="usage" title="Usages"><span class="nav-icon" data-icon="layers"></span><span class="nav-text">Usages</span></button>
+        <button type="button" data-view="time" title="Suivi du temps"><span class="nav-icon" data-icon="clock"></span><span class="nav-text">Suivi du temps</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-note"><span data-icon="layers" aria-hidden="true"></span><p>Chaque pièce garde<br>son histoire.</p><small>Source, version et état de contrôle restent visibles.</small></div>
-        <div class="profile"><span class="avatar" id="profile-avatar" aria-hidden="true">BA</span><div><strong id="profile-name">Espace personnel</strong><small id="profile-state">Connexion non activée</small></div><button type="button" id="logout-button" class="icon-button" title="Fermer la session locale" aria-label="Fermer la session locale" hidden><span data-icon="logout"></span></button></div>
+        <div class="profile"><span class="avatar" id="profile-avatar" aria-hidden="true">BA</span><div class="profile-text"><strong id="profile-name">Espace personnel</strong><small id="profile-state">Connexion non activée</small></div><button type="button" id="logout-button" class="icon-button" title="Fermer la session locale" aria-label="Fermer la session locale" hidden><span data-icon="logout"></span></button></div>
       </div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><button type="button" id="menu-button" class="icon-button menu-button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="workspace-nav"><span data-icon="menu"></span></button><div class="breadcrumb"><span>BesoinAvocat</span><span aria-hidden="true">/</span><strong id="current-section">Dossiers</strong></div><div class="topbar-right"><span class="environment-badge" id="environment-badge"><span class="status-dot" aria-hidden="true"></span>Version pilote</span><button type="button" id="help-button" class="icon-button" aria-label="Comprendre cet espace" title="Comprendre cet espace"><span data-icon="info"></span></button></div></header>
+      <header class="topbar">
+        <button type="button" id="menu-button" class="icon-button menu-button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="workspace-nav"><span data-icon="menu"></span></button>
+        <div class="breadcrumb"><span>BesoinAvocat</span><span aria-hidden="true">/</span><strong id="current-section">Accueil</strong></div>
+        <form class="cockpit-search" id="cockpit-search-form" role="search" aria-label="Recherche locale" autocomplete="off">
+          <label class="sr-only" for="cockpit-search">Recherche locale dans les dossiers, clients et pièces déjà chargés</label>
+          <span class="cockpit-search-icon" data-icon="search"></span>
+          <input id="cockpit-search" type="search" maxlength="120" placeholder="Dossiers, clients, pièces…" aria-describedby="cockpit-search-hint" aria-controls="cockpit-search-results" aria-expanded="false">
+          <kbd class="search-kbd" aria-hidden="true">Ctrl K</kbd><span class="search-scope-chip" id="cockpit-search-hint">Recherche locale</span>
+          <div class="cockpit-search-results" id="cockpit-search-results" hidden></div>
+        </form>
+        <span class="ia-badge" title="Aucun service d’IA n’est raccordé : aucune donnée n’est envoyée à une IA."><span data-icon="spark"></span>Assistant IA : bientôt</span>
+        <div class="topbar-right">
+          <div class="status-lights" id="status-lights" role="group" aria-label="Voyants d’état"></div>
+          <span class="environment-badge" id="environment-badge"><span class="status-dot" aria-hidden="true"></span>Version pilote</span>
+          <div class="user-chip" id="user-chip"><span class="avatar" aria-hidden="true">BA</span><span><strong id="user-chip-name">Espace personnel</strong><small id="user-chip-role">Non connecté</small></span></div>
+          <button type="button" id="help-button" class="icon-button" aria-label="Comprendre cet espace" title="Comprendre cet espace"><span data-icon="info"></span></button>
+        </div>
+      </header>
       <div id="demo-banner" class="demo-banner" hidden><div><strong>Aperçu — données fictives</strong><span>Explorez l’interface en lecture seule. Aucun dossier réel n’est chargé.</span></div><a href="./">Quitter l’aperçu <span aria-hidden="true">↗</span></a></div>
       <main id="main-content" class="content" tabindex="-1"><div class="loading-state" role="status"><span class="loading-dot"></span>Ouverture de votre espace…</div></main>
       <nav class="tabbar" aria-label="Sections principales">
+        <button type="button" data-view="home"><span data-icon="home"></span>Accueil</button>
         <button type="button" data-view="cases"><span data-icon="folder"></span>Dossiers</button>
         <button type="button" data-view="documents"><span data-icon="document"></span>Pièces</button>
-        <button type="button" data-view="messages"><span data-icon="message"></span>Échanges</button>
-        <button type="button" data-view="communications"><span data-icon="calendar"></span>Rendez-vous</button>
+        <button type="button" data-view="integrations"><span data-icon="link"></span>Intégrations</button>
         <button type="button" id="tabbar-more" aria-controls="workspace-nav" aria-expanded="false"><span data-icon="menu"></span>Plus</button>
       </nav>
-      <footer class="page-footer"><span>BesoinAvocat <span aria-hidden="true">·</span> besoinavocat.ca</span><span>Un espace de préparation, avec des sources à l’appui.</span></footer>
+      <footer class="page-footer"><span>BesoinAvocat <span aria-hidden="true">·</span> besoinavocat.ca</span><span>Un outil de préparation, pas un cabinet d’avocats ni un service de conseils juridiques.</span></footer>
     </div>
   </div>
   <div class="scrim" id="drawer-scrim" aria-hidden="true"></div>
   <dialog id="workspace-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <dialog id="cockpit-modal" class="cockpit-modal" aria-labelledby="cockpit-modal-title" aria-describedby="cockpit-modal-desc"><div id="cockpit-modal-content"></div></dialog>
+  <dialog id="cockpit-tour" class="cockpit-tour" aria-labelledby="cockpit-tour-title" aria-describedby="cockpit-tour-text"><div id="cockpit-tour-content"></div></dialog>
+  <div class="help-dock" id="help-dock" hidden>
+    <aside id="cockpit-guide" class="guide-panel" role="dialog" aria-modal="false" aria-labelledby="guide-title" hidden></aside>
+    <div id="help-menu" class="help-menu" role="group" aria-label="Actions d’aide" hidden></div>
+    <button type="button" id="guide-avatar" class="guide-avatar" aria-label="Ouvrir le guide BesoinAvocat" aria-controls="cockpit-guide" aria-expanded="false" hidden></button>
+    <button type="button" id="help-fab" class="help-fab" aria-controls="help-menu" aria-expanded="false"><span data-icon="message"></span><span class="fab-label">Besoin d’aide ?</span></button>
+  </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <noscript><div class="noscript">Activez JavaScript pour utiliser le portail. Aucun fichier n’est transmis sans action dans un espace authentifié.</div></noscript>
 </body>

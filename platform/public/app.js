@@ -639,6 +639,64 @@
     const academy = ACADEMY_URL ? `<a class="text-button" href="${esc(ACADEMY_URL)}" target="_blank" rel="noopener noreferrer">Formation TAKATAK Academy<span class="sr-only"> (nouvel onglet)</span> ${icon('arrow')}</a>` : '<span class="academy-pending">Formation TAKATAK Academy · lien à confirmer</span>';
     return `<div class="soon-tiles"><section class="soon-tile mimt-tile" aria-labelledby="tile-mimt"><span class="tile-icon">${icon('phone')}</span><div><h3 id="tile-mimt">Téléphonie MIMT <span class="badge neutral">à venir</span></h3><p>Le téléphone et la vidéo des avocats viendront uniquement de MIMT (mimt.ca), relié par identifiant. MIMT Connect n’est pas encore activé : le portail ne compose aucun numéro et n’affiche aucun appel simulé.</p><div class="tile-actions"><button type="button" class="button small" data-action="mimt-board" aria-haspopup="dialog">Voir l’intégration MIMT</button>${call}</div></div></section><section class="soon-tile" aria-labelledby="tile-team"><span class="tile-icon">${icon('team')}</span><div><h3 id="tile-team">Équipe · Appel de groupe <span class="badge neutral">bientôt</span></h3><p>Une demande de client fera sonner en même temps les avocats partenaires disponibles; le premier qui accepte la prend. Aucun avocat n’est encore relié : aucune liste, aucun profil.</p><button type="button" class="button secondary small" data-action="mimt-group" aria-haspopup="dialog">Comprendre le fonctionnement</button></div></section><section class="soon-tile academy-tile" aria-labelledby="tile-tour"><span class="tile-icon">${icon('academy')}</span><div><h3 id="tile-tour">Tutoriel d’intégration</h3><p>Une visite guidée, étape par étape, des zones du centre de commandement.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">${tutorialMemory.status === 'unseen' ? 'Commencer la visite' : 'Revoir la visite'}</button>${academy}</div></div></section></div>`;
   }
+  // Desktop workspace (31 October 2026, Juriste): on wide screens the home becomes a three-pane work surface in the
+  // spirit of Teams: dossiers on the left, the selected dossier on the stage, the guide and calls on the right.
+  // The phone keeps the cockpit (the future mobile app is for capturing and uploading); real work happens here.
+  // Every figure comes from loaded data; nothing is invented, and what is not connected says « bientôt » or « à venir ».
+  function desktop() { return typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 1180px)').matches; }
+  const wsMemory = { query: '' };
+  function initials(text) {
+    const skip = new Set(['dossier', 'fictif', 'fictive', 'le', 'la', 'les', 'de', 'des', 'du', 'd', 'l', 'un', 'une', 'et', 'en', 'au', 'aux', 'pour']);
+    const all = String(text || '').replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/u).filter(Boolean);
+    const kept = all.filter(word => !skip.has(fold(word)));
+    const words = kept.length ? kept : all;
+    return ((words[0]?.[0] || 'D') + (words[1]?.[0] || '')).toLocaleUpperCase('fr');
+  }
+  function wsCaseRows() {
+    const q = fold(wsMemory.query).trim();
+    const cases = state.cases.filter(item => !q || fold(`${item.title} ${item.reference}`).includes(q));
+    if (!state.cases.length) return '<p class="ws-empty">Aucun dossier accessible pour l’instant.</p>';
+    if (!cases.length) return '<p class="ws-empty">Aucun dossier ne correspond au filtre.</p>';
+    return `<ul class="ws-cases">${cases.map((item, i) => {
+      const on = item.id === state.selectedId;
+      return `<li><button type="button" class="ws-case${on ? ' is-active' : ''}" data-action="ws-select" data-id="${esc(item.id)}"${on ? ' aria-current="true"' : ''} data-i="${i}"><span class="ws-case-mark" data-hue="${i % 5}" aria-hidden="true">${esc(initials(item.title))}</span><span class="ws-case-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · ${esc(roleLabel(item.role))}</small></span>${on ? '<span class="ws-live" aria-hidden="true"></span>' : ''}</button></li>`;
+    }).join('')}</ul>`;
+  }
+  function wsList() {
+    return `<section class="ws-pane ws-list" aria-labelledby="ws-list-title"><div class="ws-pane-head"><h2 id="ws-list-title">Dossiers <span class="ws-count mono">${state.cases.length}</span></h2><button type="button" class="icon-button" data-action="new-case" aria-label="Nouveau dossier" title="Nouveau dossier"${canMutate() ? '' : ' disabled'}>${icon('plus')}</button></div><div class="ws-filter"><label class="sr-only" for="ws-filter">Filtrer les dossiers</label>${icon('search')}<input id="ws-filter" type="search" maxlength="80" autocomplete="off" placeholder="Filtrer les dossiers" value="${esc(wsMemory.query)}"></div><div id="ws-case-rows">${wsCaseRows()}</div><p class="ws-list-foot">${state.demo ? 'Aperçu : dossiers fictifs.' : 'Selon vos habilitations, dossier par dossier.'}</p></section>`;
+  }
+  function wsProgress() {
+    const docs = state.detail?.documents || [];
+    const checked = docs.filter(doc => doc.reviewStatus === 'controle_visuel').length;
+    const pct = docs.length ? Math.round(checked * 100 / docs.length) : 0;
+    const todo = docs.length - checked;
+    const next = !state.detail ? 'Choisissez un dossier dans la liste.' : !docs.length ? 'Ajoutez une première pièce au dossier.' : todo ? `Vérifier ${todo} pièce${todo > 1 ? 's' : ''} : provenance et lisibilité.` : 'Toutes les pièces ont un contrôle visuel. Préparez vos questions pour l’avocat.';
+    const ring = `<div class="ws-ring" data-p="${pct}" role="img" aria-label="${docs.length ? `${checked} pièce${checked > 1 ? 's' : ''} contrôlée${checked > 1 ? 's' : ''} sur ${docs.length}` : 'Aucune pièce'}"><span class="mono">${docs.length ? `${pct}<small>%</small>` : '—'}</span></div>`;
+    const stat = (label, value) => `<li><span>${esc(label)}</span><strong class="mono">${esc(value)}</strong></li>`;
+    const minutes = (state.detail?.timeEntries || []).reduce((sum, entry) => sum + (Number(entry.minutes) || 0), 0);
+    return `<section class="ws-hero ws-glow" aria-labelledby="ws-hero-title">${ring}<div class="ws-hero-text"><span class="eyebrow">PRÉPARATION DU DOSSIER</span><h2 id="ws-hero-title">${esc(next)}</h2><p>Pièces avec un contrôle visuel, sur l’ensemble des pièces du dossier. Ce n’est pas une évaluation juridique.</p><div class="tile-actions"><button type="button" class="button small" ${canMutate() && state.selectedId ? 'data-action="upload"' : 'data-view="documents"'}>${icon('upload')}Ajouter une pièce</button><button type="button" class="button secondary small" data-view="documents">${icon('document')}Ouvrir les pièces</button><button type="button" class="button subtle small" data-action="tutorial-start">${icon('compass')}Visite guidée</button></div></div><ul class="ws-stats">${stat('Pièces', docs.length)}${stat('À vérifier', todo)}${stat('Messages', (state.detail?.messages || []).length)}${stat('Temps soumis', state.detail ? duration(minutes) : '—')}</ul></section>`;
+  }
+  function wsStage() {
+    const item = currentCase();
+    const tabs = [['home', 'Aperçu'], ['documents', 'Pièces'], ['messages', 'Échanges'], ['communications', 'Rendez-vous'], ['time', 'Temps'], ['search', 'Recherche']];
+    const tabbar = `<nav class="ws-tabs" aria-label="Sections du dossier">${tabs.map(([view, label]) => view === 'home' ? `<span class="ws-tab is-active" aria-current="page">${esc(label)}</span>` : `<button type="button" class="ws-tab" data-view="${view}">${esc(label)}</button>`).join('')}</nav>`;
+    const head = item ? `<div class="ws-stage-head"><span class="ws-case-mark large" aria-hidden="true">${esc(initials(item.title))}</span><div class="ws-stage-title"><span class="eyebrow">${state.demo ? 'DOSSIER FICTIF' : 'DOSSIER'}</span><h1>${esc(item.title)}</h1><p><span class="mono">${esc(item.reference || 'Référence à préciser')}</span> · ${esc(roleLabel(item.role))}</p></div></div>` : `<div class="ws-stage-head"><div class="ws-stage-title"><span class="eyebrow">ESPACE DE TRAVAIL</span><h1>Bonjour.</h1><p>${state.cases.length ? 'Choisissez un dossier à gauche pour l’ouvrir ici.' : 'Créez votre premier dossier pour commencer.'}</p></div></div>`;
+    const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : l’espace de travail</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
+    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
+  }
+  function wsContext() {
+    const next = upcoming(30).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).slice(0, 3);
+    const meetings = next.length ? `<ul class="ws-meetings">${next.map(item => `<li><span class="ws-meeting-icon">${icon(item.kind === 'video' ? 'video' : 'phone')}</span><span><strong>${esc(item.title)}</strong><small><time datetime="${esc(item.scheduledAt)}">${esc(date(item.scheduledAt, true))}</time></small></span></li>`).join('')}</ul>` : '<p class="ws-empty">Aucun rendez-vous planifié dans les 30 prochains jours.</p>';
+    return `<aside class="ws-pane ws-context" aria-label="Guide, appels et rendez-vous"><section class="ws-card ws-guide ws-glow" aria-labelledby="ws-guide-title"><div class="ws-guide-top">${guideRobot('small')}<div><span class="eyebrow">GUIDE</span><h2 id="ws-guide-title">Le guide BesoinAvocat</h2></div></div><p class="ws-guide-quote">${esc(GUIDE_TEXT)}</p><button type="button" class="ws-ask" data-action="guide-open">${icon('spark')}<span>Demander au guide</span><span class="badge neutral">IA bientôt</span></button><p class="ws-fine">${esc(GUIDE_DISCLAIMER)}</p></section><section class="ws-card" aria-labelledby="ws-call-title"><h2 id="ws-call-title" class="ws-card-title">Joindre un avocat</h2><button type="button" class="ws-call" data-action="mimt-board" aria-haspopup="dialog"><span class="ws-call-icon">${icon('phone')}</span><span><strong>Appeler · Téléphonie MIMT</strong><small>Appels et vidéo uniquement par MIMT</small></span><span class="badge neutral">à venir</span></button><button type="button" class="ws-call team" data-action="mimt-group" aria-haspopup="dialog"><span class="ws-call-icon">${icon('team')}</span><span><strong>Équipe · appel de groupe</strong><small>Le premier avocat qui accepte répond</small></span><span class="badge neutral">bientôt</span></button><p class="ws-fine">Aucun appel n’est lancé depuis le portail tant que MIMT Connect n’est pas activé.</p></section><section class="ws-card" aria-labelledby="ws-meet-title"><div class="ws-card-row"><h2 id="ws-meet-title" class="ws-card-title">À venir</h2><button type="button" class="text-button" data-view="communications">Tout voir ${icon('arrow')}</button></div>${meetings}</section></aside>`;
+  }
+  // The CSP forbids style attributes; custom properties are set through the CSSOM after rendering instead.
+  function paintWorkspace(root) {
+    root?.querySelectorAll?.('.ws-case[data-i]').forEach(node => node.style.setProperty('--i', node.dataset.i));
+    root?.querySelectorAll?.('.ws-ring[data-p]').forEach(node => node.style.setProperty('--p', node.dataset.p));
+  }
+  function workspaceView() {
+    return `<div class="ws" id="ws">${wsList()}${wsStage()}${wsContext()}</div>`;
+  }
   function cockpitView() {
     const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : le centre de commandement</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
     const greeting = state.demo ? 'Aperçu en lecture seule, avec des données fictives.' : 'Vos dossiers, vos pièces et ce qui demande votre attention.';
@@ -892,6 +950,16 @@
     tourDialog.classList.toggle('at-top', rect.top + rect.height / 2 > window.innerHeight / 2);
   }
   window.addEventListener?.('resize', () => { if (tourDialog?.open) placeTourRing(); });
+  // Crossing the desktop breakpoint swaps the home between the workspace and the cockpit, without a reload.
+  const wideQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 1180px)') : null;
+  wideQuery?.addEventListener?.('change', () => { if (state.view === 'home') render(); });
+  // A soft light follows the pointer on the workspace cards (pure decoration; skipped when motion is reduced).
+  main.addEventListener?.('pointermove', (event) => {
+    const card = event.target?.closest?.('.ws-glow, .ws-card, .ws-case');
+    if (!card || reducedMotion()) return;
+    const box = card.getBoundingClientRect();
+    card.style.setProperty('--mx', `${Math.round(event.clientX - box.left)}px`); card.style.setProperty('--my', `${Math.round(event.clientY - box.top)}px`);
+  });
   function startTour() {
     if (!['demo', 'authenticated'].includes(state.mode)) return;
     closeCockpitModal(); closeLocalSearch();
@@ -922,11 +990,14 @@
 
   function render(focus = false) {
     header();
+    const shell = document.body?.classList;
+    if (typeof shell?.toggle === 'function') shell.toggle('ws-desktop', state.view === 'home' && ['demo', 'authenticated'].includes(state.mode) && desktop());
     if (state.mode === 'loading') return;
     const shown = `${state.mode}:${state.view}:${state.selectedId || ''}`;
     main.classList.toggle('enter', main.dataset.shown !== shown);
     main.dataset.shown = shown;
     if (state.mode === 'signedout') main.innerHTML = signedOut();
+    else if (state.view === 'home' && desktop()) { const railScroll = document.getElementById('cockpit-dials')?.scrollLeft, listScroll = document.querySelector?.('.ws-list')?.scrollTop; main.innerHTML = workspaceView(); paintWorkspace(main); const rail = document.getElementById('cockpit-dials'); if (rail && Number.isFinite(railScroll)) rail.scrollLeft = railScroll; const list = document.querySelector?.('.ws-list'); if (list && Number.isFinite(listScroll)) list.scrollTop = listScroll; }
     else if (state.view === 'home') { const railScroll = document.getElementById('cockpit-dials')?.scrollLeft; main.innerHTML = cockpitView(); const rail = document.getElementById('cockpit-dials'); if (rail && Number.isFinite(railScroll)) rail.scrollLeft = railScroll; }
     else if (state.view === 'cases') main.innerHTML = casesView();
     else if (state.view === 'search') main.innerHTML = searchView();
@@ -938,7 +1009,7 @@
     window.BAWorkspace?.afterRender(main);
     if (focus) main.focus({ preventScroll: true });
     // The guide opens by itself once per page session, on the cockpit, without taking the focus.
-    if (state.view === 'home' && ['demo', 'authenticated'].includes(state.mode) && !guideMemory.autoShown) { guideMemory.autoShown = true; showGuide(false); }
+    if (state.view === 'home' && ['demo', 'authenticated'].includes(state.mode) && !guideMemory.autoShown && !desktop()) { guideMemory.autoShown = true; showGuide(false); }
   }
   function showDialog(title, subtitle, body) {
     document.getElementById('dialog-content').innerHTML = `<div class="dialog-header"><div><h2 id="dialog-title">${esc(title)}</h2><p>${esc(subtitle)}</p></div><button class="icon-button" type="button" data-action="close-dialog" aria-label="Fermer la fenêtre">${icon('close')}</button></div><div class="dialog-body">${body}</div>`;
@@ -1481,6 +1552,13 @@
   }
   document.addEventListener('keydown', (event) => {
     if (event.target?.closest?.('#cockpit-dials') && railKey(event)) return;
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 'k') { const search = document.getElementById('cockpit-search'); if (search && !search.disabled) { event.preventDefault?.(); search.focus(); search.select?.(); } return; }
+    if (event.altKey && ['ArrowUp', 'ArrowDown'].includes(event.key) && state.view === 'home' && state.cases.length > 1 && !document.querySelector?.('dialog[open]')) {
+      const at = state.cases.findIndex(item => item.id === state.selectedId);
+      const next = state.cases[(at + (event.key === 'ArrowDown' ? 1 : -1) + state.cases.length) % state.cases.length];
+      if (next) { event.preventDefault?.(); void loadCase(next.id, 'home'); }
+      return;
+    }
     if (event.key === 'Escape' && !document.querySelector?.('dialog[open]')) {
       if (helpMemory.menuOpen) { event.preventDefault?.(); closeHelpMenu(); return; }
       if (guideMemory.open && event.target?.closest?.('#cockpit-guide')) { event.preventDefault?.(); hideGuide(true); return; }
@@ -1530,6 +1608,7 @@
     if (action === 'guide-close') hideGuide(true);
     if (action === 'mimt-board') openMimtBoard(inModal ? 0 : mimtMemory.step, inModal ? null : button);
     if (action === 'mimt-group') openMimtGroup(button);
+    if (action === 'ws-select' && button.dataset.id && button.dataset.id !== state.selectedId) void loadCase(button.dataset.id, 'home');
     if (action === 'mimt-step') openMimtBoard(Number(button.dataset.step));
     if (action === 'mimt-next') openMimtBoard(mimtMemory.step + 1);
     if (action === 'mimt-prev') openMimtBoard(mimtMemory.step - 1);
@@ -1629,6 +1708,7 @@
     }
   });
   document.addEventListener('input', (event) => {
+    if (event.target.id === 'ws-filter') { wsMemory.query = String(event.target.value || '').slice(0, 80); const rows = document.getElementById('ws-case-rows'); if (rows) { rows.innerHTML = wsCaseRows(); paintWorkspace(rows); } return; }
     if (event.target.id === 'cockpit-search') { state.cockpitQuery = String(event.target.value || '').slice(0, 120); paintLocalSearch(); return; }
     if (event.target.id === 'document-query') {
       const listening = state.dictationStatus !== 'idle';

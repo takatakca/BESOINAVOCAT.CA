@@ -123,6 +123,15 @@ L'image Node ne contient ni Python ni `backup-corpus.py`. Le développeur exécu
 
 ## Contrôles après chaque déploiement
 
+D'abord, dans le terminal du conteneur : `node tools/deploy-readiness.mjs`. Ce rapport en lecture seule lit les mêmes variables et fichiers de `/data` que le serveur. Il n'affiche aucune valeur secrète et n'écrit rien. Il indique ligne par ligne :
+
+- le nombre de dossiers, de documents et d'habilitations;
+- les réglages de connexion manquants;
+- une base de sessions créée pour une autre `APP_ORIGIN` ou une autre clé, cause d'une connexion en 503;
+- l'état des demandes, des appels MIMT (clé, secret, numéro public, avocats de l'équipe), du relais vidéo TURN et des connecteurs.
+
+Le code de sortie vaut 1 s'il reste un point bloquant.
+
 - `curl https://<domaine>/api/health` → 200. `intakeConfigured: true` seulement si les origines sont réglées.
 - `loginConfigured: true` indique la configuration de connexion navigateur; vérifier ensuite la connexion réelle. `identityConfigured` concerne l'introspection Bearer et ne remplace pas ce contrôle.
 - `/demande`, `/demande.js` et `/demande.css` → 200, avec l'en-tête `Content-Security-Policy`.

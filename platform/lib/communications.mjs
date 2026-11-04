@@ -117,20 +117,26 @@ export function createCommunications({ db, access, audit, clock = Date.now, rate
   const publicSession = (user, row) => ({ id: row.id, caseId: row.caseId, kind: row.kind, title: row.title, scheduledAt: row.scheduledAt,
     joinUrl: row.joinUrl, status: row.status, createdBy: row.createdBy, createdAt: row.createdAt, cancelledAt: row.cancelledAt,
     ownTimer: publicTimer(ownTimer(user, row.caseId, row.id)), providerState: COMMUNICATION_PROVIDERS[row.kind] });
+  const page = (offset, limit) => {
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1_000_000 || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) throw invalid('Pagination invalide.');
+  };
   const usageQuery = `SELECT u.*,a.approvedBy,a.approvedAt FROM communication_usage u LEFT JOIN communication_usage_approvals a ON a.usageId=u.id AND a.tenantId=u.tenantId AND a.caseId=u.caseId`;
   const publicUsage = row => { const { tenantId, needsReview, ...rest } = row; return { ...rest, needsReview: Boolean(needsReview),
     status: row.approvedAt ? 'approved_internal_only' : 'submitted', providerVerified: false, billed: false, currency: 'CAD', amountMode: 'estimate_only' }; };
   return {
-    list(user, caseId) {
+    // Pages of 200 by default; `offset` reads older pages. The caller's running timer stays first.
+    list(user, caseId, { offset = 0, limit = 200 } = {}) {
       access(user, caseId);
+      page(offset, limit);
       // Keep the caller's running timer reachable even when older appointments
       // fall outside the bounded list. Other members' timers do not change it.
       const rows = sql(`SELECT s.* FROM communication_sessions s WHERE s.tenantId=? AND s.caseId=?
         ORDER BY EXISTS(SELECT 1 FROM communication_timers t
           WHERE t.tenantId=s.tenantId AND t.caseId=s.caseId AND t.sessionId=s.id
-            AND t.authorSubject=? AND t.status='running') DESC, s.scheduledAt DESC,s.id LIMIT 201`)
-        .all(user.tenantId, caseId, user.subject);
-      return { sessions: rows.slice(0, 200).map(row => publicSession(user, row)), hasMore: rows.length > 200, providers: COMMUNICATION_PROVIDERS };
+            AND t.authorSubject=? AND t.status='running') DESC, s.scheduledAt DESC,s.id LIMIT ? OFFSET ?`)
+        .all(user.tenantId, caseId, user.subject, limit + 1, offset);
+      const hasMore = rows.length > limit;
+      return { sessions: rows.slice(0, limit).map(row => publicSession(user, row)), hasMore, offset, limit, nextOffset: hasMore ? offset + limit : null, providers: COMMUNICATION_PROVIDERS };
     },
     schedule(user, caseId, body, key) {
       access(user, caseId, MANAGERS);
@@ -192,10 +198,12 @@ export function createCommunications({ db, access, audit, clock = Date.now, rate
         return publicSession(user, session(user, caseId, row.id));
       });
     },
-    listUsage(user, caseId) {
+    listUsage(user, caseId, { offset = 0, limit = 200 } = {}) {
       access(user, caseId);
-      const rows = sql(`${usageQuery} WHERE u.tenantId=? AND u.caseId=? ORDER BY u.createdAt DESC,u.id LIMIT 201`).all(user.tenantId, caseId);
-      return { entries: rows.slice(0, 200).map(publicUsage), hasMore: rows.length > 200, billingEnabled: false };
+      page(offset, limit);
+      const rows = sql(`${usageQuery} WHERE u.tenantId=? AND u.caseId=? ORDER BY u.createdAt DESC,u.id LIMIT ? OFFSET ?`).all(user.tenantId, caseId, limit + 1, offset);
+      const hasMore = rows.length > limit;
+      return { entries: rows.slice(0, limit).map(publicUsage), hasMore, offset, limit, nextOffset: hasMore ? offset + limit : null, billingEnabled: false };
     },
     approveUsage(user, caseId, usageId) {
       access(user, caseId, MANAGERS); identifier(usageId);

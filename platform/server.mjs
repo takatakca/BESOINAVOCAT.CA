@@ -375,8 +375,14 @@ export function createApp({
     const caseId = identifier(match[1]), suffix = match[2];
     store.access(user, caseId);
     if (!suffix && method === 'GET') return json(res, 200, { ...store.details(user, caseId), communications: communications.list(user, caseId), usage: communications.listUsage(user, caseId), integrationLinks: integrations.linksFor(user, caseId) });
+    // Older appointments and usages, page by page (?offset=200&limit=200).
+    const pageQuery = () => {
+      if ([...url.searchParams.keys()].some(key => !['offset', 'limit'].includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');
+      const read = (key, fallback) => { const value = url.searchParams.get(key); if (value === null) return fallback; if (!/^(?:0|[1-9][0-9]{0,6})$/u.test(value)) throw invalid('Pagination invalide.'); return Number(value); };
+      return { offset: read('offset', 0), limit: read('limit', 200) };
+    };
     if (suffix === '/communications') {
-      if (method === 'GET') return json(res, 200, communications.list(user, caseId));
+      if (method === 'GET') return json(res, 200, communications.list(user, caseId, pageQuery()));
       if (method === 'POST') return json(res, 201, { session: communications.schedule(user, caseId, await readJson(req, 4096), req.headers['idempotency-key']) });
     }
     // Create (or remove) the Zoom meeting or calendar entry of an appointment through the person's own connector.
@@ -397,7 +403,7 @@ export function createApp({
       const result = communications[action](user, caseId, sessionId);
       return json(res, 200, { [action === 'cancel' ? 'session' : 'timer']: result });
     }
-    if (suffix === '/usage' && method === 'GET') return json(res, 200, communications.listUsage(user, caseId));
+    if (suffix === '/usage' && method === 'GET') return json(res, 200, communications.listUsage(user, caseId, pageQuery()));
     const usageApproval = /^\/usage\/([^/]+)\/approve$/u.exec(suffix);
     if (usageApproval && method === 'POST') {
       fields(await readJson(req, 128, { allowEmpty: true }), []);

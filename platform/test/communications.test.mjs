@@ -168,3 +168,25 @@ test('concurrent SQLite connections close once and append a single usage event',
   assert.equal(f.api.listUsage(users.client, f.caseId).entries.length, 1);
   assert.equal(f.store.db.prepare("SELECT count(*) n FROM audit_events WHERE action='communication.timer_ended'").get().n, 1);
 });
+
+test('appointments and usages page beyond 200 without gaps or repeats', t => {
+  const f = fixture(t);
+  for (let index = 0; index < 205; index++) f.schedule({ ...body, title: `Synthetic appointment ${index}`, scheduledAt: new Date(Date.parse('2026-01-01T10:00:00Z') + index * 3600000).toISOString() });
+  const first = f.api.list(users.client, f.caseId);
+  assert.equal(first.sessions.length, 200);
+  assert.equal(first.nextOffset, 200);
+  const second = f.api.list(users.client, f.caseId, { offset: first.nextOffset });
+  assert.equal(second.sessions.length, 5);
+  assert.equal(second.hasMore, false);
+  assert.equal(second.nextOffset, null);
+  const ids = [...first.sessions, ...second.sessions].map(s => s.id);
+  assert.equal(new Set(ids).size, 205, 'every appointment exactly once');
+  const small = f.api.list(users.client, f.caseId, { offset: 10, limit: 3 });
+  assert.deepEqual(small.sessions.map(s => s.id), ids.slice(10, 13));
+  for (const bad of [{ offset: -1 }, { limit: 0 }, { limit: 201 }, { offset: 1.5 }]) fails(() => f.api.list(users.client, f.caseId, bad), 400);
+  fails(() => f.api.listUsage(users.client, f.caseId, { limit: 500 }), 400);
+  const usage = f.api.listUsage(users.client, f.caseId, { offset: 0, limit: 5 });
+  assert.equal(usage.offset, 0);
+  assert.equal(usage.nextOffset, null);
+  fails(() => f.api.list(users.stranger, f.caseId, { offset: 200 }), 404);
+});

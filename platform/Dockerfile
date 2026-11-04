@@ -20,7 +20,7 @@ WORKDIR /app
 COPY package.json server.mjs ./
 COPY lib ./lib
 COPY public ./public
-COPY tools/import-corpus.mjs tools/execute-corpus-import.mjs tools/deploy-readiness.mjs ./tools/
+COPY tools/import-corpus.mjs tools/execute-corpus-import.mjs tools/deploy-readiness.mjs tools/seal-documents.mjs ./tools/
 # A new named volume mounted on /data starts with this owner and mode.
 RUN install -d -o node -g node -m 0700 /data
 

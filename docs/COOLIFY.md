@@ -109,6 +109,17 @@ Variables d'environnement (les chemins privés sont déjà fixés dans l'image) 
 4. Clé des connecteurs (Zoom, Outlook, Google…), même règle que la clé de session :
    `node -e "require('fs').writeFileSync('/data/integrations.key', require('crypto').randomBytes(32), { mode: 0o600, flag: 'wx' })"`.
    Une nouvelle clé oblige chaque avocat à reconnecter ses services. Voir [INTEGRATIONS](INTEGRATIONS.md).
+5. Facultatif, chiffrement des pièces au repos (AES-256-GCM) :
+   `node -e "require('fs').writeFileSync('/data/documents.key', require('crypto').randomBytes(32), { mode: 0o600, flag: 'wx' })"`,
+   puis `BESOINAVOCAT_BLOB_KEY_FILE=/data/documents.key` et redéploiement. Les nouvelles pièces sont alors chiffrées; les pièces déjà présentes restent lisibles en clair.
+   **Sauvegarder cette clé à part, dans un coffre privé, avant le premier dépôt.** Sans elle, les pièces chiffrées sont illisibles et aucune sauvegarde ne les récupère.
+   Une clé absente, de mauvaise taille ou lisible par d'autres (autre que 0600) empêche le démarrage : le portail n'écrit jamais en clair par erreur.
+   `backup-corpus.py` copie les pièces chiffrées telles quelles (manifeste version 2) et vérifie leur empreinte; la restauration exige la même clé.
+   Pour l'import d'un corpus, passer `--blob-key /data/documents.key` à `execute-corpus-import.mjs`.
+   Pour chiffrer les pièces déjà présentes, une fois la clé réglée et le portail redéployé : faire une sauvegarde, puis dans le conteneur
+   `node tools/seal-documents.mjs --database /data/platform.sqlite --blobs /data/blobs --blob-key /data/documents.key` (essai à blanc, ne change rien).
+   Si le décompte est juste, relancer avec `--execute`. Chaque fichier est chiffré dans un fichier temporaire, vérifié, puis remplacé d'un seul coup.
+   Un fichier altéré ou chiffré avec une autre clé est signalé et laissé tel quel. Une deuxième exécution ne change rien.
 
 ## Restaurer un corpus dans le volume Coolify
 

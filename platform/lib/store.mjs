@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { HttpError, externalIdentifier, identifier, invalid } from './validation.mjs';
 import { createCorpusSupport } from './corpus.mjs';
 import { createStructuredSearch } from './search.mjs';
+import { SEAL_OVERHEAD as SEAL_OVERHEAD_BYTES, isSealed, openBlob, sealBlob } from './blob-crypto.mjs';
 
 const now = () => new Date().toISOString();
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -13,7 +14,7 @@ const ROLES = ['owner', 'lawyer', 'client'];
 
 // Node 24 DatabaseSync/prepare API. Synchronous local pilot, not a distributed DB.
 // SQL LIKE is a literal, escaped substring search; no relevance, OCR or embeddings.
-export function createStore({ dbPath, blobDir }) {
+export function createStore({ dbPath, blobDir, blobKey = null }) {
   if (typeof dbPath !== 'string' || typeof blobDir !== 'string' || !blobDir) throw new Error('dbPath and blobDir are required');
   if (dbPath !== ':memory:') mkdirSync(dirname(resolve(dbPath)), { recursive: true, mode: 0o700 });
   mkdirSync(resolve(blobDir), { recursive: true, mode: 0o700 });
@@ -113,12 +114,25 @@ export function createStore({ dbPath, blobDir }) {
     catch (error) { if (error.code !== 'ENOENT') throw error; }
     return path;
   }
+  // Returns the plaintext of a stored document. Sealed files (see blob-crypto.mjs) need the key;
+  // plaintext files written before encryption was enabled remain readable.
+  function readBlob(tenantId, hash, size) {
+    const stored = readFileSync(filePath(tenantId, hash));
+    let content = stored;
+    if (isSealed(stored) && stored.length === size + SEAL_OVERHEAD_BYTES) {
+      if (!blobKey) throw new HttpError(503, 'DOCUMENT_KEY_UNAVAILABLE', 'Ce document est chiffré et la clé n’est pas configurée sur le serveur.');
+      try { content = openBlob(blobKey, stored, digest(tenantId), hash); }
+      catch { throw new HttpError(409, 'INTEGRITY_ERROR', 'Le contrôle d’intégrité du fichier a échoué.'); }
+    }
+    if (content.length !== size || digest(content) !== hash) throw new HttpError(409, 'INTEGRITY_ERROR', 'Le contrôle d’intégrité du fichier a échoué.');
+    return content;
+  }
   function putBlob(tenantId, data, hash) {
     const path = filePath(tenantId, hash, true);
-    try { writeFileSync(path, data, { flag: 'wx', mode: 0o600 }); }
+    try { writeFileSync(path, blobKey ? sealBlob(blobKey, data, digest(tenantId), hash) : data, { flag: 'wx', mode: 0o600 }); }
     catch (error) { if (error.code !== 'EEXIST') throw error; }
-    const stored = readFileSync(path);
-    if (stored.length !== data.length || digest(stored) !== hash) throw new Error('Stored blob integrity failure');
+    try { readBlob(tenantId, hash, data.length); }
+    catch { throw new Error('Stored blob integrity failure'); }
   }
   corpus = createCorpusSupport({ db, access, audit, putBlob, publicDocument });
   const structuredSearch = createStructuredSearch({ db, access, audit, publicDocument });
@@ -184,8 +198,7 @@ export function createStore({ dbPath, blobDir }) {
       access(user, caseId); identifier(documentId);
       const row = sql('SELECT * FROM documents WHERE id=? AND tenantId=? AND caseId=?').get(documentId, user.tenantId, caseId);
       if (!row) throw missing();
-      const content = readFileSync(filePath(user.tenantId, row.sha256));
-      if (content.length !== row.bytes || digest(content) !== row.sha256) throw new HttpError(409, 'INTEGRITY_ERROR', 'Le contrôle d’intégrité du fichier a échoué.');
+      const content = readBlob(user.tenantId, row.sha256, row.bytes);
       audit(user, caseId, 'document.downloaded', documentId, { sha256: row.sha256 });
       return { document: publicDocument(row), content };
     },

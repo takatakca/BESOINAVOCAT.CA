@@ -3,6 +3,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createStore } from './lib/store.mjs';
+import { loadBlobKey } from './lib/blob-crypto.mjs';
 import { authenticateRequest, createIntrospection, identityConfiguration, validIdentity } from './lib/identity.mjs';
 import { BROWSER_SESSION_COOKIE, createBrowserSessions, browserSessionConfiguration } from './lib/browser-session.mjs';
 import { publicCatalog } from './lib/catalog.mjs';
@@ -132,7 +133,8 @@ export function createApp({
   // Neither configuration path may be placed within the public asset directory.
   const insidePublic = path => { const rel = relative(PUBLIC, resolve(path)); return !rel || (!rel.startsWith('..') && !isAbsolute(rel)); };
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
-  const store = createStore({ dbPath, blobDir });
+  // Optional encryption at rest of case documents; a configured but unusable key stops the start.
+  const store = createStore({ dbPath, blobDir, blobKey: loadBlobKey(env.BESOINAVOCAT_BLOB_KEY_FILE) });
   const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });

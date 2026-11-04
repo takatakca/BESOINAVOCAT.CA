@@ -52,6 +52,11 @@ MAX_ENTRY = 8 * 1024**3
 MAX_TOTAL = 128 * 1024**3
 MAX_MEMBERS = 100000
 MAX_DOCUMENTS = 1000000
+# Documents written with BESOINAVOCAT_BLOB_KEY_FILE are sealed with AES-256-GCM (platform/lib/blob-crypto.mjs):
+# "BAE1" | 12-byte nonce | ciphertext | 16-byte tag. This tool cannot decrypt them; it copies the sealed file
+# as-is and verifies the stored file's own SHA-256 and size. Restoring them requires the same key file.
+SEAL_MAGIC = b"BAE1"
+SEAL_OVERHEAD = 4 + 12 + 16
 
 
 def _inside(path, root):
@@ -158,6 +163,26 @@ def _file_record(path, name):
         return {"path": name, **_transfer(stream)}
 
 
+def _stored(record):
+    """The bytes actually on disk: the sealed file when present, otherwise the plaintext."""
+    return record.get("sealed") or {"sha256": record["sha256"], "bytes": record["bytes"]}
+
+
+def _plain(record):
+    return {"path": record["path"], "sha256": record["sha256"], "bytes": record["bytes"]}
+
+
+def _blob_record(path, record):
+    """Describe a source blob: plaintext must match the database; a sealed file is recorded by its own hash."""
+    with _source(path) as stream:
+        head = stream.read(len(SEAL_MAGIC))
+    if head == SEAL_MAGIC and path.stat().st_size == record["bytes"] + SEAL_OVERHEAD:
+        with _source(path) as stream:
+            sealed = _transfer(stream, limit=record["bytes"] + SEAL_OVERHEAD)
+        return {**record, "sealed": sealed}
+    return record
+
+
 def _connect_ro(path):
     connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=30)
     connection.execute("PRAGMA query_only=ON")
@@ -257,10 +282,11 @@ def create_backup(database, blobs, output):
             snapshot = Path(work) / "platform.sqlite"
             _snapshot(database, snapshot)
             counts, records = _database_inventory(snapshot)
+            records = [_blob_record(blobs.joinpath(*record["path"].split("/")[1:]), record) for record in records]
             database_record = _file_record(snapshot, "platform.sqlite")
             if database_record["bytes"] + sum(record["bytes"] for record in records) > MAX_TOTAL:
                 raise BackupError("The backup exceeds its supported total size.")
-            manifest = {"format": FORMAT, "version": 1,
+            manifest = {"format": FORMAT, "version": 2 if any("sealed" in record for record in records) else 1,
                         "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         "database": database_record, "blobs": records, "counts": counts}
             manifest_bytes = json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
@@ -274,7 +300,7 @@ def create_backup(database, blobs, output):
                     for record in records:
                         original_path = blobs.joinpath(*record["path"].split("/")[1:])
                         with _source(original_path) as original, archive.open(_zip_info(record["path"]), "w", force_zip64=True) as member:
-                            _transfer(original, member, expected=record, limit=record["bytes"])
+                            _transfer(original, member, expected=_stored(record), limit=_stored(record)["bytes"])
                     archive.writestr(_zip_info("manifest.json"), manifest_bytes)
                 sink.flush()
                 os.fsync(sink.fileno())
@@ -302,8 +328,14 @@ def _no_duplicates(pairs):
 
 
 def _valid_record(record, *, database=False):
-    if not isinstance(record, dict) or set(record) != {"path", "sha256", "bytes"}:
+    if not isinstance(record, dict) or set(record) - {"sealed"} != {"path", "sha256", "bytes"}:
         return False
+    if "sealed" in record:
+        sealed = record["sealed"]
+        if (database or not isinstance(sealed, dict) or set(sealed) != {"sha256", "bytes"} or
+                not isinstance(sealed["sha256"], str) or not HEX.fullmatch(sealed["sha256"]) or
+                type(sealed["bytes"]) is not int or type(record["bytes"]) is not int or sealed["bytes"] != record["bytes"] + SEAL_OVERHEAD):
+            return False
     name, digest, size = record["path"], record["sha256"], record["bytes"]
     return (isinstance(name, str) and (name == "platform.sqlite" if database else BLOB_PATH.fullmatch(name)) and
             isinstance(digest, str) and HEX.fullmatch(digest) and (database or name.rsplit("/", 1)[-1] == digest) and
@@ -337,7 +369,7 @@ def _read_manifest(archive):
             raise BackupError("Archive manifest is too large.")
     manifest = json.loads(raw.decode("utf-8", "strict"), object_pairs_hook=_no_duplicates)
     if (not isinstance(manifest, dict) or set(manifest) != {"format", "version", "createdAt", "database", "blobs", "counts"} or
-            manifest["format"] != FORMAT or type(manifest["version"]) is not int or manifest["version"] != 1 or
+            manifest["format"] != FORMAT or type(manifest["version"]) is not int or manifest["version"] not in (1, 2) or
             not isinstance(manifest["createdAt"], str) or len(manifest["createdAt"]) > 40 or
             not _valid_record(manifest["database"], database=True) or not isinstance(manifest["blobs"], list) or
             not isinstance(manifest["counts"], dict)):
@@ -355,8 +387,10 @@ def _read_manifest(archive):
         expected_names.add(record["path"])
     if names != expected_names:
         raise BackupError("Archive members do not match the manifest exactly.")
+    if manifest["version"] == 1 and any("sealed" in record for record in manifest["blobs"]):
+        raise BackupError("Sealed documents require a version 2 manifest.")
     for record in [manifest["database"], *manifest["blobs"]]:
-        if archive.getinfo(record["path"]).file_size != record["bytes"]:
+        if archive.getinfo(record["path"]).file_size != _stored(record)["bytes"]:
             raise BackupError("A member size differs from the manifest.")
     return manifest
 
@@ -367,11 +401,11 @@ def _verify_open(archive, work):
     with _exclusive_file(database) as sink, archive.open("platform.sqlite") as source:
         _transfer(source, sink, expected=manifest["database"], limit=manifest["database"]["bytes"])
     counts, references = _database_inventory(database)
-    if counts != manifest["counts"] or references != sorted(manifest["blobs"], key=lambda item: item["path"]):
+    if counts != manifest["counts"] or references != sorted((_plain(record) for record in manifest["blobs"]), key=lambda item: item["path"]):
         raise BackupError("Manifest counts or blobs differ from the SQLite snapshot.")
     for record in manifest["blobs"]:
         with archive.open(record["path"]) as source:
-            _transfer(source, expected=record, limit=record["bytes"])
+            _transfer(source, expected=_stored(record), limit=_stored(record)["bytes"])
     return manifest
 
 
@@ -406,17 +440,17 @@ def restore_archive(archive, destination):
                     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
                 _path(target, new=True, outside_project=True)
                 with _exclusive_file(target) as sink, contents.open(record["path"]) as original:
-                    _transfer(original, sink, expected=record, limit=record["bytes"])
+                    _transfer(original, sink, expected=_stored(record), limit=_stored(record)["bytes"])
                     sink.flush()
                     os.fsync(sink.fileno())
             # The actual restored files, including pages/triggers inside SQLite,
             # must pass the same checks before the operator may deploy them.
             counts, records = _database_inventory(destination / "platform.sqlite")
-            if counts != manifest["counts"] or records != sorted(manifest["blobs"], key=lambda item: item["path"]):
+            if counts != manifest["counts"] or records != sorted((_plain(record) for record in manifest["blobs"]), key=lambda item: item["path"]):
                 raise BackupError("Restored database inventory differs from the archive.")
             for record in [manifest["database"], *manifest["blobs"]]:
                 with _source(destination.joinpath(*record["path"].split("/"))) as restored:
-                    _transfer(restored, expected=record, limit=record["bytes"])
+                    _transfer(restored, expected=_stored(record), limit=_stored(record)["bytes"])
             # Keep the non-secret integrity manifest alongside the private data.
             with _exclusive_file(destination / "manifest.json") as sink:
                 sink.write(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n")

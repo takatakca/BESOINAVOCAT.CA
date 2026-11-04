@@ -47,6 +47,11 @@ export function readiness(env = process.env) {
     } catch { add('fail', 'cases', `Case database at ${dbPath} cannot be opened read-only.`); }
   }
   if (!blobDir || !existsSync(blobDir)) add('fail', 'cases', `Document storage not found at BLOB_DIR (${blobDir || 'unset'}).`);
+  const blobKey = env.BESOINAVOCAT_BLOB_KEY_FILE;
+  if (!blobKey) add('warn', 'cases', 'Documents are stored unencrypted on disk (BESOINAVOCAT_BLOB_KEY_FILE not set).');
+  else if (!existsSync(blobKey) || statSync(blobKey).size !== 32) add('fail', 'cases', `Document key ${blobKey} is missing or not 32 bytes: the server will not start.`);
+  else if (mode(blobKey) & 0o077) add('fail', 'cases', `Document key ${blobKey} is ${octal(mode(blobKey))}; it must be 0600 or the server will not start.`);
+  else add('ok', 'cases', `New documents are encrypted with ${blobKey}. Back this key up separately: without it, encrypted documents cannot be read.`);
 
   // Login: Supabase identity, grants, persistent sessions bound to (Supabase URL, APP_ORIGIN).
   const supabaseUrl = httpsOrigin(env.TAKATAK_SUPABASE_URL);

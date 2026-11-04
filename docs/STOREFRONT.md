@@ -194,6 +194,8 @@ Pour l'activer après la première acceptation manuelle :
 - ajouter ensuite les variables de dépôt `COOLIFY_BESOINAVOCAT_WWW_AUTODEPLOY_ENABLED=true` et `COOLIFY_BESOINAVOCAT_PORTAL_AUTODEPLOY_ENABLED=true`;
 - désactiver alors le déploiement automatique propre à Coolify, pour qu'un push non vérifié ne parte pas en production.
 
+Tant qu'une variable n'est pas à `true`, la tâche « status » du flux l'indique sur la page de l'exécution (avertissement et résumé), au lieu d'un simple « skipped ». Une fois les secrets ajoutés, **Run workflow** (choix `portal` ou `storefront`) déploie à la main le `main` courant, même interrupteur éteint. Un secret manquant fait échouer la tâche avec son nom exact.
+
 Aucun jeton ne doit figurer dans une adresse, un commit ou une note.
 
 ## Vie privée

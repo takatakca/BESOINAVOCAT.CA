@@ -301,8 +301,66 @@
     schedule('team', team.calls.some(c => !FINAL.has(c.status)) ? 5000 : 30000, node);
   }
 
+
+  // ---------- Pièces demandées et accueil client ----------
+  const REQUEST_STATUS = { requested: ['wait', 'Demandée'], provided: ['warn', 'À vérifier par l’avocat'], accepted: ['ok', 'Acceptée'], cancelled: ['off', 'Annulée'] };
+  const requests = { data: null };
+  async function loadRequests(force = false) {
+    if (bridge.isDemo()) return { requests: [], canRequest: false, open: 0, toReview: 0, demo: true };
+    if (!requests.data || force || requests.data.caseId !== bridge.caseId()) requests.data = { caseId: bridge.caseId(), ...(await api(`${caseBase()}/requests`)) };
+    return requests.data;
+  }
+  function requestCard(r, list) {
+    const [tone, label] = REQUEST_STATUS[r.status];
+    const due = r.dueDate ? `<span class="${r.overdue ? 'live-late' : 'table-subtext'}">Échéance : ${esc(r.dueDate)}${r.overdue ? ' (dépassée)' : ''}</span>` : '';
+    const docs = (bridge.documents() || []).slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    const attached = r.documentId ? `<p>Pièce jointe : <button type="button" class="text-button" data-action="open-file" data-id="${esc(r.documentId)}">${esc(r.documentName || 'pièce du dossier')}</button></p>` : '';
+    const answer = r.answer ? `<p class="live-quote">${esc(r.answer)}</p>` : '';
+    let actions = '';
+    if (!list.canRequest && ['requested', 'provided'].includes(r.status) && bridge.canMutate()) {
+      const options = docs.map(d => `<option value="${esc(d.id)}"${d.id === r.documentId ? ' selected' : ''}>${esc(d.name)}</option>`).join('');
+      actions = `<form data-live-form="request-provide" data-id="${esc(r.id)}" class="live-form"><div class="form-grid">
+        <div class="field"><label for="rq-doc-${esc(r.id)}">Pièce du dossier</label><select id="rq-doc-${esc(r.id)}" name="documentId"><option value="">Aucune, je réponds par écrit</option>${options}</select></div>
+        <div class="field"><label for="rq-ans-${esc(r.id)}">Message à votre avocat (facultatif)</label><input id="rq-ans-${esc(r.id)}" name="answer" maxlength="2000"></div></div>
+        <p class="form-error" role="alert" hidden></p><div class="form-actions"><button type="button" class="button secondary small" data-action="upload">${icon('upload')}Téléverser d’abord</button><button class="button small" type="submit">${r.status === 'provided' ? 'Remplacer ma réponse' : 'Envoyer à mon avocat'}</button></div></form>`;
+    } else if (list.canRequest && bridge.canMutate()) {
+      if (r.status === 'provided') actions = `<div class="tile-actions"><button type="button" class="button small" data-live-action="request-accept" data-id="${esc(r.id)}">${icon('check')}Accepter</button><button type="button" class="button secondary small" data-live-action="request-reopen" data-id="${esc(r.id)}">Redemander</button></div>`;
+      else if (r.status === 'requested') actions = `<div class="tile-actions"><button type="button" class="button subtle small" data-live-action="request-cancel" data-id="${esc(r.id)}">Annuler la demande</button></div>`;
+      else if (r.status === 'cancelled') actions = `<div class="tile-actions"><button type="button" class="button subtle small" data-live-action="request-reopen" data-id="${esc(r.id)}">Rouvrir</button></div>`;
+    }
+    return `<article class="live-card live-request" id="request-${esc(r.id)}"><h4>${icon('document')}${esc(r.title)} ${pill(tone, label)}</h4>${r.note ? `<p>${esc(r.note)}</p>` : ''}${due}${attached}${answer}
+      <small class="table-subtext">Demandée le ${esc(when(r.createdAt))} · mise à jour le ${esc(when(r.updatedAt))}</small>${actions}</article>`;
+  }
+  async function paintRequests(node) {
+    if (!bridge.caseId()) { node.innerHTML = `<div class="panel-body">${empty('Choisissez un dossier.')}</div>`; return; }
+    const list = await loadRequests();
+    const head = `<div class="panel-heading"><div><h2>Pièces demandées</h2><p>${list.demo ? 'Aperçu' : list.canRequest ? `${list.open} en attente du client · ${list.toReview} à vérifier` : list.open ? `${list.open} pièce${list.open > 1 ? 's' : ''} attendue${list.open > 1 ? 's' : ''} par votre avocat` : 'Rien n’est attendu de vous pour l’instant'}</p></div></div>`;
+    const form = list.canRequest && bridge.canMutate() ? `<details class="live-template"><summary>Demander une pièce au client</summary><form data-live-form="request-create" class="live-form"><div class="form-grid">
+      <div class="field"><label for="rq-title">Pièce demandée</label><input id="rq-title" name="title" maxlength="200" required placeholder="Ex. : bail signé, avis de cotisation 2025"></div>
+      <div class="field"><label for="rq-due">Échéance (facultatif)</label><input id="rq-due" name="dueDate" type="date"></div></div>
+      <div class="field"><label for="rq-note">Précisions pour le client (facultatif)</label><textarea id="rq-note" name="note" rows="3" maxlength="2000"></textarea></div>
+      <p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button small" type="submit">Envoyer la demande</button></div></form></details>` : '';
+    const items = list.requests.filter(r => r.status !== 'cancelled' || list.canRequest);
+    node.innerHTML = `${head}<div class="panel-body">${form}${items.length ? `<div class="live-stack">${items.map(r => requestCard(r, list)).join('')}</div>` : empty(list.demo ? 'L’aperçu n’appelle aucun service.' : 'Aucune pièce demandée dans ce dossier.')}</div>`;
+  }
+  async function paintClientHome(node) {
+    const list = await loadRequests().catch(() => ({ requests: [], open: 0 }));
+    const open = list.requests.filter(r => r.status === 'requested');
+    const next = bridge.nextMeeting();
+    const docs = bridge.documents() || [];
+    const step = open.length
+      ? { tone: 'wait', title: `Votre avocat attend ${open.length === 1 ? 'une pièce' : `${open.length} pièces`}`, text: open[0].title + (open[0].dueDate ? `, d’ici le ${open[0].dueDate}` : ''), action: `<button type="button" class="button small" data-live-action="request-focus" data-id="${esc(open[0].id)}">${icon('upload')}Envoyer cette pièce</button>` }
+      : next ? { tone: 'ok', title: 'Prochain rendez-vous', text: when(next.scheduledAt) + (next.title ? ` · ${next.title}` : ''), action: '<button type="button" class="button small" data-view="communications">Voir le rendez-vous</button>' }
+      : { tone: 'ok', title: 'Rien à faire pour l’instant', text: 'Votre avocat vous écrira ici. Vous pouvez ajouter une pièce ou lui écrire en tout temps.', action: '' };
+    const tile = (attrs, glyph, title, sub) => `<button type="button" class="client-action" ${attrs}><span class="client-action-icon">${icon(glyph)}</span><strong>${esc(title)}</strong><small>${esc(sub)}</small></button>`;
+    const mutate = bridge.canMutate() ? '' : ' disabled';
+    node.innerHTML = `<div class="client-next" data-tone="${step.tone}"><span class="eyebrow">VOTRE PROCHAINE ÉTAPE</span><h2>${esc(step.title)}</h2><p>${esc(step.text)}</p>${step.action}</div>
+      <div class="client-actions" role="group" aria-label="Actions principales">${tile(`data-action="upload"${mutate}`, 'upload', 'Envoyer une pièce', 'Photo, PDF ou document')}${tile('data-view="messages"', 'message', 'Écrire à mon avocat', 'Réponse dans le dossier')}${tile('data-view="live"', 'phone', 'Appel ou vidéo', 'Par MIMT ou dans le portail')}${tile('data-view="communications"', 'calendar', 'Mes rendez-vous', next ? when(next.scheduledAt) : 'Aucun planifié')}</div>
+      <p class="client-foot">${docs.length} pièce${docs.length > 1 ? 's' : ''} au dossier. BesoinAvocat n’est pas un cabinet d’avocats et ne donne aucun conseil juridique.</p>`;
+  }
+
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -339,6 +397,12 @@
     if (action === 'phone-remove') { cache.overview = await post('/api/telephony/phone/remove'); repaint('phone'); }
     else if (action === 'member-link') { cache.link = await post('/api/telephony/member/link'); repaint('phone'); }
     else if (action === 'member-refresh') { cache.overview = await post('/api/telephony/member/refresh'); if (cache.overview.member?.linked) cache.link = null; repaint('phone'); }
+    else if (action === 'request-focus') { const card = document.getElementById(`request-${id}`); card?.scrollIntoView({ behavior: 'smooth', block: 'center' }); card?.querySelector('select, input, button')?.focus({ preventScroll: true }); }
+    else if (['request-accept', 'request-reopen', 'request-cancel'].includes(action)) {
+      await post(`${caseBase()}/requests/${encodeURIComponent(id)}/decide`, { decision: action.slice(8) });
+      await loadRequests(true); repaint('case-requests'); repaint('client-home');
+      bridge.notify({ accept: 'Pièce acceptée.', reopen: 'Demande rouverte.', cancel: 'Demande annulée.' }[action.slice(8)]);
+    }
     else if (action === 'member-unlink') { cache.overview = await post('/api/telephony/member/unlink'); repaint('phone'); }
     else if (action === 'member-deactivate') { cache.overview = await post('/api/telephony/member/deactivate'); repaint('phone'); }
     else if (action === 'availability') { cache.overview = await post('/api/telephony/member/availability', { status: button.dataset.status }); repaint('phone'); }
@@ -379,6 +443,8 @@
       if (kind === 'phone') cache.overview = await post('/api/telephony/phone', { phone: String(data.get('phone') || ''), consent: data.get('consent') === 'on' });
       if (kind === 'member') cache.overview = await post('/api/telephony/member', { displayName: String(data.get('displayName') || '').trim(), ...(String(data.get('mobile') || '').trim() ? { mobile: String(data.get('mobile')).trim() } : {}) });
       if (kind === 'line') cache.overview = await post('/api/telephony/member/line', { e164: String(data.get('e164') || '') });
+      if (kind === 'request-create') { await post(`${caseBase()}/requests`, { title: String(data.get('title') || '').trim(), note: String(data.get('note') || '').trim(), ...(data.get('dueDate') ? { dueDate: String(data.get('dueDate')) } : {}) }); form.reset(); bridge.notify('Demande envoyée au client, dans le dossier.'); await loadRequests(true); repaint('case-requests'); return; }
+      if (kind === 'request-provide') { await post(`${caseBase()}/requests/${encodeURIComponent(form.dataset.id)}/provide`, { ...(data.get('documentId') ? { documentId: String(data.get('documentId')) } : {}), ...(String(data.get('answer') || '').trim() ? { answer: String(data.get('answer')).trim() } : {}) }); bridge.notify('Envoyé à votre avocat.'); await loadRequests(true); repaint('case-requests'); repaint('client-home'); return; }
       if (kind === 'template') { const made = await post(`${caseBase()}/generate`, { kind: 'template', title: String(data.get('title') || ''), body: String(data.get('body') || '') }); bridge.notify(`« ${made.document.name} » est versé aux pièces, à vérifier.`); form.reset(); await bridge.reloadCase(); return; }
       repaint('phone');
     } catch (error) {
@@ -389,7 +455,7 @@
     const button = event.target.closest?.('[data-live-action]');
     if (!button || !bridge || button.disabled) return;
     event.preventDefault();
-    if (!bridge.canMutate() && !['player-close', 'video-mic', 'video-cam'].includes(button.dataset.liveAction)) { bridge.notify('Connectez-vous pour utiliser cette action.', true); return; }
+    if (!bridge.canMutate() && !['player-close', 'video-mic', 'video-cam', 'request-focus'].includes(button.dataset.liveAction)) { bridge.notify('Connectez-vous pour utiliser cette action.', true); return; }
     button.disabled = true;
     act(button.dataset.liveAction, button).catch(error => { bridge.notify(error.message, true); }).finally(() => { if (button.isConnected) button.disabled = false; });
   });
@@ -403,7 +469,7 @@
   window.BALive = Object.freeze({
     init(next) { bridge = next; },
     afterRender,
-    reset() { cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
+    reset() { requests.data = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
     status: () => cache.overview,
     inRoom: () => Boolean(room.id),
   });

@@ -67,3 +67,9 @@ Puis : fusionner la PR et relancer le déploiement du portail dans Coolify.
 - 291/291 tests portail (Node 24), dont 10 sur la téléphonie MIMT, la vidéo, le journal et les PDF, avec un faux MIMT Connect fidèle au contrat `docs/MIMT-CONNECT.md` de mimtcaapp.
 - Recette Chromium 1440 px en aperçu : aucune erreur console, CSP stricte respectée.
 - Aucun secret, DNS, déploiement ni donnée réelle touché. `mimtcaapp` lu seulement.
+
+## Lot 2 — vue client simplifiée et pièces demandées (4 novembre 2026)
+
+- **Pièces demandées** (`lib/document-requests.mjs`, routes `/api/cases/:id/requests…`) : l'avocat demande une pièce (titre, précisions, échéance); le client répond en joignant une pièce déjà au dossier ou par écrit; l'avocat accepte, redemande ou annule. Chaque étape est horodatée par le serveur, gardée dans un historique en ajout seul (déclencheurs SQLite) et versée au journal scellé du dossier. Aucun courriel ni texto n'est envoyé.
+- **Vue client** : un vrai compte client (pas l'aperçu) voit à l'accueil une seule « prochaine étape » (pièce attendue, sinon prochain rendez-vous, sinon « rien à faire »), quatre grandes actions (envoyer une pièce, écrire à mon avocat, appel ou vidéo, mes rendez-vous) et la liste des pièces demandées. Plus de cadrans ni de file de travail pour le client. Les avocats gardent le cockpit, avec le panneau des pièces demandées en plus.
+- Tests : 301/301.

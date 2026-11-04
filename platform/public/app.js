@@ -684,7 +684,10 @@
     const tabbar = `<nav class="ws-tabs" aria-label="Sections du dossier">${tabs.map(([view, label]) => view === 'home' ? `<span class="ws-tab is-active" aria-current="page">${esc(label)}</span>` : `<button type="button" class="ws-tab" data-view="${view}">${esc(label)}</button>`).join('')}</nav>`;
     const head = item ? `<div class="ws-stage-head"><span class="ws-case-mark large" aria-hidden="true">${esc(initials(item.title))}</span><div class="ws-stage-title"><span class="eyebrow">${state.demo ? 'DOSSIER FICTIF' : 'DOSSIER'}</span><h1>${esc(item.title)}</h1><p><span class="mono">${esc(item.reference || 'Référence à préciser')}</span> · ${esc(roleLabel(item.role))}</p></div></div>` : `<div class="ws-stage-head"><div class="ws-stage-title"><span class="eyebrow">ESPACE DE TRAVAIL</span><h1>Bonjour.</h1><p>${state.cases.length ? 'Choisissez un dossier à gauche pour l’ouvrir ici.' : 'Créez votre premier dossier pour commencer.'}</p></div></div>`;
     const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : l’espace de travail</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
-    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
+    // Client side: one clear next step, four large actions and the pieces the lawyer is waiting for. Nothing else.
+    if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>${readOnlyNote()}</section>`;
+    const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>' : '';
+    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
   }
   function wsContext() {
     const next = upcoming(30).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).slice(0, 3);
@@ -702,7 +705,12 @@
   function cockpitView() {
     const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : le centre de commandement</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
     const greeting = state.demo ? 'Aperçu en lecture seule, avec des données fictives.' : 'Vos dossiers, vos pièces et ce qui demande votre attention.';
-    return `<div class="cockpit">${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
+    if (state.detail && !state.demo && isClientSide()) {
+      const item = currentCase();
+      return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div><section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>${readOnlyNote()}</div>`;
+    }
+    const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>' : '';
+    return `<div class="cockpit">${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
   }
   function clientsView() {
     const rows = state.cases.map(item => `<li class="queue-item"><span class="queue-icon">${icon('folder')}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · votre accès : ${esc(roleLabel(item.role))}</small></span><button type="button" class="button secondary small" data-action="open-case" data-id="${esc(item.id)}">Ouvrir</button></li>`).join('');
@@ -1021,7 +1029,7 @@
     else if (state.view === 'settings') main.innerHTML = settingsView();
     else if (state.view === 'equipe') main.innerHTML = equipeView();
     else if (!state.detail) main.innerHTML = noCase();
-    else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView, communications: communicationsView, usage: usageView, live: liveView, journal: journalView })[state.view]();
+    else main.innerHTML = ({ documents: () => documentsView() + (state.demo ? '' : '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>'), messages: messagesView, time: timeView, communications: communicationsView, usage: usageView, live: liveView, journal: journalView })[state.view]();
     window.BAWorkspace?.afterRender(main);
     window.BALive?.afterRender(main);
     if (focus) main.focus({ preventScroll: true });
@@ -1861,7 +1869,7 @@
   async function start() {
     fillIcons();
     window.BAWorkspace?.init(workspaceBridge);
-    window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null,
+    window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null, documents: () => state.detail?.documents || [], nextMeeting: () => nextMeeting(),
       refresh: () => render(), reloadCase: async () => { if (state.selectedId) { await refreshDetail(state.selectedId).catch(() => false); render(); } } });
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
     state.health = await publicHealth();

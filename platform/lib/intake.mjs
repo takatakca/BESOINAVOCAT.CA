@@ -1,10 +1,10 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { closeSync, existsSync, lstatSync, openSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { HttpError } from './validation.mjs';
-import { QUESTIONNAIRE_CONSENT_VERSION, QUESTIONNAIRE_CONSENT_TEXT, validateQuestionnaire, QuestionnaireError } from './questionnaire.mjs';
+import { HttpError, externalIdentifier } from './validation.mjs';
+import { QUESTIONNAIRE_CONSENT_VERSION, QUESTIONNAIRE_CONSENT_TEXT, validateQuestionnaire, QuestionnaireError, publicQuestionnaire } from './questionnaire.mjs';
 import { CATALOG_VERSION, CONSENT_VERSION, CONSENT_TEXT, DOMAINS, REGIONS, interestPrice,
   REQUEST_CONSENT_VERSION, REQUEST_CONSENT_TEXT, SUMMARY_LIMITS, DEADLINE_MAX_DAYS, STAGES, OBJECTIVES, URGENCIES, CONTACT_PREFERENCES } from './catalog.mjs';
 
@@ -13,6 +13,8 @@ const REPO_ROOT = path.dirname(APP_ROOT);
 const EXCLUDED_ROOTS = [APP_ROOT, ...(existsSync(path.join(REPO_ROOT, '.git')) ? [REPO_ROOT] : [])];
 const APP_ID = 0x4241494e;
 const MAX_LEADS = 10000, MAX_COUNTERS = 4096;
+const INTAKE_TABLES = ['ba_intake_meta','ba_intakes','ba_intake_limits','ba_intake_reviews','ba_intake_notes','ba_intake_access'];
+export const INTAKE_STATUSES = ['received','in_review','contacted','closed','spam'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 const unavailable = () => new HttpError(503, 'INTAKE_UNAVAILABLE', 'Le formulaire est temporairement indisponible.');
 const forbidden = () => new HttpError(403, 'INTAKE_FORBIDDEN', 'Origine ou en-têtes du formulaire non autorisés.');
@@ -29,6 +31,17 @@ function origin(value) {
   catch { return null; }
 }
 
+// BesoinAvocat staff who process requests, by TAKATAK subject. The consent covers BesoinAvocat processing the request
+// and contacting the person; it does not cover sharing it with lawyers, so only these named reviewers can read it.
+export function intakeReviewers(raw) {
+  try {
+    if (typeof raw !== 'string' || !raw || raw.length > 8000) return [];
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list) || list.length > 32 || list.some(value => !externalIdentifier(value)) || new Set(list).size !== list.length) return [];
+    return list;
+  } catch { return []; }
+}
+
 export function intakeConfiguration(env = process.env) {
   try {
     const raw = env.BESOINAVOCAT_INTAKE_ALLOWED_ORIGINS;
@@ -37,7 +50,8 @@ export function intakeConfiguration(env = process.env) {
     if (!Array.isArray(origins) || origins.length < 1 || origins.length > 8 || origins.some(value => !origin(value)) || new Set(origins).size !== origins.length) return null;
     const dbPath = env.BESOINAVOCAT_INTAKE_DB_PATH;
     // The detailed request stores a free-text summary; it stays closed unless explicitly enabled.
-    return { origins, dbPath: typeof dbPath === 'string' && dbPath ? dbPath : null, requestEnabled: env.BESOINAVOCAT_INTAKE_REQUEST_ENABLED === 'true' };
+    return { origins, dbPath: typeof dbPath === 'string' && dbPath ? dbPath : null, requestEnabled: env.BESOINAVOCAT_INTAKE_REQUEST_ENABLED === 'true',
+      reviewers: intakeReviewers(env.BESOINAVOCAT_INTAKE_REVIEWERS) };
   } catch { return null; }
 }
 
@@ -150,8 +164,8 @@ function input(body, { requestEnabled, time }) {
   return requestInput(body, time, withQuestionnaire);
 }
 
-// No list/read endpoint or role provisioning is exposed. The operator owns this
-// separate private queue; an intake never creates a user, case or subscription.
+// The public side only writes. Reading is limited to the named BesoinAvocat reviewers (intakeReviewers), every read is
+// logged, and an intake never creates a user, case, subscription or lawyer assignment.
 export function createIntake({ config, excludedPaths = [], excludedDirs = [], now = Date.now } = {}) {
   let db = null;
   const origins = new Set(Array.isArray(config?.origins) ? config.origins.filter(value => origin(value)) : []);
@@ -162,7 +176,7 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
     db = new DatabaseSync(file);
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(row => row.name);
     const id = db.prepare('PRAGMA application_id').get().application_id;
-    if ((id !== 0 && id !== APP_ID) || tables.some(name => !['ba_intake_meta','ba_intakes','ba_intake_limits'].includes(name)) || (tables.length && id !== APP_ID)) throw unavailable();
+    if ((id !== 0 && id !== APP_ID) || tables.some(name => !INTAKE_TABLES.includes(name)) || (tables.length && id !== APP_ID)) throw unavailable();
     db.exec('PRAGMA busy_timeout=2000; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON;');
     if (db.prepare('PRAGMA journal_mode=WAL').get().journal_mode !== 'wal') throw unavailable();
     db.exec(`PRAGMA application_id=${APP_ID};
@@ -174,11 +188,112 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
       ) STRICT;
       CREATE TABLE IF NOT EXISTS ba_intake_limits (id TEXT PRIMARY KEY,count INTEGER NOT NULL,expiresAt INTEGER NOT NULL) STRICT;
     `);
-    db.prepare("INSERT OR IGNORE INTO ba_intake_meta VALUES('schema_version','1')").run();
-    if (db.prepare("SELECT value FROM ba_intake_meta WHERE name='schema_version'").get()?.value !== '1') throw unavailable();
+    // Version 2 adds the staff review: status, notes and a log of every read, all beside the untouched requests.
+    db.exec(`CREATE TABLE IF NOT EXISTS ba_intake_reviews (
+        reference TEXT PRIMARY KEY REFERENCES ba_intakes(reference),
+        status TEXT NOT NULL CHECK(status IN ('received','in_review','contacted','closed','spam')),
+        updatedAt TEXT NOT NULL,updatedBy TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS ba_intake_notes (
+        id TEXT PRIMARY KEY,reference TEXT NOT NULL REFERENCES ba_intakes(reference),
+        kind TEXT NOT NULL CHECK(kind IN ('note','status')),body TEXT NOT NULL,author TEXT NOT NULL,createdAt TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS ba_intake_access (
+        id TEXT PRIMARY KEY,reference TEXT,action TEXT NOT NULL,subject TEXT NOT NULL,createdAt TEXT NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS ba_intake_notes_reference ON ba_intake_notes(reference,createdAt);
+      CREATE TRIGGER IF NOT EXISTS ba_intake_notes_append_only_update BEFORE UPDATE ON ba_intake_notes BEGIN SELECT RAISE(ABORT,'intake_notes_are_append_only'); END;
+      CREATE TRIGGER IF NOT EXISTS ba_intake_notes_append_only_delete BEFORE DELETE ON ba_intake_notes BEGIN SELECT RAISE(ABORT,'intake_notes_are_append_only'); END;
+      CREATE TRIGGER IF NOT EXISTS ba_intake_access_append_only_update BEFORE UPDATE ON ba_intake_access BEGIN SELECT RAISE(ABORT,'intake_access_is_append_only'); END;
+      CREATE TRIGGER IF NOT EXISTS ba_intake_access_append_only_delete BEFORE DELETE ON ba_intake_access BEGIN SELECT RAISE(ABORT,'intake_access_is_append_only'); END;`);
+    db.prepare("INSERT OR IGNORE INTO ba_intake_meta VALUES('schema_version','2')").run();
+    db.prepare("UPDATE ba_intake_meta SET value='2' WHERE name='schema_version' AND value='1'").run();
+    if (db.prepare("SELECT value FROM ba_intake_meta WHERE name='schema_version'").get()?.value !== '2') throw unavailable();
   } catch { try { db?.close(); } catch {} db = null; }
 
   const ready = () => { if (!db) throw unavailable(); };
+  const reviewers = new Set(Array.isArray(config?.reviewers) ? config.reviewers.filter(externalIdentifier) : []);
+  // A person who is not a reviewer learns nothing, not even that the queue exists.
+  const review = user => { if (!db || !reviewers.has(user?.subject) || user?.active !== true) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.'); };
+  const label = (list, id) => list.find(item => item.id === id)?.label ?? null;
+  const logAccess = (user, reference, action) => db.prepare('INSERT INTO ba_intake_access VALUES(?,?,?,?,?)')
+    .run(randomUUID(), reference, action, user.subject, new Date(now()).toISOString());
+  const statusOf = reference => db.prepare('SELECT status,updatedAt,updatedBy FROM ba_intake_reviews WHERE reference=?').get(reference)
+    ?? { status: 'received', updatedAt: null, updatedBy: null };
+  const referenceOf = value => {
+    if (typeof value !== 'string' || !/^BA-[A-Za-z0-9_-]{24}$/u.test(value)) throw new HttpError(404, 'NOT_FOUND', 'Demande introuvable.');
+    if (!db.prepare('SELECT 1 FROM ba_intakes WHERE reference=?').get(value)) throw new HttpError(404, 'NOT_FOUND', 'Demande introuvable.');
+    return value;
+  };
+  // The list shows what is needed to triage; contact details and the summary are only in the logged detail view.
+  function overview(row) {
+    const data = JSON.parse(row.payloadJson), state = statusOf(row.reference);
+    return { reference: row.reference, createdAt: row.createdAt, status: state.status, statusUpdatedAt: state.updatedAt,
+      role: data.role, language: data.language, name: data.name,
+      domain: { id: data.domain, label: label(DOMAINS, data.domain) }, region: { id: data.region, label: label(REGIONS, data.region) },
+      urgency: data.urgency ? { id: data.urgency, label: label(URGENCIES, data.urgency) } : null,
+      detailed: Boolean(data.summary), questionnaire: Boolean(data.questionnaire), deadline: data.deadline ?? null };
+  }
+  function listRequests(user, query) {
+    const { status = null, offset = 0, limit = 25 } = query;
+    if ((status !== null && !INTAKE_STATUSES.includes(status)) || !Number.isSafeInteger(offset) || offset < 0 || offset > MAX_LEADS ||
+        !Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw invalid();
+    const rows = db.prepare(`SELECT i.reference,i.payloadJson,i.createdAt FROM ba_intakes i LEFT JOIN ba_intake_reviews r ON r.reference=i.reference
+      WHERE (? IS NULL OR COALESCE(r.status,'received')=?) ORDER BY i.createdAt DESC,i.reference LIMIT ? OFFSET ?`).all(status, status, limit + 1, offset);
+    const counts = Object.fromEntries(INTAKE_STATUSES.map(name => [name, 0]));
+    for (const row of db.prepare(`SELECT COALESCE(r.status,'received') AS status,COUNT(*) AS n FROM ba_intakes i
+      LEFT JOIN ba_intake_reviews r ON r.reference=i.reference GROUP BY 1`).all()) counts[row.status] = row.n;
+    logAccess(user, null, 'list');
+    return { requests: rows.slice(0, limit).map(overview), counts, offset, limit, hasMore: rows.length > limit, nextOffset: rows.length > limit ? offset + limit : null };
+  }
+  // Questionnaire answers with their questions, in the order they were asked.
+  function answersOf(data) {
+    const questions = publicQuestionnaire().domains[data.domain]?.questions ?? [], answers = data.questionnaire?.answers ?? {};
+    return questions.filter(item => Object.hasOwn(answers, item.id)).map(item => ({ id: item.id, question: item.label,
+      answer: { id: answers[item.id], label: item.options.find(choice => choice.id === answers[item.id])?.label ?? null } }));
+  }
+  function readRequest(user, value) {
+    const reference = referenceOf(value);
+    const row = db.prepare('SELECT * FROM ba_intakes WHERE reference=?').get(reference);
+    const data = JSON.parse(row.payloadJson);
+    logAccess(user, reference, 'read');
+    return { request: { ...overview(row), contact: { name: data.name, email: data.email, phone: data.phone || null, preference: data.contactPreference ?? null },
+      stage: data.stage ? { id: data.stage, label: label(STAGES, data.stage) } : null,
+      objective: data.objective ? { id: data.objective, label: label(OBJECTIVES, data.objective) } : null,
+      contactPreferenceLabel: data.contactPreference ? label(CONTACT_PREFERENCES, data.contactPreference) : null,
+      summary: data.summary ?? null, questionnaire: data.questionnaire ?? null, answers: answersOf(data),
+      periodicity: data.periodicity ?? null, consent: { version: data.consentVersion, text: row.consentText }, catalogVersion: row.catalogVersion, origin: row.origin },
+      history: db.prepare('SELECT id,kind,body,author,createdAt FROM ba_intake_notes WHERE reference=? ORDER BY createdAt,id').all(reference)
+        .map(note => ({ ...note, mine: note.author === user.subject })) };
+  }
+  function changeStatus(user, value, body) {
+    const reference = referenceOf(value);
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['status','expected'].includes(key)) ||
+        !INTAKE_STATUSES.includes(body.status) || (body.expected !== undefined && !INTAKE_STATUSES.includes(body.expected))) throw invalid();
+    return transaction(() => {
+      const current = statusOf(reference).status;
+      if (body.expected !== undefined && body.expected !== current) throw new HttpError(409, 'STATUS_CONFLICT', 'Le statut a été modifié par une autre personne. Rechargez la demande.');
+      if (current === body.status) return { reference, status: current, changed: false };
+      const time = new Date(now()).toISOString();
+      db.prepare(`INSERT INTO ba_intake_reviews VALUES(?,?,?,?) ON CONFLICT(reference) DO UPDATE SET status=excluded.status,updatedAt=excluded.updatedAt,updatedBy=excluded.updatedBy`)
+        .run(reference, body.status, time, user.subject);
+      db.prepare('INSERT INTO ba_intake_notes VALUES(?,?,?,?,?,?)').run(randomUUID(), reference, 'status', `${current} → ${body.status}`, user.subject, time);
+      logAccess(user, reference, 'status');
+      return { reference, status: body.status, changed: true, updatedAt: time };
+    });
+  }
+  function addNote(user, value, body) {
+    const reference = referenceOf(value);
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1 || typeof body.body !== 'string') throw invalid();
+    const text = body.body.replace(/\r\n?/gu, '\n').trim().normalize('NFC');
+    if (!text || text.length > 4000 || !text.isWellFormed() || /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(text)) throw invalid();
+    return transaction(() => {
+      const note = { id: randomUUID(), kind: 'note', body: text, author: user.subject, createdAt: new Date(now()).toISOString() };
+      db.prepare('INSERT INTO ba_intake_notes VALUES(?,?,?,?,?,?)').run(note.id, reference, note.kind, note.body, note.author, note.createdAt);
+      logAccess(user, reference, 'note');
+      return { note: { ...note, mine: true } };
+    });
+  }
   const safe = action => (...args) => { try { ready(); return action(...args); } catch (error) { if (error instanceof HttpError) throw error; throw unavailable(); } };
   const transaction = action => {
     db.exec('BEGIN IMMEDIATE');
@@ -248,6 +363,12 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
         return { reference, status:'received' };
       });
     }),
+    get reviewEnabled() { return Boolean(db) && reviewers.size > 0; },
+    isReviewer(user) { return Boolean(db) && reviewers.has(user?.subject) && user?.active === true; },
+    reviewList: safe((user, query = {}) => { review(user); return listRequests(user, query); }),
+    reviewRead: safe((user, reference) => { review(user); return readRequest(user, reference); }),
+    reviewStatus: safe((user, reference, body) => { review(user); return changeStatus(user, reference, body); }),
+    reviewNote: safe((user, reference, body) => { review(user); return addNote(user, reference, body); }),
     clear() { if (db) { db.close(); db = null; } },
   };
 }

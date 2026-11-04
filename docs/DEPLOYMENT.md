@@ -1,5 +1,14 @@
 # DEPLOYMENT — BESOINAVOCAT.CA
 
+## État vérifié — 4 novembre 2026, 18:35 UTC
+
+Cette section remplace, pour le portail, les points du 30 octobre conservés plus bas (ils décrivent une panne résorbée). Source la plus à jour : [JOURNAL-AGENTS](JOURNAL-AGENTS.md); rangement des notes du jour : [REPRISE-NOTES-2026-11-04](REPRISE-NOTES-2026-11-04.md).
+
+- **Portail :** VPS Coolify `31.220.96.134`, image construite par `platform/Dockerfile` (voir [COOLIFY](COOLIFY.md)). Le déploiement automatique par GitHub Actions (`coolify-deploy`, PR 16) attend les secrets `COOLIFY_BESOINAVOCAT_API_TOKEN`, `COOLIFY_BESOINAVOCAT_PORTAL_DEPLOY_WEBHOOK`, `COOLIFY_BESOINAVOCAT_WWW_DEPLOY_WEBHOOK` (environnement `production`) et les variables `*_AUTODEPLOY_ENABLED=true`; le workflow a un bouton « Run workflow » et nomme lui-même ce qui manque. Sans cela, relancer Coolify à la main après chaque fusion : le site en ligne sert encore le code du 29-30 octobre.
+- **Avant d'annoncer un déploiement :** `node tools/deploy-readiness.mjs` dans le conteneur (lecture seule, n'affiche ni valeur ni numéro) liste les réglages absents : connexion par code courriel, demandes (`BESOINAVOCAT_INTAKE_*`), appels MIMT, vidéo TURN, chiffrement des pièces, abonnement Stripe. Tableau complet des variables : [COCKPIT-PREMIUM-2026-11-04](COCKPIT-PREMIUM-2026-11-04.md) et [COOLIFY](COOLIFY.md).
+- **Sauvegarde :** `python platform/tools/backup-corpus.py create --database /data/platform.sqlite --blobs /data/blobs --intake /data/intake.sqlite --output <archive-privée>.zip`, puis `verify`. Les clés et les grants ne sont jamais archivés; une archive avec pièces chiffrées exige la même clé à la restauration.
+- **Vitrine et DNS :** `besoinavocat.ca` est toujours le WordPress chez MochaHost (`209.42.24.127`); copie de sauvegarde vers Drive demandée par le propriétaire avant toute bascule, qui reste à faire par le fil de contrôle à distance avec le courrier préservé (jamais toucher aux MX).
+
 ## État de remise du lot local — 30 octobre 2026, 11:34 UTC
 
 **Le portail reste à rétablir par Mike ou l'agent serveur**, désigné par le propriétaire. Dernier contrôle public disponible : réponses 503 à 11:22:04 UTC, avec validation TLS normale. L'agent chargé des dossiers ne poursuit pas d'intervention sur le VPS; la [fiche de diagnostic](INCIDENT-COOLIFY-2026-10-30.md) et l'alerte de coordination lui ont été transmises. Aucun retour de disponibilité confirmé.

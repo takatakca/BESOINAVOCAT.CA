@@ -1,5 +1,16 @@
 # TASK_QUEUE — BESOINAVOCAT.CA
 
+## État vérifié — 4 novembre 2026, 18:35 UTC
+
+Cette section remplace, pour le portail, les points du 30 octobre conservés plus bas (ils décrivent une panne résorbée). Source la plus à jour : [JOURNAL-AGENTS](JOURNAL-AGENTS.md); rangement des notes du jour : [REPRISE-NOTES-2026-11-04](REPRISE-NOTES-2026-11-04.md).
+
+- **Portail en ligne :** `portail.besoinavocat.ca` répond (l'incident 503 du 30 octobre est résorbé), mais il sert encore le code du 29-30 octobre tant que le déploiement Coolify n'est pas relancé. Le propriétaire ne peut toujours pas se connecter : le courriel du code est bloqué chez Maileroo (`takatak.ca` non vérifié).
+- **`main` au 4 novembre :** PR 15 à 26 fusionnées (vitrine : témoins et SEO; demande guidée; déploiement Coolify; outil de préparation; chiffrement optionnel des pièces et outil de scellement; cache de recherche; sauvegarde complète avec la base des demandes; téléversement en flux; cockpit premium, appels par MIMT seulement, vidéo, journal scellé, actes PDF, pièces demandées au client, abonnement des avocats par Stripe Checkout, échéances du dossier). PR 27 ouverte (attribution des demandes reçues). Contrôles au dernier passage : 347/347 tests Node, 17/17 tests Python, 3/3 tests de l'archive.
+- **Tout est réel mais éteint sans configuration :** demandes guidées (`BESOINAVOCAT_INTAKE_REQUEST_ENABLED`, relecture juridique du consentement attendue), file `/demandes` (`BESOINAVOCAT_INTAKE_REVIEWERS`), appels MIMT, vidéo TURN, chiffrement des pièces, abonnement Stripe. Rien ne simule un service absent.
+- **Ce qui reste au propriétaire et à Mike :** la liste consolidée en huit points de [REPRISE-NOTES-2026-11-04 §3](REPRISE-NOTES-2026-11-04.md) (relance Coolify, courriel de connexion, variables Coolify, côté MIMT, relecture juridique, recette des trois dossiers puis CNESST v2, vitrine et DNS, chiffre « 6 000 références »).
+- **File active (lots suivants envisagés, sans activation de service payant) :** backend : conservation et purge des demandes reçues (durée à fixer par le propriétaire), import CNESST v2 contrôlé après la recette des trois dossiers, préparation au déploiement à chaque fusion; tableau de bord : bascule de l'envoi des pièces vers la route en flux, suite des notes premium du Drive. Les visuels de la vitrine restent réservés au propriétaire et à Mike (D-023, D-026).
+- **Règles de travail du 4 novembre :** deux fils Claude en parallèle (backend : `claude/project-thread-glrrpi`; tableau de bord : `claude/project-thread-jc2sy5`), fusion de leurs propres PR vertes sur instruction écrite du propriétaire (« MERGE ALL TO MAIN »), entrée dans le journal **et** copie dans le dossier Drive JOURNAL au début, à la PR et à la fusion de chaque lot. Toute nouvelle table SQLite doit être ajoutée à `OPTIONAL_TABLES` de `platform/tools/backup-corpus.py`, sinon le test du vrai serveur échoue.
+
 ## État de remise du lot local — 30 octobre 2026, 11:34 UTC
 
 **Le portail reste à rétablir par Mike ou l'agent serveur**, désigné par le propriétaire. Dernier contrôle public disponible : réponses 503 à 11:22:04 UTC, avec validation TLS normale. L'agent chargé des dossiers ne poursuit pas d'intervention sur le VPS; la [fiche de diagnostic](INCIDENT-COOLIFY-2026-10-30.md) et l'alerte de coordination lui ont été transmises. Aucun retour de disponibilité confirmé.

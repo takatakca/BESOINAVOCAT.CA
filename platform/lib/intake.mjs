@@ -13,7 +13,8 @@ const REPO_ROOT = path.dirname(APP_ROOT);
 const EXCLUDED_ROOTS = [APP_ROOT, ...(existsSync(path.join(REPO_ROOT, '.git')) ? [REPO_ROOT] : [])];
 const APP_ID = 0x4241494e;
 const MAX_LEADS = 10000, MAX_COUNTERS = 4096;
-const INTAKE_TABLES = ['ba_intake_meta','ba_intakes','ba_intake_limits','ba_intake_reviews','ba_intake_notes','ba_intake_access'];
+const INTAKE_TABLES = ['ba_intake_meta','ba_intakes','ba_intake_limits','ba_intake_reviews','ba_intake_notes','ba_intake_access','ba_intake_assignments'];
+const MAX_REVIEWER_NAME = 80;
 export const INTAKE_STATUSES = ['received','in_review','contacted','closed','spam'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 const unavailable = () => new HttpError(503, 'INTAKE_UNAVAILABLE', 'Le formulaire est temporairement indisponible.');
@@ -33,14 +34,27 @@ function origin(value) {
 
 // BesoinAvocat staff who process requests, by TAKATAK subject. The consent covers BesoinAvocat processing the request
 // and contacting the person; it does not cover sharing it with lawyers, so only these named reviewers can read it.
-export function intakeReviewers(raw) {
+// Each entry is either a subject, or {"subject": "...", "name": "Me Untel"} so the inbox can show a name beside an
+// assignment. One malformed entry disables the whole list: nobody reads requests by accident.
+function reviewerName(value) {
+  return typeof value === 'string' && value.length <= MAX_REVIEWER_NAME && value.isWellFormed() && !/[\u0000-\u001f\u007f<>]/u.test(value) && value.trim() === value && value.length > 0;
+}
+export function reviewerDirectory(raw) {
   try {
     if (typeof raw !== 'string' || !raw || raw.length > 8000) return [];
     const list = JSON.parse(raw);
-    if (!Array.isArray(list) || list.length > 32 || list.some(value => !externalIdentifier(value)) || new Set(list).size !== list.length) return [];
-    return list;
+    if (!Array.isArray(list) || list.length > 32) return [];
+    const entries = list.map(value => {
+      if (externalIdentifier(value)) return { subject: value, name: null };
+      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !['subject','name'].includes(key)) || !externalIdentifier(value.subject)) return null;
+      if (value.name !== undefined && !reviewerName(value.name)) return null;
+      return { subject: value.subject, name: value.name ?? null };
+    });
+    if (entries.some(entry => !entry) || new Set(entries.map(entry => entry.subject)).size !== entries.length) return [];
+    return entries;
   } catch { return []; }
 }
+export function intakeReviewers(raw) { return reviewerDirectory(raw).map(entry => entry.subject); }
 
 export function intakeConfiguration(env = process.env) {
   try {
@@ -51,7 +65,7 @@ export function intakeConfiguration(env = process.env) {
     const dbPath = env.BESOINAVOCAT_INTAKE_DB_PATH;
     // The detailed request stores a free-text summary; it stays closed unless explicitly enabled.
     return { origins, dbPath: typeof dbPath === 'string' && dbPath ? dbPath : null, requestEnabled: env.BESOINAVOCAT_INTAKE_REQUEST_ENABLED === 'true',
-      reviewers: intakeReviewers(env.BESOINAVOCAT_INTAKE_REVIEWERS) };
+      reviewers: reviewerDirectory(env.BESOINAVOCAT_INTAKE_REVIEWERS) };
   } catch { return null; }
 }
 
@@ -208,13 +222,29 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
       CREATE TRIGGER IF NOT EXISTS ba_intake_notes_append_only_delete BEFORE DELETE ON ba_intake_notes BEGIN SELECT RAISE(ABORT,'intake_notes_are_append_only'); END;
       CREATE TRIGGER IF NOT EXISTS ba_intake_access_append_only_update BEFORE UPDATE ON ba_intake_access BEGIN SELECT RAISE(ABORT,'intake_access_is_append_only'); END;
       CREATE TRIGGER IF NOT EXISTS ba_intake_access_append_only_delete BEFORE DELETE ON ba_intake_access BEGIN SELECT RAISE(ABORT,'intake_access_is_append_only'); END;`);
-    db.prepare("INSERT OR IGNORE INTO ba_intake_meta VALUES('schema_version','2')").run();
-    db.prepare("UPDATE ba_intake_meta SET value='2' WHERE name='schema_version' AND value='1'").run();
-    if (db.prepare("SELECT value FROM ba_intake_meta WHERE name='schema_version'").get()?.value !== '2') throw unavailable();
+    // Version 3 adds the human assignment of a request to a named reviewer, as an append-only history; the latest
+    // row is the current assignment and a row with an empty assignee removes it.
+    db.exec(`CREATE TABLE IF NOT EXISTS ba_intake_assignments (
+        id TEXT PRIMARY KEY,reference TEXT NOT NULL REFERENCES ba_intakes(reference),
+        assignee TEXT NOT NULL,assignedBy TEXT NOT NULL,createdAt TEXT NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS ba_intake_assignments_reference ON ba_intake_assignments(reference,createdAt);
+      CREATE TRIGGER IF NOT EXISTS ba_intake_assignments_append_only_update BEFORE UPDATE ON ba_intake_assignments BEGIN SELECT RAISE(ABORT,'intake_assignments_are_append_only'); END;
+      CREATE TRIGGER IF NOT EXISTS ba_intake_assignments_append_only_delete BEFORE DELETE ON ba_intake_assignments BEGIN SELECT RAISE(ABORT,'intake_assignments_are_append_only'); END;`);
+    db.prepare("INSERT OR IGNORE INTO ba_intake_meta VALUES('schema_version','3')").run();
+    db.prepare("UPDATE ba_intake_meta SET value='3' WHERE name='schema_version' AND value IN ('1','2')").run();
+    if (db.prepare("SELECT value FROM ba_intake_meta WHERE name='schema_version'").get()?.value !== '3') throw unavailable();
   } catch { try { db?.close(); } catch {} db = null; }
 
   const ready = () => { if (!db) throw unavailable(); };
-  const reviewers = new Set(Array.isArray(config?.reviewers) ? config.reviewers.filter(externalIdentifier) : []);
+  // Reviewers come as subjects or as {subject, name} entries (reviewerDirectory).
+  const directory = new Map();
+  for (const entry of Array.isArray(config?.reviewers) ? config.reviewers : []) {
+    if (externalIdentifier(entry)) directory.set(entry, null);
+    else if (entry && typeof entry === 'object' && externalIdentifier(entry.subject)) directory.set(entry.subject, reviewerName(entry.name) ? entry.name : null);
+  }
+  const reviewers = new Set(directory.keys());
+  const person = subject => subject ? { subject, name: directory.get(subject) ?? null } : null;
   // A person who is not a reviewer learns nothing, not even that the queue exists.
   const review = user => { if (!db || !reviewers.has(user?.subject) || user?.active !== true) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.'); };
   const label = (list, id) => list.find(item => item.id === id)?.label ?? null;
@@ -222,6 +252,12 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
     .run(randomUUID(), reference, action, user.subject, new Date(now()).toISOString());
   const statusOf = reference => db.prepare('SELECT status,updatedAt,updatedBy FROM ba_intake_reviews WHERE reference=?').get(reference)
     ?? { status: 'received', updatedAt: null, updatedBy: null };
+  // The latest assignment row wins; an empty assignee means the request is back in the shared queue.
+  const assignmentOf = reference => {
+    const row = db.prepare('SELECT assignee,assignedBy,createdAt FROM ba_intake_assignments WHERE reference=? ORDER BY createdAt DESC,id DESC LIMIT 1').get(reference);
+    return row?.assignee ? { assignee: person(row.assignee), assignedBy: row.assignedBy, assignedAt: row.createdAt } : { assignee: null, assignedBy: null, assignedAt: null };
+  };
+  const ASSIGNED_FILTERS = ['me', 'none'];
   const referenceOf = value => {
     if (typeof value !== 'string' || !/^BA-[A-Za-z0-9_-]{24}$/u.test(value)) throw new HttpError(404, 'NOT_FOUND', 'Demande introuvable.');
     if (!db.prepare('SELECT 1 FROM ba_intakes WHERE reference=?').get(value)) throw new HttpError(404, 'NOT_FOUND', 'Demande introuvable.');
@@ -231,22 +267,29 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
   function overview(row) {
     const data = JSON.parse(row.payloadJson), state = statusOf(row.reference);
     return { reference: row.reference, createdAt: row.createdAt, status: state.status, statusUpdatedAt: state.updatedAt,
-      role: data.role, language: data.language, name: data.name,
+      assignee: assignmentOf(row.reference).assignee, role: data.role, language: data.language, name: data.name,
       domain: { id: data.domain, label: label(DOMAINS, data.domain) }, region: { id: data.region, label: label(REGIONS, data.region) },
       urgency: data.urgency ? { id: data.urgency, label: label(URGENCIES, data.urgency) } : null,
       detailed: Boolean(data.summary), questionnaire: Boolean(data.questionnaire), deadline: data.deadline ?? null };
   }
   function listRequests(user, query) {
-    const { status = null, offset = 0, limit = 25 } = query;
-    if ((status !== null && !INTAKE_STATUSES.includes(status)) || !Number.isSafeInteger(offset) || offset < 0 || offset > MAX_LEADS ||
-        !Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw invalid();
+    const { status = null, assigned = null, offset = 0, limit = 25 } = query;
+    if ((status !== null && !INTAKE_STATUSES.includes(status)) || (assigned !== null && !ASSIGNED_FILTERS.includes(assigned)) ||
+        !Number.isSafeInteger(offset) || offset < 0 || offset > MAX_LEADS || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw invalid();
+    // `assigned=me` keeps the requests whose latest assignment names this reviewer; `assigned=none` those with no current assignee.
+    const current = `(SELECT a.assignee FROM ba_intake_assignments a WHERE a.reference=i.reference ORDER BY a.createdAt DESC,a.id DESC LIMIT 1)`;
+    const assignedClause = assigned === 'me' ? `AND ${current}=?` : assigned === 'none' ? `AND COALESCE(${current},'')=''` : '';
+    const params = [status, status, ...(assigned === 'me' ? [user.subject] : [])];
     const rows = db.prepare(`SELECT i.reference,i.payloadJson,i.createdAt FROM ba_intakes i LEFT JOIN ba_intake_reviews r ON r.reference=i.reference
-      WHERE (? IS NULL OR COALESCE(r.status,'received')=?) ORDER BY i.createdAt DESC,i.reference LIMIT ? OFFSET ?`).all(status, status, limit + 1, offset);
+      WHERE (? IS NULL OR COALESCE(r.status,'received')=?) ${assignedClause} ORDER BY i.createdAt DESC,i.reference LIMIT ? OFFSET ?`).all(...params, limit + 1, offset);
     const counts = Object.fromEntries(INTAKE_STATUSES.map(name => [name, 0]));
     for (const row of db.prepare(`SELECT COALESCE(r.status,'received') AS status,COUNT(*) AS n FROM ba_intakes i
       LEFT JOIN ba_intake_reviews r ON r.reference=i.reference GROUP BY 1`).all()) counts[row.status] = row.n;
+    // Open requests assigned to this reviewer, whatever the status filter: the inbox shows it as « À moi ».
+    const mine = db.prepare(`SELECT COUNT(*) AS n FROM ba_intakes i LEFT JOIN ba_intake_reviews r ON r.reference=i.reference
+      WHERE COALESCE(r.status,'received') IN ('received','in_review') AND ${current}=?`).get(user.subject).n;
     logAccess(user, null, 'list');
-    return { requests: rows.slice(0, limit).map(overview), counts, offset, limit, hasMore: rows.length > limit, nextOffset: rows.length > limit ? offset + limit : null };
+    return { requests: rows.slice(0, limit).map(overview), counts, assignedToMe: mine, offset, limit, hasMore: rows.length > limit, nextOffset: rows.length > limit ? offset + limit : null };
   }
   // Questionnaire answers with their questions, in the order they were asked.
   function answersOf(data) {
@@ -278,9 +321,36 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
       objective: data.objective ? { id: data.objective, label: label(OBJECTIVES, data.objective) } : null,
       contactPreferenceLabel: data.contactPreference ? label(CONTACT_PREFERENCES, data.contactPreference) : null,
       summary: data.summary ?? null, questionnaire: data.questionnaire ?? null, answers: answersOf(data), ...flowOf(data),
-      periodicity: data.periodicity ?? null, consent: { version: data.consentVersion, text: row.consentText }, catalogVersion: row.catalogVersion, origin: row.origin },
-      history: db.prepare('SELECT id,kind,body,author,createdAt FROM ba_intake_notes WHERE reference=? ORDER BY createdAt,id').all(reference)
-        .map(note => ({ ...note, mine: note.author === user.subject })) };
+      periodicity: data.periodicity ?? null, consent: { version: data.consentVersion, text: row.consentText }, catalogVersion: row.catalogVersion, origin: row.origin,
+      assignment: assignmentOf(reference) },
+      history: [
+        ...db.prepare('SELECT id,kind,body,author,createdAt FROM ba_intake_notes WHERE reference=? ORDER BY createdAt,id').all(reference),
+        ...db.prepare('SELECT id,assignee,assignedBy AS author,createdAt FROM ba_intake_assignments WHERE reference=? ORDER BY createdAt,id').all(reference)
+          .map(row => ({ id: row.id, kind: 'assignment', body: row.assignee, assignee: person(row.assignee), author: row.author, createdAt: row.createdAt })),
+      ].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).map(note => ({ ...note, mine: note.author === user.subject })) };
+  }
+  // Assigning a request to a reviewer (or to nobody) is logged like a status change; a newly assigned request that is still
+  // « received » moves to « in_review », so the queue counts show who is working on what.
+  function assign(user, value, body) {
+    const reference = referenceOf(value);
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['assignee','expected'].includes(key)) || !Object.hasOwn(body, 'assignee') ||
+        (body.assignee !== null && !reviewers.has(body.assignee)) || (body.expected !== undefined && body.expected !== null && !externalIdentifier(body.expected))) throw invalid();
+    return transaction(() => {
+      const before = assignmentOf(reference), current = before.assignee?.subject ?? null;
+      if (body.expected !== undefined && body.expected !== current) throw new HttpError(409, 'ASSIGNMENT_CONFLICT', 'L’attribution a été modifiée par une autre personne. Rechargez la demande.');
+      if (current === body.assignee) return { reference, assignment: before, changed: false, status: statusOf(reference).status };
+      const time = new Date(now()).toISOString();
+      db.prepare('INSERT INTO ba_intake_assignments VALUES(?,?,?,?,?)').run(randomUUID(), reference, body.assignee ?? '', user.subject, time);
+      let status = statusOf(reference).status;
+      if (body.assignee && status === 'received') {
+        db.prepare(`INSERT INTO ba_intake_reviews VALUES(?,?,?,?) ON CONFLICT(reference) DO UPDATE SET status=excluded.status,updatedAt=excluded.updatedAt,updatedBy=excluded.updatedBy`)
+          .run(reference, 'in_review', time, user.subject);
+        db.prepare('INSERT INTO ba_intake_notes VALUES(?,?,?,?,?,?)').run(randomUUID(), reference, 'status', 'received → in_review', user.subject, time);
+        status = 'in_review';
+      }
+      logAccess(user, reference, 'assign');
+      return { reference, assignment: assignmentOf(reference), changed: true, status };
+    });
   }
   function changeStatus(user, value, body) {
     const reference = referenceOf(value);
@@ -385,6 +455,9 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
     reviewRead: safe((user, reference) => { review(user); return readRequest(user, reference); }),
     reviewStatus: safe((user, reference, body) => { review(user); return changeStatus(user, reference, body); }),
     reviewNote: safe((user, reference, body) => { review(user); return addNote(user, reference, body); }),
+    reviewAssign: safe((user, reference, body) => { review(user); return assign(user, reference, body); }),
+    // The people a request can be assigned to: the configured reviewers, the caller marked.
+    reviewDirectory: safe(user => { review(user); return { reviewers: [...directory.keys()].map(subject => ({ ...person(subject), me: subject === user.subject })) }; }),
     clear() { if (db) { db.close(); db = null; } },
   };
 }

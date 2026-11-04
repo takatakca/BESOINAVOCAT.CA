@@ -166,3 +166,60 @@ test('a guided request shows the conflict-check names, legal aid answers and ava
   const old = (await f.request(`/api/intakes/${legacy.json.reference}`, { as: 'reviewer' })).json.request;
   assert.equal(old.otherParties, null); assert.equal(old.availability, null); assert.equal(old.acceptRemote, null);
 });
+
+test('the reviewer directory accepts subjects or {subject, name} entries and nothing else', async () => {
+  const { reviewerDirectory } = await import('../lib/intake.mjs');
+  assert.deepEqual(reviewerDirectory('["a",{"subject":"b","name":"Me B"}]'), [{ subject: 'a', name: null }, { subject: 'b', name: 'Me B' }]);
+  assert.deepEqual(intakeReviewers('["a",{"subject":"b","name":"Me B"}]'), ['a', 'b']);
+  for (const raw of ['[{"subject":"b","name":"<b>"}]', '[{"subject":"b","extra":1}]', '[{"name":"x"}]', '["a",{"subject":"a"}]', '[{"subject":"b","name":" x"}]', '[{"subject":"b","name":""}]'])
+    assert.deepEqual(reviewerDirectory(raw), [], raw);
+});
+
+test('a request is assigned to a named reviewer, filtered by assignment, and the history keeps every change', async t => {
+  const f = await fixture(t, [REVIEWER.subject, { subject: SECOND.subject, name: 'Collègue Synthétique' }]);
+  const { json: { reference } } = await f.submit(detailed());
+  const other = (await f.submit(contact())).json.reference;
+  const route = `/api/intakes/${reference}`;
+  const directory = await f.request('/api/intakes/reviewers', { as: 'reviewer' });
+  assert.equal(directory.status, 200);
+  assert.deepEqual(directory.json.reviewers, [{ subject: REVIEWER.subject, name: null, me: true }, { subject: SECOND.subject, name: 'Collègue Synthétique', me: false }]);
+  assert.equal((await f.request('/api/intakes/reviewers', { as: 'lawyer' })).status, 404);
+  // Only a configured reviewer can be named; the body is closed.
+  for (const body of [{ assignee: LAWYER.subject }, { assignee: 'x', extra: 1 }, {}, { assignee: 1 }, { assignee: null, expected: 5 }])
+    assert.equal((await f.request(`${route}/assign`, { as: 'reviewer', method: 'POST', body })).status, 400);
+  assert.equal((await f.request(`${route}/assign`, { as: 'lawyer', method: 'POST', body: { assignee: REVIEWER.subject } })).status, 404);
+  const assigned = await f.request(`${route}/assign`, { as: 'reviewer', method: 'POST', body: { assignee: SECOND.subject, expected: null } });
+  assert.equal(assigned.status, 200, assigned.text);
+  assert.equal(assigned.json.changed, true); assert.equal(assigned.json.status, 'in_review', 'a received request moves to in_review when someone takes it');
+  assert.deepEqual(assigned.json.assignment.assignee, { subject: SECOND.subject, name: 'Collègue Synthétique' });
+  assert.equal((await f.request(`${route}/assign`, { as: 'second', method: 'POST', body: { assignee: SECOND.subject } })).json.changed, false);
+  const stale = await f.request(`${route}/assign`, { as: 'second', method: 'POST', body: { assignee: REVIEWER.subject, expected: null } });
+  assert.equal(stale.status, 409); assert.equal(stale.json.error.code, 'ASSIGNMENT_CONFLICT');
+  // Lists: the assignee sees it under « me », the other reviewer does not; the second request has no assignee.
+  const mine = await f.request('/api/intakes?assigned=me', { as: 'second' });
+  assert.deepEqual(mine.json.requests.map(row => row.reference), [reference]); assert.equal(mine.json.assignedToMe, 1);
+  assert.deepEqual(mine.json.requests[0].assignee, { subject: SECOND.subject, name: 'Collègue Synthétique' });
+  assert.equal((await f.request('/api/intakes?assigned=me', { as: 'reviewer' })).json.requests.length, 0);
+  assert.deepEqual((await f.request('/api/intakes?assigned=none', { as: 'reviewer' })).json.requests.map(row => row.reference), [other]);
+  assert.equal((await f.request('/api/intakes?assigned=me&status=in_review', { as: 'second' })).json.requests.length, 1);
+  assert.equal((await f.request('/api/intakes?assigned=all', { as: 'reviewer' })).status, 400);
+  const counts = (await f.request('/api/intakes?status=received&limit=1', { as: 'reviewer' })).json.counts;
+  assert.deepEqual(counts, { received: 1, in_review: 1, contacted: 0, closed: 0, spam: 0 }, 'the cockpit dial keeps reading the same counts');
+  // Taking it back to the shared queue keeps the status and the whole history.
+  const released = await f.request(`${route}/assign`, { as: 'reviewer', method: 'POST', body: { assignee: null, expected: SECOND.subject } });
+  assert.equal(released.status, 200); assert.equal(released.json.assignment.assignee, null); assert.equal(released.json.status, 'in_review');
+  const detail = await f.request(route, { as: 'second' });
+  assert.deepEqual(detail.json.request.assignment, { assignee: null, assignedBy: null, assignedAt: null });
+  assert.deepEqual(detail.json.history.map(item => [item.kind, item.body, item.mine]).sort(),
+    [['assignment', '', false], ['assignment', SECOND.subject, false], ['status', 'received → in_review', false]].sort());
+  assert.equal(detail.json.history.find(item => item.kind === 'assignment' && item.body)?.assignee.name, 'Collègue Synthétique');
+  const db = new DatabaseSync(f.file, { readOnly: true });
+  try {
+    assert.equal(db.prepare("SELECT value FROM ba_intake_meta WHERE name='schema_version'").get().value, '3');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ba_intake_assignments').get().n, 2);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM ba_intake_access WHERE action='assign'").get().n, 2);
+  } finally { db.close(); }
+  const rw = new DatabaseSync(f.file);
+  try { assert.throws(() => rw.prepare('DELETE FROM ba_intake_assignments').run()); assert.throws(() => rw.prepare("UPDATE ba_intake_assignments SET assignee='x'").run()); }
+  finally { rw.close(); }
+});

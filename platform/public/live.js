@@ -360,6 +360,93 @@
   }
 
 
+  // ---------- Échéances du dossier ----------
+  // Every date is typed by the lawyer; the portal never computes a legal delay. Clients see only what is shared.
+  const deadlines = { data: null, week: null };
+  const DEADLINE_STATUS = { open: ['wait', 'À venir'], done: ['ok', 'Faite'], cancelled: ['off', 'Annulée'] };
+  const daysText = d => (d.status !== 'open' ? '' : d.daysLeft < 0 ? `dépassée de ${-d.daysLeft} j` : d.daysLeft === 0 ? 'aujourd’hui' : d.daysLeft === 1 ? 'demain' : `dans ${d.daysLeft} j`);
+  async function loadDeadlines(force = false) {
+    if (bridge.isDemo()) return { deadlines: [], canEdit: false, kinds: {}, demo: true };
+    if (!deadlines.data || force || deadlines.data.caseId !== bridge.caseId()) deadlines.data = { caseId: bridge.caseId(), ...(await api(`${caseBase()}/deadlines`)) };
+    return deadlines.data;
+  }
+  async function loadWeek(force = false) {
+    if (bridge.isDemo()) return null;
+    if (!deadlines.week || force) deadlines.week = await api('/api/deadlines/upcoming?days=7');
+    return deadlines.week;
+  }
+  function deadlineCard(d, list) {
+    const [tone, label] = DEADLINE_STATUS[d.status];
+    const time = d.dueTime ? ` à ${esc(d.dueTime)}` : '';
+    const edit = list.canEdit && bridge.canMutate();
+    const actions = !edit ? '' : d.status === 'open'
+      ? `<div class="tile-actions"><button type="button" class="button small" data-live-action="deadline-done" data-id="${esc(d.id)}">${icon('check')}Marquer faite</button><button type="button" class="button subtle small" data-live-action="deadline-cancel" data-id="${esc(d.id)}">Annuler</button></div>`
+      : `<div class="tile-actions"><button type="button" class="button subtle small" data-live-action="deadline-reopen" data-id="${esc(d.id)}">Rouvrir</button></div>`;
+    return `<article class="live-card live-deadline" data-tone="${d.overdue ? 'late' : tone}"><div class="live-card-head"><strong>${esc(d.title)}</strong>${pill(d.overdue ? 'warn' : tone, d.overdue ? 'Dépassée' : label)}</div>
+      <p><span class="mono">${esc(d.dueDate)}</span>${time} · ${esc(d.kindLabel)}${d.status === 'open' ? ` · <span class="${d.overdue ? 'live-late' : 'table-subtext'}">${esc(daysText(d))}</span>` : ''}${list.canEdit ? ` · <span class="table-subtext">${d.visibleToClient ? 'visible par le client' : 'interne'}</span>` : ''}</p>
+      ${d.note ? `<p class="live-quote">${esc(d.note)}</p>` : ''}${actions}</article>`;
+  }
+  async function paintDeadlines(node) {
+    if (!bridge.caseId()) { node.innerHTML = `<div class="panel-body">${empty('Choisissez un dossier.')}</div>`; return; }
+    const list = await loadDeadlines();
+    if (list.demo) { node.innerHTML = demo('Échéances du dossier'); return; }
+    const open = list.deadlines.filter(d => d.status === 'open');
+    const late = open.filter(d => d.overdue).length;
+    const head = `<div class="panel-heading"><div><h2>Échéances du dossier</h2><p>${open.length ? `${open.length} à venir${late ? ` · ${late} dépassée${late > 1 ? 's' : ''}` : ''}` : 'Aucune échéance ouverte'}${list.canEdit ? '. Dates saisies par l’avocat, qui en reste responsable.' : '. Dates communiquées par votre avocat.'}</p></div>${open.length ? '<button type="button" class="button secondary small" data-live-action="deadline-ics">' + icon('calendar') + 'Ajouter à mon calendrier</button>' : ''}</div>`;
+    const kinds = Object.entries(list.kinds || {});
+    const form = list.canEdit && bridge.canMutate() ? `<details class="live-template"><summary>Ajouter une échéance</summary><form data-live-form="deadline-create" class="live-form"><div class="form-grid">
+      <div class="field"><label for="dl-title">Intitulé</label><input id="dl-title" name="title" maxlength="200" required placeholder="Ex. : audience au fond, dépôt de la défense"></div>
+      <div class="field"><label for="dl-kind">Type</label><select id="dl-kind" name="kind">${kinds.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('')}</select></div>
+      <div class="field"><label for="dl-date">Date</label><input id="dl-date" name="dueDate" type="date" required></div>
+      <div class="field"><label for="dl-time">Heure (facultatif)</label><input id="dl-time" name="dueTime" type="time"></div></div>
+      <div class="field"><label for="dl-note">Note (facultatif)</label><textarea id="dl-note" name="note" rows="2" maxlength="2000"></textarea></div>
+      <label class="check"><input type="checkbox" name="visibleToClient"> Le client voit cette échéance dans son dossier</label>
+      <p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button small" type="submit">Enregistrer</button></div></form></details>` : '';
+    const shown = list.canEdit ? list.deadlines : open;
+    node.innerHTML = `${head}<div class="panel-body">${form}${shown.length ? `<div class="live-stack">${shown.map(d => deadlineCard(d, list)).join('')}</div>` : empty(list.canEdit ? 'Aucune échéance dans ce dossier.' : 'Votre avocat n’a communiqué aucune date pour l’instant.')}</div>`;
+  }
+  async function paintWeek(node) {
+    if (bridge.isDemo()) { node.innerHTML = '<p class="drawer-empty">L’aperçu n’appelle aucun service.</p>'; return; }
+    const week = await loadWeek(true);
+    syncWeekChip();
+    node.innerHTML = week.deadlines.length ? `<ul class="drawer-list">${week.deadlines.map(d => `<li><span class="queue-icon">${icon('calendar')}</span><span class="queue-text"><strong>${esc(d.title)}</strong><small>${esc(d.dueDate)}${d.dueTime ? ` ${esc(d.dueTime)}` : ''} · ${esc(d.kindLabel)} · ${esc(d.caseReference || d.caseTitle)} · ${esc(daysText(d))}</small></span></li>`).join('')}</ul><p class="drawer-note">Échéances ouvertes dans vos dossiers, jusqu’à 7 jours, y compris celles dépassées. Dates saisies par les avocats.</p>`
+      : '<p class="drawer-empty">Aucune échéance ouverte dans les 7 prochains jours.</p>';
+  }
+  // The « Échéances · 7 jours » dial of the cockpit: filled once the count is read from the server.
+  function syncWeekChip() {
+    const count = deadlines.week ? String(deadlines.week.deadlines.length) : null;
+    for (const chip of document.querySelectorAll('[data-panel="echeances"].chip')) {
+      if (count === null) continue;
+      chip.classList.remove('is-soon');
+      const soon = chip.querySelector('.chip-soon, .chip-value');
+      if (soon) { soon.className = 'chip-value'; soon.textContent = count; }
+    }
+  }
+
+  // « Nouvelles demandes » dial, for the BesoinAvocat intake team only (BESOINAVOCAT_INTAKE_REVIEWERS): requests
+  // received on the public page and not yet handled. Nothing is shown to anyone else, and no contact detail is read.
+  const intakes = { counts: null };
+  async function loadIntakes(force = false) {
+    if (bridge.isDemo() || !bridge.intakeReviewer()) return null;
+    if (!intakes.counts || force) intakes.counts = (await api('/api/intakes?status=received&limit=1')).counts;
+    return intakes.counts;
+  }
+  function syncIntakeChip() {
+    if (!intakes.counts) return;
+    for (const chip of document.querySelectorAll('[data-panel="demandes"].chip')) {
+      chip.classList.remove('is-soon');
+      const value = chip.querySelector('.chip-soon, .chip-value');
+      if (value) { value.className = 'chip-value'; value.textContent = String(intakes.counts.received ?? 0); }
+    }
+  }
+  async function paintIntakes(node) {
+    const counts = await loadIntakes(true);
+    syncIntakeChip();
+    const label = { received: 'Reçues, à traiter', in_review: 'En traitement', contacted: 'Personne recontactée', closed: 'Fermées', spam: 'Indésirables' };
+    node.innerHTML = `<ul class="drawer-list">${Object.entries(label).filter(([k]) => counts[k] !== undefined).map(([k, v]) => `<li><span class="queue-icon">${icon('inbox')}</span><span class="queue-text"><strong>${esc(v)} : ${esc(counts[k])}</strong></span></li>`).join('')}</ul>
+      <p class="drawer-note">Demandes déposées sur la page publique, visibles seulement par l’équipe BesoinAvocat. Elles ne sont transmises à aucun avocat.</p><div class="tile-actions"><a class="button small" href="/demandes">Ouvrir la file des demandes ${icon('arrow')}</a></div>`;
+  }
+
   // ---------- Abonnement de l'avocat (Stripe) ----------
   const MEMBERSHIP_STATUS = { active: ['ok', 'Actif'], trialing: ['ok', 'Essai'], past_due: ['warn', 'Paiement en retard'], unpaid: ['warn', 'Impayé'], incomplete: ['wait', 'En attente de paiement'], incomplete_expired: ['off', 'Expiré'], canceled: ['off', 'Terminé'], paused: ['off', 'En pause'], none: ['off', 'Aucun'] };
   const INTERVAL = { week: 'semaine', month: 'mois', year: 'an', day: 'jour' };
@@ -380,7 +467,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -395,6 +482,12 @@
     timers.set(key, setTimeout(() => { if (node.isConnected && !node.contains(document.activeElement)) void paint(node); }, ms));
   }
   function afterRender(root) {
+    if (!bridge.isDemo() && document.querySelector('[data-panel="echeances"].chip')) {
+      if (deadlines.week) syncWeekChip(); else loadWeek().then(syncWeekChip, () => {});
+    }
+    if (!bridge.isDemo() && bridge.intakeReviewer() && document.querySelector('[data-panel="demandes"].chip')) {
+      if (intakes.counts) syncIntakeChip(); else loadIntakes().then(syncIntakeChip, () => {});
+    }
     for (const node of root.querySelectorAll('[data-live]')) {
       if (!node.querySelector('.panel-body, .panel-heading')) node.innerHTML = `<div class="panel-body"><p class="table-subtext">Chargement…</p></div>`;
       void paint(node);
@@ -424,6 +517,18 @@
       await post(`${caseBase()}/requests/${encodeURIComponent(id)}/decide`, { decision: action.slice(8) });
       await loadRequests(true); repaint('case-requests'); repaint('client-home');
       bridge.notify({ accept: 'Pièce acceptée.', reopen: 'Demande rouverte.', cancel: 'Demande annulée.' }[action.slice(8)]);
+    }
+    else if (['deadline-done', 'deadline-reopen', 'deadline-cancel'].includes(action)) {
+      const step = action.slice(9);
+      await post(`${caseBase()}/deadlines/${encodeURIComponent(id)}/${step}`);
+      await loadDeadlines(true); deadlines.week = null; repaint('case-deadlines'); loadWeek().then(syncWeekChip, () => {});
+      bridge.notify({ done: 'Échéance marquée faite.', reopen: 'Échéance rouverte.', cancel: 'Échéance annulée.' }[step]);
+    }
+    else if (action === 'deadline-ics') {
+      const blob = await api(`${caseBase()}/deadlines.ics`, { asBlob: true });
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = 'echeances.ics'; document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
     else if (action === 'member-unlink') { cache.overview = await post('/api/telephony/member/unlink'); repaint('phone'); }
     else if (action === 'member-deactivate') { cache.overview = await post('/api/telephony/member/deactivate'); repaint('phone'); }
@@ -467,6 +572,7 @@
       if (kind === 'line') cache.overview = await post('/api/telephony/member/line', { e164: String(data.get('e164') || '') });
       if (kind === 'request-create') { await post(`${caseBase()}/requests`, { title: String(data.get('title') || '').trim(), note: String(data.get('note') || '').trim(), ...(data.get('dueDate') ? { dueDate: String(data.get('dueDate')) } : {}) }); form.reset(); bridge.notify('Demande envoyée au client, dans le dossier.'); await loadRequests(true); repaint('case-requests'); return; }
       if (kind === 'request-provide') { await post(`${caseBase()}/requests/${encodeURIComponent(form.dataset.id)}/provide`, { ...(data.get('documentId') ? { documentId: String(data.get('documentId')) } : {}), ...(String(data.get('answer') || '').trim() ? { answer: String(data.get('answer')).trim() } : {}) }); bridge.notify('Envoyé à votre avocat.'); await loadRequests(true); repaint('case-requests'); repaint('client-home'); return; }
+      if (kind === 'deadline-create') { await post(`${caseBase()}/deadlines`, { title: String(data.get('title') || '').trim(), kind: String(data.get('kind') || 'autre'), dueDate: String(data.get('dueDate') || ''), ...(data.get('dueTime') ? { dueTime: String(data.get('dueTime')) } : {}), note: String(data.get('note') || '').trim(), visibleToClient: data.get('visibleToClient') === 'on' }); form.reset(); bridge.notify('Échéance enregistrée au dossier.'); await loadDeadlines(true); deadlines.week = null; repaint('case-deadlines'); loadWeek().then(syncWeekChip, () => {}); return; }
       if (kind === 'template') { const made = await post(`${caseBase()}/generate`, { kind: 'template', title: String(data.get('title') || ''), body: String(data.get('body') || '') }); bridge.notify(`« ${made.document.name} » est versé aux pièces, à vérifier.`); form.reset(); await bridge.reloadCase(); return; }
       repaint('phone');
     } catch (error) {
@@ -477,7 +583,7 @@
     const button = event.target.closest?.('[data-live-action]');
     if (!button || !bridge || button.disabled) return;
     event.preventDefault();
-    if (!bridge.canMutate() && !['player-close', 'video-mic', 'video-cam', 'request-focus'].includes(button.dataset.liveAction)) { bridge.notify('Connectez-vous pour utiliser cette action.', true); return; }
+    if (!bridge.canMutate() && !['player-close', 'video-mic', 'video-cam', 'request-focus', 'deadline-ics'].includes(button.dataset.liveAction)) { bridge.notify('Connectez-vous pour utiliser cette action.', true); return; }
     button.disabled = true;
     act(button.dataset.liveAction, button).catch(error => { bridge.notify(error.message, true); }).finally(() => { if (button.isConnected) button.disabled = false; });
   });
@@ -491,8 +597,10 @@
   window.BALive = Object.freeze({
     init(next) { bridge = next; },
     afterRender,
-    reset() { requests.data = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
+    reset() { requests.data = null; deadlines.data = null; deadlines.week = null; intakes.counts = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
     status: () => cache.overview,
+    intakeCount: () => (intakes.counts ? String(intakes.counts.received ?? 0) : null),
+    deadlineWeek: () => (deadlines.week ? String(deadlines.week.deadlines.length) : null),
     inRoom: () => Boolean(room.id),
   });
 })();

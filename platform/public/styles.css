@@ -1270,3 +1270,11 @@ dialog::backdrop { background: rgb(15 23 42 / 32%); backdrop-filter: blur(3px); 
 .live-late { color: var(--bad); font-weight: 600; font-size: .85rem; }
 .live-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--line-strong); color: var(--ink-2); background: var(--sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 @media (prefers-reduced-motion: reduce) { .client-action:hover:not(:disabled) { transform: none; } }
+
+/* Échéances du dossier (lot 4) */
+.live-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.live-deadline { border-left: 4px solid var(--line); }
+.live-deadline[data-tone="wait"] { border-left-color: #792936; }
+.live-deadline[data-tone="late"] { border-left-color: #b4232f; background: #fdf3f2; }
+.live-deadline[data-tone="ok"], .live-deadline[data-tone="off"] { opacity: .78; }
+.live-deadline p { margin: 0; }

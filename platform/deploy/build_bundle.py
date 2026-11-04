@@ -29,6 +29,7 @@ ALLOWLIST = {
     'lib/telephony.mjs': 'platform/lib/telephony.mjs',
     'lib/video-room.mjs': 'platform/lib/video-room.mjs',
     'lib/document-requests.mjs': 'platform/lib/document-requests.mjs',
+    'lib/deadlines.mjs': 'platform/lib/deadlines.mjs',
     'lib/membership.mjs': 'platform/lib/membership.mjs',
     'lib/audit-seal.mjs': 'platform/lib/audit-seal.mjs',
     'lib/document-generator.mjs': 'platform/lib/document-generator.mjs',

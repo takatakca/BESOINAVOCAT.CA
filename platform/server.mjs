@@ -14,6 +14,7 @@ import { createIntegrations, integrationConfiguration, readWebhookBody, WEBHOOK_
 import { createTelephony, telephonyConfiguration, teamMembers } from './lib/telephony.mjs';
 import { createIceServers, createVideoRooms, iceConfiguration } from './lib/video-room.mjs';
 import { createDocumentRequests } from './lib/document-requests.mjs';
+import { createDeadlines } from './lib/deadlines.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
@@ -143,6 +144,7 @@ export function createApp({
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
   const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS) });
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
+  const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
   const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
@@ -308,6 +310,13 @@ export function createApp({
         offset: number('offset', 0), limit: number('limit', 25),
       }));
     }
+    // Open deadlines of every case of the user in the next days (lib/deadlines.mjs).
+    if (path === '/api/deadlines/upcoming' && method === 'GET') {
+      for (const key of url.searchParams.keys()) if (key !== 'days') throw invalid('Paramètre URL non autorisé.');
+      const raw = url.searchParams.get('days') ?? '7';
+      if (!/^[0-9]{1,2}$/u.test(raw)) throw invalid('Période attendue entre 1 et 90 jours.');
+      return json(res, 200, deadlines.upcoming(user, Number(raw)));
+    }
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
@@ -352,7 +361,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -465,6 +474,21 @@ export function createApp({
       fields(body, []);
       return json(res, 200, room[2] === 'leave' ? video.leave(user, caseId, room[1]) : video.end(user, caseId, room[1]));
     }
+    // Échéances du dossier, saisies par l'avocat (lib/deadlines.mjs).
+    if (suffix === '/deadlines' && method === 'GET') return json(res, 200, deadlines.list(user, caseId));
+    if (suffix === '/deadlines' && method === 'POST') return json(res, 201, deadlines.create(user, caseId, await readJson(req, 8192)));
+    if (suffix === '/deadlines.ics' && method === 'GET') {
+      const body = Buffer.from(deadlines.calendar(user, caseId), 'utf8');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="echeances.ics"');
+      res.setHeader('Content-Length', body.length);
+      return res.end(body);
+    }
+    const deadline = /^\/deadlines\/([^/]+)(?:\/(done|reopen|cancel|history))?$/u.exec(suffix);
+    if (deadline && !deadline[2] && method === 'POST') return json(res, 200, deadlines.update(user, caseId, deadline[1], await readJson(req, 8192)));
+    if (deadline && deadline[2] === 'history' && method === 'GET') return json(res, 200, deadlines.history(user, caseId, deadline[1]));
+    if (deadline && deadline[2] && deadline[2] !== 'history' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, deadlines.transition(user, caseId, deadline[1], deadline[2])); }
     // Pièces demandées au client (lib/document-requests.mjs).
     if (suffix === '/requests' && method === 'GET') return json(res, 200, documentRequests.list(user, caseId));
     if (suffix === '/requests' && method === 'POST') return json(res, 201, documentRequests.create(user, caseId, await readJson(req, 8192)));

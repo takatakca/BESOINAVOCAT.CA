@@ -121,6 +121,10 @@ Variables d'environnement (les chemins privés sont déjà fixés dans l'image) 
    Si le décompte est juste, relancer avec `--execute`. Chaque fichier est chiffré dans un fichier temporaire, vérifié, puis remplacé d'un seul coup.
    Un fichier altéré ou chiffré avec une autre clé est signalé et laissé tel quel. Une deuxième exécution ne change rien.
 
+6. Conservation limitée des demandes reçues, une fois la durée fixée par le propriétaire (voir [INTAKE_API](INTAKE_API.md#conservation-limitée)) : sauvegarde, puis
+   `node tools/purge-intakes.mjs --database /data/intake.sqlite --older-than-days <N>` (essai à blanc, ne change rien). Si le décompte est juste, relancer avec `--execute`.
+   Seules les demandes fermées ou indésirables depuis plus de N jours sont supprimées, avec leurs notes et attributions; une trace sans donnée personnelle reste dans le journal d'accès.
+
 ## Restaurer un corpus dans le volume Coolify
 
 L'image Node ne contient ni Python ni `backup-corpus.py`. Le développeur exécute l'outil du dépôt sur un poste ou un hôte administré disposant de Python, avec accès privé à la sauvegarde et au volume. L'outil refuse une destination existante : **ne pas passer `/data` comme destination**, puisque ce volume existe déjà.

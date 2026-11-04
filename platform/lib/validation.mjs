@@ -63,14 +63,65 @@ export function caseInput(body) {
   return { title: text(body.title, 'Titre', 240).trim(), reference: text(body.reference, 'Référence', 120, { optional: true }).trim() };
 }
 
-export function documentInput(body) {
-  fields(body, ['name', 'mimeType', 'contentBase64', 'sourceType', 'sourceReference', 'extractedText', 'reviewStatus', 'versionOf'],
-    ['name', 'mimeType', 'contentBase64', 'sourceType', 'reviewStatus']);
+// Everything about a document except its bytes. Shared by the JSON route (base64 body) and the
+// streaming route (raw body, metadata in a header), so both accept exactly the same fields.
+export function documentMetadata(body, { withContent = false } = {}) {
+  fields(body, ['name', 'mimeType', ...(withContent ? ['contentBase64'] : []), 'sourceType', 'sourceReference', 'extractedText', 'reviewStatus', 'versionOf'],
+    ['name', 'mimeType', ...(withContent ? ['contentBase64'] : []), 'sourceType', 'reviewStatus']);
   const name = text(body.name, 'Nom du fichier', 240).trim();
   if (/[\\/:<>"|?*]/u.test(name) || /^\.+$/u.test(name) || name.endsWith('.')) throw invalid('Nom du fichier invalide.');
   if (!MIME_TYPES.has(body.mimeType)) throw invalid('Type de fichier non pris en charge.');
   if (!['original', 'declaration', 'analyse', 'ocr'].includes(body.sourceType)) throw invalid('Provenance invalide.');
   if (!['a_verifier', 'controle_visuel'].includes(body.reviewStatus)) throw invalid('État de lecture invalide.');
+  return {
+    name, mimeType: body.mimeType, sourceType: body.sourceType,
+    sourceReference: text(body.sourceReference, 'Référence de provenance', 2048, { optional: true }),
+    extractedText: text(body.extractedText, 'Texte extrait', 200000, { optional: true, multiline: true }),
+    reviewStatus: body.reviewStatus,
+    versionOf: body.versionOf === undefined ? null : identifier(body.versionOf),
+  };
+}
+
+// Metadata carried in the X-BesoinAvocat-Document header of a streaming upload:
+// encodeURIComponent(JSON.stringify({ name, mimeType, sourceType, reviewStatus, ... })).
+export const DOCUMENT_HEADER = 'x-besoinavocat-document';
+const MAX_DOCUMENT_HEADER = 8192;
+export function documentHeaderInput(req) {
+  const raw = req.headers[DOCUMENT_HEADER];
+  if (typeof raw !== 'string' || !raw || raw.length > MAX_DOCUMENT_HEADER) throw invalid('En-tête de description de la pièce absent ou trop long.');
+  let value;
+  try { value = JSON.parse(decodeURIComponent(raw)); } catch { throw invalid('En-tête de description de la pièce illisible.'); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalid('En-tête de description de la pièce illisible.');
+  return documentMetadata(value);
+}
+
+// Read a raw application/octet-stream body into memory, bounded by `limit` bytes. No base64, no JSON:
+// the client sends the file as it is and the server never holds more than the file itself.
+export async function readRawBody(req, limit = MAX_DOCUMENT_BYTES) {
+  if (req.headers['content-encoding'] && req.headers['content-encoding'] !== 'identity') {
+    throw new HttpError(415, 'UNSUPPORTED_ENCODING', 'Les corps compressés ne sont pas acceptés.');
+  }
+  if (!/^application\/octet-stream\s*(?:;.*)?$/iu.test(req.headers['content-type'] || '')) {
+    throw new HttpError(415, 'OCTET_STREAM_REQUIRED', 'Un corps application/octet-stream est requis.');
+  }
+  const length = req.headers['content-length'];
+  if (length !== undefined && (!/^\d+$/u.test(length) || Number(length) > limit)) {
+    throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
+  }
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
+    chunks.push(chunk);
+  }
+  if (size === 0) throw invalid('Contenu du fichier absent.');
+  if (length !== undefined && Number(length) !== size) throw invalid('Le fichier reçu est incomplet.');
+  return Buffer.concat(chunks, size);
+}
+
+export function documentInput(body) {
+  const metadata = documentMetadata(body, { withContent: true });
   const encoded = body.contentBase64;
   if (typeof encoded !== 'string' || encoded.length === 0) throw invalid('Contenu du fichier absent.');
   if (encoded.length > 4 * Math.ceil(MAX_DOCUMENT_BYTES / 3)) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
@@ -83,13 +134,7 @@ export function documentInput(body) {
   const bytes = Buffer.from(encoded, 'base64');
   if (!bytes.length) throw invalid('Encodage base64 non canonique.');
   if (bytes.length > MAX_DOCUMENT_BYTES) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
-  return {
-    name, mimeType: body.mimeType, bytes, sourceType: body.sourceType,
-    sourceReference: text(body.sourceReference, 'Référence de provenance', 2048, { optional: true }),
-    extractedText: text(body.extractedText, 'Texte extrait', 200000, { optional: true, multiline: true }),
-    reviewStatus: body.reviewStatus,
-    versionOf: body.versionOf === undefined ? null : identifier(body.versionOf),
-  };
+  return { ...metadata, bytes };
 }
 
 export async function readJson(req, limit = 128 * 1024, { allowEmpty = false } = {}) {

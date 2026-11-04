@@ -1,5 +1,18 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-030 — Instructions écrites du propriétaire du 4 novembre 2026
+
+**Contexte** : reprise en parallèle par deux fils Claude (backend et tableau de bord) et un fil de contrôle à distance sur le poste du propriétaire, avec un livrable attendu au plus vite.
+
+**Décisions du propriétaire, consignées dans le journal** :
+- « MERGE ALL TO MAIN » (08:29 UTC) : chaque fil fusionne lui-même ses PR vertes sur `main`; le déploiement reste une étape distincte.
+- Autorisation complète pour MochaHost, DNS, courriel et sauvegarde du WordPress vers Drive, exécutée par le fil de contrôle à distance avec relevé avant/après; les enregistrements MX ne sont jamais touchés. Le propriétaire complète lui-même les codes 2FA.
+- Coordination obligatoire : notes avant, pendant et après chaque lot dans `docs/JOURNAL-AGENTS.md` **et** dans le dossier Drive JOURNAL; lecture des notes des autres fils avant tout fichier partagé.
+- Appels par MIMT Connect seulement (Twilio retiré, PR 18); abonnement des avocats seulement par Stripe Checkout, jamais de paiement de client ni de commission sur honoraires (D-025, PR 23).
+- Aucun mot de passe n'est conservé par les agents, même sur demande; la connexion aux services se fait par le propriétaire.
+
+**Conséquences** : les sections « État vérifié — 4 novembre » de `PROJECT_STATUS`, `TASK_QUEUE`, `AGENT_HANDOFF` et `DEPLOYMENT` remplacent les points du 30 octobre; la mise en service de chaque module reste conditionnée à sa configuration et, pour la demande guidée et l'avis d'enregistrement des appels, à une relecture juridique.
+
 ## D-029 — Espace de travail premium du portail (29 octobre 2026)
 
 **Demande du propriétaire (29 octobre)** : un tableau de bord « premium », sérieux et vivant, sans allure de gadget ni d'IA. Il veut :

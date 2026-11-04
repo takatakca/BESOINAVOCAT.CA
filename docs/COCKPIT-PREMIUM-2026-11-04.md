@@ -73,3 +73,16 @@ Puis : fusionner la PR et relancer le déploiement du portail dans Coolify.
 - **Pièces demandées** (`lib/document-requests.mjs`, routes `/api/cases/:id/requests…`) : l'avocat demande une pièce (titre, précisions, échéance); le client répond en joignant une pièce déjà au dossier ou par écrit; l'avocat accepte, redemande ou annule. Chaque étape est horodatée par le serveur, gardée dans un historique en ajout seul (déclencheurs SQLite) et versée au journal scellé du dossier. Aucun courriel ni texto n'est envoyé.
 - **Vue client** : un vrai compte client (pas l'aperçu) voit à l'accueil une seule « prochaine étape » (pièce attendue, sinon prochain rendez-vous, sinon « rien à faire »), quatre grandes actions (envoyer une pièce, écrire à mon avocat, appel ou vidéo, mes rendez-vous) et la liste des pièces demandées. Plus de cadrans ni de file de travail pour le client. Les avocats gardent le cockpit, avec le panneau des pièces demandées en plus.
 - Tests : 301/301.
+
+## Lot 3 — abonnement des avocats par Stripe (4 novembre 2026)
+
+Choix du propriétaire : **« Lawyer subscription only »**. Les avocats paient leur accès à la plateforme par Stripe Checkout; les clients paient leur avocat directement. Aucun paiement de client, aucune avance d'honoraires, aucune commission ne passe par BesoinAvocat (D-025).
+
+- `lib/membership.mjs`, routes `GET /api/membership`, `POST /api/membership/checkout`, `POST /api/membership/portal`; panneau « Abonnement à la plateforme » dans Réglages (avocats seulement).
+- Les montants sont lus chez Stripe à partir des identifiants de prix; aucun montant n'est écrit dans le code.
+- L'état (actif, en retard, terminé) vient seulement des notifications signées de Stripe, dédoublonnées; historique en ajout seul.
+- Rien n'est encore relié à l'accès (l'Équipe ne dépend pas de l'abonnement) : à décider par le propriétaire.
+
+**À raccorder** (détail dans `docs/INTEGRATIONS.md`, section Stripe) : créer le produit et les prix dans Stripe, poser `BESOINAVOCAT_STRIPE_SECRET_KEY`, `BESOINAVOCAT_STRIPE_PRICE_WEEKLY` et/ou `_MONTHLY`, `BESOINAVOCAT_STRIPE_WEBHOOK_SECRET` dans Coolify, cocher les quatre événements du webhook, activer le portail client et Stripe Tax.
+
+Tests : 313/313.

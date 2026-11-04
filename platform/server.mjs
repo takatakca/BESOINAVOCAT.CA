@@ -11,9 +11,10 @@ import { createIntake, intakeConfiguration } from './lib/intake.mjs';
 import { createCommunications, COMMUNICATION_PROVIDERS } from './lib/communications.mjs';
 import { publicAddonCatalog } from './lib/addon-catalog.mjs';
 import { createIntegrations, integrationConfiguration, readWebhookBody, WEBHOOK_PROVIDERS } from './lib/integrations.mjs';
-import { createTelephony, telephonyConfiguration } from './lib/telephony.mjs';
+import { createTelephony, telephonyConfiguration, teamMembers } from './lib/telephony.mjs';
 import { createIceServers, createVideoRooms, iceConfiguration } from './lib/video-room.mjs';
 import { createDocumentRequests } from './lib/document-requests.mjs';
+import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, documentHeaderInput, readJson, readRawBody, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
@@ -120,6 +121,7 @@ export function createApp({
   browserSessions = createBrowserSessions({ config: browserSessionConfiguration(env) }),
   integrationFetch = globalThis.fetch,
   telephonyFetch = globalThis.fetch,
+  paymentsFetch = globalThis.fetch,
   clock = Date.now,
 } = {}) {
   const config = identityConfiguration(env);
@@ -139,6 +141,7 @@ export function createApp({
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
+  const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS) });
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
   const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
@@ -180,6 +183,7 @@ export function createApp({
       webhooksInFlight++;
       try {
         const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
+        if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) membership.stripeEvent(result.event);
         return json(res, result.status, result.body);
       } finally { webhooksInFlight--; }
     }
@@ -304,6 +308,14 @@ export function createApp({
         offset: number('offset', 0), limit: number('limit', 25),
       }));
     }
+    // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
+    if (path === '/api/membership' || path.startsWith('/api/membership/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+        if (path === '/api/membership' && method === 'GET') return json(res, 200, await membership.overview(user));
+        if (path === '/api/membership/checkout' && method === 'POST') return json(res, 201, await membership.checkout(user, await readJson(req, 256)));
+        if (path === '/api/membership/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await membership.portal(user)); }
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
     // Phone on file, the lawyer's MIMT Connect profile (link, line, availability) and the Équipe console.
     if (path === '/api/telephony' || path.startsWith('/api/telephony/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
@@ -340,7 +352,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, auditSeal: true, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });

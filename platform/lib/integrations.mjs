@@ -564,7 +564,8 @@ export function createIntegrations({ db, access, audit, config = integrationConf
       if (!signatures.some(value => sameSecret(value, expected))) throw badSignature();
       const event = parse(raw);
       if (typeof event.id !== 'string' || !/^evt_[A-Za-z0-9]{1,255}$/u.test(event.id)) throw invalid('Notification illisible.');
-      return record(id, event.id, eventType(event.type), raw);
+      // The verified event is handed back so the subscription module (lib/membership.mjs) can apply it once.
+      return { ...record(id, event.id, eventType(event.type), raw), event };
     }
     if (id === 'twilio') {
       if (!config.origin) throw notConfigured();

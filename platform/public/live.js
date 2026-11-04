@@ -359,8 +359,28 @@
       <p class="client-foot">${docs.length} pièce${docs.length > 1 ? 's' : ''} au dossier. BesoinAvocat n’est pas un cabinet d’avocats et ne donne aucun conseil juridique.</p>`;
   }
 
+
+  // ---------- Abonnement de l'avocat (Stripe) ----------
+  const MEMBERSHIP_STATUS = { active: ['ok', 'Actif'], trialing: ['ok', 'Essai'], past_due: ['warn', 'Paiement en retard'], unpaid: ['warn', 'Impayé'], incomplete: ['wait', 'En attente de paiement'], incomplete_expired: ['off', 'Expiré'], canceled: ['off', 'Terminé'], paused: ['off', 'En pause'], none: ['off', 'Aucun'] };
+  const INTERVAL = { week: 'semaine', month: 'mois', year: 'an', day: 'jour' };
+  const money = (cents, currency) => new Intl.NumberFormat('fr-CA', { style: 'currency', currency }).format(cents / 100);
+  async function paintMembership(node) {
+    if (bridge.isDemo()) { node.innerHTML = demo('Abonnement à la plateforme'); return; }
+    const o = await api('/api/membership');
+    if (!o.eligible) { node.hidden = true; node.innerHTML = ''; return; }
+    node.hidden = false;
+    const head = `<div class="panel-heading"><div><h2>Abonnement à la plateforme</h2><p>Pour les avocats. Payé chez Stripe; BesoinAvocat ne voit jamais votre carte.</p></div></div>`;
+    if (!o.configured) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Abonnement par Stripe à raccorder</strong>Aucun paiement n’est possible pour l’instant. Variables à renseigner dans Coolify : ${esc(o.missing.join(', '))}.</p></div></div>`; return; }
+    const m = o.membership, [tone, label] = MEMBERSHIP_STATUS[m.status] || ['off', m.status];
+    const status = `<p>${pill(tone, label)}${m.plan ? ` Forfait ${m.plan === 'weekly' ? 'hebdomadaire' : 'mensuel'}` : ''}${m.currentPeriodEnd ? ` · ${m.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(m.currentPeriodEnd))}` : ''}</p>`;
+    const manage = m.canManage ? `<button type="button" class="button secondary small" data-live-action="membership-portal">Gérer mon abonnement chez Stripe</button>` : '';
+    const plans = m.active ? '' : `<div class="live-grid">${o.plans.map(p => `<div class="live-card"><h4>${p.plan === 'weekly' ? 'Hebdomadaire' : 'Mensuel'}</h4><p class="live-big mono">${esc(money(p.amountCents, p.currency))}</p><p class="table-subtext">par ${p.intervalCount > 1 ? `${p.intervalCount} ` : ''}${esc(INTERVAL[p.interval] || p.interval)}, taxes calculées par Stripe</p><div class="tile-actions"><button type="button" class="button small" data-live-action="membership-checkout" data-plan="${esc(p.plan)}">S’abonner</button></div></div>`).join('') || empty('Les forfaits n’ont pas pu être lus chez Stripe.')}</div>`;
+    node.innerHTML = `${head}<div class="panel-body">${o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : ''}${status}${plans}<div class="tile-actions">${manage}</div>
+      <p class="table-subtext">L’abonnement couvre l’accès des avocats à la plateforme. Aucun paiement de client, aucune avance d’honoraires et aucune commission sur vos honoraires ne passent par BesoinAvocat.</p></div>`;
+  }
+
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -397,6 +417,8 @@
     if (action === 'phone-remove') { cache.overview = await post('/api/telephony/phone/remove'); repaint('phone'); }
     else if (action === 'member-link') { cache.link = await post('/api/telephony/member/link'); repaint('phone'); }
     else if (action === 'member-refresh') { cache.overview = await post('/api/telephony/member/refresh'); if (cache.overview.member?.linked) cache.link = null; repaint('phone'); }
+    else if (action === 'membership-checkout') { const { url } = await post('/api/membership/checkout', { plan: button.dataset.plan }); window.location.assign(url); }
+    else if (action === 'membership-portal') { const { url } = await post('/api/membership/portal'); window.location.assign(url); }
     else if (action === 'request-focus') { const card = document.getElementById(`request-${id}`); card?.scrollIntoView({ behavior: 'smooth', block: 'center' }); card?.querySelector('select, input, button')?.focus({ preventScroll: true }); }
     else if (['request-accept', 'request-reopen', 'request-cancel'].includes(action)) {
       await post(`${caseBase()}/requests/${encodeURIComponent(id)}/decide`, { decision: action.slice(8) });

@@ -9,7 +9,7 @@ Auteur : Claude (Cowork / Claude in Chrome, session 013t9Lv2). Lecture seule du 
 - Deux fils Claude actifs aujourd'hui, PR 16 à 22 fusionnées dans la matinée :
   - fil « Build BesoinAvocat to premium level » (branche `claude/project-thread-glrrpi`) : vitrine (témoins FR conservés, SEO), file `/demandes`, parcours guidé de demande, outil de préparation au déploiement, chiffrement AES-256-GCM optionnel des pièces, outil de scellement, cache de recherche (1,6 s → 0,1 s);
   - fil « Revamp portal dashboard to premium level » (branche `claude/project-thread-jc2sy5`) : cockpit premium (reprise de la PR 13, fermée car incluse), téléphonie par MIMT seulement (Twilio retiré), vidéo WebRTC, journal scellé, actes PDF, pièces demandées au client, accueil client simplifié.
-- Tests au dernier passage (18:58 UTC) : 362/362 Node, 17/17 Python, 3/3 tests de l'archive; PR 15 à 31 fusionnées, PR 32 ouverte.
+- Tests au dernier passage (19:25 UTC, sur `main`) : 363/363 Node, 17/17 Python, 3/3 tests de l'archive; PR 15 à 34 fusionnées, aucune PR backend ouverte.
 
 ## 2. Les notes du dépôt, rangées par rôle
 

@@ -116,8 +116,20 @@ export function readiness(env = process.env) {
 
   // Connectors are optional; report only whether the encryption key exists.
   const integrationsKey = env.BESOINAVOCAT_INTEGRATIONS_KEY_FILE;
-  if (!integrationsKey || !existsSync(integrationsKey)) add('warn', 'connectors', 'No connector key file: Zoom, Outlook, Google, Twilio and the other connectors stay off.');
-  if (!env.BESOINAVOCAT_TWILIO_ACCOUNT_SID) add('warn', 'connectors', 'Twilio is not configured (BESOINAVOCAT_TWILIO_*): no phone calls or SMS.');
+  if (!integrationsKey || !existsSync(integrationsKey)) add('warn', 'connectors', 'No connector key file: Zoom, Outlook, Google and the other connectors stay off.');
+
+  // Phone calls through MIMT and the built-in video room. Only names and counts are reported.
+  const mimtMissing = ['BESOINAVOCAT_MIMT_API_KEY', 'BESOINAVOCAT_MIMT_WEBHOOK_SECRET'].filter(name => !env[name]);
+  if (mimtMissing.length) add('warn', 'calls', `Phone calls are off: ${mimtMissing.join(' and ')} not set.`);
+  else add('ok', 'calls', 'MIMT key and webhook secret are set (MIMT still checks their validity on the first call).');
+  if (!env.BESOINAVOCAT_MIMT_PUBLIC_NUMBER) add('warn', 'calls', 'BESOINAVOCAT_MIMT_PUBLIC_NUMBER is not set: the public line does not ring the team.');
+  let team = [];
+  try { team = JSON.parse(env.BESOINAVOCAT_TEAM_MEMBERS || '[]'); } catch { team = null; }
+  if (!Array.isArray(team)) add('warn', 'calls', 'BESOINAVOCAT_TEAM_MEMBERS is not a JSON array of "tenantId/subject".');
+  else add(team.length ? 'ok' : 'warn', 'calls', `${team.length} lawyer(s) answer the public line (BESOINAVOCAT_TEAM_MEMBERS).`);
+  if (!env.BESOINAVOCAT_TURN_URLS || !env.BESOINAVOCAT_TURN_SECRET)
+    add('warn', 'video', 'No TURN relay (BESOINAVOCAT_TURN_URLS and BESOINAVOCAT_TURN_SECRET): video may fail on strict office or mobile networks.');
+  else add('ok', 'video', 'TURN relay configured for video.');
 
   return items;
 }

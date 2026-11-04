@@ -128,7 +128,7 @@ D'abord, dans le terminal du conteneur : `node tools/deploy-readiness.mjs`. Ce r
 - le nombre de dossiers, de documents et d'habilitations;
 - les réglages de connexion manquants;
 - une base de sessions créée pour une autre `APP_ORIGIN` ou une autre clé, cause d'une connexion en 503;
-- l'état des demandes et des connecteurs.
+- l'état des demandes, des appels MIMT (clé, secret, numéro public, avocats de l'équipe), du relais vidéo TURN et des connecteurs.
 
 Le code de sortie vaut 1 s'il reste un point bloquant.
 

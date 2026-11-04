@@ -80,3 +80,17 @@ test('a wrong case database path is reported', t => {
   const { env } = fixture(t);
   assert.match(fails(readiness({ ...env, DATABASE_PATH: '/nonexistent/platform.sqlite' }))[0].message, /Case database not found/u);
 });
+
+test('phone calls and video report MIMT and TURN settings by name only', t => {
+  const { env } = fixture(t);
+  const off = report(readiness(env));
+  assert.match(off, /Phone calls are off: BESOINAVOCAT_MIMT_API_KEY and BESOINAVOCAT_MIMT_WEBHOOK_SECRET not set/u);
+  assert.match(off, /No TURN relay/u);
+  assert.doesNotMatch(off, /Twilio/u);
+  const on = report(readiness({ ...env, BESOINAVOCAT_MIMT_API_KEY: 'mimt_pk_hiddenhiddenhidden', BESOINAVOCAT_MIMT_WEBHOOK_SECRET: 'whsec_hiddenhiddenhidden',
+    BESOINAVOCAT_MIMT_PUBLIC_NUMBER: '+15145550100', BESOINAVOCAT_TEAM_MEMBERS: '["t1/s1","t1/s2"]',
+    BESOINAVOCAT_TURN_URLS: 'turn:turn.example.test:3478', BESOINAVOCAT_TURN_SECRET: 'turnsecrethiddenvalue' }));
+  assert.match(on, /2 lawyer\(s\) answer the public line/u);
+  assert.match(on, /TURN relay configured/u);
+  assert.doesNotMatch(on, /hidden|5550100/u);
+});

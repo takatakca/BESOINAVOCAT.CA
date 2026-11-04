@@ -18,6 +18,7 @@ function httpsOrigin(value) {
 
 function mode(file) { return statSync(file).mode & 0o777; }
 const octal = value => '0' + value.toString(8);
+const INTAKE_APP_ID = 0x4241494e; // the same marker lib/intake.mjs writes
 
 function readOnly(file) { return new DatabaseSync(file, { readOnly: true }); }
 
@@ -113,6 +114,27 @@ export function readiness(env = process.env) {
   const intakeDb = env.BESOINAVOCAT_INTAKE_DB_PATH;
   if (intakeDb && existsSync(path.dirname(intakeDb)) && mode(path.dirname(intakeDb)) & 0o077)
     add('fail', 'requests', `${path.dirname(intakeDb)} is ${octal(mode(path.dirname(intakeDb)))}; the request database directory must be 0700.`);
+  // The request database itself: unset means no request is accepted or shown; present means its queue is counted.
+  if (!intakeDb) add('warn', 'requests', 'BESOINAVOCAT_INTAKE_DB_PATH is unset: no request is accepted and /demandes shows nothing.');
+  else if (!existsSync(intakeDb)) add(existsSync(path.dirname(intakeDb)) ? 'ok' : 'fail', 'requests', existsSync(path.dirname(intakeDb))
+    ? `Request database ${intakeDb} will be created at first start.` : `Request database directory ${path.dirname(intakeDb)} does not exist.`);
+  else {
+    try {
+      const db = readOnly(intakeDb);
+      try {
+        const id = db.prepare('PRAGMA application_id').get().application_id;
+        const hasRequests = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ba_intakes'").get();
+        if (id !== INTAKE_APP_ID || !hasRequests) add('fail', 'requests', `${intakeDb} is not the request database (another application id or no ba_intakes table): the server refuses it and no request is accepted.`);
+        else {
+          const counts = { received: 0, in_review: 0, contacted: 0, closed: 0, spam: 0 };
+          for (const row of db.prepare(`SELECT COALESCE(r.status, 'received') AS status, COUNT(*) AS n FROM ba_intakes i
+            LEFT JOIN ba_intake_reviews r ON r.reference = i.reference GROUP BY 1`).all()) counts[row.status] = row.n;
+          const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+          add(counts.received ? 'warn' : 'ok', 'requests', `${total} request(s) in ${intakeDb}: ${counts.received} waiting, ${counts.in_review} in review, ${counts.contacted} contacted, ${counts.closed} closed, ${counts.spam} spam.`);
+        }
+      } finally { db.close(); }
+    } catch { add('fail', 'requests', `Request database ${intakeDb} cannot be opened read-only.`); }
+  }
   if (env.BESOINAVOCAT_INTAKE_REQUEST_ENABLED === 'true') add('ok', 'requests', 'The detailed request form is open.');
   else add('warn', 'requests', 'BESOINAVOCAT_INTAKE_REQUEST_ENABLED is not true: only the short request is open (open it after the consent text is reviewed).');
   // The same parser as the server: one malformed entry empties the whole list, and the report must say so.

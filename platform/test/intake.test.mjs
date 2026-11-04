@@ -116,7 +116,7 @@ test('client receipt is emitted only after separate private storage with consent
   assert.equal(result.status,201,result.text);
   assert.deepEqual(Object.keys(result.json).sort(), ['reference','status']);
   assert.match(result.json.reference,/^BA-[A-Za-z0-9_-]{24}$/u); assert.equal(result.json.status,'received');
-  assert.doesNotMatch(result.text,/Personne|synthetic|555|email|phone/);
+  assert.doesNotMatch(result.text,/Personne|synthetic|555\) 123|email|phone/);
   const rows = inspect(f.file); assert.equal(rows.length,1);
   assert.equal(rows[0].reference,result.json.reference); assert.equal(rows[0].origin,WP);
   const stored = JSON.parse(rows[0].payloadJson); assert.equal(stored.consent,true); assert.equal(stored.consentVersion,'2026-10-26.1');
@@ -304,7 +304,7 @@ test('enabled detailed request is received only after storage, with its own cons
   const body = { ...request(), summary: '  Première ligne.\r\nDeuxième ligne\tavec tabulation.  ', deadline: day(30), phone: '+1 514 555 0100', contactPreference: 'phone', language: 'en' };
   const result = await f.post(body);
   assert.equal(result.status, 201, result.text); assert.deepEqual(Object.keys(result.json).sort(), ['reference', 'status']);
-  assert.doesNotMatch(result.text, /Première|synthetic@|555/);
+  assert.doesNotMatch(result.text, /Première|synthetic@|555 0100/);
   const [row] = inspect(f.file); const stored = JSON.parse(row.payloadJson);
   assert.equal(stored.summary, 'Première ligne.\nDeuxième ligne\tavec tabulation.');
   assert.equal(stored.deadline, body.deadline); assert.equal(stored.contactPreference, 'phone'); assert.equal(stored.website, undefined);

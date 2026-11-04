@@ -127,3 +127,11 @@ test('the « Nouvelles demandes » dial is real only for the intake team and lin
   assert.match(live, /\/api\/intakes\?status=received&limit=1/u, 'only the counts are read, never a contact');
   assert.match(live, /href="\/demandes"/u);
 });
+
+test('the appointment and usage lists offer « older » buttons instead of a dead end', async () => {
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /data-action="more-communications"/u);
+  assert.match(app, /data-action="more-usage"/u);
+  assert.match(app, /\?offset=\$\{offset\}/u);
+  assert.doesNotMatch(app, /d’autres rendez-vous ne sont pas affichés/u);
+});

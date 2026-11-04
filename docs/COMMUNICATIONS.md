@@ -42,7 +42,7 @@ Le module utilise la même base SQLite que le dossier. `clock` peut être inject
 | `listUsage(user, caseId)` | aucune | Membre; `{entries, hasMore, billingEnabled:false}` |
 | `approveUsage(user, caseId, usageId)` | aucune | Propriétaire/avocat différent de l'auteur; ligne avec `approved_internal_only` |
 
-`scheduledAt` est une date UTC ISO complète avec secondes, par exemple `2026-11-01T18:00:00Z`. Les listes sont limitées aux 200 entrées les plus récentes et signalent `hasMore`; la pagination complète reste à implémenter avant de grands volumes.
+`scheduledAt` est une date UTC ISO complète avec secondes, par exemple `2026-11-01T18:00:00Z`. Les listes renvoient 200 entrées par page (`?offset=…&limit=…`, 200 au plus) avec `hasMore` et `nextOffset`; l’écran propose « Afficher les rendez-vous plus anciens » et « Afficher les usages plus anciens ».
 
 La réponse rendez-vous contient `ownTimer` pour la personne connectée, ou `null`. Son `status` vaut `scheduled` ou `cancelled`; il ne prétend pas refléter l'état d'un appel fournisseur. `ownTimer.status` vaut `running` ou `ended`. Les durées sont des secondes entières, arrondies vers le bas. Une estimation, si un tarif serveur est fixé, vaut `ceil(seconds × rateCentsPerMinute / 60)` centimes CAD. Le tarif est figé au démarrage. L'estimation n'applique ni taxes ni forfait minimum et ne vaut pas prix accepté ou facture.
 

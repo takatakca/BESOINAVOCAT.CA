@@ -200,7 +200,7 @@ test('phone scheduling sends no URL and an already timed session cannot be cance
   assert.ok(cancel.error.textContent.includes('ne peut plus être annulé'));
 });
 
-test('untrusted labels are escaped and long lists disclose the truncation', () => {
+test('untrusted labels are escaped and long lists offer the older appointments', () => {
   const h = harness(), { session } = fixture(h);
   session.title = '<img src=x onerror=alert(1)>';
   session.joinUrl = 'javascript:alert(1)';
@@ -209,5 +209,6 @@ test('untrusted labels are escaped and long lists disclose the truncation', () =
   assert.ok(!h.main().includes('<img src=x'));
   assert.ok(h.main().includes('&lt;img'));
   assert.ok(!h.main().includes('href="javascript:'));
-  assert.ok(h.main().includes('200 rendez-vous'));
+  assert.ok(h.main().includes('data-action="more-communications"'));
+  assert.ok(h.main().includes('Afficher les rendez-vous plus anciens'));
 });

@@ -23,6 +23,7 @@ ALLOWLIST = {
     'lib/addon-catalog.mjs': 'platform/lib/addon-catalog.mjs',
     'lib/facturations-client.mjs': 'platform/lib/facturations-client.mjs',
     'lib/store.mjs': 'platform/lib/store.mjs',
+    'lib/blob-crypto.mjs': 'platform/lib/blob-crypto.mjs',
     'lib/search.mjs': 'platform/lib/search.mjs',
     'lib/validation.mjs': 'platform/lib/validation.mjs',
     'lib/telephony.mjs': 'platform/lib/telephony.mjs',

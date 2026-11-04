@@ -26,6 +26,14 @@ const examples = {
   business: { topic: 'corporate', businessRole: 'owner', businessStage: 'planning' },
   immigration: { topic: 'decision', applicationStage: 'decision', decisionAvailable: 'yes' },
   other: { topic: 'identify', context: 'personal', documentAvailable: 'unsure' },
+  'real-estate': { topic: 'defect', propertyRole: 'buyer', writtenExchange: 'sent' },
+  administrative: { topic: 'benefits', caseStage: 'decision', decisionAvailable: 'yes' },
+  liability: { topic: 'property', position: 'claimant', insurer: 'theirs' },
+  tax: { topic: 'assessment', context: 'personal', objectionStage: 'notice' },
+  estates: { topic: 'settlement', estateRole: 'liquidator', willKnown: 'unsure' },
+  rights: { topic: 'privacy', setting: 'services', complaint: 'none' },
+  insolvency: { topic: 'personal_debts', position: 'debtor', amountBand: '5000_25000' },
+  municipal: { topic: 'bylaw', municipalRole: 'resident', writtenDecision: 'yes' },
 };
 const questionnaire = (answers, extra = {}) => ({ version: QUESTIONNAIRE_VERSION, answers: { ...answers }, reviewed: true, ...extra });
 function stateFor(domain = 'housing') {
@@ -53,6 +61,30 @@ for (const [domain, answers] of Object.entries(examples)) {
     assert.equal(body.summary, state.summary); assert.equal(body.region, 'ontario');
   });
 }
+
+test('every area of the catalogue has its own closed questions, within the limits the page accepts', () => {
+  const domains = publicCatalog().choices.domains.map(item => item.id);
+  assert.equal(domains.length, 16);
+  assert.deepEqual(Object.keys(QUESTIONNAIRE_SCHEMA.domains).sort(), domains.sort());
+  assert.deepEqual(Object.keys(examples).sort(), domains.sort(), 'every area has a worked example above');
+  for (const [domain, definition] of Object.entries(QUESTIONNAIRE_SCHEMA.domains)) {
+    const ids = definition.questions.map(item => item.id);
+    assert.ok(ids.length >= 2 && ids.length <= 6, `${domain}: ${ids.length} questions`);
+    assert.equal(ids[0], 'topic', domain); assert.equal(new Set(ids).size, ids.length, domain);
+    definition.questions.forEach((item, index) => {
+      assert.equal(item.type, 'select'); assert.equal(item.required, true);
+      assert.ok(item.label.fr && item.label.en && item.options.length >= 2, `${domain}.${item.id}`);
+      for (const option of item.options) assert.ok(option.id && option.label.fr && option.label.en, `${domain}.${item.id}.${option.id}`);
+      assert.equal(new Set(item.options.map(option => option.id)).size, item.options.length, `${domain}.${item.id}`);
+      if (item.when) {
+        const parent = ids.indexOf(item.when.field);
+        assert.ok(parent >= 0 && parent < index, `${domain}.${item.id} depends on an earlier question`);
+        const values = definition.questions[parent].options.map(option => option.id);
+        for (const value of item.when.values) assert.ok(values.includes(value), `${domain}.${item.id} when ${value}`);
+      }
+    });
+  }
+});
 
 test('all declared conditional branches can be reached with valid enum values', () => {
   let reached = 0;

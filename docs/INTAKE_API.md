@@ -4,7 +4,7 @@ Ce lot ajoute du code local, sans activation distante. Le paquet v2 précédemme
 
 ## Portée
 
-`GET /api/catalog` est public. Il fournit le catalogue versionné `2026-10-26.1`, en **CAD / cents** : demande client à zéro, intérêt avocat à **10 000 cents par semaine** ou **30 000 cents par mois**. Les crédits IA sont séparés, sans prix ni achat activé. Le traitement fiscal reste à configurer. `purchaseAvailable:false` et `subscriptionActive:false` empêchent de confondre un tarif annoncé avec un abonnement disponible.
+`GET /api/catalog` est public. Il fournit le catalogue versionné `2026-11-04.1` (le consentement de la demande de contact reste `2026-10-26.1`; la demande guidée porte le questionnaire `2026-11-04.1`, 16 domaines avec leurs questions ciblées, voir [QUESTIONNAIRE](QUESTIONNAIRE.md)), en **CAD / cents** : demande client à zéro, intérêt avocat à **10 000 cents par semaine** ou **30 000 cents par mois**. Les crédits IA sont séparés, sans prix ni achat activé. Le traitement fiscal reste à configurer. `purchaseAvailable:false` et `subscriptionActive:false` empêchent de confondre un tarif annoncé avec un abonnement disponible.
 
 Les prix et les snapshots d'intérêt utilisent la même source serveur. Changer un montant, les choix ou le consentement exige une nouvelle version du catalogue. Les libellés et le consentement sont fournis en français et en anglais. Les montants ou rôles d'autorité transmis par un navigateur ne sont jamais acceptés.
 

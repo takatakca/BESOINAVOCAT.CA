@@ -86,6 +86,29 @@
     }
   }
 
+  function day(iso) {
+    try { return new Intl.DateTimeFormat('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(iso + 'T12:00:00')); } catch (e) { return iso; }
+  }
+  // Answers of the guided flow: other parties (conflict check), legal aid, availability, contact times, remote service.
+  function flowRows(r) {
+    var rows = [];
+    if (r.otherParties) {
+      rows.push(['Autres parties', fr(r.otherParties.status && r.otherParties.status.label)]);
+      if (r.otherParties.names) rows.push(['Noms à vérifier (conflits)', r.otherParties.names]);
+    }
+    if (r.legalAid) {
+      rows.push(['Aide juridique', fr(r.legalAid.interest && r.legalAid.interest.label)]);
+      rows.push(['Composition du ménage', fr(r.legalAid.household && r.legalAid.household.label)]);
+      rows.push(['Revenu annuel du ménage', fr(r.legalAid.income && r.legalAid.income.label)]);
+    }
+    if (r.availability) {
+      rows.push(['Disponibilités', r.availability.asap ? 'Dès que possible' : r.availability.slots.map(function (s) { return day(s.date) + ' · ' + fr(s.period && s.period.label); }).join('\n')]);
+    }
+    if (r.contactTimes) rows.push(['Moments pour joindre', r.contactTimes.length ? r.contactTimes.map(function (t) { return fr(t.label); }).join(', ') : 'Aucune préférence']);
+    if (r.acceptRemote !== null && r.acceptRemote !== undefined) rows.push(['Service à distance hors région', r.acceptRemote ? 'Accepté' : 'Non']);
+    return rows;
+  }
+
   function renderDetail() {
     var box = $('inbox-detail'), data = state.detail;
     if (!data) return;
@@ -99,7 +122,7 @@
       ['Étape', fr(r.stage && r.stage.label)], ['Objectif', fr(r.objective && r.objective.label)],
       ['Urgence', fr(r.urgency && r.urgency.label)], ['Échéance', r.deadline],
       ['Forfait envisagé', r.periodicity === 'weekly' ? 'Hebdomadaire' : r.periodicity === 'monthly' ? 'Mensuel' : null],
-    ].filter(function (item) { return item[1]; });
+    ].concat(flowRows(r)).filter(function (item) { return item[1]; });
     var answers = (r.answers || []).map(function (a) { return [fr(a.question), fr(a.answer && a.answer.label) || a.answer.id]; });
     var history = (data.history || []).map(function (h) {
       var text = h.kind === 'status' ? h.body.split(' → ').map(function (s) { return STATUS[s] || s; }).join(' → ') : h.body;

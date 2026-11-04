@@ -1,10 +1,12 @@
 // Original product questions. These categories do not determine a legal remedy,
 // jurisdiction, deadline or eligibility and never create a mandate or permission.
-export const QUESTIONNAIRE_VERSION = '2026-10-28.1';
-export const QUESTIONNAIRE_CONSENT_VERSION = '2026-10-28.1';
+// 2026-11-04.1: guided request in the order chosen by the owner (area of law, situation, other parties, urgency,
+// legal aid, availability, contact). The wording is BesoinAvocat's own; only the order of the steps was taken as a model.
+export const QUESTIONNAIRE_VERSION = '2026-11-04.1';
+export const QUESTIONNAIRE_CONSENT_VERSION = '2026-11-04.1';
 export const QUESTIONNAIRE_CONSENT_TEXT = {
-  fr: 'Je consens à ce que BesoinAvocat conserve mes coordonnées, mes réponses au questionnaire, les catégories et le résumé de ma situation pour traiter ma demande de contact et me recontacter. Je n’inclus aucun document, numéro d’identification ou renseignement de santé non nécessaire. Cet envoi ne crée ni mandat, ni relation avocat-client, ni attribution d’avocat, ni abonnement, ni paiement.',
-  en: 'I consent to BesoinAvocat storing my contact details, questionnaire answers, categories and situation summary to process my contact request and contact me. I am not including any document, identification number or unnecessary health information. This submission does not create a legal mandate, lawyer-client relationship, lawyer assignment, subscription or payment.',
+  fr: 'Je consens à ce que BesoinAvocat conserve mes coordonnées, mes réponses, le résumé de ma situation, le nom des autres parties que j’indique, mes renseignements sur l’aide juridique et mes disponibilités pour traiter ma demande, vérifier l’absence de conflit d’intérêts et me recontacter. Je n’inclus aucun document, numéro d’identification ou renseignement de santé non nécessaire. Cet envoi ne crée ni mandat, ni relation avocat-client, ni attribution d’avocat, ni abonnement, ni paiement.',
+  en: 'I consent to BesoinAvocat storing my contact details, answers, the summary of my situation, the names of the other parties I provide, my legal aid information and my availability to process my request, check for conflicts of interest and contact me. I am not including any document, identification number or unnecessary health information. This submission does not create a legal mandate, lawyer-client relationship, lawyer assignment, subscription or payment.',
 };
 const label = (fr, en) => ({ fr, en });
 const option = (id, fr, en) => ({ id, label: label(fr, en) });
@@ -59,13 +61,38 @@ const definitions = {
     question('documentAvailable', 'Avez-vous un document à faire examiner plus tard ?', 'Do you have a document to be reviewed later?', yesNo()),
   ],
 };
+// Areas without targeted questions go straight from the area of law to the situation.
+for (const domain of ['real-estate', 'administrative', 'liability', 'tax', 'estates', 'rights', 'insolvency', 'municipal']) definitions[domain] = [];
+
+// Steps shared by every area of law. Skips mirror the owner's model: no opposing party to check in criminal or
+// immigration matters, and no legal aid question for a business. Nothing here decides eligibility.
+const FLOW = {
+  otherParties: { skipFor: ['criminal', 'immigration'], maxLength: 300,
+    statuses: [option('named', 'Je connais le nom', 'I know the name'), option('none', 'Aucune autre partie', 'No other party'), option('unknown', 'Je ne sais pas encore', 'I do not know yet')] },
+  legalAid: { skipFor: ['business'],
+    interest: [option('check', 'Je souhaite vérifier si l’aide juridique peut s’appliquer', 'I would like to check whether legal aid may apply'),
+      option('private', 'Je cherche un avocat en pratique privée', 'I am looking for a lawyer in private practice'), option('unsure', 'Je ne sais pas', 'I do not know')],
+    household: [option('single', 'Personne seule', 'Single person'), option('single_children', 'Personne seule avec enfant(s) à charge', 'Single person with dependent child(ren)'),
+      option('couple', 'Couple sans enfant à charge', 'Couple without dependent children'), option('couple_children', 'Couple avec enfant(s) à charge', 'Couple with dependent child(ren)'),
+      option('undisclosed', 'Je préfère ne pas répondre', 'I prefer not to answer')],
+    income: [option('under_30000', 'Moins de 30 000 $', 'Under $30,000'), option('30000_44999', '30 000 $ à 44 999 $', '$30,000 to $44,999'),
+      option('45000_59999', '45 000 $ à 59 999 $', '$45,000 to $59,999'), option('60000_84999', '60 000 $ à 84 999 $', '$60,000 to $84,999'),
+      option('85000_149999', '85 000 $ à 149 999 $', '$85,000 to $149,999'), option('150000_plus', '150 000 $ ou plus', '$150,000 or more'),
+      option('undisclosed', 'Je préfère ne pas répondre', 'I prefer not to answer')] },
+  availability: { maxSlots: 10, horizonDays: 14,
+    periods: [option('morning', 'Matin', 'Morning'), option('noon', 'Midi', 'Noon'), option('afternoon', 'Après-midi', 'Afternoon'), option('evening', 'Soir', 'Evening')] },
+  contactTimes: [option('asap', 'Dès que possible', 'As soon as possible'), option('morning', 'Matin', 'Morning'), option('noon', 'Midi', 'Noon'),
+    option('afternoon', 'Après-midi', 'Afternoon'), option('evening', 'Soir', 'Evening')],
+};
+
 function deepFreeze(value) { Object.values(value).forEach(item => { if (item && typeof item === 'object') deepFreeze(item); }); return Object.freeze(value); }
 export const QUESTIONNAIRE_SCHEMA = deepFreeze({ version: QUESTIONNAIRE_VERSION, audience: 'client',
-  provenance: { kind: 'product_questionnaire', author: 'BesoinAvocat', developedOn: '2026-10-28', externalQuestionsCopied: false,
-    note: label('Questions de préparation conçues pour BesoinAvocat; aucune conclusion juridique automatique.', 'Preparation questions designed for BesoinAvocat; no automated legal conclusion.') },
+  provenance: { kind: 'product_questionnaire', author: 'BesoinAvocat', developedOn: '2026-10-28', flowRevisedOn: '2026-11-04', externalQuestionsCopied: false,
+    note: label('Questions de préparation rédigées pour BesoinAvocat. L’ordre des étapes suit un parcours de référence choisi par le propriétaire; aucun libellé n’en est repris. Aucune conclusion juridique automatique, y compris sur l’admissibilité à l’aide juridique.',
+      'Preparation questions written for BesoinAvocat. The order of the steps follows a reference flow chosen by the owner; none of its wording is reused. No automated legal conclusion, including on legal aid eligibility.') },
   consent: { version: QUESTIONNAIRE_CONSENT_VERSION, text: { ...QUESTIONNAIRE_CONSENT_TEXT } },
   review: label('J’ai relu ces réponses et je confirme qu’elles correspondent à la demande que je souhaite transmettre.', 'I have reviewed these answers and confirm they match the request I want to submit.'),
-  domains: Object.fromEntries(Object.entries(definitions).map(([domain, questions]) => [domain, { questions }])) });
+  domains: Object.fromEntries(Object.entries(definitions).map(([domain, questions]) => [domain, { questions }])), flow: FLOW });
 
 export class QuestionnaireError extends Error {
   constructor(field, code = 'QUESTIONNAIRE_INVALID_INPUT') {
@@ -100,5 +127,55 @@ export function validateQuestionnaire(domain, value, { requireReview = true } = 
   if (requireReview && value.reviewed !== true) throw new QuestionnaireError('reviewed', 'QUESTIONNAIRE_REVIEW_REQUIRED');
   if (value.reviewed !== undefined && typeof value.reviewed !== 'boolean') throw new QuestionnaireError('reviewed');
   return { version: QUESTIONNAIRE_VERSION, answers, reviewed: value.reviewed === true };
+}
+const ids = list => list.map(item => item.id);
+const day = time => Math.floor(time / 86_400_000);
+export const otherPartiesAsked = domain => !QUESTIONNAIRE_SCHEMA.flow.otherParties.skipFor.includes(domain);
+export const legalAidAsked = domain => !QUESTIONNAIRE_SCHEMA.flow.legalAid.skipFor.includes(domain);
+function flowText(value, max) {
+  if (typeof value !== 'string' || value.length > max * 2 || !value.isWellFormed()) throw new QuestionnaireError('otherParties');
+  const text = value.replace(/\s+/gu, ' ').trim().normalize('NFC');
+  if (!text || text.length > max || /[\u0000-\u001f\u007f<>]/u.test(text)) throw new QuestionnaireError('otherParties');
+  return text;
+}
+// Validates the shared steps of the guided request. `time` is the server clock; slots are calendar days
+// (YYYY-MM-DD) with one day of tolerance for visitors west or east of UTC.
+export function validateFlow(domain, body, time) {
+  const flow = QUESTIONNAIRE_SCHEMA.flow, result = {};
+  if (otherPartiesAsked(domain)) {
+    const value = body.otherParties;
+    if (!plain(value) || Object.keys(value).some(key => !['status','names'].includes(key)) || !ids(flow.otherParties.statuses).includes(value.status)) throw new QuestionnaireError('otherParties');
+    if (value.status === 'named') result.otherParties = { status: 'named', names: flowText(value.names, flow.otherParties.maxLength) };
+    else if (value.names !== undefined) throw new QuestionnaireError('otherParties');
+    else result.otherParties = { status: value.status };
+  } else if (body.otherParties !== undefined) throw new QuestionnaireError('otherParties');
+  if (legalAidAsked(domain)) {
+    const value = body.legalAid;
+    if (!plain(value) || Object.keys(value).length !== 3 || !ids(flow.legalAid.interest).includes(value.interest) ||
+        !ids(flow.legalAid.household).includes(value.household) || !ids(flow.legalAid.income).includes(value.income)) throw new QuestionnaireError('legalAid');
+    result.legalAid = { interest: value.interest, household: value.household, income: value.income };
+  } else if (body.legalAid !== undefined) throw new QuestionnaireError('legalAid');
+  const availability = body.availability;
+  if (!plain(availability)) throw new QuestionnaireError('availability');
+  if (availability.asap === true && Object.keys(availability).length === 1) result.availability = { asap: true };
+  else {
+    const slots = availability.slots, periods = ids(flow.availability.periods), today = day(time);
+    if (Object.keys(availability).length !== 1 || !Array.isArray(slots) || slots.length < 1 || slots.length > flow.availability.maxSlots ||
+        new Set(slots).size !== slots.length) throw new QuestionnaireError('availability');
+    for (const slot of slots) {
+      const match = typeof slot === 'string' && /^(\d{4})-(\d{2})-(\d{2}):([a-z]+)$/u.exec(slot);
+      if (!match || !periods.includes(match[4])) throw new QuestionnaireError('availability');
+      const date = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      if (new Date(date).toISOString().slice(0, 10) !== slot.slice(0, 10)) throw new QuestionnaireError('availability');
+      if (day(date) < today - 1 || day(date) > today + flow.availability.horizonDays + 1) throw new QuestionnaireError('availability');
+    }
+    result.availability = { slots: [...slots].sort() };
+  }
+  const times = body.contactTimes;
+  if (!Array.isArray(times) || times.length > flow.contactTimes.length || new Set(times).size !== times.length || times.some(item => !ids(flow.contactTimes).includes(item))) throw new QuestionnaireError('contactTimes');
+  result.contactTimes = ids(flow.contactTimes).filter(item => times.includes(item));
+  if (typeof body.acceptRemote !== 'boolean') throw new QuestionnaireError('acceptRemote');
+  result.acceptRemote = body.acceptRemote;
+  return result;
 }
 export function publicQuestionnaire() { return structuredClone(QUESTIONNAIRE_SCHEMA); }

@@ -40,6 +40,8 @@ const assets = new Map([
   ['/demande/', ['demande.html', 'text/html; charset=utf-8']],
   ['/demande.js', ['demande.js', 'text/javascript; charset=utf-8']],
   ['/demande.css', ['demande.css', 'text/css; charset=utf-8']],
+  // BesoinAvocat logo, as recoloured for the storefront copy (www/dist).
+  ['/brand/besoinavocat-logo.png', ['brand/besoinavocat-logo.png', 'image/png']],
   // BesoinAvocat staff inbox of public requests; the data comes only from the reviewer-restricted /api/intakes.
   ['/demandes', ['demandes.html', 'text/html; charset=utf-8']],
   ['/demandes.js', ['demandes.js', 'text/javascript; charset=utf-8']],

@@ -29,7 +29,7 @@
 .inbox-detail { padding: 20px; display: grid; gap: 18px; }
 .inbox-detail dl { display: grid; grid-template-columns: 180px 1fr; gap: 6px 16px; margin: 0; }
 .inbox-detail dt { color: var(--muted); }
-.inbox-detail dd { margin: 0; overflow-wrap: anywhere; }
+.inbox-detail dd { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
 .inbox-summary { white-space: pre-wrap; background: var(--sunken); border-radius: var(--r); padding: 12px 14px; }
 .inbox-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inbox-actions select { border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 6px 8px; background: var(--surface); }

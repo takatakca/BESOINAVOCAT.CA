@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { HttpError, externalIdentifier } from './validation.mjs';
-import { QUESTIONNAIRE_CONSENT_VERSION, QUESTIONNAIRE_CONSENT_TEXT, validateQuestionnaire, QuestionnaireError, publicQuestionnaire } from './questionnaire.mjs';
+import { QUESTIONNAIRE_CONSENT_VERSION, QUESTIONNAIRE_CONSENT_TEXT, validateQuestionnaire, validateFlow, QuestionnaireError, publicQuestionnaire } from './questionnaire.mjs';
 import { CATALOG_VERSION, CONSENT_VERSION, CONSENT_TEXT, DOMAINS, REGIONS, interestPrice,
   REQUEST_CONSENT_VERSION, REQUEST_CONSENT_TEXT, SUMMARY_LIMITS, DEADLINE_MAX_DAYS, STAGES, OBJECTIVES, URGENCIES, CONTACT_PREFERENCES } from './catalog.mjs';
 
@@ -134,9 +134,11 @@ function deadlineDate(value, time) {
 }
 
 function requestInput(body, time, withQuestionnaire = false) {
-  const extra = withQuestionnaire ? ['questionnaire'] : [];
+  // The guided request adds the shared steps; validateFlow decides which of them each area of law requires.
+  const extra = withQuestionnaire ? ['questionnaire','otherParties','legalAid','availability','contactTimes','acceptRemote'] : [];
   shape(body, ['name','email','phone','role','language','domain','region','contactPreference','stage','objective','summary','urgency','deadline','consent','consentVersion','website', ...extra],
-    ['name','email','role','language','domain','region','contactPreference','stage','objective','summary','urgency','consent','consentVersion', ...extra]);
+    ['name','email','role','language','domain','region','contactPreference','stage','objective','summary','urgency','consent','consentVersion',
+      ...(withQuestionnaire ? ['questionnaire','availability','contactTimes','acceptRemote'] : [])]);
   const contact = contactFields(body);
   if (body.role !== 'client') throw invalid();
   const consentVersion = withQuestionnaire ? QUESTIONNAIRE_CONSENT_VERSION : REQUEST_CONSENT_VERSION;
@@ -145,14 +147,14 @@ function requestInput(body, time, withQuestionnaire = false) {
   if (!choice(STAGES, body.stage) || !choice(OBJECTIVES, body.objective) || !choice(URGENCIES, body.urgency)) throw invalid();
   const summary = summaryText(body.summary), deadline = body.deadline === undefined ? null : deadlineDate(body.deadline, time);
   const { name, email, phone, language, domain, region } = contact;
-  let questionnaire;
+  let questionnaire, flow = {};
   if (withQuestionnaire) {
-    try { questionnaire = validateQuestionnaire(domain, body.questionnaire); }
+    try { questionnaire = validateQuestionnaire(domain, body.questionnaire); flow = validateFlow(domain, body, time); }
     catch (error) { if (error instanceof QuestionnaireError) throw new HttpError(error.status, error.code, error.message); throw error; }
   }
   return { name, email, phone, role: 'client', language, domain, region, contactPreference: body.contactPreference,
     stage: body.stage, objective: body.objective, summary, urgency: body.urgency, ...(deadline ? { deadline } : {}),
-    ...(withQuestionnaire ? { questionnaire } : {}), consent: true, consentVersion };
+    ...(withQuestionnaire ? { questionnaire, ...flow } : {}), consent: true, consentVersion };
 }
 
 // The consent version selects the contract: contact only, or the detailed client request.
@@ -252,6 +254,20 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
     return questions.filter(item => Object.hasOwn(answers, item.id)).map(item => ({ id: item.id, question: item.label,
       answer: { id: answers[item.id], label: item.options.find(choice => choice.id === answers[item.id])?.label ?? null } }));
   }
+  // Shared steps of the guided request, labelled for the reviewer. Absent for older requests.
+  function flowOf(data) {
+    const flow = publicQuestionnaire().flow, pick = (list, id) => list.find(item => item.id === id)?.label ?? null;
+    return {
+      otherParties: data.otherParties ? { status: { id: data.otherParties.status, label: pick(flow.otherParties.statuses, data.otherParties.status) }, names: data.otherParties.names ?? null } : null,
+      legalAid: data.legalAid ? { interest: { id: data.legalAid.interest, label: pick(flow.legalAid.interest, data.legalAid.interest) },
+        household: { id: data.legalAid.household, label: pick(flow.legalAid.household, data.legalAid.household) },
+        income: { id: data.legalAid.income, label: pick(flow.legalAid.income, data.legalAid.income) } } : null,
+      availability: data.availability ? (data.availability.asap ? { asap: true, slots: [] } : { asap: false,
+        slots: data.availability.slots.map(slot => ({ date: slot.slice(0, 10), period: { id: slot.slice(11), label: pick(flow.availability.periods, slot.slice(11)) } })) }) : null,
+      contactTimes: Array.isArray(data.contactTimes) ? data.contactTimes.map(id => ({ id, label: pick(flow.contactTimes, id) })) : null,
+      acceptRemote: typeof data.acceptRemote === 'boolean' ? data.acceptRemote : null,
+    };
+  }
   function readRequest(user, value) {
     const reference = referenceOf(value);
     const row = db.prepare('SELECT * FROM ba_intakes WHERE reference=?').get(reference);
@@ -261,7 +277,7 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
       stage: data.stage ? { id: data.stage, label: label(STAGES, data.stage) } : null,
       objective: data.objective ? { id: data.objective, label: label(OBJECTIVES, data.objective) } : null,
       contactPreferenceLabel: data.contactPreference ? label(CONTACT_PREFERENCES, data.contactPreference) : null,
-      summary: data.summary ?? null, questionnaire: data.questionnaire ?? null, answers: answersOf(data),
+      summary: data.summary ?? null, questionnaire: data.questionnaire ?? null, answers: answersOf(data), ...flowOf(data),
       periodicity: data.periodicity ?? null, consent: { version: data.consentVersion, text: row.consentText }, catalogVersion: row.catalogVersion, origin: row.origin },
       history: db.prepare('SELECT id,kind,body,author,createdAt FROM ba_intake_notes WHERE reference=? ORDER BY createdAt,id').all(reference)
         .map(note => ({ ...note, mine: note.author === user.subject })) };

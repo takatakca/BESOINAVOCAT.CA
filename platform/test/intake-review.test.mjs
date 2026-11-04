@@ -67,7 +67,7 @@ test('the list triages without contact details; the detail view is complete and 
   assert.equal(list.json.requests.length, 2); assert.equal(list.json.counts.received, 2);
   assert.doesNotMatch(list.text, /@example\.test|514 555|Résumé synthétique/);
   const item = list.json.requests.find(row => row.reference === second.json.reference);
-  assert.deepEqual(item.domain, { id: 'family', label: { fr: 'Famille', en: 'Family' } });
+  assert.deepEqual(item.domain, { id: 'family', label: { fr: 'Famille et jeunesse', en: 'Family and youth' } });
   assert.equal(item.detailed, true); assert.equal(item.status, 'received');
   const detail = await f.request(`/api/intakes/${second.json.reference}`, { as: 'reviewer' });
   assert.equal(detail.status, 200);
@@ -140,4 +140,29 @@ test('a version 1 queue is upgraded in place and keeps every request', async t =
   assert.equal(intake.configured, true);
   assert.equal(intake.reviewList(REVIEWER, {}).requests[0].reference, `BA-${'b'.repeat(24)}`);
   assert.equal(intake.reviewStatus(REVIEWER, `BA-${'b'.repeat(24)}`, { status: 'contacted' }).status, 'contacted');
+});
+
+test('a guided request shows the conflict-check names, legal aid answers and availability with their labels', async t => {
+  const f = await fixture(t);
+  const tomorrow = new Date(Date.now() + 86_400_000);
+  const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  const body = { ...detailed(), consentVersion: QUESTIONNAIRE_CONSENT_VERSION, hasDeadline: undefined,
+    questionnaire: { version: QUESTIONNAIRE_CONSENT_VERSION, answers: { topic: 'separation', relationship: 'unsure', arrangement: 'yes', agreementGoal: 'understand' }, reviewed: true },
+    otherParties: { status: 'named', names: 'Partie Synthétique' }, legalAid: { interest: 'check', household: 'single_children', income: '30000_44999' },
+    availability: { slots: [`${day}:evening`] }, contactTimes: ['asap', 'evening'], acceptRemote: true };
+  delete body.hasDeadline;
+  const created = await f.submit(body);
+  assert.equal(created.status, 201, created.text);
+  const list = await f.request('/api/intakes', { as: 'reviewer' });
+  assert.doesNotMatch(list.text, /Partie Synthétique/, 'names stay out of the list');
+  const { json: { request } } = await f.request(`/api/intakes/${created.json.reference}`, { as: 'reviewer' });
+  assert.deepEqual(request.otherParties, { status: { id: 'named', label: { fr: 'Je connais le nom', en: 'I know the name' } }, names: 'Partie Synthétique' });
+  assert.equal(request.legalAid.household.label.fr, 'Personne seule avec enfant(s) à charge');
+  assert.equal(request.legalAid.income.label.fr, '30 000 $ à 44 999 $');
+  assert.deepEqual(request.availability, { asap: false, slots: [{ date: day, period: { id: 'evening', label: { fr: 'Soir', en: 'Evening' } } }] });
+  assert.deepEqual(request.contactTimes.map(item => item.id), ['asap', 'evening']);
+  assert.equal(request.acceptRemote, true);
+  const legacy = await f.submit(detailed());
+  const old = (await f.request(`/api/intakes/${legacy.json.reference}`, { as: 'reviewer' })).json.request;
+  assert.equal(old.otherParties, null); assert.equal(old.availability, null); assert.equal(old.acceptRemote, null);
 });

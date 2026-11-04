@@ -94,3 +94,13 @@ test('phone calls and video report MIMT and TURN settings by name only', t => {
   assert.match(on, /TURN relay configured/u);
   assert.doesNotMatch(on, /hidden|5550100/u);
 });
+
+test('the document key is reported without blocking when absent and blocks when unusable', t => {
+  const { env, data } = fixture(t);
+  assert.match(report(readiness(env)), /stored unencrypted/u);
+  const key = path.join(data, 'documents.key');
+  writeFileSync(key, randomBytes(32), { mode: 0o600 });
+  assert.match(report(readiness({ ...env, BESOINAVOCAT_BLOB_KEY_FILE: key })), /New documents are encrypted/u);
+  chmodSync(key, 0o644);
+  assert.match(fails(readiness({ ...env, BESOINAVOCAT_BLOB_KEY_FILE: key }))[0].message, /must be 0600/u);
+});

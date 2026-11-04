@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {buildManifest,safeRelative} from './import-corpus.mjs';
 import {MAX_DOCUMENT_BYTES,CASE_STORAGE_QUOTA_BYTES,externalIdentifier,identifier} from '../lib/validation.mjs';
 import {createStore} from '../lib/store.mjs';
+import {loadBlobKey} from '../lib/blob-crypto.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const HASH=/^[a-f0-9]{64}$/u;
@@ -29,10 +30,10 @@ export async function assertPrivateStorage(o) {
   }
 }
 const mime = {pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',tif:'image/tiff',tiff:'image/tiff',eml:'message/rfc822',json:'application/json',csv:'text/csv',txt:'text/plain',md:'text/plain',html:'text/html',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
-export const USAGE='node platform/tools/execute-corpus-import.mjs --manifest <private.json> --manifest-sha256 <sha> --corpus <corpus.json> --root <sources> --database <private.sqlite> --blobs <private-dir> --tenant <id> --subject <id> --case-id <uuid> [--create-case --title <title>] [--execute --plan-sha256 <previous-dry-run-sha>]';
+export const USAGE='node platform/tools/execute-corpus-import.mjs --manifest <private.json> --manifest-sha256 <sha> --corpus <corpus.json> --root <sources> --database <private.sqlite> --blobs <private-dir> --tenant <id> --subject <id> --case-id <uuid> [--create-case --title <title>] [--execute --plan-sha256 <previous-dry-run-sha>] [--blob-key <document key file, same as BESOINAVOCAT_BLOB_KEY_FILE>]';
 export function parseArgs(args) {
   const o={execute:false,createCase:false};
-  const flags={'--manifest':'manifestPath','--manifest-sha256':'manifestSha256','--corpus':'corpusPath','--root':'sourceRoot','--database':'dbPath','--blobs':'blobDir','--tenant':'tenantId','--subject':'subject','--case-id':'caseId','--title':'title','--plan-sha256':'planSha256'};
+  const flags={'--manifest':'manifestPath','--manifest-sha256':'manifestSha256','--corpus':'corpusPath','--root':'sourceRoot','--database':'dbPath','--blobs':'blobDir','--tenant':'tenantId','--subject':'subject','--case-id':'caseId','--title':'title','--plan-sha256':'planSha256','--blob-key':'blobKeyFile'};
   for(let i=0;i<args.length;i++) {
     const a=args[i]; if(a==='--help')return {help:true};
     if(a==='--dry-run'){if(o.dryRun)throw new Error('Duplicate flag');o.dryRun=true;continue;}
@@ -101,7 +102,7 @@ export async function main(args=process.argv.slice(2)) {
   if(!o.execute){console.log(JSON.stringify(receipt));return receipt;}
   if(o.planSha256!==plan.planSha256)throw new Error('Plan changed; perform a new dry-run before execution');
   await assertPrivateStorage(o);
-  const store=createStore({dbPath:o.dbPath,blobDir:o.blobDir});
+  const store=createStore({dbPath:o.dbPath,blobDir:o.blobDir,blobKey:loadBlobKey(o.blobKeyFile)});
   try {receipt.result=store.importCorpus({tenantId:o.tenantId,subject:o.subject,product:'besoinavocat',active:true},o.caseId,plan,{createCase:o.createCase?{title:o.title,reference:plan.summary.caseFilter}:null});}
   finally {store.close();}
   console.log(JSON.stringify(receipt));return receipt;

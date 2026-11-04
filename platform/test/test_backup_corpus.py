@@ -349,5 +349,37 @@ class BackupCorpusTests(unittest.TestCase):
         self.assertFalse((application / "private-not-allowed").exists())
 
 
+    def test_sealed_documents_are_copied_as_is_and_tampering_is_detected(self):
+        # A sealed file stands in for platform/lib/blob-crypto.mjs output: same header and size, opaque body.
+        sealed = backup.SEAL_MAGIC + os.urandom(len(self.content) + backup.SEAL_OVERHEAD - len(backup.SEAL_MAGIC))
+        self.blob.write_bytes(sealed)
+        manifest = self.create()
+        self.assertEqual(manifest["version"], 2)
+        self.assertEqual(manifest["blobs"][0]["sha256"], self.digest)
+        self.assertEqual(manifest["blobs"][0]["sealed"], {"sha256": sha(sealed), "bytes": len(sealed)})
+        destination = self.root / "sealed-restored"
+        self.assertEqual(backup.restore_archive(self.archive, destination), manifest)
+        self.assertEqual((destination / "blobs" / self.blob.parent.name / self.digest).read_bytes(), sealed)
+        bad = self.root / "sealed-tampered.zip"
+        self.repack(bad, transform=lambda name, data: data[:-1] + bytes([data[-1] ^ 1]) if name.startswith("blobs/") else data)
+        with self.assertRaises(backup.BackupError):
+            backup.verify_archive(bad)
+
+    def test_a_sealed_record_in_a_version_1_manifest_is_refused(self):
+        sealed = backup.SEAL_MAGIC + os.urandom(len(self.content) + backup.SEAL_OVERHEAD - len(backup.SEAL_MAGIC))
+        self.blob.write_bytes(sealed)
+        self.create()
+        bad = self.root / "sealed-v1.zip"
+        def downgrade(name, data):
+            if name != "manifest.json":
+                return data
+            manifest = json.loads(data)
+            manifest["version"] = 1
+            return json.dumps(manifest).encode()
+        self.repack(bad, transform=downgrade)
+        with self.assertRaises(backup.BackupError):
+            backup.verify_archive(bad)
+
+
 if __name__ == "__main__":
     unittest.main()

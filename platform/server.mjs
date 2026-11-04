@@ -8,6 +8,7 @@ import { authenticateRequest, createIntrospection, identityConfiguration, validI
 import { BROWSER_SESSION_COOKIE, createBrowserSessions, browserSessionConfiguration } from './lib/browser-session.mjs';
 import { publicCatalog } from './lib/catalog.mjs';
 import { createIntake, intakeConfiguration } from './lib/intake.mjs';
+import { readiness, report } from './tools/deploy-readiness.mjs';
 import { createCommunications, COMMUNICATION_PROVIDERS } from './lib/communications.mjs';
 import { publicAddonCatalog } from './lib/addon-catalog.mjs';
 import { createIntegrations, integrationConfiguration, readWebhookBody, WEBHOOK_PROVIDERS } from './lib/integrations.mjs';
@@ -540,11 +541,22 @@ export function createApp({
   return app;
 }
 
+// Printed once at start, after the server listens: the same read-only report as `node tools/deploy-readiness.mjs`,
+// so the deployment logs say what is missing without anyone opening a terminal. It never prints a secret value
+// and never stops the server: a blocking item is a line in the log, the start itself is not refused here.
+export function startupReport(env = process.env, log = console.log) {
+  try { log(`Préparation au déploiement (lecture seule) :\n${report(readiness(env))}`); }
+  catch (error) { log(`Préparation au déploiement : rapport indisponible (${error.message})`); }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const host = process.env.HOST || '127.0.0.1';
   const port = Number(process.env.PORT || 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer between 1 and 65535');
   const app = createApp({ dbPath: process.env.DATABASE_PATH || join(HERE, '.data', 'platform.sqlite'), blobDir: process.env.BLOB_DIR || join(HERE, '.data', 'blobs') });
-  app.listen(port, host, () => console.log(`BESOINAVOCAT pilote : http://${host}:${port}; connexion TAKATAK ${identityConfiguration() ? 'configurée, contrat à valider' : 'indisponible'}`));
+  app.listen(port, host, () => {
+    console.log(`BESOINAVOCAT pilote : http://${host}:${port}; connexion TAKATAK ${identityConfiguration() ? 'configurée, contrat à valider' : 'indisponible'}`);
+    startupReport();
+  });
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => app.close());
 }

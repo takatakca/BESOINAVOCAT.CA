@@ -69,7 +69,7 @@ async function boot({ appRoot = __dirname, env = process.env, passenger = global
   if (major !== 24 || minor < 19) throw configurationError('NODE_24_19_OR_NEWER_REQUIRED');
   const options = storageOptions(env, appRoot);
   const target = listenOptions(env, passenger);
-  const { createApp } = await import(pathToFileURL(path.join(appRoot, 'server.mjs')).href);
+  const { createApp, startupReport } = await import(pathToFileURL(path.join(appRoot, 'server.mjs')).href);
   const app = createApp({ ...options, env });
   try {
     await new Promise((resolve, reject) => {
@@ -77,6 +77,8 @@ async function boot({ appRoot = __dirname, env = process.env, passenger = global
       app.once('error', failed);
       app.listen(...target, () => { app.removeListener('error', failed); resolve(); });
     });
+    // Same read-only readiness report as the container start, in Passenger's log.
+    if (typeof startupReport === 'function') startupReport(env);
   } catch (error) {
     app.dispose();
     throw error;

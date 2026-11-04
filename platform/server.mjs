@@ -16,7 +16,7 @@ import { createIceServers, createVideoRooms, iceConfiguration } from './lib/vide
 import { createDocumentRequests } from './lib/document-requests.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
-import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
+import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, documentHeaderInput, readJson, readRawBody, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(HERE, 'public');
@@ -377,6 +377,22 @@ export function createApp({
     if (usageApproval && method === 'POST') {
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, { usage: communications.approveUsage(user, caseId, identifier(usageApproval[1])) });
+    }
+    // Streaming upload: the file travels as raw bytes, the description in one header. Same checks,
+    // same storage and same result as the JSON route, without the base64 and JSON overhead.
+    if (suffix === '/documents/stream' && method === 'PUT') {
+      const declaredLength = req.headers['content-length'];
+      if (declaredLength !== undefined && (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > MAX_DOCUMENT_BYTES)) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
+      const metadata = documentHeaderInput(req);
+      store.access(user, caseId);
+      if (uploadsInFlight >= MAX_CONCURRENT_UPLOADS) {
+        res.setHeader('Retry-After', '1');
+        throw new HttpError(429, 'UPLOAD_BUSY', 'Un fichier est déjà en cours de traitement. Réessayez dans un instant.');
+      }
+      uploadsInFlight++;
+      try {
+        return json(res, 201, { document: store.addDocument(user, caseId, { ...metadata, bytes: await readRawBody(req, MAX_DOCUMENT_BYTES) }) });
+      } finally { uploadsInFlight--; }
     }
     if (suffix === '/documents' && method === 'POST') {
       const declaredLength = req.headers['content-length'];

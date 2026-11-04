@@ -3,10 +3,15 @@
   'use strict';
   const CONSENT_VERSION = '2026-10-26.1';
   const DOMAINS = {
-    family: ['Famille', 'Family'], employment: ['Travail', 'Employment'],
-    housing: ['Logement', 'Housing'], civil: ['Civil', 'Civil'],
-    criminal: ['Criminel et pénal', 'Criminal and penal'], business: ['Affaires', 'Business'],
-    immigration: ['Immigration', 'Immigration'], other: ['Autre / à déterminer', 'Other / to be determined']
+    family: ['Famille et jeunesse', 'Family and youth'], business: ['Affaires et entreprises', 'Business'],
+    criminal: ['Criminel et pénal', 'Criminal and penal'], 'real-estate': ['Immobilier', 'Real estate'],
+    immigration: ['Immigration et citoyenneté', 'Immigration and citizenship'],
+    administrative: ['Administratif (organismes publics)', 'Administrative (public bodies)'],
+    liability: ['Responsabilité civile et dommages', 'Civil liability and damages'], employment: ['Travail et emploi', 'Employment'],
+    civil: ['Civil et contrats', 'Civil and contracts'], tax: ['Fiscalité', 'Tax'],
+    housing: ['Logement et bail', 'Housing and leases'], estates: ['Successions et testaments', 'Estates and wills'],
+    rights: ['Droits et libertés', 'Rights and freedoms'], insolvency: ['Faillite et dettes', 'Bankruptcy and debt'],
+    municipal: ['Municipal', 'Municipal'], other: ['Autre / je ne sais pas', 'Other / I do not know']
   };
   const REGIONS = {
     montreal: ['Montréal', 'Montréal'], laval: ['Laval', 'Laval'], monteregie: ['Montérégie', 'Montérégie'],

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="same-origin">
+  <title>Demandes reçues · BesoinAvocat</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./demandes.css">
+  <script src="./demandes.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#inbox-main">Aller au contenu</a>
+  <header class="inbox-top">
+    <a class="brand" href="./" aria-label="BesoinAvocat — espace de travail"><span class="brand-mark" aria-hidden="true">b<span>.</span></span><span>besoin<span class="brand-light">avocat</span><small>DEMANDES REÇUES</small></span></a>
+    <a class="text-button" href="./">Retour à l’espace de travail</a>
+  </header>
+  <main id="inbox-main" class="inbox" tabindex="-1">
+    <div class="inbox-intro">
+      <p class="eyebrow">Réservé à l’équipe BesoinAvocat</p>
+      <h1>Demandes reçues</h1>
+      <p>Les demandes déposées sur le site, pour les traiter et recontacter les personnes. Chaque consultation est journalisée. Le consentement ne couvre pas la transmission à un avocat.</p>
+    </div>
+    <div id="inbox-state" class="inbox-state" role="status" aria-live="polite">Chargement…</div>
+    <div class="inbox-layout" id="inbox-layout" hidden>
+      <section class="panel inbox-list" aria-labelledby="inbox-list-title">
+        <div class="panel-heading inbox-list-head">
+          <h2 id="inbox-list-title">File</h2>
+          <div class="inbox-filters" role="group" aria-label="Filtrer par statut" id="inbox-filters"></div>
+        </div>
+        <ul class="inbox-rows" id="inbox-rows"></ul>
+        <div class="inbox-more"><button type="button" class="button" id="inbox-more" hidden>Afficher plus</button></div>
+      </section>
+      <section class="panel inbox-detail" id="inbox-detail" aria-live="polite" aria-labelledby="inbox-detail-title">
+        <div class="empty-state"><h2 id="inbox-detail-title">Choisissez une demande</h2><p>Les coordonnées et le résumé s’affichent ici.</p></div>
+      </section>
+    </div>
+  </main>
+  <noscript><p class="noscript">Cette page nécessite JavaScript.</p></noscript>
+</body>
+</html>

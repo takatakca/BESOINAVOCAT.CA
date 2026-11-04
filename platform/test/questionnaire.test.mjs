@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { randomUUID, webcrypto } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { QUESTIONNAIRE_SCHEMA, QUESTIONNAIRE_VERSION, QUESTIONNAIRE_CONSENT_VERSION, QUESTIONNAIRE_CONSENT_TEXT,
-  activeQuestions, pruneQuestionnaireAnswers, validateQuestionnaire, publicQuestionnaire } from '../lib/questionnaire.mjs';
+  activeQuestions, pruneQuestionnaireAnswers, validateQuestionnaire, publicQuestionnaire, validateFlow, otherPartiesAsked, legalAidAsked } from '../lib/questionnaire.mjs';
 import { publicCatalog } from '../lib/catalog.mjs';
 import { createIntake } from '../lib/intake.mjs';
 
@@ -32,7 +32,8 @@ function stateFor(domain = 'housing') {
   return { ...ui.initialState('client', 'fr', true), questionnaireSchema: plain(QUESTIONNAIRE_SCHEMA), domain, region: 'ontario',
     answers: { ...examples[domain] }, reviewed: true, name: 'Personne Synthétique', email: 'synthetic@example.test',
     summary: 'Résumé synthétique pour vérifier le parcours de préparation.', stage: 'considering', objective: 'understand', urgency: 'week',
-    hasDeadline: 'no', contactPreference: 'email', consent: true };
+    hasDeadline: 'no', contactPreference: 'email', consent: true, otherPartiesStatus: 'unknown', legalAidInterest: 'unsure',
+    household: 'undisclosed', income: 'undisclosed', availabilityMode: 'asap', contactTimes: ['morning'], acceptRemote: false };
 }
 
 for (const [domain, answers] of Object.entries(examples)) {
@@ -120,11 +121,13 @@ test('a changed parent prunes inactive answers and a changed domain never reuses
 
 test('questionnaire steps apply only to enabled client requests and catalogue clones cannot alter validation', () => {
   const state = stateFor();
-  assert.deepEqual(plain(ui.stepsFor(state)), ['role','preferences','details','situation','timing','contact','review']);
+  assert.deepEqual(plain(ui.stepsFor(state)), ['domain','details','situation','parties','timing','legalAid','availability','contact','review']);
   state.role = 'professional'; assert.equal(ui.stepsFor(state).includes('details'), false);
+  assert.deepEqual(plain(ui.stepsFor(state)), ['domain','preferences','contact','review']);
   assert.equal(ui.consentVersionFor(state), '2026-10-26.1');
   state.role = 'client'; state.questionnaireSchema = null;
-  assert.equal(ui.stepsFor(state).includes('details'), false); assert.equal(ui.consentVersionFor(state), '2026-10-27.1');
+  assert.equal(ui.stepsFor(state).includes('details'), false); assert.equal(ui.consentVersionFor(state), QUESTIONNAIRE_CONSENT_VERSION);
+  state.requestMode = false; assert.deepEqual(plain(ui.stepsFor(state)), ['domain','contact','review']);
   const copy = publicQuestionnaire(); copy.domains.housing.questions[0].options[0].id = 'injected';
   assert.notEqual(QUESTIONNAIRE_SCHEMA.domains.housing.questions[0].options[0].id, 'injected');
   const catalog = publicCatalog({ intakeConfigured: true, requestEnabled: true });
@@ -174,7 +177,8 @@ test('private queue stores reviewed answers and exact consent, rejects injected 
   }
   const changed = structuredClone(body); changed.questionnaire.answers.repairNotice = 'yes';
   assert.throws(() => intake.receive(changed, key, ORIGIN), { code: 'IDEMPOTENCY_CONFLICT' });
-  const oldDetailed = { ...body, email: 'detailed@example.test', consentVersion: '2026-10-27.1' }; delete oldDetailed.questionnaire;
+  const oldDetailed = { ...body, email: 'detailed@example.test', consentVersion: '2026-10-27.1' };
+  for (const key of ['questionnaire', 'otherParties', 'legalAid', 'availability', 'contactTimes', 'acceptRemote']) delete oldDetailed[key];
   intake.receive(oldDetailed, randomUUID(), ORIGIN);
   intake.receive({ name: 'Contact Synthétique', email: 'contact@example.test', role: 'client', language: 'en', domain: 'housing', region: 'montreal', consent: true, consentVersion: '2026-10-26.1' }, randomUUID(), ORIGIN);
   const db = new DatabaseSync(dbPath, { readOnly: true });
@@ -195,4 +199,47 @@ test('questionnaire cannot bypass a disabled detailed intake', async t => {
   assert.throws(() => intake.receive(plain(ui.payloadFrom(stateFor())), randomUUID(), ORIGIN), { status: 503 });
   assert.doesNotMatch(script, /localStorage|sessionStorage|document\.cookie|sendBeacon/);
   assert.match(script, /credentials: 'omit'/);
+});
+
+test('the shared steps follow the domain and refuse anything outside the published lists', () => {
+  const now = Date.UTC(2026, 10, 4, 15); // 4 November 2026
+  const base = { otherParties: { status: 'unknown' }, legalAid: { interest: 'unsure', household: 'undisclosed', income: 'undisclosed' },
+    availability: { asap: true }, contactTimes: [], acceptRemote: false };
+  assert.deepEqual(validateFlow('housing', base, now), base);
+  assert.equal(otherPartiesAsked('criminal'), false); assert.equal(otherPartiesAsked('immigration'), false); assert.equal(legalAidAsked('business'), false);
+  for (const domain of ['criminal', 'immigration']) {
+    const { otherParties, ...rest } = base;
+    assert.deepEqual(validateFlow(domain, rest, now), rest);
+    assert.throws(() => validateFlow(domain, base, now), { field: 'otherParties' }, 'a skipped step cannot be sent');
+  }
+  const { legalAid, ...noAid } = base;
+  assert.deepEqual(validateFlow('business', noAid, now), noAid);
+  assert.throws(() => validateFlow('business', base, now), { field: 'legalAid' });
+  assert.throws(() => validateFlow('family', noAid, now), { field: 'legalAid' });
+  assert.deepEqual(validateFlow('family', { ...base, otherParties: { status: 'named', names: '  Partie   Synthétique ' } }, now).otherParties, { status: 'named', names: 'Partie Synthétique' });
+  for (const otherParties of [{ status: 'named' }, { status: 'named', names: '' }, { status: 'named', names: '<b>x</b>' }, { status: 'named', names: 'x'.repeat(301) },
+    { status: 'none', names: 'x' }, { status: 'maybe' }, { status: 'none', extra: true }, 'none']) {
+    assert.throws(() => validateFlow('family', { ...base, otherParties }, now), { field: 'otherParties' }, JSON.stringify(otherParties));
+  }
+  for (const legal of [{ interest: 'yes', household: 'single', income: 'undisclosed' }, { interest: 'check', household: 'single' },
+    { interest: 'check', household: 'single', income: '1000000' }, { interest: 'check', household: 'single', income: 'undisclosed', eligible: true }]) {
+    assert.throws(() => validateFlow('family', { ...base, legalAid: legal }, now), { field: 'legalAid' }, JSON.stringify(legal));
+  }
+  const slots = ['2026-11-18:evening', '2026-11-05:morning', '2026-11-03:noon'];
+  assert.deepEqual(validateFlow('family', { ...base, availability: { slots } }, now).availability, { slots: [...slots].sort() }, 'one day of tolerance either side');
+  for (const availability of [{}, { asap: false }, { asap: true, slots }, { slots: [] }, { slots: ['2026-11-02:noon'] }, { slots: ['2026-11-20:noon'] },
+    { slots: ['2026-02-30:noon'] }, { slots: ['2026-11-05:night'] }, { slots: ['2026-11-05:noon', '2026-11-05:noon'] },
+    { slots: Array.from({ length: 11 }, (_, i) => `2026-11-${String(5 + i).padStart(2, '0')}:noon`) }]) {
+    assert.throws(() => validateFlow('family', { ...base, availability }, now), { field: 'availability' }, JSON.stringify(availability));
+  }
+  assert.deepEqual(validateFlow('family', { ...base, contactTimes: ['evening', 'asap'] }, now).contactTimes, ['asap', 'evening']);
+  for (const contactTimes of [undefined, 'asap', ['asap', 'asap'], ['night']]) assert.throws(() => validateFlow('family', { ...base, contactTimes }, now), { field: 'contactTimes' });
+  for (const acceptRemote of [undefined, 'true', 1]) assert.throws(() => validateFlow('family', { ...base, acceptRemote }, now), { field: 'acceptRemote' });
+});
+
+test('no step estimates legal aid eligibility; the catalogue says so', () => {
+  const schema = publicQuestionnaire();
+  assert.match(schema.provenance.note.fr, /admissibilité à l’aide juridique/);
+  assert.doesNotMatch(JSON.stringify(schema.flow), /eligib|admissib/i);
+  assert.doesNotMatch(script, /eligible|admissible\b/i);
 });

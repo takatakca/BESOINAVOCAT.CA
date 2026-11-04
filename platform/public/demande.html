@@ -4,11 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta name="theme-color" content="#050b18">
-  <meta name="description" content="Préparez gratuitement une demande initiale de contact avec des questions adaptées à votre domaine. Aucun mandat, attribution d’avocat ou paiement automatique.">
+  <meta name="theme-color" content="#f8f6ef">
+  <meta name="description" content="Décrivez gratuitement votre besoin juridique en quelques questions. Votre demande est transmise à l’équipe BesoinAvocat, sans mandat ni paiement.">
   <title>Trouver un avocat — demande gratuite | BesoinAvocat</title>
-  <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/demande.css">
   <script src="/demande.js" defer></script>
 </head>
@@ -16,7 +14,7 @@
   <a class="ba-skip" href="#ba-request" data-ba-fr="Aller au formulaire" data-ba-en="Skip to the form">Aller au formulaire</a>
   <header class="ba-top">
     <div class="ba-wrap ba-top__inner">
-      <a class="ba-brand" href="https://besoinavocat.ca/" aria-label="BesoinAvocat — retour au site" data-ba-aria-fr="BesoinAvocat — retour au site" data-ba-aria-en="BesoinAvocat — back to the website"><span class="ba-brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6.5 17.5 17 7M9.5 6.5H17.5V14.5" fill="none" stroke="#ff751f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ba-brand__name">Besoin<strong>avocat</strong><small>.ca</small></span></a>
+      <a class="ba-brand" href="https://besoinavocat.ca/" aria-label="BesoinAvocat — retour au site" data-ba-aria-fr="BesoinAvocat — retour au site" data-ba-aria-en="BesoinAvocat — back to the website"><img src="/brand/besoinavocat-logo.png" width="204" height="36" alt=""></a>
       <div class="ba-top__tools">
         <a class="ba-top__phone" href="tel:+15148252825">514 825-2825</a>
         <div class="ba-lang" role="group" aria-label="Langue" data-ba-aria-fr="Langue" data-ba-aria-en="Language">
@@ -29,13 +27,15 @@
 
   <main>
     <section class="ba-hero" aria-labelledby="ba-title">
-      <div class="ba-wrap ba-hero__grid">
-        <div class="ba-hero__copy">
-          <p class="ba-eyebrow" data-ba-fr="DEMANDE GRATUITE · EN FRANÇAIS OU EN ANGLAIS" data-ba-en="FREE REQUEST · IN FRENCH OR ENGLISH">DEMANDE GRATUITE · EN FRANÇAIS OU EN ANGLAIS</p>
-          <h1 id="ba-title"><span data-ba-fr="Décrivez votre besoin." data-ba-en="Describe what you need.">Décrivez votre besoin.</span> <em data-ba-fr="Préparez la suite." data-ba-en="Prepare your next step.">Préparez la suite.</em></h1>
-          <p class="ba-lead" data-ba-fr="Précisez votre domaine, votre région et votre situation, sans joindre de document. Ce parcours prépare une demande de contact; il ne garantit pas la disponibilité ni l’attribution d’un avocat." data-ba-en="Specify your area of law, region and situation, without attaching any document. This process prepares a contact request; it does not guarantee a lawyer’s availability or assignment.">Précisez votre domaine, votre région et votre situation, sans joindre de document. Ce parcours prépare une demande de contact; il ne garantit pas la disponibilité ni l’attribution d’un avocat.</p>
-        </div>
+      <div class="ba-wrap ba-hero__inner">
+        <p class="ba-eyebrow" data-ba-fr="Demande gratuite · en français ou en anglais" data-ba-en="Free request · in French or English">Demande gratuite · en français ou en anglais</p>
+        <h1 id="ba-title" data-ba-fr="Besoin d’un avocat ?" data-ba-en="Need a lawyer?">Besoin d’un avocat ?</h1>
+        <p class="ba-lead" data-ba-fr="Répondez à quelques questions sur votre situation. Votre demande est transmise à l’équipe BesoinAvocat, qui vous recontacte pour en discuter. Elle ne garantit ni la disponibilité ni l’attribution d’un avocat." data-ba-en="Answer a few questions about your situation. Your request goes to the BesoinAvocat team, who will contact you to discuss it. It does not guarantee a lawyer’s availability or assignment.">Répondez à quelques questions sur votre situation. Votre demande est transmise à l’équipe BesoinAvocat, qui vous recontacte pour en discuter. Elle ne garantit ni la disponibilité ni l’attribution d’un avocat.</p>
+      </div>
+    </section>
 
+    <section class="ba-flow" aria-label="Formulaire de demande" data-ba-aria-fr="Formulaire de demande" data-ba-aria-en="Request form">
+      <div class="ba-wrap">
         <div class="ba-card" id="ba-request" data-ba-request tabindex="-1">
           <div class="ba-card__view" data-ba-request-view>
             <noscript><p>Ce formulaire nécessite JavaScript. Vous pouvez aussi appeler BesoinAvocat au <a href="tel:+15148252825">514 825-2825</a>.</p></noscript>
@@ -43,30 +43,10 @@
         </div>
 
         <ul class="ba-points">
-          <li>
-            <span class="ba-points__icon" aria-hidden="true">0 $</span>
-            <div><strong data-ba-fr="Demande initiale gratuite" data-ba-en="Free initial contact request">Demande initiale gratuite</strong><p data-ba-fr="La demande initiale est gratuite. Les futurs services du dossier et de l’IA pourront être payants selon le volume; leurs prix restent à définir. Les honoraires de l’avocat sont distincts." data-ba-en="The initial request is free. Future case and AI services may be charged by usage volume; their prices remain to be defined. Lawyer fees are separate.">La demande initiale est gratuite. Les futurs services du dossier et de l’IA pourront être payants selon le volume; leurs prix restent à définir. Les honoraires de l’avocat sont distincts.</p></div>
-          </li>
-          <li>
-            <span class="ba-points__icon" aria-hidden="true">IA</span>
-            <div><strong data-ba-fr="Des informations préparées" data-ba-en="Prepared information">Des informations préparées</strong><p data-ba-fr="Les outils d’IA envisagés aideront à organiser les informations et leurs sources. Ils ne remplacent pas l’examen d’un avocat et ne garantissent aucune réduction d’honoraires." data-ba-en="The planned AI tools will help organize information and sources. They do not replace a lawyer’s review or guarantee lower fees.">Les outils d’IA envisagés aideront à organiser les informations et leurs sources. Ils ne remplacent pas l’examen d’un avocat et ne garantissent aucune réduction d’honoraires.</p></div>
-          </li>
-          <li>
-            <span class="ba-points__icon" aria-hidden="true">✓</span>
-            <div><strong data-ba-fr="Vos informations protégées" data-ba-en="Your information protected">Vos informations protégées</strong><p data-ba-fr="Transmission chiffrée, aucune publication, et seulement les renseignements utiles à votre demande." data-ba-en="Encrypted transmission, never published, and only the information useful to your request.">Transmission chiffrée, aucune publication, et seulement les renseignements utiles à votre demande.</p></div>
-          </li>
+          <li><strong data-ba-fr="Gratuit et sans engagement" data-ba-en="Free, no commitment">Gratuit et sans engagement</strong><p data-ba-fr="La demande ne crée aucun mandat, compte ou abonnement. Les honoraires de l’avocat sont convenus séparément avec lui." data-ba-en="The request creates no mandate, account or subscription. Lawyer fees are agreed separately with the lawyer.">La demande ne crée aucun mandat, compte ou abonnement. Les honoraires de l’avocat sont convenus séparément avec lui.</p></li>
+          <li><strong data-ba-fr="Confidentiel" data-ba-en="Confidential">Confidentiel</strong><p data-ba-fr="Transmission chiffrée, aucune publication, et seulement les renseignements utiles à votre demande. Aucun document à joindre." data-ba-en="Encrypted transmission, never published, and only the information useful to your request. No documents to attach.">Transmission chiffrée, aucune publication, et seulement les renseignements utiles à votre demande. Aucun document à joindre.</p></li>
+          <li><strong data-ba-fr="Vous relisez avant l’envoi" data-ba-en="You review before sending">Vous relisez avant l’envoi</strong><p data-ba-fr="Un récapitulatif permet de vérifier et de corriger chaque réponse. Une référence s’affiche seulement après réception confirmée." data-ba-en="A summary lets you check and correct every answer. A reference appears only after confirmed receipt.">Un récapitulatif permet de vérifier et de corriger chaque réponse. Une référence s’affiche seulement après réception confirmée.</p></li>
         </ul>
-      </div>
-    </section>
-
-    <section class="ba-how" aria-labelledby="ba-how-title">
-      <div class="ba-wrap">
-        <h2 id="ba-how-title" data-ba-fr="Comment ça fonctionne" data-ba-en="How it works">Comment ça fonctionne</h2>
-        <ol class="ba-how__steps">
-          <li><span aria-hidden="true">1</span><strong data-ba-fr="Vous décrivez votre situation" data-ba-en="You describe your situation">Vous décrivez votre situation</strong><p data-ba-fr="Domaine, région, urgence et quelques lignes sur ce que vous vivez. Aucun document à fournir." data-ba-en="Area of law, region, urgency and a few lines about your situation. No documents needed.">Domaine, région, urgence et quelques lignes sur ce que vous vivez. Aucun document à fournir.</p></li>
-          <li><span aria-hidden="true">2</span><strong data-ba-fr="Vous confirmez les réponses" data-ba-en="You confirm your answers">Vous confirmez les réponses</strong><p data-ba-fr="Le récapitulatif permet de vérifier et de corriger les réponses avant l’envoi. Une référence apparaît seulement après réception confirmée." data-ba-en="The summary lets you check and correct your answers before sending. A reference appears only after confirmed receipt.">Le récapitulatif permet de vérifier et de corriger les réponses avant l’envoi. Une référence apparaît seulement après réception confirmée.</p></li>
-          <li><span aria-hidden="true">3</span><strong data-ba-fr="Vous gardez le choix de la suite" data-ba-en="You decide what comes next">Vous gardez le choix de la suite</strong><p data-ba-fr="Cette demande ne crée aucun mandat, compte ou abonnement. Tout mandat et tous honoraires éventuels doivent être convenus séparément avec le professionnel." data-ba-en="This request creates no mandate, account or subscription. Any mandate and fees must be agreed separately with the professional.">Cette demande ne crée aucun mandat, compte ou abonnement. Tout mandat et tous honoraires éventuels doivent être convenus séparément avec le professionnel.</p></li>
-        </ol>
       </div>
     </section>
 
@@ -74,9 +54,9 @@
       <div class="ba-wrap ba-pros__inner">
         <div>
           <h2 id="ba-pros-title" data-ba-fr="Vous êtes avocat ?" data-ba-en="Are you a lawyer?">Vous êtes avocat ?</h2>
-          <p data-ba-fr="Espace professionnel proposé à 100 CAD par semaine ou 300 CAD par mois, crédits IA en supplément. Souscription non ouverte : signalez votre intérêt." data-ba-en="Professional workspace offered at CAD 100 per week or CAD 300 per month, AI credits extra. Subscriptions are not open yet: express your interest.">Espace professionnel proposé à 100 CAD par semaine ou 300 CAD par mois, crédits IA en supplément. Souscription non ouverte : signalez votre intérêt.</p>
+          <p data-ba-fr="Espace professionnel proposé à 100 CAD par semaine ou 300 CAD par mois. Souscription non ouverte : signalez votre intérêt." data-ba-en="Professional workspace offered at CAD 100 per week or CAD 300 per month. Subscriptions are not open yet: express your interest.">Espace professionnel proposé à 100 CAD par semaine ou 300 CAD par mois. Souscription non ouverte : signalez votre intérêt.</p>
         </div>
-        <a class="ba-button ba-button--light" href="/demande?role=professional#ba-request" data-ba-fr="Signaler mon intérêt" data-ba-en="Express my interest">Signaler mon intérêt</a>
+        <a class="ba-button ba-button--ghost" href="/demande?role=professional#ba-request" data-ba-fr="Signaler mon intérêt" data-ba-en="Express my interest">Signaler mon intérêt</a>
       </div>
     </section>
   </main>
@@ -85,7 +65,7 @@
     <div class="ba-wrap ba-footer__inner">
       <p data-ba-fr="BesoinAvocat est un service de préparation et d’orientation, pas un cabinet d’avocats. Ce formulaire ne crée aucune relation avocat-client et ne remplace pas un avis juridique. En cas de danger immédiat, composez le 911." data-ba-en="BesoinAvocat is a preparation and referral service, not a law firm. This form does not create a lawyer-client relationship and is not legal advice. In case of immediate danger, call 911.">BesoinAvocat est un service de préparation et d’orientation, pas un cabinet d’avocats. Ce formulaire ne crée aucune relation avocat-client et ne remplace pas un avis juridique. En cas de danger immédiat, composez le 911.</p>
       <nav class="ba-footer__links" aria-label="Liens utiles" data-ba-aria-fr="Liens utiles" data-ba-aria-en="Useful links">
-        <a href="https://besoinavocat.ca/" data-ba-fr="besoinavocat.ca" data-ba-en="besoinavocat.ca">besoinavocat.ca</a>
+        <a href="https://besoinavocat.ca/">besoinavocat.ca</a>
         <a href="https://besoinavocat.ca/politique-de-confidentialite/" data-ba-fr="Politique de confidentialité" data-ba-en="Privacy policy (in French)">Politique de confidentialité</a>
         <a href="https://besoinavocat.ca/conditions-dutilisation-des-justiciables/" data-ba-fr="Conditions d’utilisation" data-ba-en="Terms of use (in French)">Conditions d’utilisation</a>
         <a href="tel:+15148252825">514 825-2825</a>

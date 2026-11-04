@@ -1,7 +1,7 @@
 // Prices are an expression of interest, not an activated checkout or contract.
 // Publish a new version when amounts, consent or the selection schema change.
 import { publicQuestionnaire } from './questionnaire.mjs';
-export const CATALOG_VERSION = '2026-10-28.1';
+export const CATALOG_VERSION = '2026-11-04.1';
 export const CONSENT_VERSION = '2026-10-26.1';
 // Detailed client request (situation, urgency, deadline). Separate consent; disabled unless configured.
 export const REQUEST_CONSENT_VERSION = '2026-10-27.1';
@@ -9,11 +9,17 @@ export const SUMMARY_LIMITS = Object.freeze({ min: 20, max: 1500 });
 export const DEADLINE_MAX_DAYS = 1830;
 const PROFESSIONAL_AMOUNTS = Object.freeze({ weekly: 10000, monthly: 30000 });
 const labels = (id, fr, en) => ({ id, label: { fr, en } });
+// Display order of the guided request. The ids of the first eight areas are unchanged since 2026-10-26.
 export const DOMAINS = [
-  labels('family', 'Famille', 'Family'), labels('employment', 'Travail', 'Employment'),
-  labels('housing', 'Logement', 'Housing'), labels('civil', 'Civil', 'Civil'),
-  labels('criminal', 'Criminel et pénal', 'Criminal and penal'), labels('business', 'Affaires', 'Business'),
-  labels('immigration', 'Immigration', 'Immigration'), labels('other', 'Autre / à déterminer', 'Other / to be determined'),
+  labels('family', 'Famille et jeunesse', 'Family and youth'), labels('business', 'Affaires et entreprises', 'Business'),
+  labels('criminal', 'Criminel et pénal', 'Criminal and penal'), labels('real-estate', 'Immobilier', 'Real estate'),
+  labels('immigration', 'Immigration et citoyenneté', 'Immigration and citizenship'),
+  labels('administrative', 'Administratif (organismes publics)', 'Administrative (public bodies)'),
+  labels('liability', 'Responsabilité civile et dommages', 'Civil liability and damages'), labels('employment', 'Travail et emploi', 'Employment'),
+  labels('civil', 'Civil et contrats', 'Civil and contracts'), labels('tax', 'Fiscalité', 'Tax'),
+  labels('housing', 'Logement et bail', 'Housing and leases'), labels('estates', 'Successions et testaments', 'Estates and wills'),
+  labels('rights', 'Droits et libertés', 'Rights and freedoms'), labels('insolvency', 'Faillite et dettes', 'Bankruptcy and debt'),
+  labels('municipal', 'Municipal', 'Municipal'), labels('other', 'Autre / je ne sais pas', 'Other / I do not know'),
 ];
 export const REGIONS = [
   labels('montreal', 'Montréal', 'Montréal'), labels('laval', 'Laval', 'Laval'),

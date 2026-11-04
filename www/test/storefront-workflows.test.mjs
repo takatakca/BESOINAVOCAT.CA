@@ -123,3 +123,41 @@ test('a legacy submission without a notice remains blocked and cannot silently d
 test('the defensive handler leaves unrelated forms alone', () => {
   assert.deepEqual(submitFixture({ archived: false, legacy: false }), { prevented: false, stopped: false, focused: false });
 });
+
+test('the cookie banner is in French and only its own labels change', async () => {
+  const { frenchConsent } = await import('../consent.mjs');
+  const page = read('site/index.html');
+  const built = frenchConsent(page);
+  for (const label of ['Tout refuser', 'Tout accepter', 'Personnaliser', 'Témoins nécessaires', 'Enregistrer mes préférences']) assert.ok(built.includes(label), label);
+  assert.doesNotMatch(built, />\s*(?:Reject All|Accept All|Customize|Necessary Cookies)\s*</);
+  assert.match(built, /"cookieadmin_notice_title":"Nous respectons votre vie priv/);
+  // Outside the banner, the page is untouched.
+  const outside = (html) => html.slice(0, html.indexOf('<div class="cookieadmin_law_container"')).replace(/cookieadmin_policy = \{.*?\};/s, '');
+  assert.equal(outside(built), outside(page));
+});
+
+test('consent is kept in the visitor cookie instead of the missing WordPress endpoint', () => {
+  const script = read('overrides/assets/consent-local.js');
+  const saved = [];
+  const window = { cookieadmin_save_consent_cookie: (preference, days, id) => saved.push({ preference, days, id }), crypto: { randomUUID: () => 'id-1' } };
+  runInNewContext(script, { window });
+  assert.equal(window.cookieadmin_pro_set_consent({ reject: 'true' }, 365), true);
+  assert.deepEqual(saved, [{ preference: { reject: 'true' }, days: 365, id: 'id-1' }]);
+  assert.doesNotMatch(script.replace(/^\s*\/\/.*$/gm, ''), /XMLHttpRequest|fetch\(|admin-ajax/);
+});
+
+test('search metadata: French language, one h1, description, Open Graph and JSON-LD, visible text unchanged', async () => {
+  const { withSearchMetadata } = await import('../seo.mjs');
+  const page = read('site/garde-partagee-au-quebec/index.html');
+  const html = withSearchMetadata(page, '/garde-partagee-au-quebec/');
+  assert.match(html, /<html[^>]*lang="fr-CA"/);
+  assert.equal((html.match(/<h1\b/g) || []).length, 1);
+  assert.match(html, /<meta name="description" content="[^"]{60,170}">/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/besoinavocat\.ca\/garde-partagee-au-quebec\/">/);
+  const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+  assert.equal(ld['@graph'][0]['@type'], 'WebPage');
+  assert.equal(visible(html), visible(page));
+  const home = withSearchMetadata(read('site/index.html'), '/');
+  assert.match(home, /Besoin d’un avocat au Québec\?/);
+  assert.ok(JSON.parse(home.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])['@graph'].some(item => item['@type'] === 'Organization'));
+});

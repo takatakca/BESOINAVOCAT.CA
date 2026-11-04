@@ -40,6 +40,12 @@ const assets = new Map([
   ['/demande/', ['demande.html', 'text/html; charset=utf-8']],
   ['/demande.js', ['demande.js', 'text/javascript; charset=utf-8']],
   ['/demande.css', ['demande.css', 'text/css; charset=utf-8']],
+  // BesoinAvocat logo, as recoloured for the storefront copy (www/dist).
+  ['/brand/besoinavocat-logo.png', ['brand/besoinavocat-logo.png', 'image/png']],
+  // BesoinAvocat staff inbox of public requests; the data comes only from the reviewer-restricted /api/intakes.
+  ['/demandes', ['demandes.html', 'text/html; charset=utf-8']],
+  ['/demandes.js', ['demandes.js', 'text/javascript; charset=utf-8']],
+  ['/demandes.css', ['demandes.css', 'text/css; charset=utf-8']],
   // Return address registered with each OAuth provider; the page posts the code to /api/integrations/complete.
   ['/integrations/callback', ['integrations-callback.html', 'text/html; charset=utf-8']],
   ['/integrations-callback.js', ['integrations-callback.js', 'text/javascript; charset=utf-8']],
@@ -224,6 +230,27 @@ export function createApp({
     } else {
       user = await authenticateRequest(req, verifyIdentity);
     }
+    // BesoinAvocat staff inbox of public requests. Anyone who is not a named reviewer gets 404, as for any unknown route.
+    if (path === '/api/intakes' || path.startsWith('/api/intakes/')) {
+      const parts = path.split('/').slice(3);
+      if (parts.length === 0) {
+        if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+        const allowed = ['status', 'offset', 'limit'];
+        if ([...url.searchParams.keys()].some(key => !allowed.includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');
+        const number = (key, fallback) => {
+          const value = url.searchParams.get(key);
+          if (value === null) return fallback;
+          if (!/^(?:0|[1-9][0-9]{0,5})$/u.test(value)) throw invalid('Pagination invalide.');
+          return Number(value);
+        };
+        return json(res, 200, intake.reviewList(user, { status: url.searchParams.get('status'), offset: number('offset', 0), limit: number('limit', 25) }));
+      }
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (parts.length === 1 && method === 'GET') return json(res, 200, intake.reviewRead(user, parts[0]));
+      if (parts.length === 2 && parts[1] === 'status' && method === 'POST') return json(res, 200, intake.reviewStatus(user, parts[0], await readJson(req, 512)));
+      if (parts.length === 2 && parts[1] === 'notes' && method === 'POST') return json(res, 201, intake.reviewNote(user, parts[0], await readJson(req, 20000)));
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
     if (path === '/api/search') {
       if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       const allowed = ['q', 'caseId', 'mode', 'offset', 'limit'];
@@ -250,7 +277,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });

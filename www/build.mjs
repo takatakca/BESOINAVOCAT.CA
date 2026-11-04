@@ -5,8 +5,11 @@
 //  - links to the site work on any host (canonical and sharing tags keep the real address);
 //  - "Trouver mon avocat" leads to the portal request page, with the page's law domain preselected;
 //    buttons that had no destination on WordPress get one;
-//  - WordPress-only parts that cannot work without WordPress are bridged (forms, login) or removed (REST, feeds).
+//  - WordPress-only parts that cannot work without WordPress are bridged (forms, login, cookie consent) or removed (REST, feeds);
+//  - the cookie banner's own labels are in French (consent.mjs); search metadata is added in <head> (seo.mjs).
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { frenchConsent } from './consent.mjs';
+import { withSearchMetadata } from './seo.mjs';
 import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -144,6 +147,9 @@ function bridge(html) {
   return prepareLegacyForms(html).replace(/<\/body>/i, `${tag}\n</body>`);
 }
 
+// CookieAdmin Pro saved consent through admin-ajax.php; the copy keeps it in the visitor's cookie (overrides/assets/consent-local.js).
+const withLocalConsent = (html) => (html.includes('cookieadmin_js-js') ? html.replace(/<\/body>/i, '<script src="/assets/consent-local.js" defer></script>\n</body>') : html);
+
 // WordPress sent its styles and images with a one-year cache. Every file the copy changes gets a new address
 // (?ba=<hash of its content>), so a browser that visited the WordPress site does not reuse the orange version.
 const fresh = new Map();
@@ -181,6 +187,8 @@ for (const { file, path } of files) {
   let html = readFileSync(file, 'utf8');
   html = repairKnownReferences(withoutWordPressEndpoints(localFonts(relativeLinks(html))));
   html = withPaletteFixes(bridge(recolourHtml(wireButtons(html, domains.get(pagePath), pagePath))));
+  html = withLocalConsent(frenchConsent(html));
+  if (pagePath.endsWith('/') && html.includes('rel="canonical"')) html = withSearchMetadata(html, pagePath);
   writeFileSync(file, withFreshAddresses(html));
   report.pages++;
 }

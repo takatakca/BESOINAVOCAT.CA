@@ -116,6 +116,10 @@ Variables d'environnement (les chemins privés sont déjà fixés dans l'image) 
    Une clé absente, de mauvaise taille ou lisible par d'autres (autre que 0600) empêche le démarrage : le portail n'écrit jamais en clair par erreur.
    `backup-corpus.py` copie les pièces chiffrées telles quelles (manifeste version 2) et vérifie leur empreinte; la restauration exige la même clé.
    Pour l'import d'un corpus, passer `--blob-key /data/documents.key` à `execute-corpus-import.mjs`.
+   Pour chiffrer les pièces déjà présentes, une fois la clé réglée et le portail redéployé : faire une sauvegarde, puis dans le conteneur
+   `node tools/seal-documents.mjs --database /data/platform.sqlite --blobs /data/blobs --blob-key /data/documents.key` (essai à blanc, ne change rien).
+   Si le décompte est juste, relancer avec `--execute`. Chaque fichier est chiffré dans un fichier temporaire, vérifié, puis remplacé d'un seul coup.
+   Un fichier altéré ou chiffré avec une autre clé est signalé et laissé tel quel. Une deuxième exécution ne change rien.
 
 ## Restaurer un corpus dans le volume Coolify
 

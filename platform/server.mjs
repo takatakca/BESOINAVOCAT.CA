@@ -10,6 +10,10 @@ import { createIntake, intakeConfiguration } from './lib/intake.mjs';
 import { createCommunications, COMMUNICATION_PROVIDERS } from './lib/communications.mjs';
 import { publicAddonCatalog } from './lib/addon-catalog.mjs';
 import { createIntegrations, integrationConfiguration, readWebhookBody, WEBHOOK_PROVIDERS } from './lib/integrations.mjs';
+import { createTelephony, telephonyConfiguration } from './lib/telephony.mjs';
+import { createIceServers, createVideoRooms, iceConfiguration } from './lib/video-room.mjs';
+import { createAuditSeal } from './lib/audit-seal.mjs';
+import { createDocumentGenerator } from './lib/document-generator.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -66,6 +70,16 @@ function securityHeaders(res, requestUrl = '') {
   res.setHeader('Cache-Control', 'no-store');
 }
 
+// Call recordings, fetched by the server through a fresh MIMT signed link for an authorized member; never cached.
+function audio(res, { bytes, type }) {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', type);
+  res.setHeader('Content-Length', bytes.length);
+  res.setHeader('Content-Disposition', 'inline; filename="enregistrement"');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.end(bytes);
+}
+
 function json(res, status, value) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -102,6 +116,8 @@ export function createApp({
   env = process.env,
   browserSessions = createBrowserSessions({ config: browserSessionConfiguration(env) }),
   integrationFetch = globalThis.fetch,
+  telephonyFetch = globalThis.fetch,
+  clock = Date.now,
 } = {}) {
   const config = identityConfiguration(env);
   const identityConfigured = Boolean(config);
@@ -117,6 +133,10 @@ export function createApp({
   const store = createStore({ dbPath, blobDir });
   const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
+  const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
+  const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
+  const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
+  const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
     excludedPaths: [dbPath, env.BESOINAVOCAT_SESSION_DB_PATH, env.BESOINAVOCAT_SESSION_KEY_FILE, env.BESOINAVOCAT_GRANTS_FILE] });
 
@@ -155,6 +175,19 @@ export function createApp({
       webhooksInFlight++;
       try {
         const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
+        return json(res, result.status, result.body);
+      } finally { webhooksInFlight--; }
+    }
+
+    // MIMT Connect webhooks (calls, recordings, account links): no session, accepted only with MIMT's valid
+    // X-MIMT-Signature over the raw body, deduplicated on the event id (see lib/telephony.mjs).
+    if (path === '/api/mimt/webhook') {
+      if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (webhooksInFlight >= MAX_CONCURRENT_WEBHOOKS) { res.setHeader('Retry-After', '1'); throw new HttpError(429, 'WEBHOOK_BUSY', 'Réessayez dans un instant.'); }
+      webhooksInFlight++;
+      try {
+        const result = telephony.webhook({ headers: req.headers, raw: await readWebhookBody(req) });
         return json(res, result.status, result.body);
       } finally { webhooksInFlight--; }
     }
@@ -266,6 +299,31 @@ export function createApp({
         offset: number('offset', 0), limit: number('limit', 25),
       }));
     }
+    // Phone on file, the lawyer's MIMT Connect profile (link, line, availability) and the Équipe console.
+    if (path === '/api/telephony' || path.startsWith('/api/telephony/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      const empty = async () => fields(await readJson(req, 128, { allowEmpty: true }), []);
+      if (path === '/api/telephony' && method === 'GET') return json(res, 200, telephony.overview(user));
+      if (method === 'POST') {
+        if (path === '/api/telephony/phone') return json(res, 200, telephony.savePhone(user, await readJson(req, 256)));
+        if (path === '/api/telephony/phone/remove') { await empty(); return json(res, 200, telephony.removePhone(user)); }
+        if (path === '/api/telephony/member') return json(res, 200, await telephony.registerMember(user, await readJson(req, 512)));
+        if (path === '/api/telephony/member/link') { await empty(); return json(res, 201, await telephony.requestLink(user)); }
+        if (path === '/api/telephony/member/refresh') { await empty(); return json(res, 200, await telephony.refreshMember(user)); }
+        if (path === '/api/telephony/member/line') return json(res, 200, await telephony.chooseLine(user, await readJson(req, 256)));
+        if (path === '/api/telephony/member/availability') return json(res, 200, await telephony.setAvailability(user, await readJson(req, 256)));
+        if (path === '/api/telephony/member/unlink') { await empty(); return json(res, 200, await telephony.unlink(user)); }
+        if (path === '/api/telephony/member/deactivate') { await empty(); return json(res, 200, await telephony.deactivate(user)); }
+        if (path === '/api/telephony/team/sync') { await empty(); return json(res, 200, await telephony.syncHuntGroup(user)); }
+        if (path === '/api/telephony/team/calls/sync') { await empty(); return json(res, 200, await telephony.syncCalls(user)); }
+        if (path === '/api/telephony/team/credits') { await empty(); return json(res, 200, await telephony.refreshCredits(user)); }
+      }
+      if (path === '/api/telephony/team' && method === 'GET') return json(res, 200, telephony.teamConsole(user));
+      const team = /^\/api\/telephony\/team\/calls\/([^/]+)\/(callback|recording)$/u.exec(path);
+      if (team && team[2] === 'callback' && method === 'POST') { await empty(); return json(res, 201, await telephony.teamCallback(user, team[1])); }
+      if (team && team[2] === 'recording' && method === 'GET') return audio(res, await telephony.teamRecording(user, team[1]));
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
     if ([...url.searchParams.keys()].some(k => !((path.endsWith('/search') && k === 'q') || (path.endsWith('/pages') && ['offset','limit'].includes(k)))) || [...url.searchParams.keys()].some(k => url.searchParams.getAll(k).length > 1)) throw invalid('Paramètre URL non autorisé.');
     if (path === '/api/me' && method === 'GET') return json(res, 200, { user });
     if (path === '/api/addons' && method === 'GET') return json(res, 200, publicAddonCatalog());
@@ -277,7 +335,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, twilio: false, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, auditSeal: true, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -370,6 +428,31 @@ export function createApp({
       return json(res, 200, { timeEntry: store.approveTime(user, caseId, identifier(approve[1])) });
     }
     if (suffix === '/audit' && method === 'GET') return json(res, 200, { events: store.listAudit(user, caseId) });
+    // Calls, video room, sealed journal and generated documents of the case.
+    if (suffix === '/participants' && method === 'GET') return json(res, 200, telephony.participants(user, caseId));
+    if (suffix === '/calls' && method === 'GET') return json(res, 200, telephony.listCalls(user, caseId));
+    if (suffix === '/calls' && method === 'POST') return json(res, 201, await telephony.startCaseCall(user, caseId, await readJson(req, 512)));
+    const callAction = /^\/calls\/([^/]+)\/(time|recording|events)$/u.exec(suffix);
+    if (callAction && callAction[2] === 'time' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, telephony.addCallTime(user, caseId, callAction[1])); }
+    if (callAction && callAction[2] === 'recording' && method === 'GET') return audio(res, await telephony.recording(user, caseId, callAction[1]));
+    if (callAction && callAction[2] === 'events' && method === 'GET') return json(res, 200, telephony.callEvents(user, caseId, callAction[1]));
+    if (suffix === '/video' && method === 'GET') return json(res, 200, video.status(user, caseId));
+    if (suffix === '/video' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, video.open(user, caseId)); }
+    if (suffix === '/video/history' && method === 'GET') return json(res, 200, { rooms: video.history(user, caseId) });
+    const room = /^\/video\/([^/]+)\/(join|signal|poll|leave|end)$/u.exec(suffix);
+    if (room && method === 'POST') {
+      const body = await readJson(req, room[2] === 'signal' ? 72 * 1024 : 256, { allowEmpty: !['signal', 'poll'].includes(room[2]) });
+      if (room[2] === 'join') { fields(body, []); return json(res, 200, await video.join(user, caseId, room[1])); }
+      if (room[2] === 'signal') return json(res, 200, video.signal(user, caseId, room[1], body));
+      if (room[2] === 'poll') return json(res, 200, video.poll(user, caseId, room[1], body));
+      fields(body, []);
+      return json(res, 200, room[2] === 'leave' ? video.leave(user, caseId, room[1]) : video.end(user, caseId, room[1]));
+    }
+    if (suffix === '/journal' && method === 'GET') return json(res, 200, auditSeal.timeline(user, caseId));
+    if (suffix === '/journal/verify' && method === 'GET') return json(res, 200, auditSeal.verify(user, caseId));
+    if (suffix === '/journal/seal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, auditSeal.seal(user, caseId)); }
+    if (suffix === '/generate' && method === 'GET') return json(res, 200, generator.catalog(user, caseId));
+    if (suffix === '/generate' && method === 'POST') return json(res, 201, generator.generate(user, caseId, await readJson(req, 24 * 1024)));
     throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
   }
 
@@ -378,7 +461,7 @@ export function createApp({
     route(req, res).catch(error => {
       if (res.headersSent) return res.destroy();
       const safe = error instanceof HttpError ? error : new HttpError(500, 'INTERNAL_ERROR', 'Une erreur interne empêche cette opération.');
-      json(res, safe.status, { error: { code: safe.code, message: safe.message } });
+      json(res, safe.status, { error: { code: safe.code, message: safe.message, ...(safe.link ? { link: safe.link } : {}) } });
     });
   });
   app.keepAliveTimeout = 5000;

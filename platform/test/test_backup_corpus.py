@@ -380,6 +380,40 @@ class BackupCorpusTests(unittest.TestCase):
         with self.assertRaises(backup.BackupError):
             backup.verify_archive(bad)
 
+    def test_the_full_server_schema_after_a_search_is_accepted_and_restored(self):
+        # Boot the real application (every module creates its tables) and run one search so the
+        # folded search cache exists. A table the backup does not know would make backups fail
+        # on the deployed server, which this test catches before deployment.
+        node = os.environ.get("BESOINAVOCAT_TEST_NODE") or shutil.which("node")
+        if not node:
+            self.skipTest("Node 24 is required for the real server fixture")
+        script = r"""
+          import {pathToFileURL} from 'node:url';
+          import path from 'node:path';
+          const [project, directory] = process.argv.slice(1);
+          const {createApp} = await import(pathToFileURL(path.join(project,'platform/server.mjs')));
+          const {documentInput} = await import(pathToFileURL(path.join(project,'platform/lib/validation.mjs')));
+          const app = createApp({dbPath:path.join(directory,'server.sqlite'),blobDir:path.join(directory,'server-blobs'),authenticate:async()=>null,env:{}});
+          const owner={tenantId:'synthetic-server-tenant',subject:'synthetic-owner',product:'besoinavocat',active:true};
+          const item=app.store.createCase(owner,{title:'Synthetic server backup',reference:'SYNTHETIC'});
+          app.store.addDocument(owner,item.id,documentInput({name:'note.txt',mimeType:'text/plain',contentBase64:Buffer.from('Pièce fictive.').toString('base64'),sourceType:'original',reviewStatus:'a_verifier',extractedText:'Réparation fictive.'}));
+          const found=app.store.searchStructured(owner,'reparation').results.length;
+          app.store.close();
+          console.log(JSON.stringify({found}));
+        """
+        result = subprocess.run([node, "--input-type=module", "-e", script, str(PROJECT), str(self.root)], capture_output=True, text=True, timeout=60, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["found"], 1)
+        manifest = backup.create_backup(self.root / "server.sqlite", self.root / "server-blobs", self.archive)
+        self.assertEqual(manifest["counts"]["documents"], 1)
+        self.assertEqual(manifest["counts"]["search_folded_documents"], 1)
+        self.assertIn("telephony_calls", manifest["counts"])
+        self.assertEqual(backup.verify_archive(self.archive), manifest)
+        destination = self.root / "restored-server"
+        self.assertEqual(backup.restore_archive(self.archive, destination), manifest)
+        with closing(sqlite3.connect(destination / "platform.sqlite")) as restored:
+            self.assertEqual(restored.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+
 
 if __name__ == "__main__":
     unittest.main()

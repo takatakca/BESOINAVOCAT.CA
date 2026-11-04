@@ -2,7 +2,7 @@
 # The build checks every page, word for word, against the mirror before anything is served.
 FROM node:24-bookworm-slim AS build
 WORKDIR /src
-COPY build.mjs palette.mjs ./
+COPY build.mjs palette.mjs consent.mjs seo.mjs ./
 COPY site ./site
 COPY overrides ./overrides
 COPY tools/check-site.mjs ./tools/

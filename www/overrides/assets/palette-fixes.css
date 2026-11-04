@@ -7,3 +7,6 @@
 .elementor-470 .elementor-element.elementor-element-da149d6 .elementor-heading-title,
 .elementor-470 .elementor-element.elementor-element-59733ae .elementor-heading-title { color: #f3d4da; }
 .elementor-1432 .elementor-element.elementor-element-a7ab248 .elementor-heading-title { color: #c3d1ea; }
+
+/* seo.mjs turns each page's first content heading from <h2> into <h1>. Keep the theme's <h2> spacing so nothing moves. */
+html .elementor-widget-heading h1.elementor-heading-title { line-height: 1.3em; }

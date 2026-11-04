@@ -114,3 +114,28 @@ test('the document key is reported without blocking when absent and blocks when 
   chmodSync(key, 0o644);
   assert.match(fails(readiness({ ...env, BESOINAVOCAT_BLOB_KEY_FILE: key }))[0].message, /must be 0600/u);
 });
+
+test('the request database is counted by status, and a missing, foreign or unset one is said plainly', async t => {
+  const { env, data } = fixture(t);
+  const { createIntake } = await import('../lib/intake.mjs');
+  const warns = items => items.filter(item => item.level === 'warn').map(item => item.message);
+  assert.match(report(readiness(env)), /will be created at first start/u);
+  assert.match(warns(readiness({ ...env, BESOINAVOCAT_INTAKE_DB_PATH: '' })).join('\n'), /BESOINAVOCAT_INTAKE_DB_PATH is unset/u);
+  assert.match(fails(readiness({ ...env, BESOINAVOCAT_INTAKE_DB_PATH: path.join(data, 'absent', 'intake.sqlite') }))[0].message, /does not exist/u);
+  const reviewer = { subject: 'owner-subject', tenantId: 'synthetic-tenant', product: 'besoinavocat', active: true };
+  const intake = createIntake({ config: { origins: ['https://portail.example.test'], dbPath: env.BESOINAVOCAT_INTAKE_DB_PATH, requestEnabled: false, reviewers: [reviewer.subject] } });
+  assert.equal(intake.configured, true);
+  const contact = () => ({ name: 'Personne Synthétique', email: `synthetic-${randomBytes(4).toString('hex')}@example.test`, role: 'client', language: 'fr',
+    domain: 'family', region: 'montreal', consent: true, consentVersion: '2026-10-26.1', website: '' });
+  const first = intake.receive(contact(), 'a1b2c3d4-0000-4000-8000-000000000001', 'https://portail.example.test').reference;
+  intake.receive(contact(), 'a1b2c3d4-0000-4000-8000-000000000002', 'https://portail.example.test');
+  intake.reviewStatus(reviewer, first, { status: 'closed' });
+  intake.clear();
+  const counted = readiness(env);
+  assert.deepEqual(fails(counted), []);
+  assert.match(warns(counted).join('\n'), /2 request\(s\) in .*intake\.sqlite: 1 waiting, 0 in review, 0 contacted, 1 closed, 0 spam\./u);
+  assert.doesNotMatch(report(counted), /Synthétique|example\.test@|BA-[A-Za-z0-9_-]{24}/u, 'no request content is printed');
+  const foreign = new DatabaseSync(path.join(data, 'foreign.sqlite'));
+  foreign.exec('PRAGMA application_id=7; CREATE TABLE ba_intakes(reference TEXT)'); foreign.close();
+  assert.match(fails(readiness({ ...env, BESOINAVOCAT_INTAKE_DB_PATH: path.join(data, 'foreign.sqlite') }))[0].message, /not the request database/u);
+});

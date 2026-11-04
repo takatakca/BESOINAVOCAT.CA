@@ -143,7 +143,8 @@ D'abord, lire le rapport de préparation. Le serveur l'imprime dans les journaux
 - le nombre de dossiers, de documents et d'habilitations;
 - les réglages de connexion manquants;
 - une base de sessions créée pour une autre `APP_ORIGIN` ou une autre clé, cause d'une connexion en 503;
-- l'état des demandes, des appels MIMT (clé, secret, numéro public, avocats de l'équipe), du relais vidéo TURN et des connecteurs.
+- l'état des demandes : origines acceptées, base des demandes (absente, à créer, étrangère, ou comptée par statut : en attente, en traitement, recontactées, fermées, indésirables, sans aucun contenu), formulaire détaillé, liste des réviseurs;
+- les appels MIMT (clé, secret, numéro public, avocats de l'équipe), le relais vidéo TURN et les connecteurs.
 
 Le code de sortie de l'outil vaut 1 s'il reste un point bloquant. Au démarrage, un point bloquant est seulement une ligne `FAIL` dans le journal : le serveur démarre quand même, pour que `/api/health` et le rapport restent consultables.
 

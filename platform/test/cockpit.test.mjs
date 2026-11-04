@@ -484,3 +484,23 @@ test('without a wide screen (or matchMedia) the home stays the cockpit', () => {
   assert.doesNotMatch(h.main(), /id="ws"/u);
   assert.match(h.main(), /class="cockpit"/u);
 });
+
+test('a real client account sees one next step, four large actions and the requested pieces; lawyers keep the cockpit', () => {
+  const client = harness();
+  signedIn(client, { role: 'client' });
+  const html = client.ui.workspaceView();
+  assert.match(html, /class="client-home" data-live="client-home"/u);
+  assert.match(html, /data-live="case-requests"/u);
+  assert.doesNotMatch(html, /id="cockpit-dials"|id="work-queue"|class="ws-ring"/u, 'no instruments, queue or progress ring for the client');
+  assert.doesNotMatch(html, /style="/u);
+  const lawyer = harness();
+  signedIn(lawyer);
+  const pro = lawyer.ui.workspaceView();
+  assert.match(pro, /id="cockpit-dials"/u);
+  assert.match(pro, /data-live="case-requests"/u, 'the lawyer sees the requests panel too');
+  assert.doesNotMatch(pro, /data-live="client-home"/u);
+  const demo = harness(true); demo.ui.state.demo = true;
+  signedIn(demo, { role: 'client' }); demo.ui.state.demo = true;
+  assert.doesNotMatch(demo.ui.workspaceView(), /data-live="client-home"/u, 'the preview keeps the full tour');
+  assert.equal(client.requests.length + lawyer.requests.length, 0);
+});

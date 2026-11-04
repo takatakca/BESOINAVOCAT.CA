@@ -1249,3 +1249,24 @@ dialog::backdrop { background: rgb(15 23 42 / 32%); backdrop-filter: blur(3px); 
 .check { color: #17603b; font-weight: 700; }
 @media (max-width: 640px) { .live-actions { white-space: normal; text-align: left; } .live-stage { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .live-pill[data-tone="live"]::before { animation: none; } .live-doc:hover { transform: none; } }
+
+/* Accueil client et pièces demandées — 4 November 2026 (Claude). One next step, four large actions. */
+.client-home { display: grid; gap: 16px; margin: 18px 0; }
+.client-next { padding: 22px 24px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); box-shadow: var(--shadow-1); display: grid; gap: 6px; justify-items: start; }
+.client-next[data-tone="ok"] { border-left-color: #1f7a4c; }
+.client-next h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.5rem; color: var(--ink); }
+.client-next p { margin: 0 0 6px; color: var(--ink-2); font-size: 1.02rem; }
+.client-actions { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.client-action { display: grid; gap: 6px; justify-items: start; text-align: left; padding: 18px; min-height: 120px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: var(--shadow-1); transition: border-color var(--fast), box-shadow var(--fast), transform var(--fast); }
+.client-action:hover:not(:disabled) { border-color: var(--accent-line); box-shadow: var(--shadow-2); transform: translateY(-1px); }
+.client-action:disabled { opacity: .55; cursor: not-allowed; }
+.client-action strong { font-size: 1.02rem; }
+.client-action small { color: var(--muted); }
+.client-action-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.client-action-icon svg { width: 20px; height: 20px; }
+.client-foot { margin: 0; font-size: .82rem; color: var(--muted); }
+.live-stack { display: grid; gap: 12px; }
+.live-request .form-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.live-late { color: var(--bad); font-weight: 600; font-size: .85rem; }
+.live-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--line-strong); color: var(--ink-2); background: var(--sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+@media (prefers-reduced-motion: reduce) { .client-action:hover:not(:disabled) { transform: none; } }

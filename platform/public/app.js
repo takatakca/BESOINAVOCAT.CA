@@ -3,7 +3,8 @@
 (() => {
   const MAX_FILE_BYTES = 64 * 1024 * 1024;
   const SOURCE_LABELS = { original: 'Pièce source ou copie', declaration: 'Déclaration', analyse: 'Analyse', ocr: 'Extraction ou transcription' };
-  const VIEW_LABELS = { cases: 'Dossiers', search: 'Recherche', documents: 'Pièces et sources', messages: 'Échanges', communications: 'Rendez-vous', usage: 'Usages', time: 'Suivi du temps', integrations: 'Intégrations' };
+  // Order follows the cockpit navigation (swipe on mobile follows it too).
+  const VIEW_LABELS = { home: 'Accueil', cases: 'Dossiers', documents: 'Pièces et sources', clients: 'Clients', integrations: 'Intégrations', settings: 'Réglages', search: 'Recherche', messages: 'Échanges', communications: 'Rendez-vous', usage: 'Usages', time: 'Suivi du temps' };
   const PATHS = {
     folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
     document: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4M9 12h6M9 16h6"/>',
@@ -56,11 +57,19 @@
     slides: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/>',
     listBullet: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
     listNumber: '<path d="M10 6h10M10 12h10M10 18h10M4 5h1v4M4 15h2l-2 3h2"/>',
+    home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M10 20v-5h4v5"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+    inbox: '<path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/>',
+    activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    team: '<circle cx="7" cy="9" r="2.5"/><circle cx="17" cy="9" r="2.5"/><circle cx="12" cy="7" r="3"/><path d="M2.5 19a4.5 4.5 0 0 1 7-3.7M21.5 19a4.5 4.5 0 0 0-7-3.7M7 20a5 5 0 0 1 10 0"/>',
+    academy: '<path d="m2 9 10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',
+    compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
   };
   const state = {
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
-    mode: 'loading', view: 'cases', cases: [], selectedId: null, detail: null,
-    capabilities: null, health: null, user: null, integrations: null,
+    mode: 'loading', view: 'home', cases: [], selectedId: null, detail: null,
+    capabilities: null, health: null, user: null, integrations: null, cockpitQuery: '', cockpitPanel: null,
     loginStep: 'email', loginEmail: '', loginNotice: '',
     documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
     searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
@@ -201,6 +210,13 @@
     document.getElementById('profile-state').textContent = state.demo ? 'Lecture seule · données fictives' : state.mode === 'authenticated' ? 'Droits par dossier' : state.health?.loginConfigured ? 'Connexion disponible' : 'Connexion non activée';
     document.getElementById('workspace-subtitle').textContent = state.demo ? 'Aperçu en lecture seule' : 'Préparer. Comprendre. Avancer.';
     document.getElementById('logout-button').hidden = state.mode !== 'authenticated';
+    const role = state.demo ? 'Lecture seule · données fictives' : state.mode === 'authenticated' ? (currentCase() ? `${roleLabel(currentCase().role)} · dossier sélectionné` : 'Droits par dossier') : 'Non connecté';
+    document.getElementById('user-chip-name').textContent = state.demo ? 'Compte de démonstration' : state.mode === 'authenticated' ? 'Session TAKATAK' : 'Espace personnel';
+    document.getElementById('user-chip-role').textContent = role;
+    document.getElementById('status-lights').innerHTML = statusLights().map(light => `<span class="light" data-tone="${esc(light.tone)}" title="${esc(`${light.label} : ${light.state}`)}"><i aria-hidden="true"></i><span class="light-label">${esc(light.label)}</span><span class="light-state">${esc(light.state)}</span></span>`).join('');
+    paintHelpDock();
+    const search = document.getElementById('cockpit-search');
+    if (search) search.disabled = !['demo', 'authenticated'].includes(state.mode);
   }
   function intro(eyebrow, title, subtitle, actions = '') {
     return `<div class="intro"><div><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${actions ? `<div class="intro-actions">${actions}</div>` : ''}</div>`;
@@ -446,20 +462,554 @@
     }).join('');
     return `${intro('DURÉES ET VALIDATION INTERNE', 'Comprendre chaque usage.', 'Des durées manuelles et des estimations distinctes d’une facture.', `<button class="button secondary" data-action="refresh-communications"${canMutate() && !state.busy ? '' : ' disabled'}>Actualiser</button>`)}${context()}<div class="metrics">${metric('Usages affichés', entries.length, 'Durées arrêtées dans ce dossier', 'clock')}${metric('À valider', entries.filter(item => item.status === 'submitted').length, 'Par une autre personne habilitée', 'check')}${metric('Facturation', 'Inactive', 'Aucun paiement ni débit de crédits', 'credit')}</div><section class="panel"><div class="panel-heading"><div><h2>Journal des usages</h2><p>${state.demo ? 'Exemple fictif de durée soumise.' : 'La validation interne ne déclenche aucune facturation.'}</p></div></div>${!usageReady() ? '<p class="table-empty">Le journal des usages n’est pas disponible dans cette version du serveur.</p>' : entries.length ? `<div class="table-wrap"><table class="usage-table"><caption class="sr-only">Durées des communications et estimations non facturées</caption><thead><tr><th scope="col">Rendez-vous et auteur</th><th scope="col">Durée</th><th scope="col">Estimation</th><th scope="col">Validation</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucun usage enregistré. L’arrêt de votre chronomètre crée une entrée ici.</p>'}${state.detail?.usage?.hasMore ? '<p class="time-note">Liste limitée aux 200 usages les plus récents ; d’autres usages ne sont pas affichés.</p>' : ''}<p class="time-note">Ces durées ne sont pas automatiquement ajoutées au journal « Suivi du temps ». Évitez de compter deux fois une même intervention. Un tarif absent reste non configuré ; ce n’est pas un tarif nul.</p></section>${communicationLimits()}${readOnlyNote()}`;
   }
+  // ---------- Centre de commandement (cockpit, 30 octobre 2026) ----------
+  // Every number comes from data already loaded by the portal; anything the server does not expose says « bientôt »
+  // or « inconnu ». The cockpit never calls a new endpoint and never sends anything to an AI service.
+  // TAKATAK Academy: no address is documented in this repository yet. Keep empty until the owner confirms it.
+  const ACADEMY_URL = '';
+  // Tutorial progress only (never client or dossier data). The portal keeps nothing in browser storage (D-029,
+  // guarded by the auth-http test), so this memory lasts for the open page; see docs/COCKPIT-2026-10-30.md.
+  const tutorialMemory = { status: 'unseen', step: 0 };
+  const ROLE_LABELS = { owner: 'Responsable', lawyer: 'Avocat', client: 'Client' };
+  function roleLabel(role) { return ROLE_LABELS[role] || 'Accès autorisé'; }
+  const DAY = 86400000;
+  // Same catalog as platform/lib/integrations.mjs, shown in the preview without any account or state.
+  const DEMO_PROVIDERS = [
+    ['zoom', 'Zoom', 'video', 'oauth', 'implemented'], ['microsoft365', 'Outlook · Microsoft 365', 'calendar', 'oauth', 'implemented'], ['google', 'Google Agenda', 'calendar', 'oauth', 'implemented'],
+    ['docusign', 'DocuSign', 'signature', 'oauth', 'connect_only'], ['clio', 'Clio Manage (Canada)', 'practice', 'oauth', 'connect_only'], ['canlii', 'CanLII', 'research', 'platform', 'platform'],
+    ['twilio', 'Twilio', 'telephony', 'platform', 'platform'], ['stripe', 'Stripe', 'payments', 'platform', 'platform'], ['notarius', 'Notarius · ConsignO Cloud', 'signature', 'partnership', 'planned'], ['quickbooks', 'QuickBooks Online', 'accounting', 'oauth', 'planned'],
+  ].map(([id, label, category, connectionType, status]) => ({ id, label, category, connectionType, status, state: 'demo', routine: 'Aperçu : aucun compte réel n’est relié.' }));
+  function cockpitProviders() { return state.demo ? DEMO_PROVIDERS : Array.isArray(state.integrations?.providers) ? state.integrations.providers : null; }
+
+  // Status lights reflect only what the portal knows. Unknown is never shown as green.
+  function statusLights() {
+    const connection = state.demo ? { tone: 'unknown', state: 'aperçu hors ligne' }
+      : state.mode === 'authenticated' ? { tone: 'ok', state: 'session vérifiée' }
+      : state.mode === 'loading' ? { tone: 'unknown', state: 'inconnu' }
+      : state.health === null ? { tone: 'bad', state: 'serveur injoignable' } : { tone: 'unknown', state: 'non connecté' };
+    const email = state.health?.emailCodeConfigured === true ? { tone: 'warn', state: 'configuré · livraison non vérifiée' }
+      : state.health?.emailCodeConfigured === false ? { tone: 'unknown', state: 'inactif' } : { tone: 'unknown', state: 'inconnu' };
+    return [{ id: 'connexion', label: 'Connexion', ...connection }, { id: 'courriel', label: 'Courriel', ...email }, { id: 'sauvegarde', label: 'Sauvegarde', tone: 'unknown', state: 'inconnu' }];
+  }
+  function upcoming(days = 7) {
+    const now = Date.now();
+    return communicationSessions().filter(item => item.status !== 'cancelled' && new Date(item.scheduledAt).getTime() >= now && new Date(item.scheduledAt).getTime() <= now + days * DAY);
+  }
+  // ---------- Instruments: compact widget chips on a swipeable rail; each one opens its panel in the top drawer ----------
+  function clockText(now = new Date()) {
+    return { time: new Intl.DateTimeFormat('fr-CA', { hour: '2-digit', minute: '2-digit' }).format(now), day: new Intl.DateTimeFormat('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }).format(now) };
+  }
+  function nextAppointment() {
+    const now = Date.now();
+    return communicationSessions().filter(item => item.status !== 'cancelled' && new Date(item.scheduledAt).getTime() >= now).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))[0] || null;
+  }
+  // Every value is computed from data already loaded; null means « bientôt » (not connected yet).
+  function instruments() {
+    const docs = state.detail?.documents || [];
+    const lights = Object.fromEntries(statusLights().map(light => [light.id, light]));
+    const submitted = (state.detail?.timeEntries || []).filter(entry => entry.status === 'submitted').reduce((sum, entry) => sum + entry.minutes, 0);
+    const next = nextAppointment(), clock = clockText();
+    return [
+      { panel: 'rendezvous', glyph: 'clock', label: clock.day, value: clock.time, clock: true },
+      { panel: 'dossiers', glyph: 'folder', label: 'Dossier', value: currentCase() ? (currentCase().reference || currentCase().title) : 'aucun' },
+      { panel: 'dossiers', glyph: 'layers', label: 'Dossiers accessibles', value: String(state.cases.length) },
+      { panel: 'pieces', glyph: 'document', label: 'Pièces à vérifier', value: state.detail ? String(docs.filter(doc => doc.reviewStatus !== 'controle_visuel').length) : '—' },
+      { panel: 'temps', glyph: 'clock', label: 'Temps soumis', value: state.detail ? duration(submitted) : '—' },
+      { panel: 'rendezvous', glyph: 'calendar', label: 'Prochain rendez-vous', value: !communicationReady() ? 'inconnu' : next ? date(next.scheduledAt, true) : 'aucun' },
+      { panel: 'messages', glyph: 'message', label: 'Messages', value: state.detail ? String((state.detail.messages || []).length) : '—' },
+      { panel: 'etat', tone: lights.connexion.tone, label: 'Connexion', value: lights.connexion.state },
+      { panel: 'etat', tone: lights.courriel.tone, label: 'Courriel', value: lights.courriel.state },
+      { panel: 'demandes', glyph: 'inbox', label: 'Nouvelles demandes', value: null },
+      { panel: 'echeances', glyph: 'calendar', label: 'Échéances · 7 jours', value: null },
+      { action: 'mimt-board', glyph: 'phone', label: 'Téléphonie MIMT', value: 'à venir' },
+    ];
+  }
+  function chip(item) {
+    const lead = item.tone ? `<i class="chip-dot" data-tone="${esc(item.tone)}" aria-hidden="true"></i>` : `<span class="chip-icon">${icon(item.glyph)}</span>`;
+    const value = item.value === null ? '<span class="chip-soon">bientôt</span>' : `<span class="chip-value"${item.clock ? ' data-clock' : ''}>${esc(item.value)}</span>`;
+    const control = item.action ? `data-action="${esc(item.action)}" aria-haspopup="dialog"` : `data-action="cockpit-drawer" data-panel="${esc(item.panel)}" aria-controls="cockpit-drawer" aria-expanded="${state.cockpitPanel === item.panel}"`;
+    return `<button type="button" class="chip${item.value === null ? ' is-soon' : ''}${state.cockpitPanel && state.cockpitPanel === item.panel ? ' is-open' : ''}" ${control}>${lead}<span class="chip-label"${item.clock ? ' data-clock-day' : ''}>${esc(item.label)}</span>${value}</button>`;
+  }
+  const PANEL_TITLES = { dossiers: 'Dossiers accessibles', pieces: 'Pièces du dossier sélectionné', temps: 'Temps soumis au dossier', rendezvous: 'Rendez-vous du dossier', messages: 'Messages du dossier', etat: 'État des services', demandes: 'Nouvelles demandes', echeances: 'Échéances' };
+  const PANEL_VIEWS = { dossiers: 'cases', pieces: 'documents', temps: 'time', rendezvous: 'communications', messages: 'messages' };
+  function drawerRows(rows, empty) { return rows.length ? `<ul class="drawer-list">${rows.join('')}</ul>` : `<p class="drawer-empty">${esc(empty)}</p>`; }
+  function drawerRow(glyph, title, sub, button = '') { return `<li><span class="queue-icon">${icon(glyph)}</span><span class="queue-text"><strong>${esc(title)}</strong><small>${esc(sub)}</small></span>${button}</li>`; }
+  function drawerBody(panel) {
+    const fictive = state.demo ? ' · fictif' : '';
+    if (panel === 'dossiers') return drawerRows(state.cases.map(item => drawerRow('folder', item.title, `${item.reference || 'Référence à préciser'} · accès ${roleLabel(item.role).toLowerCase()}${fictive}`, item.id === state.selectedId ? '<span class="badge teal">Sélectionné</span>' : `<button type="button" class="button secondary small" data-action="cockpit-select-case" data-id="${esc(item.id)}">Choisir</button>`)), 'Aucun dossier accessible.');
+    if (panel === 'pieces') return drawerRows((state.detail?.documents || []).map(doc => drawerRow(KIND_ICONS[docKind(doc)], doc.name, `${SOURCE_LABELS[doc.sourceType] || 'Type à préciser'} · ${doc.reviewStatus === 'controle_visuel' ? 'contrôle visuel déclaré' : 'à vérifier'} · ${date(doc.createdAt)}`, `<button type="button" class="button secondary small" data-action="preview" data-id="${esc(doc.id)}">Provenance</button>`)), state.detail ? 'Aucune pièce dans ce dossier.' : 'Aucun dossier sélectionné.');
+    if (panel === 'temps') return drawerRows((state.detail?.timeEntries || []).map(entry => drawerRow('clock', entry.description, `${duration(entry.minutes)} · ${entry.status === 'approved' ? 'validé' : 'soumis'} · ${date(entry.createdAt)}`)), 'Aucune entrée de temps dans ce dossier.') + '<p class="drawer-note">Aucune facturation automatique.</p>';
+    if (panel === 'rendezvous') return drawerRows([...communicationSessions()].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).map(item => drawerRow(item.kind === 'video' ? 'video' : 'phone', item.title, `${date(item.scheduledAt, true)} · ${item.status === 'cancelled' ? 'annulé' : kindLabel(item.kind).toLowerCase()}`)), communicationReady() ? 'Aucun rendez-vous dans ce dossier.' : 'Liste des rendez-vous indisponible.');
+    if (panel === 'messages') return drawerRows([...(state.detail?.messages || [])].slice(-5).reverse().map(message => drawerRow('message', String(message.body || '').slice(0, 140), `${message.authorSubject === state.user?.subject ? 'Vous' : message.authorSubject || 'Auteur non précisé'} · ${date(message.createdAt, true)}`)), 'Aucun message dans ce dossier.');
+    if (panel === 'etat') return drawerRows(statusLights().map(light => `<li><i class="chip-dot" data-tone="${esc(light.tone)}" aria-hidden="true"></i><span class="queue-text"><strong>${esc(light.label)} : ${esc(light.state)}</strong><small>${esc({ connexion: 'Vert seulement quand le serveur a vérifié la session.', courriel: 'La configuration ne prouve pas la livraison des courriels.', sauvegarde: 'Le serveur n’expose aucun état de sauvegarde.' }[light.id])}</small></span></li>`), '');
+    if (panel === 'demandes') return '<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les demandes reçues par la page publique ne sont pas encore reliées au portail. Aucun chiffre n’est affiché tant qu’elles ne le sont pas.</p>';
+    if (panel === 'echeances') return `<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les échéances ne sont pas encore modélisées. Rendez-vous à 7 jours dans ce dossier : ${communicationReady() ? upcoming().length : 'inconnu'}.</p>`;
+    return '';
+  }
+  function cockpitDrawer() {
+    const panel = state.cockpitPanel;
+    if (!panel || !PANEL_TITLES[panel]) return '<section class="cockpit-drawer" id="cockpit-drawer" aria-label="Panneau des instruments" hidden></section>';
+    const view = PANEL_VIEWS[panel];
+    return `<section class="cockpit-drawer is-open" id="cockpit-drawer" role="region" aria-labelledby="cockpit-drawer-title"><div class="drawer-head"><h2 id="cockpit-drawer-title">${esc(PANEL_TITLES[panel])}${state.demo ? ' · fictif' : ''}</h2>${view ? `<button type="button" class="button subtle small" data-view="${view}">Ouvrir la section ${icon('arrow')}</button>` : ''}<button type="button" class="icon-button" data-action="cockpit-drawer-close" aria-label="Fermer le panneau">${icon('close')}</button></div><div class="drawer-body">${drawerBody(panel)}</div></section>`;
+  }
+  function cockpitRail() {
+    return `<div class="instrument-deck" id="instrument-deck"><div class="rail-wrap"><button type="button" class="rail-arrow" data-action="rail-prev" aria-label="Instruments précédents" aria-controls="cockpit-dials"><span class="rail-chevron" aria-hidden="true">‹</span></button><div class="widget-rail" id="cockpit-dials" role="group" aria-label="Instruments du tableau de bord : flèches gauche et droite pour passer de l’un à l’autre" data-no-swipe>${instruments().map(chip).join('')}</div><button type="button" class="rail-arrow" data-action="rail-next" aria-label="Instruments suivants" aria-controls="cockpit-dials"><span class="rail-chevron" aria-hidden="true">›</span></button></div>${cockpitDrawer()}</div>`;
+  }
+  function toggleDrawer(panel) {
+    state.cockpitPanel = state.cockpitPanel === panel || !PANEL_TITLES[panel] ? null : panel;
+    render();
+    document.querySelector?.(`#cockpit-dials [data-panel="${panel}"]`)?.focus({ preventScroll: true });
+  }
+  function closeDrawer(returnFocus = true) {
+    const panel = state.cockpitPanel;
+    if (!panel) return;
+    state.cockpitPanel = null; render();
+    if (returnFocus) document.querySelector?.(`#cockpit-dials [data-panel="${panel}"]`)?.focus({ preventScroll: true });
+  }
+  function reducedMotion() { return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  function scrollRail(direction) {
+    const rail = document.getElementById('cockpit-dials');
+    rail?.scrollBy?.({ left: direction * Math.max(160, (rail.clientWidth || 0) * 0.8), behavior: reducedMotion() ? 'auto' : 'smooth' });
+  }
+  // Arrow keys, Home and End move between chips; the rail follows the focus.
+  function railKey(event) {
+    const chips = [...(document.querySelectorAll('#cockpit-dials .chip') || [])];
+    const at = chips.indexOf(event.target);
+    if (at < 0 || !['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return false;
+    event.preventDefault?.();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? chips.length - 1 : Math.max(0, Math.min(chips.length - 1, at + (event.key === 'ArrowRight' ? 1 : -1)));
+    chips[next].focus?.();
+    chips[next].scrollIntoView?.({ inline: 'nearest', block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    return true;
+  }
+  // The clock instrument updates its own text only; nothing else re-renders.
+  window.setInterval?.(() => { const now = clockText(); document.querySelectorAll('[data-clock]').forEach(node => { node.textContent = now.time; }); document.querySelectorAll('[data-clock-day]').forEach(node => { node.textContent = now.day; }); }, 20000);
+  // One line per item needing attention, each with a direct action, built from the loaded dossier only.
+  function workItems() {
+    const items = [];
+    const me = state.user?.subject;
+    if (!state.cases.length) items.push({ glyph: 'folder', title: 'Créer votre premier dossier', sub: 'Aucun dossier accessible pour l’instant.', button: `<button type="button" class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>Créer</button>` });
+    for (const provider of cockpitProviders() || []) if (provider.state === 'reconnect_required') items.push({ glyph: 'link', title: `Reconnecter ${provider.label}`, sub: 'Le fournisseur a refusé le renouvellement de l’accès.', button: `<button type="button" class="button small" data-action="cockpit-integration" data-id="${esc(provider.id)}">Reconnecter</button>` });
+    for (const item of communicationSessions().filter(session => session.ownTimer?.status === 'running')) items.push({ glyph: 'clock', title: `Chronomètre en cours : ${item.title}`, sub: 'Pensez à l’arrêter à la fin de l’échange.', button: '<button type="button" class="button secondary small" data-view="communications">Ouvrir</button>' });
+    for (const item of upcoming().sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))) items.push({ glyph: item.kind === 'video' ? 'video' : 'phone', title: `Rendez-vous : ${item.title}`, sub: date(item.scheduledAt, true), button: '<button type="button" class="button secondary small" data-view="communications">Voir</button>' });
+    if (canApprove()) {
+      for (const entry of (state.detail?.timeEntries || []).filter(entry => entry.status === 'submitted' && entry.authorSubject !== me)) items.push({ glyph: 'check', title: `Temps à valider : ${entry.description}`, sub: duration(entry.minutes), button: '<button type="button" class="button secondary small" data-view="time">Valider</button>' });
+      for (const entry of (state.detail?.usage?.entries || []).filter(entry => entry.status === 'submitted' && !entry.needsReview && entry.authorSubject !== me)) items.push({ glyph: 'check', title: 'Usage à valider en interne', sub: elapsed(entry.seconds), button: '<button type="button" class="button secondary small" data-view="usage">Valider</button>' });
+    }
+    for (const doc of (state.detail?.documents || []).filter(doc => doc.reviewStatus !== 'controle_visuel')) items.push({ glyph: KIND_ICONS[docKind(doc)], title: `Pièce à vérifier : ${doc.name}`, sub: SOURCE_LABELS[doc.sourceType] || 'Provenance à préciser', button: `<button type="button" class="button secondary small" data-action="preview" data-id="${esc(doc.id)}">Vérifier</button>` });
+    return items;
+  }
+  function workQueue() {
+    const items = workItems(), shown = items.slice(0, 8);
+    const rows = shown.map(item => `<li class="queue-item"><span class="queue-icon">${icon(item.glyph)}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.sub)}</small></span>${item.button}</li>`).join('');
+    const where = state.detail ? `Dossier sélectionné : ${currentCase()?.title || ''}${state.demo ? ' · fictif' : ''}` : 'Aucun dossier sélectionné';
+    return `<section class="panel cockpit-panel" id="work-queue" aria-labelledby="work-queue-title"><div class="panel-heading"><div><h2 id="work-queue-title">File de travail</h2><p>${esc(where)}</p></div><span class="badge outline mono">${items.length}</span></div>${rows ? `<ol class="queue-list">${rows}</ol>` : '<p class="table-empty">Rien en attente dans ce dossier.</p>'}${items.length > shown.length ? `<p class="queue-more">${items.length - shown.length} autre${items.length - shown.length > 1 ? 's' : ''} élément${items.length - shown.length > 1 ? 's' : ''} : ouvrez le dossier pour tout voir.</p>` : ''}</section>`;
+  }
+  function activityEntries() {
+    const entries = [];
+    const add = (at, glyph, text, sub) => { if (at && !Number.isNaN(new Date(at).getTime())) entries.push({ at, glyph, text, sub }); };
+    const who = subject => subject && subject === state.user?.subject ? 'vous' : subject || 'auteur non précisé';
+    for (const doc of state.detail?.documents || []) add(doc.createdAt, 'document', `Pièce ajoutée : ${doc.name}`, `Version ${doc.versionNumber || 1}`);
+    for (const message of state.detail?.messages || []) add(message.createdAt, 'message', 'Message au dossier', `Par ${who(message.authorSubject)}`);
+    for (const entry of state.detail?.timeEntries || []) { add(entry.createdAt, 'clock', `Temps soumis : ${duration(entry.minutes)}`, `Par ${who(entry.authorSubject)}`); add(entry.approvedAt, 'check', `Temps validé : ${duration(entry.minutes)}`, 'Validation enregistrée'); }
+    for (const entry of state.detail?.usage?.entries || []) add(entry.createdAt, 'clock', `Durée enregistrée : ${elapsed(entry.seconds)}`, 'Chronomètre manuel');
+    for (const session of communicationSessions()) add(session.createdAt, 'calendar', `Rendez-vous planifié : ${session.title}`, `Prévu le ${date(session.scheduledAt, true)}`);
+    if (!state.demo) for (const provider of cockpitProviders() || []) add(provider.connection?.connectedAt, 'link', `Compte relié : ${provider.label}`, 'Vos intégrations');
+    return entries.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 8);
+  }
+  function activityFeed() {
+    const entries = activityEntries();
+    const body = entries.length ? `<ol class="activity-list">${entries.map(entry => `<li><span class="activity-dot">${icon(entry.glyph)}</span><span><strong>${esc(entry.text)}</strong><small><time datetime="${esc(entry.at)}">${esc(date(entry.at, true))}</time> · ${esc(entry.sub)}</small></span></li>`).join('')}</ol>` : '<p class="table-empty">Aucune activité enregistrée dans le dossier sélectionné.</p>';
+    return `<section class="panel cockpit-panel" id="activity-feed" aria-labelledby="activity-title"><div class="panel-heading"><div><h2 id="activity-title">Activité récente</h2><p>${state.demo ? 'Événements fictifs de l’aperçu.' : 'Dossier sélectionné et vos intégrations.'}</p></div></div>${body}</section>`;
+  }
+  const PROVIDER_STATES = { ...Object.fromEntries(Object.entries(INTEGRATION_STATES).map(([key, [label, tone]]) => [key, { label, tone }])), demo: { label: 'Aperçu', tone: 'neutral' } };
+  function providerState(provider) {
+    if (provider.state === 'not_configured' && provider.status === 'planned') return { label: 'Bientôt', tone: 'neutral' };
+    if (provider.state === 'planned') return { label: 'Bientôt', tone: 'neutral' };
+    return PROVIDER_STATES[provider.state] || { label: 'À vérifier', tone: 'neutral' };
+  }
+  function cockpitIntegrations() {
+    const providers = cockpitProviders();
+    const cards = providers ? providers.map(provider => { const s = providerState(provider); return `<button type="button" class="integration-tile" data-action="cockpit-integration" data-id="${esc(provider.id)}" aria-haspopup="dialog"><span class="tile-icon">${icon(INTEGRATION_ICONS[provider.category] || 'layers')}</span><span class="tile-text"><strong>${esc(provider.label)}</strong><span class="badge ${esc(s.tone)}">${esc(s.label)}</span></span></button>`; }).join('') : '';
+    const mimt = `<button type="button" class="integration-tile mimt-integration" data-action="mimt-board" aria-haspopup="dialog"><span class="tile-icon">${icon('phone')}</span><span class="tile-text"><strong>Téléphonie MIMT</strong><span class="badge neutral">À venir</span></span></button>`;
+    return `<section class="panel cockpit-panel" id="cockpit-integrations" aria-labelledby="cockpit-integrations-title"><div class="panel-heading"><div><h2 id="cockpit-integrations-title">Intégrations</h2><p>Chaque connexion s’ouvre dans une fenêtre qui explique ce qui est partagé, puis demande votre confirmation.</p></div><button type="button" class="button secondary small" data-view="integrations">Tout voir</button></div>${providers ? `<div class="integration-tiles">${mimt}${cards}</div>` : `<div class="integration-tiles">${mimt}</div><p class="table-empty">Le serveur n’a pas renvoyé la liste des autres intégrations.</p>`}</section>`;
+  }
+  function soonTiles() {
+    const call = state.detail && (state.demo || canMutate()) ? '<button type="button" class="button secondary small" data-action="call-lawyer">Demander un rappel dans le dossier</button>' : '';
+    const academy = ACADEMY_URL ? `<a class="text-button" href="${esc(ACADEMY_URL)}" target="_blank" rel="noopener noreferrer">Formation TAKATAK Academy<span class="sr-only"> (nouvel onglet)</span> ${icon('arrow')}</a>` : '<span class="academy-pending">Formation TAKATAK Academy · lien à confirmer</span>';
+    return `<div class="soon-tiles"><section class="soon-tile mimt-tile" aria-labelledby="tile-mimt"><span class="tile-icon">${icon('phone')}</span><div><h3 id="tile-mimt">Téléphonie MIMT <span class="badge neutral">à venir</span></h3><p>Le téléphone et la vidéo des avocats viendront uniquement de MIMT (mimt.ca), relié par identifiant. MIMT Connect n’est pas encore activé : le portail ne compose aucun numéro et n’affiche aucun appel simulé.</p><div class="tile-actions"><button type="button" class="button small" data-action="mimt-board" aria-haspopup="dialog">Voir l’intégration MIMT</button>${call}</div></div></section><section class="soon-tile" aria-labelledby="tile-team"><span class="tile-icon">${icon('team')}</span><div><h3 id="tile-team">Équipe · Appel de groupe <span class="badge neutral">bientôt</span></h3><p>Une demande de client fera sonner en même temps les avocats partenaires disponibles; le premier qui accepte la prend. Aucun avocat n’est encore relié : aucune liste, aucun profil.</p><button type="button" class="button secondary small" data-action="mimt-group" aria-haspopup="dialog">Comprendre le fonctionnement</button></div></section><section class="soon-tile academy-tile" aria-labelledby="tile-tour"><span class="tile-icon">${icon('academy')}</span><div><h3 id="tile-tour">Tutoriel d’intégration</h3><p>Une visite guidée, étape par étape, des zones du centre de commandement.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">${tutorialMemory.status === 'unseen' ? 'Commencer la visite' : 'Revoir la visite'}</button>${academy}</div></div></section></div>`;
+  }
+  // Desktop workspace (31 October 2026, Juriste): on wide screens the home becomes a three-pane work surface in the
+  // spirit of Teams: dossiers on the left, the selected dossier on the stage, the guide and calls on the right.
+  // The phone keeps the cockpit (the future mobile app is for capturing and uploading); real work happens here.
+  // Every figure comes from loaded data; nothing is invented, and what is not connected says « bientôt » or « à venir ».
+  function desktop() { return typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 1180px)').matches; }
+  const wsMemory = { query: '' };
+  function initials(text) {
+    const skip = new Set(['dossier', 'fictif', 'fictive', 'le', 'la', 'les', 'de', 'des', 'du', 'd', 'l', 'un', 'une', 'et', 'en', 'au', 'aux', 'pour']);
+    const all = String(text || '').replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/u).filter(Boolean);
+    const kept = all.filter(word => !skip.has(fold(word)));
+    const words = kept.length ? kept : all;
+    return ((words[0]?.[0] || 'D') + (words[1]?.[0] || '')).toLocaleUpperCase('fr');
+  }
+  function wsCaseRows() {
+    const q = fold(wsMemory.query).trim();
+    const cases = state.cases.filter(item => !q || fold(`${item.title} ${item.reference}`).includes(q));
+    if (!state.cases.length) return '<p class="ws-empty">Aucun dossier accessible pour l’instant.</p>';
+    if (!cases.length) return '<p class="ws-empty">Aucun dossier ne correspond au filtre.</p>';
+    return `<ul class="ws-cases">${cases.map((item, i) => {
+      const on = item.id === state.selectedId;
+      return `<li><button type="button" class="ws-case${on ? ' is-active' : ''}" data-action="ws-select" data-id="${esc(item.id)}"${on ? ' aria-current="true"' : ''} data-i="${i}"><span class="ws-case-mark" data-hue="${i % 5}" aria-hidden="true">${esc(initials(item.title))}</span><span class="ws-case-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · ${esc(roleLabel(item.role))}</small></span>${on ? '<span class="ws-live" aria-hidden="true"></span>' : ''}</button></li>`;
+    }).join('')}</ul>`;
+  }
+  function wsList() {
+    return `<section class="ws-pane ws-list" aria-labelledby="ws-list-title"><div class="ws-pane-head"><h2 id="ws-list-title">Dossiers <span class="ws-count mono">${state.cases.length}</span></h2><button type="button" class="icon-button" data-action="new-case" aria-label="Nouveau dossier" title="Nouveau dossier"${canMutate() ? '' : ' disabled'}>${icon('plus')}</button></div><div class="ws-filter"><label class="sr-only" for="ws-filter">Filtrer les dossiers</label>${icon('search')}<input id="ws-filter" type="search" maxlength="80" autocomplete="off" placeholder="Filtrer les dossiers" value="${esc(wsMemory.query)}"></div><div id="ws-case-rows">${wsCaseRows()}</div><p class="ws-list-foot">${state.demo ? 'Aperçu : dossiers fictifs.' : 'Selon vos habilitations, dossier par dossier.'}</p></section>`;
+  }
+  function wsProgress() {
+    const docs = state.detail?.documents || [];
+    const checked = docs.filter(doc => doc.reviewStatus === 'controle_visuel').length;
+    const pct = docs.length ? Math.round(checked * 100 / docs.length) : 0;
+    const todo = docs.length - checked;
+    const next = !state.detail ? 'Choisissez un dossier dans la liste.' : !docs.length ? 'Ajoutez une première pièce au dossier.' : todo ? `Vérifier ${todo} pièce${todo > 1 ? 's' : ''} : provenance et lisibilité.` : 'Toutes les pièces ont un contrôle visuel. Préparez vos questions pour l’avocat.';
+    const ring = `<div class="ws-ring" data-p="${pct}" role="img" aria-label="${docs.length ? `${checked} pièce${checked > 1 ? 's' : ''} contrôlée${checked > 1 ? 's' : ''} sur ${docs.length}` : 'Aucune pièce'}"><span class="mono">${docs.length ? `${pct}<small>%</small>` : '—'}</span></div>`;
+    const stat = (label, value) => `<li><span>${esc(label)}</span><strong class="mono">${esc(value)}</strong></li>`;
+    const minutes = (state.detail?.timeEntries || []).reduce((sum, entry) => sum + (Number(entry.minutes) || 0), 0);
+    return `<section class="ws-hero ws-glow" aria-labelledby="ws-hero-title">${ring}<div class="ws-hero-text"><span class="eyebrow">PRÉPARATION DU DOSSIER</span><h2 id="ws-hero-title">${esc(next)}</h2><p>Pièces avec un contrôle visuel, sur l’ensemble des pièces du dossier. Ce n’est pas une évaluation juridique.</p><div class="tile-actions"><button type="button" class="button small" ${canMutate() && state.selectedId ? 'data-action="upload"' : 'data-view="documents"'}>${icon('upload')}Ajouter une pièce</button><button type="button" class="button secondary small" data-view="documents">${icon('document')}Ouvrir les pièces</button><button type="button" class="button subtle small" data-action="tutorial-start">${icon('compass')}Visite guidée</button></div></div><ul class="ws-stats">${stat('Pièces', docs.length)}${stat('À vérifier', todo)}${stat('Messages', (state.detail?.messages || []).length)}${stat('Temps soumis', state.detail ? duration(minutes) : '—')}</ul></section>`;
+  }
+  function wsStage() {
+    const item = currentCase();
+    const tabs = [['home', 'Aperçu'], ['documents', 'Pièces'], ['messages', 'Échanges'], ['communications', 'Rendez-vous'], ['time', 'Temps'], ['search', 'Recherche']];
+    const tabbar = `<nav class="ws-tabs" aria-label="Sections du dossier">${tabs.map(([view, label]) => view === 'home' ? `<span class="ws-tab is-active" aria-current="page">${esc(label)}</span>` : `<button type="button" class="ws-tab" data-view="${view}">${esc(label)}</button>`).join('')}</nav>`;
+    const head = item ? `<div class="ws-stage-head"><span class="ws-case-mark large" aria-hidden="true">${esc(initials(item.title))}</span><div class="ws-stage-title"><span class="eyebrow">${state.demo ? 'DOSSIER FICTIF' : 'DOSSIER'}</span><h1>${esc(item.title)}</h1><p><span class="mono">${esc(item.reference || 'Référence à préciser')}</span> · ${esc(roleLabel(item.role))}</p></div></div>` : `<div class="ws-stage-head"><div class="ws-stage-title"><span class="eyebrow">ESPACE DE TRAVAIL</span><h1>Bonjour.</h1><p>${state.cases.length ? 'Choisissez un dossier à gauche pour l’ouvrir ici.' : 'Créez votre premier dossier pour commencer.'}</p></div></div>`;
+    const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : l’espace de travail</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
+    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
+  }
+  function wsContext() {
+    const next = upcoming(30).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).slice(0, 3);
+    const meetings = next.length ? `<ul class="ws-meetings">${next.map(item => `<li><span class="ws-meeting-icon">${icon(item.kind === 'video' ? 'video' : 'phone')}</span><span><strong>${esc(item.title)}</strong><small><time datetime="${esc(item.scheduledAt)}">${esc(date(item.scheduledAt, true))}</time></small></span></li>`).join('')}</ul>` : '<p class="ws-empty">Aucun rendez-vous planifié dans les 30 prochains jours.</p>';
+    return `<aside class="ws-pane ws-context" aria-label="Guide, appels et rendez-vous"><section class="ws-card ws-guide ws-glow" aria-labelledby="ws-guide-title"><div class="ws-guide-top">${guideRobot('small')}<div><span class="eyebrow">GUIDE</span><h2 id="ws-guide-title">Le guide BesoinAvocat</h2></div></div><p class="ws-guide-quote">${esc(GUIDE_TEXT)}</p><button type="button" class="ws-ask" data-action="guide-open">${icon('spark')}<span>Demander au guide</span><span class="badge neutral">IA bientôt</span></button><p class="ws-fine">${esc(GUIDE_DISCLAIMER)}</p></section><section class="ws-card" aria-labelledby="ws-call-title"><h2 id="ws-call-title" class="ws-card-title">Joindre un avocat</h2><button type="button" class="ws-call" data-action="mimt-board" aria-haspopup="dialog"><span class="ws-call-icon">${icon('phone')}</span><span><strong>Appeler · Téléphonie MIMT</strong><small>Appels et vidéo uniquement par MIMT</small></span><span class="badge neutral">à venir</span></button><button type="button" class="ws-call team" data-action="mimt-group" aria-haspopup="dialog"><span class="ws-call-icon">${icon('team')}</span><span><strong>Équipe · appel de groupe</strong><small>Le premier avocat qui accepte répond</small></span><span class="badge neutral">bientôt</span></button><p class="ws-fine">Aucun appel n’est lancé depuis le portail tant que MIMT Connect n’est pas activé.</p></section><section class="ws-card" aria-labelledby="ws-meet-title"><div class="ws-card-row"><h2 id="ws-meet-title" class="ws-card-title">À venir</h2><button type="button" class="text-button" data-view="communications">Tout voir ${icon('arrow')}</button></div>${meetings}</section></aside>`;
+  }
+  // The CSP forbids style attributes; custom properties are set through the CSSOM after rendering instead.
+  function paintWorkspace(root) {
+    root?.querySelectorAll?.('.ws-case[data-i]').forEach(node => node.style.setProperty('--i', node.dataset.i));
+    root?.querySelectorAll?.('.ws-ring[data-p]').forEach(node => node.style.setProperty('--p', node.dataset.p));
+  }
+  function workspaceView() {
+    return `<div class="ws" id="ws">${wsList()}${wsStage()}${wsContext()}</div>`;
+  }
+  function cockpitView() {
+    const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : le centre de commandement</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
+    const greeting = state.demo ? 'Aperçu en lecture seule, avec des données fictives.' : 'Vos dossiers, vos pièces et ce qui demande votre attention.';
+    return `<div class="cockpit">${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
+  }
+  function clientsView() {
+    const rows = state.cases.map(item => `<li class="queue-item"><span class="queue-icon">${icon('folder')}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · votre accès : ${esc(roleLabel(item.role))}</small></span><button type="button" class="button secondary small" data-action="open-case" data-id="${esc(item.id)}">Ouvrir</button></li>`).join('');
+    return `${intro('PERSONNES ET DOSSIERS', 'Clients', 'Les personnes sont rattachées à chaque dossier par leur identité TAKATAK et leurs habilitations.')}<section class="panel empty-state">${icon('users')}<h2>Annuaire des clients : bientôt</h2><p>Le pilote ne gère pas encore de fiches clients. Aucune fiche n’est inventée : retrouvez les personnes par leurs dossiers ci-dessous.</p></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Dossiers accessibles</h2><p>${state.demo ? 'Exemples fictifs.' : 'Selon vos habilitations.'}</p></div></div>${rows ? `<ul class="queue-list">${rows}</ul>` : '<p class="table-empty">Aucun dossier accessible.</p>'}</section>`;
+  }
+  function settingsView() {
+    const tour = { unseen: 'pas encore vue', skipped: 'passée', done: 'terminée' }[tutorialMemory.status];
+    return `${intro('VOTRE ESPACE', 'Réglages', 'Ce qui est réglable aujourd’hui, et ce qui ne l’est pas encore.')}<div class="settings-grid"><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Session</h2><p>${esc(state.demo ? 'Aperçu sans session.' : state.mode === 'authenticated' ? 'Session TAKATAK vérifiée par le serveur.' : 'Non connecté.')}</p></div></div><div class="panel-body"><p class="table-subtext">Les droits sont accordés dossier par dossier. Fermez la session avec le bouton de déconnexion du menu.</p></div></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Visite guidée</h2><p>État : ${esc(tour)}.</p></div><button type="button" class="button small" data-action="tutorial-start">Relancer</button></div><div class="panel-body"><p class="table-subtext">Seule la progression de la visite est mémorisée, et seulement tant que la page reste ouverte. Aucune donnée de client ou de dossier n’y est liée.</p></div></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Notifications, langue et thème</h2><p><span class="badge neutral">bientôt</span></p></div></div><div class="panel-body"><p class="table-subtext">Thème clair. Les animations sont réduites si votre appareil le demande.</p></div></section></div>`;
+  }
+
+  // Local search: only names already loaded in this page (dossiers, pièces of the selected dossier). No request.
+  function localResults(query) {
+    const q = fold(query).trim();
+    if (!q) return null;
+    const cases = state.cases.filter(item => fold(`${item.title} ${item.reference}`).includes(q)).slice(0, 6);
+    const docs = (state.detail?.documents || []).filter(doc => fold(doc.name).includes(q)).slice(0, 6);
+    return { cases, docs };
+  }
+  function paintLocalSearch() {
+    const box = document.getElementById('cockpit-search-results'), input = document.getElementById('cockpit-search');
+    if (!box) return;
+    const found = localResults(state.cockpitQuery);
+    if (!found) { box.hidden = true; box.innerHTML = ''; input?.setAttribute('aria-expanded', 'false'); return; }
+    const row = (action, id, glyph, title, sub) => `<li><button type="button" class="search-hit" data-action="${action}" data-id="${esc(id)}">${icon(glyph)}<span><strong>${esc(title)}</strong><small>${esc(sub)}</small></span></button></li>`;
+    const group = (title, rows, empty) => `<div class="search-group"><p class="search-group-title">${esc(title)}</p>${rows.length ? `<ul>${rows.join('')}</ul>` : `<p class="search-empty">${esc(empty)}</p>`}</div>`;
+    const total = found.cases.length + found.docs.length;
+    box.innerHTML = `<p class="sr-only" role="status">${total} résultat${total > 1 ? 's' : ''} local${total > 1 ? 'aux' : ''}</p>${group('Dossiers', found.cases.map(item => row('open-case', item.id, 'folder', item.title, item.reference || 'Dossier')), 'Aucun dossier correspondant.')}${group('Pièces · dossier sélectionné', found.docs.map(doc => row('preview', doc.id, KIND_ICONS[docKind(doc)], doc.name, SOURCE_LABELS[doc.sourceType] || 'Pièce')), state.detail ? 'Aucune pièce correspondante.' : 'Aucun dossier sélectionné.')}${group('Clients', [], 'Annuaire des clients : bientôt.')}<button type="button" class="search-fulltext" data-action="cockpit-fulltext">${icon('search')}Chercher « ${esc(state.cockpitQuery.trim())} » dans le texte des pièces</button><p class="search-note">Recherche locale dans les données déjà chargées. Aucune IA n’est utilisée.</p>`;
+    box.hidden = false; input?.setAttribute('aria-expanded', 'true');
+  }
+  function closeLocalSearch(clear = false) {
+    if (clear) { state.cockpitQuery = ''; const input = document.getElementById('cockpit-search'); if (input) input.value = ''; }
+    const box = document.getElementById('cockpit-search-results');
+    if (box) { box.hidden = true; box.innerHTML = ''; }
+    document.getElementById('cockpit-search')?.setAttribute('aria-expanded', 'false');
+  }
+
+  // Integration pop-up: explains what is shared, then asks for confirmation before the existing OAuth flow.
+  const cockpitModal = document.getElementById('cockpit-modal');
+  let modalReturn = null;
+  function sharingCopy(provider) {
+    if (['zoom', 'microsoft365', 'google'].includes(provider.id)) return {
+      shared: ['Le titre, la date et la durée du rendez-vous que vous choisissez (60 minutes par défaut).', ...(provider.id === 'zoom' ? ['Une réunion est créée avec salle d’attente, sans enregistrement par défaut.'] : ['Le lien Zoom du rendez-vous, s’il existe.'])],
+      never: ['Aucun nom de client, aucune pièce et aucun message du dossier.', 'Votre mot de passe : vous consentez sur le site du fournisseur (OAuth 2.0).'],
+    };
+    if (provider.connectionType === 'oauth' && provider.status === 'connect_only') return { shared: ['Seulement l’identification de votre compte chez le fournisseur.'], never: ['Aucune donnée de dossier n’est transmise dans cette version.', 'Votre mot de passe : vous consentez sur le site du fournisseur (OAuth 2.0).'] };
+    if (provider.connectionType === 'platform') return { shared: ['Service configuré par la plateforme, sans connexion personnelle.'], never: ['Rien n’est envoyé depuis cette fenêtre.'] };
+    return { shared: ['Rien pour l’instant : cette intégration n’est pas encore réalisée.'], never: ['Aucune connexion ni envoi.'] };
+  }
+  function integrationModalHtml(provider) {
+    const s = providerState(provider), copy = sharingCopy(provider), id = esc(provider.id);
+    const connectable = provider.connectionType === 'oauth' && ['available', 'reconnect_required'].includes(provider.state);
+    const ready = canMutate() && !state.busy;
+    let actions = '<button type="button" class="button secondary" data-action="cockpit-modal-close">Fermer</button>';
+    let note = '';
+    if (connectable) {
+      actions = `<button type="button" class="button secondary" data-action="cockpit-modal-close">Annuler</button><button type="button" class="button" id="cockpit-confirm" data-action="integration-connect" data-id="${id}" disabled>${icon('link')}Confirmer et continuer vers ${esc(provider.label)}</button>`;
+      note = `<label class="checkbox-filter consent"><input type="checkbox" id="cockpit-consent"${ready ? '' : ' disabled'}> J’ai lu ce qui est partagé et je confirme la connexion.</label>`;
+    } else if (provider.state === 'connected') {
+      actions = `<button type="button" class="button secondary" data-action="cockpit-modal-close">Fermer</button><button type="button" class="button secondary" data-action="integration-disconnect" data-id="${id}"${ready ? '' : ' disabled'}>Déconnecter</button>`;
+      note = provider.connection?.account ? `<p class="integration-account">${icon('check')}<span>Compte relié : ${esc(provider.connection.account)}</span></p>` : '';
+    } else if (provider.state === 'demo') note = '<p class="callout">Aperçu : aucune connexion réelle n’est possible ici.</p>';
+    else if (provider.state === 'not_configured') note = `<p class="callout">Bientôt : l’accès développeur de ce service n’est pas encore configuré sur le serveur.</p>`;
+    else if (s.label === 'Bientôt') note = '<p class="callout">Bientôt : cette intégration n’est pas encore réalisée.</p>';
+    return `<div class="dialog-header"><div class="modal-title"><span class="tile-icon">${icon(INTEGRATION_ICONS[provider.category] || 'layers')}</span><div><h2 id="cockpit-modal-title">${esc(provider.label)}</h2><span class="badge ${esc(s.tone)}">${esc(s.label)}</span></div></div><button class="icon-button" type="button" data-action="cockpit-modal-close" aria-label="Fermer la fenêtre">${icon('close')}</button></div><div class="dialog-body"><p id="cockpit-modal-desc">${esc(provider.routine || '')}</p><div class="share-grid"><section><h3>Ce qui est partagé</h3><ul>${copy.shared.map(line => `<li>${esc(line)}</li>`).join('')}</ul></section><section><h3>Ce qui ne l’est jamais</h3><ul>${copy.never.map(line => `<li>${esc(line)}</li>`).join('')}</ul></section></div><p class="table-subtext">Les jetons d’accès restent chiffrés sur le serveur et ne sont jamais affichés. Vous pouvez déconnecter le service à tout moment.</p>${note}<div class="form-actions">${actions}</div></div>`;
+  }
+  function openIntegrationModal(id, trigger = null) {
+    const provider = (cockpitProviders() || []).find(item => item.id === id);
+    if (!provider || !cockpitModal) return;
+    modalReturn = trigger;
+    document.getElementById('cockpit-modal-content').innerHTML = integrationModalHtml(provider);
+    if (!cockpitModal.open) cockpitModal.showModal();
+    (document.getElementById('cockpit-consent') || cockpitModal.querySelector('[data-action="cockpit-modal-close"]'))?.focus();
+  }
+  function closeCockpitModal() { if (cockpitModal?.open) cockpitModal.close(); }
+  cockpitModal?.addEventListener('close', () => { const back = modalReturn; modalReturn = null; if (back?.isConnected) back.focus(); });
+
+  // ---------- Téléphonie MIMT (direction du propriétaire, 30 octobre 2026) ----------
+  // Phone and video for lawyers come only from MIMT. BesoinAvocat shows buttons and layout; MIMT Connect (partner API,
+  // https://api.mimt.ca/v1/partner/…, off by default with PARTNERS=off) is not active yet, so no step calls anything.
+  // Links are the public MIMT pages listed in the mimtcaapp sources (apps/web/lib/site.ts, apps/webphone routes).
+  const MIMT_STATUS = 'À venir — MIMT Connect pas encore activé';
+  const MIMT_STEPS = [
+    { title: 'Créer ou ouvrir son compte MIMT', text: 'L’avocat ouvre son compte directement chez MIMT, avec un code texto envoyé à son cellulaire ou son compte TAKATAK. BesoinAvocat ne crée aucun compte à sa place.',
+      links: [['Ouvrir MIMT (app.mimt.ca)', 'https://app.mimt.ca/connexion'], ['MIMT Affaires', 'https://mimt.ca/affaires/']], shared: ['Rien n’est transmis à BesoinAvocat à cette étape.'], api: 'Sur MIMT : connexion à l’app Web.' },
+    { title: 'Choisir son numéro', text: 'Le numéro se choisit dans le sélecteur de MIMT (réservé quelques minutes pendant le paiement).',
+      links: [['Choisir un numéro', 'https://app.mimt.ca/numero']], shared: ['Rien pour l’instant. Plus tard : le numéro choisi, seulement s’il est relié au profil BesoinAvocat.'], api: 'Sur MIMT : sélecteur de numéro. Aucune route MIMT Connect pour l’instant (écart signalé).' },
+    { title: 'Choisir le forfait et payer sur MIMT', text: 'Le forfait et le paiement se font chez MIMT. BesoinAvocat ne voit jamais la carte de paiement.',
+      links: [['Forfaits', 'https://mimt.ca/forfaits/'], ['MIMT Affaires', 'https://mimt.ca/affaires/']], shared: ['Plus tard : l’état de l’abonnement seulement (actif ou non), jamais les données de paiement.'], api: 'Sur MIMT : paiement Stripe de MIMT. Aucune route MIMT Connect d’état d’abonnement (écart signalé).' },
+    { title: 'Transférer son numéro existant (portage)', text: 'Facultatif. La demande de transfert et la lettre d’autorisation se remplissent chez MIMT, selon la disponibilité du service de transfert de MIMT.',
+      links: [['Demander un transfert', 'https://app.mimt.ca/services/transfert']], shared: ['Plus tard : l’état du transfert seulement (demandé, en cours, terminé).'], api: 'Sur MIMT : formulaire de transfert. Aucune route MIMT Connect d’état de transfert (écart signalé).' },
+    { title: 'Relier le compte MIMT au profil BesoinAvocat', text: 'Le serveur de BesoinAvocat inscrit l’avocat chez MIMT sous son identifiant BesoinAvocat. L’avocat sonne sur son cellulaire ou dans ses apps MIMT (@nom).',
+      links: [], shared: ['Identifiant d’avocat BesoinAvocat, nom, courriel, cellulaire ou @nom MIMT, langue.', 'Aucune pièce, aucun message et aucun nom de client.'], api: 'MIMT Connect : PUT /v1/partner/members/:externalId (création ou mise à jour), DELETE pour désactiver.' },
+    { title: 'Appels et vidéo dans le portail', text: 'Les appels arriveront par le groupe « Trouver un avocat »; leurs métadonnées reviendront dans le portail par identifiant d’avocat. La vidéo viendra des Réunions MIMT.',
+      links: [['App Web MIMT', 'https://mimt.ca/app-web/']], shared: ['Identifiants et métadonnées d’appel : numéros, heures, durée, crédits.', 'Jamais d’audio ni de transcription dans les webhooks. Un enregistrement, s’il est activé avec l’avis de consentement, ne s’écoute que par un lien signé de 15 minutes.'], api: 'MIMT Connect : webhooks call.ringing, call.answered, call.completed, recording.ready; GET /v1/partner/calls, GET /v1/partner/recordings/:id. Vidéo : Réunions MIMT, pas encore dans MIMT Connect.' },
+  ];
+  const mimtMemory = { step: 0 };
+  function mimtLink([label, href]) { return `<a class="button secondary small" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}<span class="sr-only"> (mimt, nouvel onglet)</span> ${icon('arrow')}</a>`; }
+  function mimtBoardHtml(index) {
+    const step = MIMT_STEPS[index], last = index === MIMT_STEPS.length - 1;
+    const rail = MIMT_STEPS.map((item, i) => `<li><button type="button" class="wizard-step${i === index ? ' is-current' : ''}" data-action="mimt-step" data-step="${i}"${i === index ? ' aria-current="step"' : ''}><span class="wizard-num mono">${i + 1}</span><span>${esc(item.title)}</span></button></li>`).join('');
+    return `<div class="dialog-header"><div class="modal-title"><span class="tile-icon">${icon('phone')}</span><div><h2 id="cockpit-modal-title">Intégration MIMT</h2><span class="badge neutral">${esc(MIMT_STATUS)}</span></div></div><button class="icon-button" type="button" data-action="cockpit-modal-close" aria-label="Fermer la fenêtre">${icon('close')}</button></div><div class="dialog-body wizard"><p id="cockpit-modal-desc" class="sr-only">Étapes que l’avocat suivra pour relier sa téléphonie MIMT à BesoinAvocat.</p><ol class="wizard-rail" aria-label="Étapes">${rail}</ol><section class="wizard-panel" aria-live="polite"><p class="wizard-count mono">Étape ${index + 1} / ${MIMT_STEPS.length}</p><h3>${esc(step.title)}</h3><p>${esc(step.text)}</p>${step.links.length ? `<div class="tile-actions wizard-links">${step.links.map(mimtLink).join('')}</div>` : ''}<div class="share-grid single"><section><h3>Ce qui est partagé avec BesoinAvocat</h3><ul>${step.shared.map(line => `<li>${esc(line)}</li>`).join('')}</ul></section></div><p class="wizard-api"><span class="mono">${esc(step.api)}</span></p><p class="wizard-status"><span class="light" data-tone="unknown"><i aria-hidden="true"></i><span class="light-label">Statut</span><span class="light-state-inline">${esc(MIMT_STATUS)}</span></span></p></section><div class="form-actions wizard-actions"><button type="button" class="button secondary" data-action="cockpit-modal-close">Fermer</button>${index ? '<button type="button" class="button secondary" data-action="mimt-prev">Précédent</button>' : ''}${last ? '' : '<button type="button" class="button" data-action="mimt-next">Suivant</button>'}</div></div>`;
+  }
+  function openMimtBoard(index = mimtMemory.step, trigger = null) {
+    if (!cockpitModal) return;
+    mimtMemory.step = Math.max(0, Math.min(MIMT_STEPS.length - 1, Number(index) || 0));
+    if (trigger) modalReturn = trigger;
+    document.getElementById('cockpit-modal-content').innerHTML = mimtBoardHtml(mimtMemory.step);
+    if (!cockpitModal.open) cockpitModal.showModal();
+    (cockpitModal.querySelector('[data-action="mimt-next"]') || cockpitModal.querySelector('[aria-current="step"]'))?.focus();
+  }
+  const GROUP_FLOW = [
+    ['Une demande arrive', 'Un client appelle le numéro public de BesoinAvocat ou dépose une demande.'],
+    ['MIMT fait sonner le groupe', 'Tous les avocats partenaires disponibles sonnent en même temps (groupe de chasse MIMT, stratégie simultanée).'],
+    ['Le premier qui accepte prend l’appel', 'L’avocat appuie sur 1 pour accepter; MIMT indique qui a répondu.'],
+    ['Durée et suivi', 'La durée et les crédits de l’appel reviennent au dossier, par identifiant d’avocat.'],
+    ['Paiements par Stripe', 'Le client paie par Stripe, l’avocat est payé, BesoinAvocat retient une commission; l’avocat paie son abonnement de membre. Montants et commission à définir.'],
+  ];
+  function mimtGroupHtml() {
+    return `<div class="dialog-header"><div class="modal-title"><span class="tile-icon">${icon('team')}</span><div><h2 id="cockpit-modal-title">Équipe · Appel de groupe</h2><span class="badge neutral">bientôt</span></div></div><button class="icon-button" type="button" data-action="cockpit-modal-close" aria-label="Fermer la fenêtre">${icon('close')}</button></div><div class="dialog-body"><p id="cockpit-modal-desc">Le fonctionnement prévu, avec MIMT pour les appels et Stripe pour les paiements. Rien de ceci n’est actif.</p><ol class="group-flow">${GROUP_FLOW.map(([title, text], i) => `<li><span class="wizard-num mono">${i + 1}</span><span><strong>${esc(title)}</strong><small>${esc(text)}</small></span></li>`).join('')}</ol><p class="wizard-api"><span class="mono">MIMT Connect : PUT /v1/partner/hunt-groups/:key (strategy « simultaneous »), webhooks call.answered (member_external_id) et call.completed. Paiements : Stripe, côté BesoinAvocat, à concevoir.</span></p><div class="callout warning">${icon('info')}<p><strong>Avant toute mise en service</strong>Aucun avocat partenaire n’est relié et aucune disponibilité n’est déduite. La commission et le partage d’honoraires demandent une revue déontologique et juridique; une entente de traitement (Loi 25) avec MIMT est requise.</p></div><div class="form-actions"><button type="button" class="button secondary" data-action="cockpit-modal-close">Fermer</button><button type="button" class="button" data-action="mimt-board">Voir l’intégration MIMT</button></div></div>`;
+  }
+  function openMimtGroup(trigger = null) {
+    if (!cockpitModal) return;
+    if (trigger) modalReturn = trigger;
+    document.getElementById('cockpit-modal-content').innerHTML = mimtGroupHtml();
+    if (!cockpitModal.open) cockpitModal.showModal();
+    cockpitModal.querySelector('[data-action="cockpit-modal-close"]')?.focus();
+  }
+
+  // ---------- « Besoin d'aide ? » button and the BesoinAvocat guide ----------
+  // The guide only points to existing features. No AI service is called and nothing leaves the page.
+  const GUIDE_TEXT = '« Je suis là pour vous aider et vous guider. Pas vous conseiller, mais bien vous guider à préparer votre dossier pour votre avocat. »';
+  const GUIDE_DISCLAIMER = 'BesoinAvocat n’est pas un cabinet d’avocats et ne donne aucun conseil juridique. Les décisions se prennent avec votre avocat.';
+  // Session memory only (no browser storage): the guide opens by itself once per page session.
+  const guideMemory = { autoShown: false, open: false };
+  const helpMemory = { used: false, menuOpen: false };
+  // Original illustration: a friendly robot wearing a judge's robe and a white collar with bands.
+  function guideRobot(size = 'large') {
+    return `<svg class="guide-robot ${size}" viewBox="0 0 120 120" role="img" aria-label="Illustration : robot guide en toge"><title>Robot guide en toge</title>
+<line x1="60" y1="8" x2="60" y2="18" stroke="#2459e0" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="7" r="4" fill="#5b8cff"/>
+<rect x="34" y="18" width="52" height="40" rx="14" fill="#eef3ff" stroke="#2a4a8f" stroke-width="2.5"/>
+<rect x="41" y="27" width="38" height="20" rx="9" fill="#0f1e3d"/><circle cx="52" cy="37" r="4" fill="#7fb0ff"/><circle cx="68" cy="37" r="4" fill="#7fb0ff"/>
+<path d="M54 50 q6 4 12 0" fill="none" stroke="#2a4a8f" stroke-width="2.5" stroke-linecap="round"/>
+<rect x="29" y="33" width="5" height="12" rx="2.5" fill="#2459e0"/><rect x="86" y="33" width="5" height="12" rx="2.5" fill="#2459e0"/>
+<path d="M30 112 L38 66 Q60 58 82 66 L90 112 Z" fill="#1f2a44"/>
+<path d="M44 64 Q60 76 76 64 L72 70 Q60 80 48 70 Z" fill="#ffffff" stroke="#cbd3e1" stroke-width="1"/>
+<rect x="55.5" y="72" width="4" height="14" rx="1.5" fill="#ffffff" stroke="#cbd3e1" stroke-width="1"/><rect x="60.5" y="72" width="4" height="14" rx="1.5" fill="#ffffff" stroke="#cbd3e1" stroke-width="1"/>
+<path d="M38 72 Q26 86 30 100" fill="none" stroke="#1f2a44" stroke-width="9" stroke-linecap="round"/><path d="M82 72 Q96 82 92 94" fill="none" stroke="#1f2a44" stroke-width="9" stroke-linecap="round"/>
+<circle cx="31" cy="101" r="5" fill="#eef3ff" stroke="#2a4a8f" stroke-width="2"/><circle cx="92" cy="95" r="5" fill="#eef3ff" stroke="#2a4a8f" stroke-width="2"/>
+<line x1="60" y1="88" x2="60" y2="110" stroke="#33415e" stroke-width="1.5"/></svg>`;
+  }
+  function guideHtml() {
+    const upload = canMutate() && state.selectedId ? 'data-action="upload"' : 'data-view="documents"';
+    const action = (attrs, glyph, label, sub) => `<li><button type="button" class="guide-action" ${attrs}><span class="queue-icon">${icon(glyph)}</span><span><strong>${esc(label)}</strong><small>${esc(sub)}</small></span></button></li>`;
+    return `<div class="guide-head"><span class="eyebrow">GUIDE BESOINAVOCAT</span><button type="button" class="icon-button" data-action="guide-close" aria-label="Réduire le guide">${icon('close')}</button></div><div class="guide-hero">${guideRobot()}<div><h2 id="guide-title" class="sr-only">Guide BesoinAvocat</h2><p class="guide-quote">${esc(GUIDE_TEXT)}</p></div></div><p class="guide-badge"><span class="badge neutral">Assistant IA : réponses automatiques bientôt — aucun conseil juridique</span></p><ul class="guide-actions">${action('data-action="tutorial-start"', 'compass', 'Préparer mon dossier', 'Visite guidée, étape par étape')}${action(upload, 'upload', 'Ajouter une pièce', state.demo ? 'Aperçu : ajout désactivé' : 'Un document, une photo, avec sa provenance')}${action('data-view="messages"', 'message', 'Écrire mes questions pour l’avocat', 'Dans les échanges du dossier')}${action('data-view="communications"', 'calendar', 'Voir les rendez-vous', 'Du dossier sélectionné')}</ul><p class="guide-disclaimer">${icon('info')}<span>${esc(GUIDE_DISCLAIMER)}</span></p>`;
+  }
+  const guideNode = document.getElementById('cockpit-guide');
+  function showGuide(focus = true) {
+    if (!guideNode || !['demo', 'authenticated'].includes(state.mode)) return;
+    closeHelpMenu(false);
+    guideNode.innerHTML = guideHtml(); guideNode.hidden = false; guideMemory.open = true;
+    const avatar = document.getElementById('guide-avatar'); if (avatar) { avatar.hidden = true; avatar.setAttribute('aria-expanded', 'true'); }
+    if (focus) guideNode.querySelector?.('.guide-action')?.focus();
+  }
+  // Closing minimises the guide to its small robot button.
+  function hideGuide(focusAvatar = true) {
+    if (!guideNode || !guideMemory.open) return;
+    guideNode.hidden = true; guideMemory.open = false;
+    const avatar = document.getElementById('guide-avatar');
+    if (avatar) { avatar.hidden = !['demo', 'authenticated'].includes(state.mode); avatar.setAttribute('aria-expanded', 'false'); if (focusAvatar) avatar.focus(); }
+  }
+  function helpMenuHtml() {
+    const callback = state.detail && (state.demo || canMutate()) ? '' : ' disabled';
+    const item = (attrs, glyph, label, badge = '') => `<button type="button" class="help-item" ${attrs}><span class="queue-icon">${icon(glyph)}</span><span>${esc(label)}</span>${badge ? `<span class="badge neutral">${esc(badge)}</span>` : ''}</button>`;
+    return `<p class="help-title">Besoin d’aide ?</p>${item('data-action="mimt-board" aria-haspopup="dialog"', 'phone', 'Appeler · Téléphonie MIMT', 'à venir')}${item(`data-action="call-lawyer"${callback}`, 'message', 'Demander un rappel')}${item('data-action="mimt-group" aria-haspopup="dialog"', 'team', 'Équipe · appel de groupe', 'bientôt')}${item('data-action="tutorial-start"', 'compass', 'Visite guidée')}${item('data-action="guide-open"', 'spark', 'Guide BesoinAvocat')}<p class="help-note">Aucun appel n’est lancé depuis le portail.</p>`;
+  }
+  function openHelpMenu() {
+    const menu = document.getElementById('help-menu'), fab = document.getElementById('help-fab');
+    if (!menu) return;
+    hideGuide(false);
+    menu.innerHTML = helpMenuHtml(); menu.hidden = false; helpMemory.menuOpen = true;
+    helpMemory.used = true; fab?.classList.add('is-quiet'); fab?.setAttribute('aria-expanded', 'true');
+    menu.querySelector?.('.help-item:not([disabled])')?.focus();
+  }
+  function closeHelpMenu(focusFab = true) {
+    const menu = document.getElementById('help-menu'), fab = document.getElementById('help-fab');
+    if (!menu || !helpMemory.menuOpen) return;
+    helpMemory.menuOpen = false; menu.hidden = true; fab?.setAttribute('aria-expanded', 'false');
+    if (focusFab) fab?.focus();
+  }
+  function paintHelpDock() {
+    const active = ['demo', 'authenticated'].includes(state.mode);
+    const dock = document.getElementById('help-dock'); if (dock) dock.hidden = !active;
+    const avatar = document.getElementById('guide-avatar');
+    if (avatar && !avatar.dataset.ready) { avatar.innerHTML = guideRobot('small'); avatar.dataset.ready = '1'; }
+    if (avatar) avatar.hidden = !active || guideMemory.open;
+    if (!active) { hideGuide(false); closeHelpMenu(false); }
+  }
+
+  // Guided tour: pop-up steps over the cockpit zones; skippable with the button or Escape.
+  const tourDialog = document.getElementById('cockpit-tour');
+  const TOUR_STEPS = [
+    { target: '#cockpit-search-form', title: 'Une seule recherche', text: 'Retrouvez un dossier ou une pièce déjà chargés, sans quitter la page. Pour chercher dans le texte des pièces, suivez le lien en bas des résultats.' },
+    { target: '#status-lights', title: 'Les voyants d’état', text: 'Connexion, courriel et sauvegarde. Un voyant gris signifie « inconnu » : le portail n’affiche jamais un vert qu’il ne peut pas vérifier.' },
+    { target: '#cockpit-dials', title: 'Les instruments', text: 'Heure, dossier, pièces, temps, rendez-vous et voyants. Chaque instrument ouvre son panneau sous la barre; glissez ou utilisez les flèches pour passer de l’un à l’autre. Ce qui n’est pas relié affiche « bientôt ».' },
+    { target: '#work-queue', title: 'La file de travail', text: 'Ce qui demande votre attention dans le dossier sélectionné, une ligne par élément, avec l’action directe.' },
+    { target: '#activity-feed', title: 'L’activité récente', text: 'Les pièces, messages, temps et rendez-vous les plus récents du dossier.' },
+    { target: '#cockpit-integrations', title: 'Les intégrations', text: 'Téléphonie MIMT, Zoom, Outlook, Google Agenda et les autres services. Chaque connexion explique d’abord ce qui est partagé.' },
+    { target: '#workspace-nav', mobileTarget: '.tabbar', title: 'La navigation', text: 'Accueil, Dossiers, Pièces, Clients, Intégrations et Réglages. Sur téléphone, la barre du bas.' },
+  ];
+  let tourTarget = null;
+  function clearTourTarget() { tourTarget?.classList.remove('tour-target'); tourTarget = null; }
+  function narrow() { return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 860px)').matches; }
+  function tourHtml(index) {
+    const step = TOUR_STEPS[index], last = index === TOUR_STEPS.length - 1;
+    const academy = ACADEMY_URL ? `<a class="text-button" href="${esc(ACADEMY_URL)}" target="_blank" rel="noopener noreferrer">Formation TAKATAK Academy<span class="sr-only"> (nouvel onglet)</span></a>` : '<span class="academy-pending">Formation TAKATAK Academy · lien à confirmer</span>';
+    const dots = TOUR_STEPS.map((_, i) => `<i${i === index ? ' class="on"' : ''}></i>`).join('');
+    return `<div class="tour-ring" aria-hidden="true"></div><div class="tour-card"><div class="tour-head"><span class="tour-count mono">${index + 1} / ${TOUR_STEPS.length}</span><span class="tour-dots" aria-hidden="true">${dots}</span><button type="button" class="icon-button" data-action="tour-skip" aria-label="Passer le tutoriel">${icon('close')}</button></div><h2 id="cockpit-tour-title">${esc(step.title)}</h2><p id="cockpit-tour-text">${esc(step.text)}</p><div class="tour-foot">${academy}<div class="tile-actions"><button type="button" class="button subtle small" data-action="tour-skip">Passer</button>${index ? '<button type="button" class="button secondary small" data-action="tour-prev">Précédent</button>' : ''}<button type="button" class="button small" data-action="tour-next">${last ? 'Terminer' : 'Suivant'}</button></div></div><p class="tour-privacy">Seule votre progression dans la visite est retenue, jamais une donnée de dossier.</p></div>`;
+  }
+  function showTourStep(index) {
+    if (!tourDialog) return;
+    const step = TOUR_STEPS[index];
+    tutorialMemory.step = index;
+    clearTourTarget();
+    const target = document.querySelector?.(narrow() && step.mobileTarget ? step.mobileTarget : step.target);
+    if (target && target.getClientRects?.().length) {
+      tourTarget = target; target.classList.add('tour-target');
+      target.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    }
+    document.getElementById('cockpit-tour-content').innerHTML = tourHtml(index);
+    if (!tourDialog.open) tourDialog.showModal();
+    placeTourRing();
+    // The navigation rail widens when highlighted: place the ring again once it has opened.
+    window.setTimeout(() => { if (tourDialog.open) placeTourRing(); }, 260);
+    tourDialog.querySelector?.('[data-action="tour-next"]')?.focus();
+  }
+  // The ring sits in the dialog's top layer, over the highlighted zone; its wide shadow dims the rest of the page.
+  function placeTourRing() {
+    const ring = tourDialog?.querySelector?.('.tour-ring');
+    const rect = tourTarget?.getBoundingClientRect?.();
+    tourDialog?.classList.toggle('no-target', !rect);
+    if (!ring) return;
+    ring.hidden = !rect;
+    if (!rect) return;
+    const pad = 6, top = Math.max(4, rect.top - pad), left = Math.max(4, rect.left - pad);
+    const width = Math.min(window.innerWidth - 4, rect.right + pad) - left, height = Math.min(window.innerHeight - 4, rect.bottom + pad) - top;
+    Object.assign(ring.style, { top: `${top}px`, left: `${left}px`, width: `${Math.max(0, width)}px`, height: `${Math.max(0, height)}px` });
+    tourDialog.classList.toggle('at-top', rect.top + rect.height / 2 > window.innerHeight / 2);
+  }
+  window.addEventListener?.('resize', () => { if (tourDialog?.open) placeTourRing(); });
+  // Crossing the desktop breakpoint swaps the home between the workspace and the cockpit, without a reload.
+  const wideQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 1180px)') : null;
+  wideQuery?.addEventListener?.('change', () => { if (state.view === 'home') render(); });
+  // A soft light follows the pointer on the workspace cards (pure decoration; skipped when motion is reduced).
+  main.addEventListener?.('pointermove', (event) => {
+    const card = event.target?.closest?.('.ws-glow, .ws-card, .ws-case');
+    if (!card || reducedMotion()) return;
+    const box = card.getBoundingClientRect();
+    card.style.setProperty('--mx', `${Math.round(event.clientX - box.left)}px`); card.style.setProperty('--my', `${Math.round(event.clientY - box.top)}px`);
+  });
+  function startTour() {
+    if (!['demo', 'authenticated'].includes(state.mode)) return;
+    closeCockpitModal(); closeLocalSearch();
+    if (state.view !== 'home') navigate('home');
+    document.body?.classList.remove('drawer-open');
+    showTourStep(0);
+  }
+  function endTour(status) {
+    tutorialMemory.status = status;
+    clearTourTarget();
+    if (tourDialog?.open) tourDialog.close();
+    if (state.view === 'home' || state.view === 'settings') render();
+  }
+  // Focus stays inside an open cockpit dialog: Tab and Shift+Tab cycle between its controls.
+  function trapFocus(node) {
+    node?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const items = [...node.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])')].filter(item => item.getClientRects().length);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !node.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !node.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+    });
+  }
+  trapFocus(cockpitModal); trapFocus(tourDialog);
+  // Escape closes the tour: remembered as skipped.
+  tourDialog?.addEventListener('cancel', event => { event.preventDefault(); endTour('skipped'); });
+
   function render(focus = false) {
     header();
+    const shell = document.body?.classList;
+    if (typeof shell?.toggle === 'function') shell.toggle('ws-desktop', state.view === 'home' && ['demo', 'authenticated'].includes(state.mode) && desktop());
     if (state.mode === 'loading') return;
     const shown = `${state.mode}:${state.view}:${state.selectedId || ''}`;
     main.classList.toggle('enter', main.dataset.shown !== shown);
     main.dataset.shown = shown;
     if (state.mode === 'signedout') main.innerHTML = signedOut();
+    else if (state.view === 'home' && desktop()) { const railScroll = document.getElementById('cockpit-dials')?.scrollLeft, listScroll = document.querySelector?.('.ws-list')?.scrollTop; main.innerHTML = workspaceView(); paintWorkspace(main); const rail = document.getElementById('cockpit-dials'); if (rail && Number.isFinite(railScroll)) rail.scrollLeft = railScroll; const list = document.querySelector?.('.ws-list'); if (list && Number.isFinite(listScroll)) list.scrollTop = listScroll; }
+    else if (state.view === 'home') { const railScroll = document.getElementById('cockpit-dials')?.scrollLeft; main.innerHTML = cockpitView(); const rail = document.getElementById('cockpit-dials'); if (rail && Number.isFinite(railScroll)) rail.scrollLeft = railScroll; }
     else if (state.view === 'cases') main.innerHTML = casesView();
     else if (state.view === 'search') main.innerHTML = searchView();
     else if (state.view === 'integrations') main.innerHTML = integrationsView();
+    else if (state.view === 'clients') main.innerHTML = clientsView();
+    else if (state.view === 'settings') main.innerHTML = settingsView();
     else if (!state.detail) main.innerHTML = noCase();
     else main.innerHTML = ({ documents: documentsView, messages: messagesView, time: timeView, communications: communicationsView, usage: usageView })[state.view]();
     window.BAWorkspace?.afterRender(main);
     if (focus) main.focus({ preventScroll: true });
+    // The guide opens by itself once per page session, on the cockpit, without taking the focus.
+    if (state.view === 'home' && ['demo', 'authenticated'].includes(state.mode) && !guideMemory.autoShown && !desktop()) { guideMemory.autoShown = true; showGuide(false); }
   }
   function showDialog(title, subtitle, body) {
     document.getElementById('dialog-content').innerHTML = `<div class="dialog-header"><div><h2 id="dialog-title">${esc(title)}</h2><p>${esc(subtitle)}</p></div><button class="icon-button" type="button" data-action="close-dialog" aria-label="Fermer la fenêtre">${icon('close')}</button></div><div class="dialog-body">${body}</div>`;
@@ -730,6 +1280,7 @@
     if (!Object.hasOwn(VIEW_LABELS, view)) return;
     cancelSearchWork(); state.requestVersion += 1; state.caseLoading = false;
     if (dialog.open) dialog.close(); state.pageRequest += 1;
+    closeLocalSearch(); closeCockpitModal(); closeHelpMenu(false); state.cockpitPanel = null;
     state.view = view; render(true);
   }
   function openSearch(scope = 'all') {
@@ -1000,16 +1551,76 @@
     showDialog('Un espace pour préparer', 'Le document, sa source et ses limites restent accessibles.', `<p>Les dossiers regroupent les pièces, les échanges et le suivi du temps. Les droits sont contrôlés par le serveur pour chaque dossier.</p><div class="callout">${icon('info')}<p><strong>Une source reste à apprécier</strong>Un original, une déclaration, une analyse et une extraction OCR sont des natures distinctes. Un texte extrait reste à contrôler sur la pièce. Les doublons ne s’additionnent pas.</p></div><p>L’aperçu ne contient que des exemples fictifs et n’envoie aucune information au serveur. La connexion TAKATAK, l’assistant IA, les crédits et les appels ne sont pas présentés comme actifs lorsqu’ils ne sont pas configurés.</p><div class="form-actions"><button class="button" data-action="close-dialog">Compris</button></div>`);
   }
   document.addEventListener('keydown', (event) => {
+    if (event.target?.closest?.('#cockpit-dials') && railKey(event)) return;
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 'k') { const search = document.getElementById('cockpit-search'); if (search && !search.disabled) { event.preventDefault?.(); search.focus(); search.select?.(); } return; }
+    if (event.altKey && ['ArrowUp', 'ArrowDown'].includes(event.key) && state.view === 'home' && state.cases.length > 1 && !document.querySelector?.('dialog[open]')) {
+      const at = state.cases.findIndex(item => item.id === state.selectedId);
+      const next = state.cases[(at + (event.key === 'ArrowDown' ? 1 : -1) + state.cases.length) % state.cases.length];
+      if (next) { event.preventDefault?.(); void loadCase(next.id, 'home'); }
+      return;
+    }
+    if (event.key === 'Escape' && !document.querySelector?.('dialog[open]')) {
+      if (helpMemory.menuOpen) { event.preventDefault?.(); closeHelpMenu(); return; }
+      if (guideMemory.open && event.target?.closest?.('#cockpit-guide')) { event.preventDefault?.(); hideGuide(true); return; }
+      if (state.cockpitPanel && event.target?.closest?.('#instrument-deck')) { event.preventDefault?.(); closeDrawer(); return; }
+    }
+    // Local search results: arrows move between results, Escape closes them and returns to the field.
+    const inSearch = event.target?.closest?.('#cockpit-search-form');
+    if (inSearch && ['ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) {
+      const hits = [...document.querySelectorAll('#cockpit-search-results button')];
+      if (event.key === 'Escape') { if (!document.getElementById('cockpit-search-results')?.hidden) { event.preventDefault(); closeLocalSearch(); document.getElementById('cockpit-search')?.focus(); } return; }
+      if (!hits.length) return;
+      event.preventDefault();
+      const at = hits.indexOf(document.activeElement);
+      const next = event.key === 'ArrowDown' ? Math.min(at + 1, hits.length - 1) : at <= 0 ? -1 : at - 1;
+      (next < 0 ? document.getElementById('cockpit-search') : hits[next])?.focus();
+      return;
+    }
     if (event.key === 'Escape' && state.dictationStatus !== 'idle') {
       event.preventDefault(); cancelDictation(); render();
       document.getElementById('document-query')?.focus();
     }
   });
   document.addEventListener('click', (event) => {
+    if (!event.target?.closest?.('#cockpit-search-form')) closeLocalSearch();
+    if (!event.target?.closest?.('#help-menu, #help-fab')) closeHelpMenu(false);
     const button = event.target.closest('button');
     if (!button || button.disabled) return;
+    if (button.closest?.('#help-menu')) closeHelpMenu(false);
+    if (button.closest?.('#cockpit-guide') && button.dataset.action !== 'guide-close') hideGuide(false);
     if (button.dataset.view) { navigate(button.dataset.view); return; }
+    if (button.id === 'help-fab') { if (helpMemory.menuOpen) closeHelpMenu(); else openHelpMenu(); return; }
+    if (button.id === 'guide-avatar') { showGuide(true); return; }
     const action = button.dataset.action;
+    const inModal = Boolean(button.closest?.('#cockpit-modal'));
+    // Every connection goes through the pop-up first; only its confirm button starts the existing OAuth flow.
+    if (action === 'integration-connect' && !inModal) { openIntegrationModal(button.dataset.id, button); return; }
+    if (action === 'integration-disconnect' && inModal) closeCockpitModal();
+    if (button.classList.contains('search-hit')) closeLocalSearch(true);
+    if (action === 'cockpit-integration') openIntegrationModal(button.dataset.id, button);
+    if (action === 'cockpit-modal-close') closeCockpitModal();
+    if (action === 'cockpit-drawer') toggleDrawer(button.dataset.panel);
+    if (action === 'cockpit-drawer-close') closeDrawer();
+    if (action === 'cockpit-select-case' && state.cases.some(item => item.id === button.dataset.id)) void loadCase(button.dataset.id, 'home');
+    if (action === 'rail-prev') scrollRail(-1);
+    if (action === 'rail-next') scrollRail(1);
+    if (action === 'guide-open') showGuide(true);
+    if (action === 'guide-close') hideGuide(true);
+    if (action === 'mimt-board') openMimtBoard(inModal ? 0 : mimtMemory.step, inModal ? null : button);
+    if (action === 'mimt-group') openMimtGroup(button);
+    if (action === 'ws-select' && button.dataset.id && button.dataset.id !== state.selectedId) void loadCase(button.dataset.id, 'home');
+    if (action === 'mimt-step') openMimtBoard(Number(button.dataset.step));
+    if (action === 'mimt-next') openMimtBoard(mimtMemory.step + 1);
+    if (action === 'mimt-prev') openMimtBoard(mimtMemory.step - 1);
+    if (action === 'tutorial-start') startTour();
+    if (action === 'tutorial-dismiss') { tutorialMemory.status = 'skipped'; render(); }
+    if (action === 'tour-next') { if (tutorialMemory.step + 1 < TOUR_STEPS.length) showTourStep(tutorialMemory.step + 1); else endTour('done'); }
+    if (action === 'tour-prev' && tutorialMemory.step > 0) showTourStep(tutorialMemory.step - 1);
+    if (action === 'tour-skip') endTour('skipped');
+    if (action === 'cockpit-fulltext') {
+      const query = state.cockpitQuery.trim(); closeLocalSearch(true);
+      if (query) { openSearch('all'); state.searchQuery = query; void runSearch(query); }
+    }
     if (action === 'login-mode' && !state.busy && !state.demo) {
       state.loginStep = button.dataset.mode === 'password' ? 'password' : 'email';
       state.loginNotice = ''; render();
@@ -1069,6 +1680,7 @@
     else if (['communication-form', 'communication-cancel-form'].includes(form.id)) void submitCommunication(form);
     else if (['case-form', 'upload-form', 'message-form', 'time-form'].includes(form.id)) void submitMutation(form);
     else if (form.id === 'call-form') void submitCall(form);
+    else if (form.id === 'cockpit-search-form') document.querySelector?.('#cockpit-search-results .search-hit, #cockpit-search-results .search-fulltext')?.focus();
   });
   document.addEventListener('change', (event) => {
     if (event.target.id === 'search-scope' || event.target.id === 'search-mode') {
@@ -1087,6 +1699,7 @@
     if (event.target.id === 'drop-input') { enqueueFiles(event.target.files); event.target.value = ''; }
     if (event.target.id === 'document-category') { state.documentCategory=event.target.value; render(); }
     if (event.target.id === 'document-unresolved') { state.onlyUnresolved=event.target.checked; render(); }
+    if (event.target.id === 'cockpit-consent') { const confirm = document.getElementById('cockpit-confirm'); if (confirm) confirm.disabled = !event.target.checked || !canMutate(); }
     if (event.target.id === 'communication-kind') {
       const phone = event.target.value === 'phone';
       const link = document.getElementById('communication-link');
@@ -1095,6 +1708,8 @@
     }
   });
   document.addEventListener('input', (event) => {
+    if (event.target.id === 'ws-filter') { wsMemory.query = String(event.target.value || '').slice(0, 80); const rows = document.getElementById('ws-case-rows'); if (rows) { rows.innerHTML = wsCaseRows(); paintWorkspace(rows); } return; }
+    if (event.target.id === 'cockpit-search') { state.cockpitQuery = String(event.target.value || '').slice(0, 120); paintLocalSearch(); return; }
     if (event.target.id === 'document-query') {
       const listening = state.dictationStatus !== 'idle';
       state.searchQuery = event.target.value; cancelSearchWork(); state.searchResults = null; state.searchMeta = null;
@@ -1133,6 +1748,7 @@
     document.getElementById('dropzone')?.classList.remove('active');
     if (event.target.closest?.('[data-dropzone]')) enqueueFiles(event.dataTransfer.files);
   });
+  cockpitModal?.addEventListener('click', (event) => { if (event.target === cockpitModal) { const rect = cockpitModal.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeCockpitModal(); } });
   dialog.addEventListener('click', (event) => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
 
   async function loadSession() {

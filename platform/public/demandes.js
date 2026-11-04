@@ -5,7 +5,7 @@
     received: 'Reçue', in_review: 'En traitement', contacted: 'Personne recontactée', closed: 'Fermée', spam: 'Indésirable',
   };
   var ORDER = ['received', 'in_review', 'contacted', 'closed', 'spam'];
-  var state = { status: null, assigned: null, offset: 0, rows: [], selected: null, detail: null, busy: false, reviewers: [], me: null };
+  var state = { status: null, assigned: null, offset: 0, rows: [], selected: null, detail: null, trail: null, busy: false, reviewers: [], me: null };
   var $ = function (id) { return document.getElementById(id); };
 
   function esc(value) {
@@ -160,7 +160,30 @@
       '<form class="inbox-note" id="inbox-note-form"><label for="inbox-note-text"><h3>Ajouter une note interne</h3></label>' +
         '<textarea id="inbox-note-text" maxlength="4000" required></textarea><div><button type="submit" class="button">Ajouter la note</button></div></form>' +
       '<div><h3>Historique</h3>' + (history ? '<ul class="inbox-history">' + history + '</ul>' : '<p class="table-subtext">Aucune note pour l’instant.</p>') + '</div>' +
+      '<div class="inbox-trail" id="inbox-trail"><h3>Accès à cette demande</h3>' + renderTrail() + '</div>' +
       '<p class="table-subtext">Consentement ' + esc(r.consent && r.consent.version) + ' : « ' + esc(r.consent && r.consent.text) + ' »</p>';
+  }
+
+  var ACTION = { read: 'Lecture du détail', status: 'Changement de statut', note: 'Note ajoutée', assign: 'Attribution', trail: 'Consultation des accès' };
+  // The trail is loaded on demand: reading it is itself an access, so it is not fetched with every detail view.
+  function renderTrail() {
+    var trail = state.trail;
+    if (!trail || trail.reference !== (state.detail && state.detail.request.reference)) {
+      return '<p class="table-subtext">Chaque lecture, note, statut et attribution est journalisé. La consultation de ce journal l’est aussi.</p>' +
+        '<button type="button" class="text-button" id="inbox-trail-load">Voir les accès</button>';
+    }
+    if (!trail.access.length) return '<p class="table-subtext">Aucun accès journalisé.</p>';
+    return '<ul class="inbox-history inbox-trail-list">' + trail.access.map(function (a) {
+      return '<li data-kind="access"><small>' + esc(when(a.createdAt)) + (a.mine ? ' · vous' : '') + '</small><p>' + esc(ACTION[a.action] || a.action) + ' · ' + esc(who(a.subject)) + '</p></li>';
+    }).join('') + '</ul>' + (trail.truncated ? '<p class="table-subtext">Seuls les 200 accès les plus récents sont affichés.</p>' : '');
+  }
+
+  async function loadTrail() {
+    if (state.busy || !state.detail) return;
+    state.busy = true;
+    try { state.trail = await api('/api/intakes/' + encodeURIComponent(state.detail.request.reference) + '/access'); $('inbox-trail').innerHTML = '<h3>Accès à cette demande</h3>' + renderTrail(); }
+    catch (error) { showState(error.message, true); }
+    finally { state.busy = false; }
   }
 
   async function open(reference, reveal) {
@@ -220,6 +243,7 @@
     if (assigned) { var value = assigned.getAttribute('data-assigned'); state.assigned = state.assigned === value ? null : value; state.selected = null; load(true); return; }
     if (event.target.closest('#inbox-assign-save')) { saveAssignment($('inbox-assign-select').value); return; }
     if (event.target.closest('#inbox-assign-me')) { saveAssignment(state.me); return; }
+    if (event.target.closest('#inbox-trail-load')) { loadTrail(); return; }
     var row = event.target.closest('[data-reference]');
     if (row) { open(row.getAttribute('data-reference'), true); return; }
     if (event.target.closest('#inbox-more')) { load(false); return; }

@@ -76,6 +76,16 @@ test('missing login settings, grants and an open request directory each fail', t
   assert.match(text, /must be 0700/u);
 });
 
+test('the reviewer list is validated like the server does: one bad entry blocks, named entries are counted', t => {
+  const { env } = fixture(t);
+  const bad = fails(readiness({ ...env, BESOINAVOCAT_INTAKE_REVIEWERS: '["owner-subject", {"subject": "second-subject", "name": "<b>Me</b>"}]' }));
+  assert.equal(bad.length, 1);
+  assert.match(bad[0].message, /invalid or duplicate entry.*nobody can read/u);
+  const good = readiness({ ...env, BESOINAVOCAT_INTAKE_REVIEWERS: '["owner-subject", {"subject": "second-subject", "name": "Me Untel"}]' });
+  assert.deepEqual(fails(good), []);
+  assert.match(report(good), /2 team member\(s\) can read received requests at \/demandes \(1 with a display name\)/u);
+});
+
 test('a wrong case database path is reported', t => {
   const { env } = fixture(t);
   assert.match(fails(readiness({ ...env, DATABASE_PATH: '/nonexistent/platform.sqlite' }))[0].message, /Case database not found/u);

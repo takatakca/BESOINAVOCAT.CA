@@ -41,6 +41,8 @@
 .inbox-history li { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 12px; }
 .inbox-history li[data-kind="status"] { color: var(--muted); font-size: 13px; }
 .inbox-history p { white-space: pre-wrap; }
+.inbox-history li[data-kind="access"] { color: var(--muted); font-size: 13px; border-left-style: dotted; }
+.inbox-trail { display: grid; gap: 8px; }
 .inbox-note { display: grid; gap: 8px; }
 .inbox-note textarea { min-height: 84px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 8px 10px; resize: vertical; }
 @media (max-width: 860px) {

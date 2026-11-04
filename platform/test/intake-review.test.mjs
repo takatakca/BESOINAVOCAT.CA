@@ -223,3 +223,25 @@ test('a request is assigned to a named reviewer, filtered by assignment, and the
   try { assert.throws(() => rw.prepare('DELETE FROM ba_intake_assignments').run()); assert.throws(() => rw.prepare("UPDATE ba_intake_assignments SET assignee='x'").run()); }
   finally { rw.close(); }
 });
+
+test('the access trail of a request is readable by the inbox, newest first, and its reading is logged too', async t => {
+  const f = await fixture(t, [REVIEWER.subject, { subject: SECOND.subject, name: 'Me Synthétique' }]);
+  const { json: { reference } } = await f.submit(detailed());
+  await f.request(`/api/intakes/${reference}`, { as: 'reviewer' });
+  await f.request(`/api/intakes/${reference}/status`, { as: 'second', method: 'POST', body: { status: 'in_review', expected: 'received' } });
+  await f.request(`/api/intakes/${reference}/notes`, { as: 'second', method: 'POST', body: { body: 'Note synthétique.' } });
+  await f.request('/api/intakes', { as: 'reviewer' });
+  const trail = await f.request(`/api/intakes/${reference}/access`, { as: 'reviewer' });
+  assert.equal(trail.status, 200);
+  assert.equal(trail.json.reference, reference); assert.equal(trail.json.truncated, false);
+  assert.deepEqual(trail.json.access.map(row => [row.action, row.subject.subject, row.subject.name, row.mine]),
+    [['trail', REVIEWER.subject, null, true], ['note', SECOND.subject, 'Me Synthétique', false], ['status', SECOND.subject, 'Me Synthétique', false], ['read', REVIEWER.subject, null, true]],
+    'newest first, the trail read included, the list excluded');
+  assert.ok(trail.json.access.every(row => typeof row.id === 'string' && /^\d{4}-/u.test(row.createdAt)));
+  assert.doesNotMatch(trail.text, /@example\.test|Résumé synthétique/);
+  // A second read shows the first one; the lawyer and an unknown reference get the usual 404.
+  assert.equal((await f.request(`/api/intakes/${reference}/access`, { as: 'reviewer' })).json.access.filter(row => row.action === 'trail').length, 2);
+  assert.equal((await f.request(`/api/intakes/${reference}/access`, { as: 'lawyer' })).status, 404);
+  assert.equal((await f.request(`/api/intakes/BA-${'A'.repeat(24)}/access`, { as: 'reviewer' })).status, 404);
+  assert.equal((await f.request(`/api/intakes/${reference}/access`, { as: 'reviewer', method: 'POST', body: {} })).status, 404);
+});

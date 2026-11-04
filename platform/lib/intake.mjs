@@ -311,6 +311,16 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
       acceptRemote: typeof data.acceptRemote === 'boolean' ? data.acceptRemote : null,
     };
   }
+  // Who did what on a request, newest first: the reviewers' lists are not included (they name no request). The
+  // read of the trail is itself logged, so the trail accounts for its own readers.
+  const MAX_TRAIL = 200;
+  function accessTrail(user, value) {
+    const reference = referenceOf(value);
+    logAccess(user, reference, 'trail');
+    const rows = db.prepare('SELECT id,action,subject,createdAt FROM ba_intake_access WHERE reference=? ORDER BY createdAt DESC,id DESC LIMIT ?').all(reference, MAX_TRAIL + 1);
+    return { reference, access: rows.slice(0, MAX_TRAIL).map(row => ({ id: row.id, action: row.action, subject: person(row.subject), mine: row.subject === user.subject, createdAt: row.createdAt })),
+      truncated: rows.length > MAX_TRAIL };
+  }
   function readRequest(user, value) {
     const reference = referenceOf(value);
     const row = db.prepare('SELECT * FROM ba_intakes WHERE reference=?').get(reference);
@@ -456,6 +466,7 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
     reviewStatus: safe((user, reference, body) => { review(user); return changeStatus(user, reference, body); }),
     reviewNote: safe((user, reference, body) => { review(user); return addNote(user, reference, body); }),
     reviewAssign: safe((user, reference, body) => { review(user); return assign(user, reference, body); }),
+    reviewTrail: safe((user, reference) => { review(user); return accessTrail(user, reference); }),
     // The people a request can be assigned to: the configured reviewers, the caller marked.
     reviewDirectory: safe(user => { review(user); return { reviewers: [...directory.keys()].map(subject => ({ ...person(subject), me: subject === user.subject })) }; }),
     clear() { if (db) { db.close(); db = null; } },

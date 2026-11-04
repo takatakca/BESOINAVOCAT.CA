@@ -408,6 +408,8 @@ class BackupCorpusTests(unittest.TestCase):
         self.assertEqual(manifest["counts"]["documents"], 1)
         self.assertEqual(manifest["counts"]["search_folded_documents"], 1)
         self.assertIn("telephony_calls", manifest["counts"])
+        self.assertIn("document_requests", manifest["counts"])
+        self.assertNotIn("sqlite_sequence", manifest["counts"])
         self.assertEqual(backup.verify_archive(self.archive), manifest)
         destination = self.root / "restored-server"
         self.assertEqual(backup.restore_archive(self.archive, destination), manifest)

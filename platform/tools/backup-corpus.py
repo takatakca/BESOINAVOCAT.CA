@@ -45,6 +45,8 @@ OPTIONAL_TABLES = {
     "telephony_state", "telephony_phones", "telephony_members", "telephony_calls", "telephony_events",
     "mimt_webhook_events", "video_rooms", "video_presence", "video_signals", "audit_seals",
     "search_folded_pages", "search_folded_documents",
+    "document_requests", "document_request_events",
+    "lawyer_memberships", "lawyer_membership_events",
 }
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 BLOB_PATH = re.compile(r"blobs/[0-9a-f]{64}/[0-9a-f]{64}\Z")

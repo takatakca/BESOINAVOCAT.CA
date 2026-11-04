@@ -12,6 +12,7 @@ import { publicAddonCatalog } from './lib/addon-catalog.mjs';
 import { createIntegrations, integrationConfiguration, readWebhookBody, WEBHOOK_PROVIDERS } from './lib/integrations.mjs';
 import { createTelephony, telephonyConfiguration } from './lib/telephony.mjs';
 import { createIceServers, createVideoRooms, iceConfiguration } from './lib/video-room.mjs';
+import { createDocumentRequests } from './lib/document-requests.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, readJson, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
@@ -136,6 +137,7 @@ export function createApp({
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
+  const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
   const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
@@ -336,7 +338,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, auditSeal: true, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, auditSeal: true, payments: false, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -449,6 +451,13 @@ export function createApp({
       fields(body, []);
       return json(res, 200, room[2] === 'leave' ? video.leave(user, caseId, room[1]) : video.end(user, caseId, room[1]));
     }
+    // Pièces demandées au client (lib/document-requests.mjs).
+    if (suffix === '/requests' && method === 'GET') return json(res, 200, documentRequests.list(user, caseId));
+    if (suffix === '/requests' && method === 'POST') return json(res, 201, documentRequests.create(user, caseId, await readJson(req, 8192)));
+    const docRequest = /^\/requests\/([^/]+)\/(provide|decide|history)$/u.exec(suffix);
+    if (docRequest && docRequest[2] === 'history' && method === 'GET') return json(res, 200, documentRequests.history(user, caseId, docRequest[1]));
+    if (docRequest && docRequest[2] === 'provide' && method === 'POST') return json(res, 200, documentRequests.provide(user, caseId, docRequest[1], await readJson(req, 8192)));
+    if (docRequest && docRequest[2] === 'decide' && method === 'POST') return json(res, 200, documentRequests.decide(user, caseId, docRequest[1], await readJson(req, 8192)));
     if (suffix === '/journal' && method === 'GET') return json(res, 200, auditSeal.timeline(user, caseId));
     if (suffix === '/journal/verify' && method === 'GET') return json(res, 200, auditSeal.verify(user, caseId));
     if (suffix === '/journal/seal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, auditSeal.seal(user, caseId)); }

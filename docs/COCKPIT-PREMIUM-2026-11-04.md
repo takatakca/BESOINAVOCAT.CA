@@ -105,3 +105,11 @@ Tests : 317/317 Node, 17/17 Python de sauvegarde.
 - Les avocats et l'aperçu gardent « bientôt » : les demandes publiques ne sont transmises à aucun avocat (le consentement ne le couvre pas).
 
 Tests : 318/318.
+
+## Lot 6 — téléversement en flux (4 novembre 2026)
+
+- Les pièces partent telles quelles par `PUT /api/cases/:id/documents/stream` (route de la PR 25 du fil backend), avec leur description dans un en-tête. Plus d'encodage base64 dans le navigateur : environ un tiers de données en moins, et moins de mémoire pour les grosses vidéos.
+- Repli sur la route JSON si la description dépasse 8 Ko (long texte saisi) ou si le serveur n'a pas la route.
+- Tous les envois passent par la même file : un à la fois, nouvel essai si le serveur est occupé.
+
+Tests : 340/340.

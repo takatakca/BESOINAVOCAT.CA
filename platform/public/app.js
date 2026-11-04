@@ -130,7 +130,7 @@
     if (state.demo) throw new Error('L’aperçu utilise uniquement des données fictives locales.');
     const sessionVersion = state.sessionVersion;
     const method = options.method || 'GET';
-    const headers = { ...options.headers, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
+    const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers, ...(!['GET', 'HEAD'].includes(method) ? { 'X-Requested-With': 'XMLHttpRequest' } : {}) };
     const response = await fetch(path, { cache: 'no-store', ...options, credentials: 'same-origin', headers });
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
     if (response.status === 401) {
@@ -1441,9 +1441,9 @@
         if (!(file instanceof File) || !file.size) throw new Error('Sélectionnez un fichier non vide.');
         if (file.size > (state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES)) throw new Error('Ce fichier dépasse la limite de taille du serveur.');
         if (file.name.length > 240 || /[\\/\u0000-\u001f]/.test(file.name)) throw new Error('Le nom du fichier doit être court et sans caractère de contrôle.');
-        const payload = { name: file.name, mimeType: mimeFor(file), contentBase64: await fileBase64(file), sourceType: data.get('sourceType'), sourceReference: String(data.get('sourceReference')).trim(), extractedText: String(data.get('extractedText')), reviewStatus: 'a_verifier' };
-        if (data.get('versionOf')) payload.versionOf = data.get('versionOf');
-        await api(`${casePath}/documents`, { method: 'POST', body: JSON.stringify(payload) });
+        const meta = { name: file.name, mimeType: mimeFor(file), sourceType: data.get('sourceType'), sourceReference: String(data.get('sourceReference')).trim(), extractedText: String(data.get('extractedText')), reviewStatus: 'a_verifier' };
+        if (data.get('versionOf')) meta.versionOf = data.get('versionOf');
+        await queueUpload(() => postDocument(caseId, file, meta));
         await refreshDetail(caseId); message = 'La pièce et sa provenance ont été ajoutées. Son contenu reste à vérifier.';
       } else if (form.id === 'message-form') {
         const body = String(data.get('body')).trim();
@@ -1475,9 +1475,22 @@
   let uploadChain = Promise.resolve();
   function queueUpload(task) { const run = uploadChain.then(task, task); uploadChain = run.catch(() => {}); return run; }
   function wait(ms) { return new Promise(resolve => window.setTimeout(resolve, ms)); }
-  async function postDocument(caseId, payload) {
+  // Uploads go as raw bytes (PUT …/documents/stream, description in one header: no base64, a third lighter).
+  // A description too long for the header (long typed text) and a server without the route use the JSON route.
+  const DOCUMENT_HEADER_LIMIT = 8192;
+  let streamUploads = true;
+  async function postDocument(caseId, file, meta) {
+    const base = `/api/cases/${encodeURIComponent(caseId)}/documents`;
+    const header = encodeURIComponent(JSON.stringify(meta));
+    const send = async () => {
+      if (streamUploads && header.length <= DOCUMENT_HEADER_LIMIT) {
+        try { return await api(`${base}/stream`, { method: 'PUT', body: file, headers: { 'Content-Type': 'application/octet-stream', 'X-BesoinAvocat-Document': header } }); }
+        catch (error) { if (![404, 405].includes(error.status)) throw error; streamUploads = false; }
+      }
+      return api(base, { method: 'POST', body: JSON.stringify({ ...meta, contentBase64: await fileBase64(file) }) });
+    };
     for (let attempt = 0; ; attempt += 1) {
-      try { return await api(`/api/cases/${encodeURIComponent(caseId)}/documents`, { method: 'POST', body: JSON.stringify(payload) }); }
+      try { return await send(); }
       catch (error) { if (error.status !== 429 || attempt >= 5) throw error; await wait(800 * (attempt + 1)); }
     }
   }
@@ -1506,7 +1519,7 @@
         if (session !== state.sessionVersion) return;
         item.status = 'sending'; paintUploads();
         try {
-          await postDocument(caseId, { name: item.name, mimeType: mimeFor(item.file), contentBase64: await fileBase64(item.file), sourceType: 'original', reviewStatus: 'a_verifier', extractedText: '',
+          await postDocument(caseId, item.file, { name: item.name, mimeType: mimeFor(item.file), sourceType: 'original', reviewStatus: 'a_verifier', extractedText: '',
             sourceReference: `Ajout rapide depuis l’espace de travail le ${date(new Date().toISOString(), true)} : provenance à préciser.` });
           item.status = 'done';
         } catch (error) { item.status = 'failed'; item.message = error.message; }
@@ -1528,10 +1541,10 @@
     const session = state.sessionVersion;
     return queueUpload(async () => {
       if (session !== state.sessionVersion) throw new Error('La session a été fermée.');
-      const payload = { name: cleanName(meta.name), mimeType: meta.mimeType, contentBase64: await fileBase64(blob), sourceType: meta.sourceType, reviewStatus: 'a_verifier',
+      const description = { name: cleanName(meta.name), mimeType: meta.mimeType, sourceType: meta.sourceType, reviewStatus: 'a_verifier',
         sourceReference: String(meta.sourceReference || '').slice(0, 2048), extractedText: String(meta.extractedText || '').slice(0, 200000) };
-      if (meta.versionOf) payload.versionOf = meta.versionOf;
-      const result = await postDocument(caseId, payload);
+      if (meta.versionOf) description.versionOf = meta.versionOf;
+      const result = await postDocument(caseId, blob, description);
       if (caseId === state.selectedId && session === state.sessionVersion) { await refreshDetail(caseId).catch(() => false); render(); }
       return result.document;
     });

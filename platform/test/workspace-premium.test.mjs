@@ -32,7 +32,9 @@ function harness(demo = false) {
     document: { getElementById: node, querySelectorAll: () => [], addEventListener() {} },
     FormData: class { constructor(form) { this.data = form.data; } get(key) { return this.data[key] ?? null; } },
     fetch: async (path, options) => {
-      requests.push({ path, options, body: options?.body ? JSON.parse(options.body) : null });
+      // JSON routes carry a JSON body; the streaming upload carries the raw file and its description in a header.
+      const described = options?.headers?.['X-BesoinAvocat-Document'];
+      requests.push({ path, options, body: typeof options?.body === 'string' ? JSON.parse(options.body) : described ? JSON.parse(decodeURIComponent(described)) : null, raw: typeof options?.body === 'string' ? null : options?.body ?? null });
       if (!h.handler) throw new Error('Unexpected HTTP request');
       return h.handler(path, options);
     },
@@ -127,7 +129,7 @@ test('quick uploads go one at a time, retry when the server is busy, keep honest
   const { detail } = fixture(h);
   let active = 0, maxActive = 0, busyOnce = true;
   h.handler = async (path, options) => {
-    if (path.endsWith('/documents') && options.method === 'POST') {
+    if (path.endsWith('/documents/stream') && options.method === 'PUT') {
       active += 1; maxActive = Math.max(maxActive, active);
       await new Promise(resolve => setTimeout(resolve, 3));
       active -= 1;
@@ -140,7 +142,7 @@ test('quick uploads go one at a time, retry when the server is busy, keep honest
   assert.match(h.ui.uploadsHtml(), /Fichier vide/u);
   assert.match(h.ui.uploadsHtml(), /Fichier trop volumineux/u);
   await new Promise(resolve => setTimeout(resolve, 120));
-  const posts = h.requests.filter(item => item.path.endsWith('/documents'));
+  const posts = h.requests.filter(item => item.path.endsWith('/documents/stream'));
   assert.equal(maxActive, 1, 'never two uploads at the same time');
   assert.equal(posts.length, 3, 'two files, one of them retried after 429');
   assert.deepEqual(posts.map(item => item.body.name), ['rapport final.pdf', 'rapport final.pdf', 'photo.JPG']);
@@ -149,8 +151,11 @@ test('quick uploads go one at a time, retry when the server is busy, keep honest
     assert.equal(post.body.sourceType, 'original');
     assert.equal(post.body.reviewStatus, 'a_verifier');
     assert.match(post.body.sourceReference, /provenance à préciser/u);
-    assert.equal(post.body.contentBase64, btoa('synthetic'));
+    assert.equal(post.body.contentBase64, undefined, 'no base64 on the streaming route');
+    assert.equal(post.options.headers['Content-Type'], 'application/octet-stream');
+    assert.ok(post.raw?.arrayBuffer, 'the file itself is the body');
   }
+  assert.equal(h.requests.filter(item => item.path.endsWith('/documents')).length, 0, 'the JSON route is not used when the stream route answers');
   assert.equal(h.requests.filter(item => item.path === '/api/cases/case-a').length, 1, 'one refresh after the batch');
   assert.match(h.ui.uploadsHtml(), /upload-item done/u);
 });
@@ -158,16 +163,37 @@ test('quick uploads go one at a time, retry when the server is busy, keep honest
 test('a file made in the workspace is saved only to the case it was opened from', async () => {
   const h = harness();
   const { detail } = fixture(h);
-  h.handler = async (path, options) => (options?.method === 'POST' ? response({ document: { id: 'new-doc', versionNumber: 3 } }, 201) : response(detail()));
+  h.handler = async (path, options) => (['POST', 'PUT'].includes(options?.method) ? response({ document: { id: 'new-doc', versionNumber: 3 } }, 201) : response(detail()));
   await assert.rejects(h.ui.saveFromWorkspace(file('x', 4), { caseId: 'other-case', name: 'Dessin.png', mimeType: 'image/png', sourceType: 'analyse' }), /dossier concerné/u);
   assert.equal(h.requests.length, 0);
   const created = await h.ui.saveFromWorkspace(file('x', 4), { caseId: 'case-a', name: 'Chronologie: v2.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', sourceType: 'declaration', versionOf: 'doc-word', extractedText: 'Texte', sourceReference: 'Rédigé dans le portail.' });
   assert.equal(created.id, 'new-doc');
-  const post = h.requests.find(item => item.options?.method === 'POST');
+  const post = h.requests.find(item => item.options?.method === 'PUT');
+  assert.match(post.path, /\/api\/cases\/case-a\/documents\/stream$/u);
   assert.equal(post.body.name, 'Chronologie v2.docx');
   assert.equal(post.body.versionOf, 'doc-word');
   assert.equal(post.body.extractedText, 'Texte');
   assert.equal(post.body.reviewStatus, 'a_verifier');
+});
+
+test('uploads fall back to the JSON route for a long description or a server without the streaming route', async () => {
+  const h = harness();
+  const { detail } = fixture(h);
+  let streamAvailable = true;
+  h.handler = async (path, options) => {
+    if (path.endsWith('/documents/stream')) return streamAvailable ? response({ document: { id: 'streamed' } }, 201) : response({ error: { message: 'Ressource introuvable.' } }, 404);
+    if (path.endsWith('/documents') && options.method === 'POST') return response({ document: { id: 'json' } }, 201);
+    return response(detail());
+  };
+  const long = await h.ui.saveFromWorkspace(file('x', 4), { caseId: 'case-a', name: 'Long.txt', mimeType: 'text/plain', sourceType: 'declaration', extractedText: 'é'.repeat(3000) });
+  assert.equal(long.id, 'json', 'a description over the 8 KB header limit goes by JSON');
+  assert.equal(h.requests.filter(item => item.path.endsWith('/stream')).length, 0);
+  assert.equal(h.requests.find(item => item.path.endsWith('/documents')).body.contentBase64, btoa('synthetic'));
+  streamAvailable = false;
+  assert.equal((await h.ui.saveFromWorkspace(file('x', 4), { caseId: 'case-a', name: 'A.txt', mimeType: 'text/plain', sourceType: 'declaration' })).id, 'json');
+  const before = h.requests.filter(item => item.path.endsWith('/stream')).length;
+  assert.equal((await h.ui.saveFromWorkspace(file('x', 4), { caseId: 'case-a', name: 'B.txt', mimeType: 'text/plain', sourceType: 'declaration' })).id, 'json');
+  assert.equal(h.requests.filter(item => item.path.endsWith('/stream')).length, before, 'an older server is detected once');
 });
 
 function loadWorkspace() {

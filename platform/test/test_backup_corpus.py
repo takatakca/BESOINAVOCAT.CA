@@ -393,7 +393,9 @@ class BackupCorpusTests(unittest.TestCase):
           const [project, directory] = process.argv.slice(1);
           const {createApp} = await import(pathToFileURL(path.join(project,'platform/server.mjs')));
           const {documentInput} = await import(pathToFileURL(path.join(project,'platform/lib/validation.mjs')));
-          const app = createApp({dbPath:path.join(directory,'server.sqlite'),blobDir:path.join(directory,'server-blobs'),authenticate:async()=>null,env:{}});
+          const env={BESOINAVOCAT_INTAKE_ALLOWED_ORIGINS:'["https://portail.example.test"]',BESOINAVOCAT_INTAKE_DB_PATH:path.join(directory,'intake.sqlite')};
+          const app = createApp({dbPath:path.join(directory,'server.sqlite'),blobDir:path.join(directory,'server-blobs'),authenticate:async()=>null,env});
+          if (!app.intake?.configured && !(await import('node:fs')).existsSync(path.join(directory,'intake.sqlite'))) throw new Error('intake database not created');
           const owner={tenantId:'synthetic-server-tenant',subject:'synthetic-owner',product:'besoinavocat',active:true};
           const item=app.store.createCase(owner,{title:'Synthetic server backup',reference:'SYNTHETIC'});
           app.store.addDocument(owner,item.id,documentInput({name:'note.txt',mimeType:'text/plain',contentBase64:Buffer.from('Pièce fictive.').toString('base64'),sourceType:'original',reviewStatus:'a_verifier',extractedText:'Réparation fictive.'}));
@@ -404,9 +406,12 @@ class BackupCorpusTests(unittest.TestCase):
         result = subprocess.run([node, "--input-type=module", "-e", script, str(PROJECT), str(self.root)], capture_output=True, text=True, timeout=60, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["found"], 1)
-        manifest = backup.create_backup(self.root / "server.sqlite", self.root / "server-blobs", self.archive)
+        manifest = backup.create_backup(self.root / "server.sqlite", self.root / "server-blobs", self.archive, self.root / "intake.sqlite")
+        self.assertEqual(manifest["version"], 2)
         self.assertEqual(manifest["counts"]["documents"], 1)
         self.assertEqual(manifest["counts"]["search_folded_documents"], 1)
+        self.assertEqual(manifest["intake"]["counts"]["ba_intakes"], 0)
+        self.assertIn("ba_intake_reviews", manifest["intake"]["counts"])
         self.assertIn("telephony_calls", manifest["counts"])
         self.assertIn("document_requests", manifest["counts"])
         self.assertNotIn("sqlite_sequence", manifest["counts"])
@@ -415,6 +420,72 @@ class BackupCorpusTests(unittest.TestCase):
         self.assertEqual(backup.restore_archive(self.archive, destination), manifest)
         with closing(sqlite3.connect(destination / "platform.sqlite")) as restored:
             self.assertEqual(restored.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+        with closing(sqlite3.connect(destination / "intake.sqlite")) as restored:
+            self.assertEqual(restored.execute("PRAGMA application_id").fetchone()[0], backup.INTAKE_APP_ID)
+
+    def intake_fixture(self, app_id=backup.INTAKE_APP_ID, name="intake.sqlite"):
+        path = self.root / name
+        with closing(sqlite3.connect(path)) as connection:
+            connection.executescript(f"""
+              PRAGMA application_id={app_id};
+              CREATE TABLE ba_intake_meta(name TEXT PRIMARY KEY,value TEXT NOT NULL) STRICT;
+              CREATE TABLE ba_intakes(reference TEXT PRIMARY KEY,payloadJson TEXT NOT NULL,createdAt TEXT NOT NULL,status TEXT NOT NULL) STRICT;
+              CREATE TABLE ba_intake_limits(id TEXT PRIMARY KEY,count INTEGER NOT NULL,expiresAt INTEGER NOT NULL) STRICT;
+              CREATE TABLE ba_intake_reviews(reference TEXT PRIMARY KEY REFERENCES ba_intakes(reference),status TEXT NOT NULL,updatedAt TEXT NOT NULL,updatedBy TEXT NOT NULL) STRICT;
+              CREATE TABLE ba_intake_notes(id TEXT PRIMARY KEY,reference TEXT NOT NULL REFERENCES ba_intakes(reference),kind TEXT NOT NULL,body TEXT NOT NULL,author TEXT NOT NULL,createdAt TEXT NOT NULL) STRICT;
+              INSERT INTO ba_intake_meta VALUES('schema_version','2');
+              INSERT INTO ba_intakes VALUES('BA-synthetic000000000000000','{{"name":"Personne fictive"}}','2026-11-04T08:00:00Z','received');
+              INSERT INTO ba_intake_reviews VALUES('BA-synthetic000000000000000','in_review','2026-11-04T08:10:00Z','synthetic-reviewer');
+              INSERT INTO ba_intake_notes VALUES('note-1','BA-synthetic000000000000000','note','Note fictive','synthetic-reviewer','2026-11-04T08:11:00Z');
+            """)
+        path.chmod(0o600)
+        return path
+
+    def test_the_intake_database_is_archived_verified_and_restored_beside_the_corpus(self):
+        intake = self.intake_fixture()
+        manifest = backup.create_backup(self.database, self.blobs, self.archive, intake)
+        self.assertEqual(manifest["version"], 2)
+        self.assertEqual(manifest["intake"]["path"], "intake.sqlite")
+        self.assertEqual(manifest["intake"]["counts"], {"ba_intake_limits": 0, "ba_intake_meta": 1, "ba_intake_notes": 1, "ba_intake_reviews": 1, "ba_intakes": 1})
+        with zipfile.ZipFile(self.archive) as archive:
+            self.assertIn("intake.sqlite", archive.namelist())
+        self.assertEqual(backup.verify_archive(self.archive), manifest)
+        destination = self.root / "restored-with-intake"
+        self.assertEqual(backup.restore_archive(self.archive, destination), manifest)
+        self.assertEqual(oct((destination / "intake.sqlite").stat().st_mode & 0o777), "0o600")
+        with closing(sqlite3.connect(destination / "intake.sqlite")) as restored:
+            restored.execute("PRAGMA foreign_keys=ON")
+            self.assertEqual(restored.execute("SELECT status FROM ba_intake_reviews").fetchone()[0], "in_review")
+            with self.assertRaises(sqlite3.IntegrityError):
+                restored.execute("INSERT INTO ba_intake_notes VALUES('note-2','BA-missing','note','x','y','z')")
+        # Without --intake the archive is as before, so older operators' commands still work.
+        plain = backup.create_backup(self.database, self.blobs, self.root / "plain.zip")
+        self.assertNotIn("intake", plain)
+        self.assertEqual(plain["version"], 1)
+
+    def test_a_tampered_or_foreign_intake_database_is_refused(self):
+        intake = self.intake_fixture()
+        backup.create_backup(self.database, self.blobs, self.archive, intake)
+        tampered = self.root / "tampered.zip"
+        self.repack(tampered, transform=lambda name, data: data[:-1] + bytes([data[-1] ^ 1]) if name == "intake.sqlite" else data)
+        with self.assertRaises(backup.BackupError):
+            backup.verify_archive(tampered)
+        downgraded = self.root / "downgraded.zip"
+        def downgrade(name, data):
+            if name != "manifest.json":
+                return data
+            manifest = json.loads(data)
+            manifest["version"] = 1
+            return json.dumps(manifest).encode()
+        self.repack(downgraded, transform=downgrade)
+        with self.assertRaises(backup.BackupError):
+            backup.verify_archive(downgraded)
+        with self.assertRaises(backup.BackupError):
+            backup.create_backup(self.database, self.blobs, self.root / "foreign.zip", self.intake_fixture(app_id=0, name="foreign.sqlite"))
+        with self.assertRaises(backup.BackupError):
+            backup.create_backup(self.database, self.blobs, self.root / "same.zip", self.database)
+        self.assertFalse((self.root / "foreign.zip").exists())
+        self.assertFalse((self.root / "same.zip").exists())
 
 
 if __name__ == "__main__":

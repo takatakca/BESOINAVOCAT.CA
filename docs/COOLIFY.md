@@ -152,4 +152,8 @@ Le code de sortie vaut 1 s'il reste un point bloquant.
 
 ## Sauvegarde
 
-Après installation complète, le volume `/data` contiendra les bases SQLite (mode WAL), les pièces, la clé de session et les grants. Sauvegarder avec une méthode cohérente pour SQLite, comme indiqué dans [CPANEL_NODE](CPANEL_NODE.md). Conserver ensemble la clé et la base des sessions. Avant d'y placer des dossiers juridiques réels, noter où se trouve physiquement le serveur : un hébergement hors Québec demande une évaluation des facteurs relatifs à la vie privée (Loi 25).
+Après installation complète, le volume `/data` contiendra les bases SQLite (mode WAL), les pièces, la clé de session et les grants. Sauvegarder avec une méthode cohérente pour SQLite, comme indiqué dans [CPANEL_NODE](CPANEL_NODE.md). Conserver ensemble la clé et la base des sessions.
+
+Archive vérifiable des données clients, à lancer depuis le dépôt sur le poste opérateur ou dans le conteneur :
+`python platform/tools/backup-corpus.py create --database /data/platform.sqlite --blobs /data/blobs --intake /data/intake.sqlite --output <archive-privee>.zip`.
+`--intake` ajoute la base des demandes publiques (chemin de `BESOINAVOCAT_INTAKE_DB_PATH`) à la même archive, sous `intake.sqlite`, avec son empreinte et ses décomptes dans le manifeste (version 2). `verify` et `restore` la contrôlent comme le reste; la restauration la dépose à côté de `platform.sqlite`. Sans `--intake`, les demandes ne sont pas sauvegardées. Les clés (session, connecteurs, pièces) et les grants ne sont jamais dans l'archive : les copier à part, dans un coffre privé. Avant d'y placer des dossiers juridiques réels, noter où se trouve physiquement le serveur : un hébergement hors Québec demande une évaluation des facteurs relatifs à la vie privée (Loi 25).

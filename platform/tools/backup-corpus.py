@@ -48,6 +48,9 @@ OPTIONAL_TABLES = {
     "document_requests", "document_request_events",
     "lawyer_memberships", "lawyer_membership_events",
 }
+INTAKE_TABLES = {"ba_intake_meta", "ba_intakes", "ba_intake_limits", "ba_intake_reviews", "ba_intake_notes", "ba_intake_access"}
+INTAKE_APP_ID = 0x4241494E  # must match APP_ID in lib/intake.mjs
+DATABASE_MEMBERS = {"platform.sqlite", "intake.sqlite"}
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 BLOB_PATH = re.compile(r"blobs/[0-9a-f]{64}/[0-9a-f]{64}\Z")
 PUBLIC_COMPONENTS = {"public", "public_html", "htdocs", "wwwroot"}
@@ -235,6 +238,24 @@ def _database_inventory(database):
         return counts, [records[name] for name in sorted(records)]
 
 
+def _intake_inventory(database):
+    """Check the public request database: only its own tables, its application id, and row counts."""
+    with closing(_connect_ro(database)) as connection:
+        if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+            raise BackupError("Intake SQLite integrity_check failed.")
+        if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
+            raise BackupError("Intake SQLite foreign_key_check failed.")
+        definitions = connection.execute("SELECT name,sql FROM sqlite_schema WHERE type='table' AND name NOT GLOB 'sqlite_*'").fetchall()
+        tables = {name for name, _ in definitions}
+        if not tables or not tables.issubset(INTAKE_TABLES) or {"ba_intake_meta", "ba_intakes"} - tables:
+            raise BackupError("Unsupported intake schema; unknown or missing request tables.")
+        if any(not sql or re.search(r"\bVIRTUAL\s+TABLE\b", sql, re.I) for _, sql in definitions):
+            raise BackupError("Virtual or unidentified tables are not supported.")
+        if connection.execute("PRAGMA application_id").fetchone()[0] != INTAKE_APP_ID:
+            raise BackupError("The intake database does not carry the BesoinAvocat application id.")
+        return {name: connection.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()[0] for name in sorted(tables)}
+
+
 def _snapshot(database, destination):
     with _exclusive_file(destination):
         pass
@@ -274,12 +295,18 @@ def _safe_remove_created(path, expected_info, *, directory=False):
         pass
 
 
-def create_backup(database, blobs, output):
-    """Copy a consistent SQLite snapshot and only blobs referenced by it."""
+def create_backup(database, blobs, output, intake=None):
+    """Copy a consistent SQLite snapshot and only blobs referenced by it.
+
+    With `intake`, the public request database is snapshotted into the same archive
+    as `intake.sqlite` (manifest version 2). Keys and secrets are never included."""
     created = None
     try:
         database = _path(database, kind="file")
         blobs = _path(blobs, kind="directory")
+        intake = _path(intake, kind="file") if intake else None
+        if intake is not None and intake.resolve() == database.resolve():
+            raise BackupError("The intake database must be a different file from the case database.")
         output = _path(output, new=True, outside_project=True)
         if output.suffix.lower() != ".zip" or _inside(output, blobs):
             raise BackupError("Use a new .zip outside the source blob directory.")
@@ -289,11 +316,21 @@ def create_backup(database, blobs, output):
             counts, records = _database_inventory(snapshot)
             records = [_blob_record(blobs.joinpath(*record["path"].split("/")[1:]), record) for record in records]
             database_record = _file_record(snapshot, "platform.sqlite")
-            if database_record["bytes"] + sum(record["bytes"] for record in records) > MAX_TOTAL:
+            intake_record = None
+            if intake is not None:
+                intake_snapshot = Path(work) / "intake.sqlite"
+                _snapshot(intake, intake_snapshot)
+                intake_counts = _intake_inventory(intake_snapshot)
+                intake_record = {**_file_record(intake_snapshot, "intake.sqlite"), "counts": intake_counts}
+            extra = intake_record["bytes"] if intake_record else 0
+            if database_record["bytes"] + extra + sum(record["bytes"] for record in records) > MAX_TOTAL:
                 raise BackupError("The backup exceeds its supported total size.")
-            manifest = {"format": FORMAT, "version": 2 if any("sealed" in record for record in records) else 1,
+            version = 2 if intake_record or any("sealed" in record for record in records) else 1
+            manifest = {"format": FORMAT, "version": version,
                         "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         "database": database_record, "blobs": records, "counts": counts}
+            if intake_record:
+                manifest["intake"] = intake_record
             manifest_bytes = json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
             if len(manifest_bytes) > MAX_MANIFEST:
                 raise BackupError("The backup manifest is too large.")
@@ -302,6 +339,9 @@ def create_backup(database, blobs, output):
                 with zipfile.ZipFile(sink, "w", allowZip64=True) as archive:
                     with _source(snapshot) as original, archive.open(_zip_info("platform.sqlite"), "w", force_zip64=True) as member:
                         _transfer(original, member, expected=database_record)
+                    if intake_record:
+                        with _source(intake_snapshot) as original, archive.open(_zip_info("intake.sqlite"), "w", force_zip64=True) as member:
+                            _transfer(original, member, expected=intake_record)
                     for record in records:
                         original_path = blobs.joinpath(*record["path"].split("/")[1:])
                         with _source(original_path) as original, archive.open(_zip_info(record["path"]), "w", force_zip64=True) as member:
@@ -332,6 +372,16 @@ def _no_duplicates(pairs):
     return value
 
 
+def _valid_intake_record(record):
+    if not isinstance(record, dict) or set(record) != {"path", "sha256", "bytes", "counts"}:
+        return False
+    counts = record["counts"]
+    if (not isinstance(counts, dict) or not counts or not set(counts).issubset(INTAKE_TABLES) or
+            any(type(n) is not int or n < 0 for n in counts.values())):
+        return False
+    return _valid_record({key: record[key] for key in ("path", "sha256", "bytes")}, database="intake.sqlite")
+
+
 def _valid_record(record, *, database=False):
     if not isinstance(record, dict) or set(record) - {"sealed"} != {"path", "sha256", "bytes"}:
         return False
@@ -342,7 +392,8 @@ def _valid_record(record, *, database=False):
                 type(sealed["bytes"]) is not int or type(record["bytes"]) is not int or sealed["bytes"] != record["bytes"] + SEAL_OVERHEAD):
             return False
     name, digest, size = record["path"], record["sha256"], record["bytes"]
-    return (isinstance(name, str) and (name == "platform.sqlite" if database else BLOB_PATH.fullmatch(name)) and
+    expected_name = database if isinstance(database, str) else "platform.sqlite"
+    return (isinstance(name, str) and (name == expected_name if database else BLOB_PATH.fullmatch(name)) and
             isinstance(digest, str) and HEX.fullmatch(digest) and (database or name.rsplit("/", 1)[-1] == digest) and
             type(size) is int and 0 < size <= MAX_ENTRY)
 
@@ -355,7 +406,7 @@ def _read_manifest(archive):
     total = 0
     for info in infos:
         if (info.filename != info.orig_filename or info.filename in names or
-                not (info.filename in {"manifest.json", "platform.sqlite"} or BLOB_PATH.fullmatch(info.filename))):
+                not (info.filename in {"manifest.json", *DATABASE_MEMBERS} or BLOB_PATH.fullmatch(info.filename))):
             raise BackupError("Unsafe, duplicate or unexpected archive member name.")
         names.add(info.filename)
         mode = info.external_attr >> 16
@@ -373,7 +424,7 @@ def _read_manifest(archive):
         if len(raw) > MAX_MANIFEST:
             raise BackupError("Archive manifest is too large.")
     manifest = json.loads(raw.decode("utf-8", "strict"), object_pairs_hook=_no_duplicates)
-    if (not isinstance(manifest, dict) or set(manifest) != {"format", "version", "createdAt", "database", "blobs", "counts"} or
+    if (not isinstance(manifest, dict) or set(manifest) - {"intake"} != {"format", "version", "createdAt", "database", "blobs", "counts"} or
             manifest["format"] != FORMAT or type(manifest["version"]) is not int or manifest["version"] not in (1, 2) or
             not isinstance(manifest["createdAt"], str) or len(manifest["createdAt"]) > 40 or
             not _valid_record(manifest["database"], database=True) or not isinstance(manifest["blobs"], list) or
@@ -386,6 +437,10 @@ def _read_manifest(archive):
     if not CORE_TABLES.issubset(counts) or not set(counts).issubset(CORE_TABLES | OPTIONAL_TABLES) or any(type(n) is not int or n < 0 for n in counts.values()):
         raise BackupError("Invalid database table counts.")
     expected_names = {"manifest.json", "platform.sqlite"}
+    if "intake" in manifest:
+        if manifest["version"] < 2 or not _valid_intake_record(manifest["intake"]):
+            raise BackupError("An intake database requires a valid version 2 manifest.")
+        expected_names.add("intake.sqlite")
     for record in manifest["blobs"]:
         if not _valid_record(record) or record["path"] in expected_names:
             raise BackupError("Duplicate or invalid blob in manifest.")
@@ -394,10 +449,24 @@ def _read_manifest(archive):
         raise BackupError("Archive members do not match the manifest exactly.")
     if manifest["version"] == 1 and any("sealed" in record for record in manifest["blobs"]):
         raise BackupError("Sealed documents require a version 2 manifest.")
-    for record in [manifest["database"], *manifest["blobs"]]:
+    for record in _members(manifest):
         if archive.getinfo(record["path"]).file_size != _stored(record)["bytes"]:
             raise BackupError("A member size differs from the manifest.")
     return manifest
+
+
+def _members(manifest):
+    """Every archived file in restore order: databases first, then blobs."""
+    return [manifest["database"], *([manifest["intake"]] if "intake" in manifest else []), *manifest["blobs"]]
+
+
+def _check_intake(manifest, path):
+    if "intake" not in manifest:
+        return
+    with _source(path) as stream:
+        _transfer(stream, expected=manifest["intake"], limit=manifest["intake"]["bytes"])
+    if _intake_inventory(path) != manifest["intake"]["counts"]:
+        raise BackupError("Intake counts differ from the manifest.")
 
 
 def _verify_open(archive, work):
@@ -408,6 +477,11 @@ def _verify_open(archive, work):
     counts, references = _database_inventory(database)
     if counts != manifest["counts"] or references != sorted((_plain(record) for record in manifest["blobs"]), key=lambda item: item["path"]):
         raise BackupError("Manifest counts or blobs differ from the SQLite snapshot.")
+    if "intake" in manifest:
+        intake = work / "intake.sqlite"
+        with _exclusive_file(intake) as sink, archive.open("intake.sqlite") as source:
+            _transfer(source, sink, expected=manifest["intake"], limit=manifest["intake"]["bytes"])
+        _check_intake(manifest, intake)
     for record in manifest["blobs"]:
         with archive.open(record["path"]) as source:
             _transfer(source, expected=_stored(record), limit=_stored(record)["bytes"])
@@ -439,7 +513,7 @@ def restore_archive(archive, destination):
             destination.mkdir(mode=0o700, exist_ok=False)
             created = destination.lstat()
             (destination / "blobs").mkdir(mode=0o700)
-            for record in [manifest["database"], *manifest["blobs"]]:
+            for record in _members(manifest):
                 target = destination.joinpath(*record["path"].split("/"))
                 if target.parent != destination:
                     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -453,9 +527,10 @@ def restore_archive(archive, destination):
             counts, records = _database_inventory(destination / "platform.sqlite")
             if counts != manifest["counts"] or records != sorted((_plain(record) for record in manifest["blobs"]), key=lambda item: item["path"]):
                 raise BackupError("Restored database inventory differs from the archive.")
-            for record in [manifest["database"], *manifest["blobs"]]:
+            for record in _members(manifest):
                 with _source(destination.joinpath(*record["path"].split("/"))) as restored:
                     _transfer(restored, expected=_stored(record), limit=_stored(record)["bytes"])
+            _check_intake(manifest, destination / "intake.sqlite")
             # Keep the non-secret integrity manifest alongside the private data.
             with _exclusive_file(destination / "manifest.json") as sink:
                 sink.write(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n")
@@ -479,6 +554,7 @@ def main(argv=None):
     create.add_argument("--database", required=True)
     create.add_argument("--blobs", required=True)
     create.add_argument("--output", required=True)
+    create.add_argument("--intake", help="Also archive the public request database (BESOINAVOCAT_INTAKE_DB_PATH)")
     verify = commands.add_parser("verify", help="Verify every archive entry and SQLite integrity")
     verify.add_argument("--archive", required=True)
     restore = commands.add_parser("restore", help="Verify and restore to a new private directory")
@@ -487,7 +563,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "create":
-            manifest = create_backup(args.database, args.blobs, args.output)
+            manifest = create_backup(args.database, args.blobs, args.output, args.intake)
         elif args.command == "verify":
             manifest = verify_archive(args.archive)
         else:
@@ -495,7 +571,8 @@ def main(argv=None):
         print(json.dumps({"mode": args.command, "verified": True, "format": manifest["format"], "version": manifest["version"],
                           "counts": manifest["counts"], "uniqueTenantBlobs": len(manifest["blobs"]),
                           "blobBytes": sum(record["bytes"] for record in manifest["blobs"]),
-                          "databaseSha256": manifest["database"]["sha256"]}, ensure_ascii=False))
+                          "databaseSha256": manifest["database"]["sha256"],
+                          "intakeCounts": manifest["intake"]["counts"] if "intake" in manifest else None}, ensure_ascii=False))
         return 0
     except BackupError as error:
         print(json.dumps({"error": str(error)}, ensure_ascii=False), file=sys.stderr)

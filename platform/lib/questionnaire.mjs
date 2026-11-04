@@ -61,8 +61,52 @@ const definitions = {
     question('documentAvailable', 'Avez-vous un document à faire examiner plus tard ?', 'Do you have a document to be reviewed later?', yesNo()),
   ],
 };
-// Areas without targeted questions go straight from the area of law to the situation.
-for (const domain of ['real-estate', 'administrative', 'liability', 'tax', 'estates', 'rights', 'insolvency', 'municipal']) definitions[domain] = [];
+// 2026-11-04: the eight areas added with the owner's flow receive their own targeted questions. Same rules as
+// above: closed choices, a way to say "I do not know", no legal conclusion drawn from any answer.
+const context = () => [option('personal', 'Personnel', 'Personal'), option('business', 'Entreprise', 'Business'), option('organization', 'Association ou organisme', 'Association or organization'), unsure()];
+const amountBand = (...topics) => question('amountBand', 'Quel ordre de montant est en discussion ?', 'Approximately what amount is being discussed?', [option('under_5000', 'Moins de 5 000 CAD', 'Under CAD 5,000'), option('5000_25000', '5 000 à 25 000 CAD', 'CAD 5,000 to 25,000'), option('over_25000', 'Plus de 25 000 CAD', 'Over CAD 25,000'), option('not_amount', 'Pas de montant précis', 'No specific amount'), unsure()], topics.length ? when('topic', ...topics) : undefined);
+Object.assign(definitions, {
+  'real-estate': [
+    question('topic', 'Quel sujet immobilier vous concerne ?', 'Which real estate topic concerns you?', [option('transaction', 'Achat ou vente', 'Purchase or sale'), option('defect', 'Problème découvert après l’achat', 'Problem discovered after the purchase'), option('coownership', 'Copropriété', 'Co-ownership'), option('neighbours', 'Voisinage ou limites de terrain', 'Neighbours or property boundaries'), option('construction', 'Construction ou rénovation', 'Construction or renovation'), option('other', 'Autre', 'Other')]),
+    question('propertyRole', 'Quel est votre rôle dans cette situation ?', 'What is your role in this situation?', [option('buyer', 'Acheteur·euse', 'Buyer'), option('seller', 'Vendeur·euse', 'Seller'), option('owner', 'Propriétaire ou copropriétaire', 'Owner or co-owner'), option('other', 'Autre', 'Other'), unsure()]),
+    question('writtenExchange', 'Une demande écrite a-t-elle été envoyée ou reçue à ce sujet ?', 'Has a written demand been sent or received about this?', [option('received', 'J’en ai reçu une', 'I received one'), option('sent', 'J’en ai envoyé une', 'I sent one'), option('both', 'Les deux', 'Both'), option('none', 'Non', 'No'), unsure()], when('topic', 'defect', 'neighbours', 'construction')),
+  ],
+  administrative: [
+    question('topic', 'Quel type d’organisme est concerné ?', 'What type of body is involved?', [option('government', 'Ministère ou organisme gouvernemental', 'Government department or agency'), option('benefits', 'Régime public d’indemnisation ou de prestations', 'Public compensation or benefits plan'), option('institution', 'Établissement scolaire ou de santé', 'School or health institution'), option('professional', 'Ordre professionnel', 'Professional order'), option('other', 'Autre', 'Other')]),
+    question('caseStage', 'Où en est le dossier ?', 'What stage is the file at?', [option('pending', 'Décision pas encore reçue', 'Decision not yet received'), option('decision', 'Décision reçue', 'Decision received'), option('review', 'Révision ou contestation déjà demandée', 'Review or contestation already requested'), option('hearing', 'Audience prévue', 'Hearing scheduled'), unsure()]),
+    question('decisionAvailable', 'La décision écrite est-elle disponible ?', 'Is the written decision available?', yesNo(), when('caseStage', 'decision', 'review', 'hearing')),
+  ],
+  liability: [
+    question('topic', 'Quel type de préjudice est en cause ?', 'What type of harm is involved?', [option('injury', 'Blessure ou atteinte à la personne', 'Injury or harm to a person'), option('property', 'Bien endommagé', 'Damaged property'), option('financial', 'Perte financière', 'Financial loss'), option('reputation', 'Atteinte à la réputation', 'Harm to reputation'), option('other', 'Autre', 'Other')]),
+    question('position', 'Quelle est votre position ?', 'What is your position?', [option('claimant', 'J’ai subi le préjudice', 'I suffered the harm'), option('respondent', 'Une réclamation est faite contre moi', 'A claim is made against me'), option('representative', 'Je fais la demande pour un proche', 'I am asking on behalf of a relative'), unsure()]),
+    question('insurer', 'Un assureur est-il déjà impliqué ?', 'Is an insurer already involved?', [option('mine', 'Oui, le mien', 'Yes, mine'), option('theirs', 'Oui, celui de l’autre partie', 'Yes, the other party’s'), option('both', 'Oui, les deux', 'Yes, both'), option('none', 'Non', 'No'), unsure()]),
+  ],
+  tax: [
+    question('topic', 'Quel sujet fiscal vous concerne ?', 'Which tax topic concerns you?', [option('assessment', 'Avis de cotisation ou vérification', 'Notice of assessment or audit'), option('collection', 'Sommes réclamées ou recouvrement', 'Amounts claimed or collection'), option('business_taxes', 'Taxes d’entreprise', 'Business taxes'), option('planning', 'Déclaration ou planification', 'Filing or planning'), option('other', 'Autre', 'Other')]),
+    question('context', 'Dans quel contexte faites-vous la demande ?', 'In what context are you making the request?', context()),
+    question('objectionStage', 'Où en est ce dossier ?', 'What stage is this file at?', [option('notice', 'Avis reçu, rien d’envoyé', 'Notice received, nothing sent'), option('objection', 'Opposition ou contestation transmise', 'Objection or contestation sent'), option('decision', 'Réponse à l’opposition reçue', 'Response to the objection received'), unsure()], when('topic', 'assessment', 'collection')),
+  ],
+  estates: [
+    question('topic', 'Quel sujet successoral vous concerne ?', 'Which estate topic concerns you?', [option('planning', 'Préparer un testament ou un mandat', 'Prepare a will or a mandate'), option('settlement', 'Régler une succession', 'Settle an estate'), option('dispute', 'Désaccord sur une succession ou un testament', 'Disagreement about an estate or a will'), option('protection', 'Protection d’une personne', 'Protection of a person'), option('other', 'Autre', 'Other')]),
+    question('estateRole', 'À quel titre faites-vous la demande ?', 'In what capacity are you making this request?', [option('self', 'Pour moi-même', 'For myself'), option('heir', 'Héritier·ère ou proche', 'Heir or relative'), option('liquidator', 'Liquidateur·trice', 'Liquidator'), option('other', 'Autre', 'Other'), unsure()]),
+    question('willKnown', 'Existe-t-il un testament connu ?', 'Is there a known will?', yesNo(), when('topic', 'settlement', 'dispute')),
+  ],
+  rights: [
+    question('topic', 'Quel sujet souhaitez-vous aborder ?', 'Which topic would you like to discuss?', [option('discrimination', 'Discrimination ou harcèlement', 'Discrimination or harassment'), option('privacy', 'Vie privée ou renseignements personnels', 'Privacy or personal information'), option('information', 'Accès à des documents ou à l’information', 'Access to documents or information'), option('authorities', 'Intervention d’une autorité', 'Action by an authority'), option('other', 'Autre', 'Other')]),
+    question('setting', 'Dans quel contexte ?', 'In what setting?', [option('work', 'Travail', 'Work'), option('housing', 'Logement', 'Housing'), option('services', 'Commerce ou service', 'Business or service'), option('public', 'Organisme public', 'Public body'), option('other', 'Autre', 'Other'), unsure()]),
+    question('complaint', 'Une plainte a-t-elle déjà été déposée auprès d’un organisme ?', 'Has a complaint already been filed with a body?', [option('none', 'Non', 'No'), option('filed', 'Oui, en attente', 'Yes, pending'), option('decision', 'Oui, décision reçue', 'Yes, decision received'), unsure()]),
+  ],
+  insolvency: [
+    question('topic', 'Quelle situation vous concerne ?', 'Which situation concerns you?', [option('personal_debts', 'Dettes personnelles', 'Personal debts'), option('business_debts', 'Dettes d’entreprise', 'Business debts'), option('proposal', 'Proposition ou entente avec les créanciers', 'Proposal or arrangement with creditors'), option('bankruptcy', 'Faillite déjà entamée', 'Bankruptcy already started'), option('collection', 'Recouvrement ou saisie', 'Collection or seizure'), option('other', 'Autre', 'Other')]),
+    question('position', 'Quelle est votre position ?', 'What is your position?', [option('debtor', 'Je dois les sommes', 'I owe the amounts'), option('creditor', 'On me doit des sommes', 'I am owed the amounts'), option('guarantor', 'Je me suis porté·e garant·e', 'I am a guarantor'), unsure()]),
+    amountBand(),
+  ],
+  municipal: [
+    question('topic', 'Quel sujet municipal vous concerne ?', 'Which municipal topic concerns you?', [option('permit', 'Permis ou zonage', 'Permit or zoning'), option('taxes', 'Taxes municipales ou évaluation foncière', 'Municipal taxes or property assessment'), option('bylaw', 'Avis d’infraction ou amende municipale', 'Bylaw notice or municipal fine'), option('works', 'Travaux, expropriation ou servitude', 'Works, expropriation or easement'), option('other', 'Autre', 'Other')]),
+    question('municipalRole', 'À quel titre faites-vous la demande ?', 'In what capacity are you making this request?', [option('resident', 'Résident·e ou propriétaire', 'Resident or owner'), option('business', 'Entreprise ou commerce', 'Business'), option('other', 'Autre', 'Other'), unsure()]),
+    question('writtenDecision', 'Un avis ou une décision écrite a-t-il été reçu ?', 'Has a written notice or decision been received?', yesNo()),
+  ],
+});
 
 // Steps shared by every area of law. Skips mirror the owner's model: no opposing party to check in criminal or
 // immigration matters, and no legal aid question for a business. Nothing here decides eligibility.

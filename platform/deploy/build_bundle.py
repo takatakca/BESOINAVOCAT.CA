@@ -39,6 +39,7 @@ ALLOWLIST = {
     'tools/backup-corpus.py': 'platform/tools/backup-corpus.py',
     'tools/deploy-readiness.mjs': 'platform/tools/deploy-readiness.mjs',
     'tools/seal-documents.mjs': 'platform/tools/seal-documents.mjs',
+    'tools/purge-intakes.mjs': 'platform/tools/purge-intakes.mjs',
     'public/index.html': 'platform/public/index.html',
     'public/app.js': 'platform/public/app.js',
     'public/dictation.js': 'platform/public/dictation.js',

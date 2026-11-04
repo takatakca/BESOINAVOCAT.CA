@@ -117,7 +117,18 @@ Les limites partagées SQLite sont de **20 tentatives par pair réseau sur 15 mi
 
 Le pair est `socket.remoteAddress`, jamais un `X-Forwarded-For` non validé. **Derrière Passenger ou un proxy, plusieurs visiteurs peuvent partager ce pair et donc sa limite.** Adapter cette limite ou la source d'adresse exige une configuration de proxy vérifiée; aucune confiance implicite dans les en-têtes transmis n'est ajoutée ici.
 
-Seuls les compteurs expirés sont purgés automatiquement; les demandes ne sont pas effacées par cette purge. Avant activation, l'exploitant doit définir la consultation, la durée de conservation, la suppression et la sauvegarde de cette file privée. L'outil existant de sauvegarde documentaire ne l'inclut pas. Le consentement enregistré porte sur le traitement d'une demande de contact, pas sur une inscription marketing générale ou une notification automatique.
+Seuls les compteurs expirés sont purgés automatiquement; les demandes ne sont jamais effacées par le portail lui-même. Le consentement enregistré porte sur le traitement d'une demande de contact, pas sur une inscription marketing générale ou une notification automatique. La sauvegarde (`backup-corpus.py create --intake`) inclut cette base depuis la PR 24.
+
+### Conservation limitée
+
+La durée de conservation est une décision du propriétaire (Loi 25 : conserver le temps du traitement, puis détruire de façon sécuritaire); le code n'en impose aucune. Une fois la durée fixée, l'exploitant lance dans le conteneur :
+
+```text
+node tools/purge-intakes.mjs --database /data/intake.sqlite --older-than-days <N>
+```
+
+Sans `--execute`, l'outil ne fait que compter : demandes dans la base, demandes **fermées ou indésirables** dont le statut n'a pas changé depuis plus de N jours (1 à 3650), répartition par statut et date de statut la plus ancienne. Avec `--execute`, ces demandes sont supprimées en une transaction avec leurs notes, leurs changements de statut et leurs attributions; `secure_delete` est activé pour que les pages libérées soient écrasées. Une demande encore ouverte (`received`, `in_review`, `contacted`) n'est jamais touchée, et une demande rouverte entre la sélection et la suppression est conservée. Chaque suppression laisse une ligne `purge:<statut>:<N>d` du sujet `tool:purge-intakes` dans `ba_intake_access`, sans donnée personnelle. Les garde-fous d'ajout seul des notes et des attributions sont levés le temps de la transaction, puis remis. L'outil refuse une base d'une autre application ou avec une table inconnue, et n'affiche jamais de nom, d'adresse ni de résumé. Faire une sauvegarde avant la première exécution.
+
 
 ## Vérification
 

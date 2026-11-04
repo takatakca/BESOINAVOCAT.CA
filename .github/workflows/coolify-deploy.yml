@@ -1,67 +1,133 @@
 # Deploys to the owner's Coolify after green CI on main, as in takatak-v1.
-# Disabled until the owner sets the repository variables and the production environment secrets
-# described in docs/COOLIFY.md. Each application has its own switch.
+# Each application has its own switch, described in docs/COOLIFY.md:
+#   repository variables  COOLIFY_BESOINAVOCAT_WWW_AUTODEPLOY_ENABLED / COOLIFY_BESOINAVOCAT_PORTAL_AUTODEPLOY_ENABLED = true
+#   production secrets    COOLIFY_BESOINAVOCAT_API_TOKEN, COOLIFY_BESOINAVOCAT_WWW_DEPLOY_WEBHOOK, COOLIFY_BESOINAVOCAT_PORTAL_DEPLOY_WEBHOOK
+# While a switch is off, the "status" job says so on the run page instead of the run showing a silent "skipped".
+# "Run workflow" (workflow_dispatch) deploys the current main by hand once the secrets exist, even with the switch off.
 name: BesoinAvocat Coolify deploy
 
 on:
   workflow_run:
     workflows: ["Storefront checks", "Platform pilot checks"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Application to deploy from the current main"
+        type: choice
+        options: [portal, storefront]
+        default: portal
 
 permissions:
   contents: read
 
 concurrency:
-  group: besoinavocat-coolify-${{ github.event.workflow_run.name }}
+  group: besoinavocat-coolify-${{ github.event.workflow_run.name || inputs.target }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  status:
+    # Explains, on every green main CI, why no deploy happened when the switch is off.
     if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' &&
+      ${{ github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
-          github.event.workflow_run.head_branch == 'main' &&
-          ((github.event.workflow_run.name == 'Storefront checks' && vars.COOLIFY_BESOINAVOCAT_WWW_AUTODEPLOY_ENABLED == 'true') ||
-           (github.event.workflow_run.name == 'Platform pilot checks' && vars.COOLIFY_BESOINAVOCAT_PORTAL_AUTODEPLOY_ENABLED == 'true')) }}
+          github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      enabled: ${{ steps.switch.outputs.enabled }}
+    steps:
+      - name: Read the auto-deploy switch for this application
+        id: switch
+        shell: bash
+        env:
+          CI_NAME: ${{ github.event.workflow_run.name }}
+          WWW_SWITCH: ${{ vars.COOLIFY_BESOINAVOCAT_WWW_AUTODEPLOY_ENABLED }}
+          PORTAL_SWITCH: ${{ vars.COOLIFY_BESOINAVOCAT_PORTAL_AUTODEPLOY_ENABLED }}
+        run: |
+          set -euo pipefail
+          case "$CI_NAME" in
+            "Storefront checks") APP="storefront (www)"; VAR=COOLIFY_BESOINAVOCAT_WWW_AUTODEPLOY_ENABLED; SECRET=COOLIFY_BESOINAVOCAT_WWW_DEPLOY_WEBHOOK; VALUE="${WWW_SWITCH:-}" ;;
+            "Platform pilot checks") APP="portal"; VAR=COOLIFY_BESOINAVOCAT_PORTAL_AUTODEPLOY_ENABLED; SECRET=COOLIFY_BESOINAVOCAT_PORTAL_DEPLOY_WEBHOOK; VALUE="${PORTAL_SWITCH:-}" ;;
+            *) echo "::error::Unknown CI workflow: $CI_NAME"; exit 1 ;;
+          esac
+          if [ "$VALUE" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Auto-deploy of the $APP is on; the deploy job follows." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+          echo "::warning title=No deploy for the ${APP}::Auto-deploy is off. Set the repository variable ${VAR}=true and the production environment secrets COOLIFY_BESOINAVOCAT_API_TOKEN and ${SECRET} (docs/COOLIFY.md), or use Run workflow to deploy by hand."
+          {
+            echo "### No deploy for the ${APP}: auto-deploy is off"
+            echo
+            echo "Main passed its checks, but nothing was sent to Coolify. To deploy automatically:"
+            echo
+            echo "1. Repository variable \`${VAR}\` = \`true\` (Settings → Secrets and variables → Actions → Variables)."
+            echo "2. Environment \`production\` secrets \`COOLIFY_BESOINAVOCAT_API_TOKEN\` and \`${SECRET}\` (Settings → Environments → production)."
+            echo
+            echo "Or open this workflow and use **Run workflow** to deploy the current main once the secrets exist."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: [status]
+    # always() lets a manual run proceed although the status job is skipped for it.
+    if: >-
+      ${{ always() &&
+          ((github.event_name == 'workflow_run' && needs.status.result == 'success' && needs.status.outputs.enabled == 'true') ||
+           (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: production
     env:
       CI_NAME: ${{ github.event.workflow_run.name }}
+      TARGET: ${{ inputs.target }}
       WWW_DEPLOY_URL: ${{ secrets.COOLIFY_BESOINAVOCAT_WWW_DEPLOY_WEBHOOK }}
       PORTAL_DEPLOY_URL: ${{ secrets.COOLIFY_BESOINAVOCAT_PORTAL_DEPLOY_WEBHOOK }}
       COOLIFY_DEPLOY_TOKEN: ${{ secrets.COOLIFY_BESOINAVOCAT_API_TOKEN }}
     steps:
-      - name: Verify this successful CI checked current main
+      - name: Verify the deployed source is current main
         uses: actions/github-script@v7
         env:
-          VERIFIED_CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         with:
           script: |
             const {owner, repo} = context.repo;
             const branch = await github.rest.repos.getBranch({owner, repo, branch: "main"});
-            if (branch.data.commit.sha !== process.env.VERIFIED_CI_SHA) {
-              core.setFailed("Main has moved since CI: refusing stale production deploy.");
+            if (branch.data.commit.sha !== process.env.VERIFIED_SHA) {
+              core.setFailed("Main has moved since this run started: refusing stale production deploy.");
             }
 
       - name: Request Coolify deploy from exact main source
         shell: bash
         run: |
           set -euo pipefail
-          # Each CI deploys only its own application; a missing secret never falls back to the other one.
-          case "$CI_NAME" in
-            "Storefront checks") COOLIFY_DEPLOY_URL="${WWW_DEPLOY_URL:-}" ;;
-            "Platform pilot checks") COOLIFY_DEPLOY_URL="${PORTAL_DEPLOY_URL:-}" ;;
-            *) echo "::error::Unknown CI workflow"; exit 1 ;;
+          # Each run deploys only its own application; a missing secret never falls back to the other one.
+          if [ -n "${CI_NAME:-}" ]; then
+            case "$CI_NAME" in
+              "Storefront checks") TARGET=storefront ;;
+              "Platform pilot checks") TARGET=portal ;;
+              *) echo "::error::Unknown CI workflow"; exit 1 ;;
+            esac
+          fi
+          case "${TARGET:-}" in
+            storefront) COOLIFY_DEPLOY_URL="${WWW_DEPLOY_URL:-}"; SECRET=COOLIFY_BESOINAVOCAT_WWW_DEPLOY_WEBHOOK ;;
+            portal) COOLIFY_DEPLOY_URL="${PORTAL_DEPLOY_URL:-}"; SECRET=COOLIFY_BESOINAVOCAT_PORTAL_DEPLOY_WEBHOOK ;;
+            *) echo "::error::Unknown deploy target"; exit 1 ;;
           esac
-          if [ -z "${COOLIFY_DEPLOY_URL:-}" ] || [ -z "${COOLIFY_DEPLOY_TOKEN:-}" ]; then
-            echo "::error::Configure the Coolify deploy webhook and API token in the GitHub production environment"
+          MISSING=""
+          [ -n "${COOLIFY_DEPLOY_URL:-}" ] || MISSING="$MISSING $SECRET"
+          [ -n "${COOLIFY_DEPLOY_TOKEN:-}" ] || MISSING="$MISSING COOLIFY_BESOINAVOCAT_API_TOKEN"
+          if [ -n "$MISSING" ]; then
+            echo "::error title=Deploy not sent::Missing secrets in the GitHub environment 'production':${MISSING}. Add them under Settings → Environments → production (docs/COOLIFY.md)."
+            echo "### Deploy not sent: missing secrets in environment \`production\`:${MISSING}" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           case "$COOLIFY_DEPLOY_URL" in
             https://coolify.takatak.ca/api/v1/deploy*) ;;
             *)
-              echo "::error::Deploy URL must target the approved Coolify instance API"
+              echo "::error::Deploy URL in ${SECRET} must target the approved Coolify instance API (https://coolify.takatak.ca/api/v1/deploy...)"
               exit 1
               ;;
           esac
@@ -70,4 +136,5 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${COOLIFY_DEPLOY_TOKEN}" \
             "$COOLIFY_DEPLOY_URL" >/dev/null
-          echo "Coolify deploy queued for CI-verified current main. Confirm deployment health in Coolify."
+          echo "Coolify deploy of the ${TARGET} queued for current main. Confirm deployment health in Coolify."
+          echo "### Coolify deploy of the ${TARGET} queued for current main" >> "$GITHUB_STEP_SUMMARY"

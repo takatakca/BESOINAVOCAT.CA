@@ -8,7 +8,7 @@ Ce lot ajoute du code local, sans activation distante. Le paquet v2 précédemme
 
 Les prix et les snapshots d'intérêt utilisent la même source serveur. Changer un montant, les choix ou le consentement exige une nouvelle version du catalogue. Les libellés et le consentement sont fournis en français et en anglais. Les montants ou rôles d'autorité transmis par un navigateur ne sont jamais acceptés.
 
-`POST /api/intake` enregistre uniquement une demande de contact dans une base privée distincte. **Une demande reçue n'est pas un workflow d'attribution, une notification, un espace professionnel, un mandat ou un abonnement.** Aucun GET de demandes, recherche par référence, export HTTP ou interface d'opérateur n'est livré. Les permissions existantes des dossiers ne donnent pas accès à cette file par une nouvelle route.
+`POST /api/intake` enregistre uniquement une demande de contact dans une base privée distincte. **Une demande reçue n'est pas une notification, un espace professionnel, un mandat ou un abonnement.** Sa lecture et son traitement sont réservés aux personnes de l'équipe nommées dans `BESOINAVOCAT_INTAKE_REVIEWERS` (section « File de traitement »); les permissions existantes des dossiers ne donnent pas accès à cette file. Aucun export HTTP ni recherche publique par référence n'existe.
 
 ## Activation explicite
 
@@ -72,6 +72,23 @@ Domaines : `family`, `employment`, `housing`, `civil`, `criminal`, `business`, `
 Régions : `montreal`, `laval`, `monteregie`, `capitale-nationale`, `outaouais`, `laurentides`, `lanaudiere`, `estrie`, `mauricie`, `chaudiere-appalaches`, `centre-du-quebec`, `saguenay-lac-saint-jean`, `bas-saint-laurent`, `abitibi-temiscamingue`, `cote-nord`, `nord-du-quebec`, `gaspesie-iles-de-la-madeleine`, `ontario`, `outside-quebec` (autre province ou territoire). Catalogue `2026-10-27.2` depuis l’ajout de l’Ontario.
 
 Après commit SQLite seulement : **201**, JSON exact `{ "reference": "BA-…", "status": "received" }`. La référence suit `^BA-[A-Za-z0-9_-]{24}$`, avec 18 octets aléatoires; elle n'autorise aucune consultation. Une reprise avec la même clé, le même corps normalisé et la même origine retourne le même reçu sans seconde ligne. Un changement de corps ou d'origine avec cette clé renvoie **409**.
+
+## File de traitement (`/demandes`)
+
+La page `/demandes` et les routes `/api/intakes` servent aux personnes de l'équipe BesoinAvocat qui traitent les demandes et recontactent les gens. Elles exigent une session du portail **et** un sujet TAKATAK nommé dans `BESOINAVOCAT_INTAKE_REVIEWERS`; toute autre personne, connectée ou non, reçoit le même 404 qu'une route inconnue. La variable est un tableau JSON de 1 à 32 entrées, chaque entrée étant un sujet (`"uuid-du-sujet"`) ou un objet `{"subject": "uuid-du-sujet", "name": "Me Untel"}`; le nom (80 caractères au plus, sans balise) sert seulement à l'affichage dans la file. Une seule entrée malformée désactive toute la liste. Le consentement enregistré ne couvre pas la transmission à un avocat : la file ne crée ni dossier, ni compte, ni mandat.
+
+| Route | Rôle |
+|---|---|
+| `GET /api/intakes?status=&assigned=&offset=&limit=` | Liste de triage sans coordonnées ni résumé : référence, date, statut, responsable, rôle, langue, nom, domaine, région, urgence, échéance. `counts` donne le nombre de demandes par statut (toutes, sans filtre), `assignedToMe` le nombre de demandes ouvertes (`received`, `in_review`) attribuées à la personne. `status` est l'un des cinq statuts; `assigned` vaut `me` (attribuées à la personne) ou `none` (sans responsable). `limit` de 1 à 100, `offset` jusqu'à 10 000. |
+| `GET /api/intakes/reviewers` | Les personnes à qui une demande peut être attribuée : `{ "reviewers": [{ "subject", "name", "me" }] }`. |
+| `GET /api/intakes/<référence>` | Détail complet (coordonnées, résumé, questionnaire, consentement, `assignment`) et `history` : notes, changements de statut et attributions, dans l'ordre. Chaque lecture est journalisée. |
+| `POST /api/intakes/<référence>/status` | `{ "status", "expected"? }`. Statuts : `received`, `in_review`, `contacted`, `closed`, `spam`. `expected` protège contre une modification concurrente (**409 `STATUS_CONFLICT`**). |
+| `POST /api/intakes/<référence>/assign` | `{ "assignee": "<sujet>" ou null, "expected"?: "<sujet>" ou null }`. `assignee` doit être une personne de la liste; `null` remet la demande dans la file commune. `expected` compare au responsable courant (**409 `ASSIGNMENT_CONFLICT`**). Attribuer une demande encore `received` la passe en `in_review`, avec la trace de statut correspondante. Réponse : `{ reference, assignment, changed, status }`. |
+| `POST /api/intakes/<référence>/notes` | `{ "body" }` : note interne de 1 à 4 000 caractères, jamais modifiable ni supprimable. |
+
+La base des demandes garde ces traitements à côté des demandes intactes : `ba_intake_reviews` (statut courant), `ba_intake_notes` (notes et changements de statut, en ajout seul), `ba_intake_assignments` (historique des attributions, en ajout seul; la dernière ligne vaut, une ligne vide retire l'attribution) et `ba_intake_access` (journal de chaque liste, lecture, statut, attribution et note, en ajout seul). Le schéma est à la version 3; une base des versions 1 ou 2 est mise à niveau au démarrage sans toucher aux demandes. `backup-corpus.py create --intake` archive l'ensemble.
+
+Aucune notification n'est envoyée à l'attribution : le portail n'a pas d'envoi de courriel propre, et aucun fournisseur n'est raccordé pour cela.
 
 ## Confidentialité, CORS et erreurs
 

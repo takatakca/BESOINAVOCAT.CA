@@ -5,7 +5,7 @@
     received: 'Reçue', in_review: 'En traitement', contacted: 'Personne recontactée', closed: 'Fermée', spam: 'Indésirable',
   };
   var ORDER = ['received', 'in_review', 'contacted', 'closed', 'spam'];
-  var state = { status: null, offset: 0, rows: [], selected: null, detail: null, busy: false };
+  var state = { status: null, assigned: null, offset: 0, rows: [], selected: null, detail: null, busy: false, reviewers: [], me: null };
   var $ = function (id) { return document.getElementById(id); };
 
   function esc(value) {
@@ -19,6 +19,14 @@
     try { return new Intl.DateTimeFormat('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)); } catch (e) { return iso; }
   }
   function badge(status) { return '<span class="inbox-status" data-status="' + esc(status) + '">' + esc(STATUS[status] || status) + '</span>'; }
+  // A reviewer is shown by the name given in the configuration, or by a short form of the identifier.
+  function who(person) {
+    if (!person) return '';
+    if (typeof person === 'string') person = state.reviewers.find(function (r) { return r.subject === person; }) || { subject: person, name: null };
+    if (person.subject === state.me) return 'vous';
+    return person.name || (person.subject.length > 14 ? person.subject.slice(0, 8) + '…' : person.subject);
+  }
+  function assigneeBadge(person) { return person ? '<span class="inbox-assignee">' + esc(who(person)) + '</span>' : ''; }
 
   async function api(path, options) {
     options = options || {};
@@ -44,12 +52,14 @@
     node.classList.toggle('is-error', Boolean(isError));
   }
 
-  function renderFilters(counts) {
+  function renderFilters(counts, mine) {
     var total = ORDER.reduce(function (sum, key) { return sum + (counts[key] || 0); }, 0);
     var buttons = [['', 'Toutes', total]].concat(ORDER.map(function (key) { return [key, STATUS[key], counts[key] || 0]; }));
     $('inbox-filters').innerHTML = buttons.map(function (item) {
       var pressed = (state.status || '') === item[0];
       return '<button type="button" data-filter="' + esc(item[0]) + '" aria-pressed="' + pressed + '">' + esc(item[1]) + ' · ' + esc(item[2]) + '</button>';
+    }).join('') + '<span class="inbox-filter-gap" aria-hidden="true"></span>' + [['me', 'À moi · ' + (mine || 0)], ['none', 'Sans responsable']].map(function (item) {
+      return '<button type="button" data-assigned="' + item[0] + '" aria-pressed="' + (state.assigned === item[0]) + '">' + esc(item[1]) + '</button>';
     }).join('');
   }
 
@@ -60,7 +70,7 @@
       var current = row.reference === state.selected;
       var kind = row.role === 'professional' ? 'Avocat · intérêt' : row.detailed ? 'Demande détaillée' : 'Contact';
       return '<li><button type="button" class="inbox-row" data-reference="' + esc(row.reference) + '" aria-current="' + current + '">' +
-        '<span class="inbox-row-top"><strong>' + esc(row.name) + '</strong>' + badge(row.status) + '</span>' +
+        '<span class="inbox-row-top"><strong>' + esc(row.name) + '</strong><span>' + assigneeBadge(row.assignee) + badge(row.status) + '</span></span>' +
         '<span>' + esc(fr(row.domain && row.domain.label)) + ' · ' + esc(fr(row.region && row.region.label)) + '</span>' +
         '<small>' + esc(kind) + (row.urgency ? ' · ' + esc(fr(row.urgency.label)) : '') + ' · ' + esc(when(row.createdAt)) + '</small></button></li>';
     }).join('');
@@ -68,13 +78,18 @@
 
   async function load(reset) {
     if (reset) { state.offset = 0; state.rows = []; }
-    var query = '?limit=25&offset=' + state.offset + (state.status ? '&status=' + encodeURIComponent(state.status) : '');
+    var query = '?limit=25&offset=' + state.offset + (state.status ? '&status=' + encodeURIComponent(state.status) : '') + (state.assigned ? '&assigned=' + state.assigned : '');
     try {
+      if (!state.reviewers.length) {
+        var directory = await api('/api/intakes/reviewers');
+        state.reviewers = directory.reviewers;
+        state.me = (directory.reviewers.find(function (r) { return r.me; }) || {}).subject || null;
+      }
       var data = await api('/api/intakes' + query);
       state.rows = state.rows.concat(data.requests);
       state.offset = data.nextOffset || state.offset;
       $('inbox-more').hidden = !data.hasMore;
-      renderFilters(data.counts);
+      renderFilters(data.counts, data.assignedToMe);
       renderRows();
       showState('');
       $('inbox-layout').hidden = false;
@@ -115,6 +130,7 @@
     var r = data.request, c = r.contact || {};
     var rows = [
       ['Référence', r.reference], ['Reçue le', when(r.createdAt)], ['Statut', STATUS[r.status] || r.status],
+      ['Responsable', r.assignment && r.assignment.assignee ? who(r.assignment.assignee) + ' · depuis le ' + when(r.assignment.assignedAt) : 'Personne pour l’instant'],
       ['Nom', c.name], ['Courriel', c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : null, true],
       ['Téléphone', c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^+0-9]/g, '')) + '">' + esc(c.phone) + '</a>' : null, true],
       ['Préférence de contact', fr(r.contactPreferenceLabel)], ['Langue', r.language === 'en' ? 'Anglais' : 'Français'],
@@ -125,7 +141,8 @@
     ].concat(flowRows(r)).filter(function (item) { return item[1]; });
     var answers = (r.answers || []).map(function (a) { return [fr(a.question), fr(a.answer && a.answer.label) || a.answer.id]; });
     var history = (data.history || []).map(function (h) {
-      var text = h.kind === 'status' ? h.body.split(' → ').map(function (s) { return STATUS[s] || s; }).join(' → ') : h.body;
+      var text = h.kind === 'status' ? h.body.split(' → ').map(function (s) { return STATUS[s] || s; }).join(' → ')
+        : h.kind === 'assignment' ? (h.assignee ? 'Attribuée à ' + who(h.assignee) : 'Attribution retirée') : h.body;
       return '<li data-kind="' + esc(h.kind) + '"><small>' + esc(when(h.createdAt)) + (h.mine ? ' · vous' : '') + '</small><p>' + esc(text) + '</p></li>';
     }).join('');
     box.innerHTML =
@@ -136,6 +153,10 @@
       '<div class="inbox-actions"><label for="inbox-status-select">Changer le statut</label><select id="inbox-status-select">' +
         ORDER.map(function (key) { return '<option value="' + key + '"' + (key === r.status ? ' selected' : '') + '>' + esc(STATUS[key]) + '</option>'; }).join('') +
       '</select><button type="button" class="button" id="inbox-status-save">Enregistrer</button></div>' +
+      '<div class="inbox-actions"><label for="inbox-assign-select">Responsable</label><select id="inbox-assign-select"><option value="">Personne</option>' +
+        state.reviewers.map(function (p) { return '<option value="' + esc(p.subject) + '"' + (r.assignment && r.assignment.assignee && r.assignment.assignee.subject === p.subject ? ' selected' : '') + '>' + esc(who(p)) + '</option>'; }).join('') +
+      '</select><button type="button" class="button" id="inbox-assign-save">Attribuer</button>' +
+        (state.me && !(r.assignment && r.assignment.assignee && r.assignment.assignee.subject === state.me) ? '<button type="button" class="text-button" id="inbox-assign-me">Me l’attribuer</button>' : '') + '</div>' +
       '<form class="inbox-note" id="inbox-note-form"><label for="inbox-note-text"><h3>Ajouter une note interne</h3></label>' +
         '<textarea id="inbox-note-text" maxlength="4000" required></textarea><div><button type="submit" class="button">Ajouter la note</button></div></form>' +
       '<div><h3>Historique</h3>' + (history ? '<ul class="inbox-history">' + history + '</ul>' : '<p class="table-subtext">Aucune note pour l’instant.</p>') + '</div>' +
@@ -165,6 +186,20 @@
     } finally { state.busy = false; }
   }
 
+  async function saveAssignment(subject) {
+    if (state.busy || !state.detail) return;
+    var r = state.detail.request, current = r.assignment && r.assignment.assignee ? r.assignment.assignee.subject : null;
+    state.busy = true;
+    try {
+      await api('/api/intakes/' + encodeURIComponent(r.reference) + '/assign', { method: 'POST', body: { assignee: subject || null, expected: current } });
+      await open(r.reference);
+      await load(true);
+    } catch (error) {
+      if (error.code === 'ASSIGNMENT_CONFLICT') { await open(r.reference); }
+      showState(error.message, true);
+    } finally { state.busy = false; }
+  }
+
   async function addNote(event) {
     event.preventDefault();
     if (state.busy || !state.detail) return;
@@ -181,6 +216,10 @@
   document.addEventListener('click', function (event) {
     var filter = event.target.closest('[data-filter]');
     if (filter) { state.status = filter.getAttribute('data-filter') || null; state.selected = null; load(true); return; }
+    var assigned = event.target.closest('[data-assigned]');
+    if (assigned) { var value = assigned.getAttribute('data-assigned'); state.assigned = state.assigned === value ? null : value; state.selected = null; load(true); return; }
+    if (event.target.closest('#inbox-assign-save')) { saveAssignment($('inbox-assign-select').value); return; }
+    if (event.target.closest('#inbox-assign-me')) { saveAssignment(state.me); return; }
     var row = event.target.closest('[data-reference]');
     if (row) { open(row.getAttribute('data-reference'), true); return; }
     if (event.target.closest('#inbox-more')) { load(false); return; }

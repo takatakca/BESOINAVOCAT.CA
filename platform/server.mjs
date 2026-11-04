@@ -279,7 +279,7 @@ export function createApp({
       const parts = path.split('/').slice(3);
       if (parts.length === 0) {
         if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
-        const allowed = ['status', 'offset', 'limit'];
+        const allowed = ['status', 'assigned', 'offset', 'limit'];
         if ([...url.searchParams.keys()].some(key => !allowed.includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');
         const number = (key, fallback) => {
           const value = url.searchParams.get(key);
@@ -287,10 +287,12 @@ export function createApp({
           if (!/^(?:0|[1-9][0-9]{0,5})$/u.test(value)) throw invalid('Pagination invalide.');
           return Number(value);
         };
-        return json(res, 200, intake.reviewList(user, { status: url.searchParams.get('status'), offset: number('offset', 0), limit: number('limit', 25) }));
+        return json(res, 200, intake.reviewList(user, { status: url.searchParams.get('status'), assigned: url.searchParams.get('assigned'), offset: number('offset', 0), limit: number('limit', 25) }));
       }
       if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (parts.length === 1 && parts[0] === 'reviewers' && method === 'GET') return json(res, 200, intake.reviewDirectory(user));
       if (parts.length === 1 && method === 'GET') return json(res, 200, intake.reviewRead(user, parts[0]));
+      if (parts.length === 2 && parts[1] === 'assign' && method === 'POST') return json(res, 200, intake.reviewAssign(user, parts[0], await readJson(req, 512)));
       if (parts.length === 2 && parts[1] === 'status' && method === 'POST') return json(res, 200, intake.reviewStatus(user, parts[0], await readJson(req, 512)));
       if (parts.length === 2 && parts[1] === 'notes' && method === 'POST') return json(res, 201, intake.reviewNote(user, parts[0], await readJson(req, 20000)));
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');

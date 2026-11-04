@@ -1,5 +1,9 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
+## Portail premium — 4 novembre 2026, 08:11 UTC (branche `claude/project-thread-jc2sy5`, non fusionnée)
+
+**Appels par MIMT Connect seulement**, salle vidéo du dossier, journal scellé SHA-256 et actes PDF, écrans aux couleurs de la vitrine. Tout est réel mais **éteint tant que la clé MIMT Connect n'est pas posée dans Coolify** : les écrans disent « à raccorder » et ne simulent rien. Tests 291/291. Liste exacte de ce qu'il faut raccorder (variables Coolify, étapes côté MIMT, entente Loi 25) : [COCKPIT-PREMIUM-2026-11-04.md](COCKPIT-PREMIUM-2026-11-04.md). Le portail en ligne tourne encore sur le code du 29–30 octobre : il faut fusionner puis relancer le déploiement.
+
 ## État de remise du lot local — 30 octobre 2026, 11:34 UTC
 
 **Le portail reste à rétablir par Mike ou l'agent serveur**, désigné par le propriétaire. Dernier contrôle public disponible : réponses 503 à 11:22:04 UTC, avec validation TLS normale. L'agent chargé des dossiers ne poursuit pas d'intervention sur le VPS; la [fiche de diagnostic](INCIDENT-COOLIFY-2026-10-30.md) et l'alerte de coordination lui ont été transmises. Aucun retour de disponibilité confirmé.

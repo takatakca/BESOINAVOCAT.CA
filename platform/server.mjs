@@ -38,6 +38,7 @@ const assets = new Map([
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/dictation.js', ['dictation.js', 'text/javascript; charset=utf-8']],
   ['/workspace.js', ['workspace.js', 'text/javascript; charset=utf-8']],
+  ['/live.js', ['live.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   // Public request page; it posts only to the same-origin /api/intake.
   ['/demande', ['demande.html', 'text/html; charset=utf-8']],

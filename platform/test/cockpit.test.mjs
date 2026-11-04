@@ -192,12 +192,12 @@ test('status lights never show green for what the portal cannot verify', () => {
   assert.ok(demo.ui.statusLights().every(light => light.tone !== 'ok'), 'the preview has no verified connection');
 });
 
-test('calling and partner-lawyer tiles stay in « bientôt » mode without fake lawyers or calls', () => {
+test('calling and partner-lawyer tiles say « à raccorder » until MIMT Connect is configured, without fake lawyers or calls', () => {
   const h = harness();
   signedIn(h); h.ui.render();
   const html = h.main();
-  assert.match(html, /Téléphonie MIMT <span class="badge neutral">à venir<\/span>/u);
-  assert.match(html, /Équipe · Appel de groupe <span class="badge neutral">bientôt<\/span>/u);
+  assert.match(html, /Téléphonie MIMT <span class="badge neutral">à raccorder<\/span>/u);
+  assert.match(html, /Équipe · Appel de groupe <span class="badge neutral">à raccorder<\/span>/u);
   assert.doesNotMatch(html, /Appeler un avocat/u, 'the old placeholder tile is replaced by the MIMT card');
   assert.doesNotMatch(html, /href="tel:/u);
   assert.doesNotMatch(html, /Me [A-Z]|disponible maintenant|en ligne maintenant|★/u);
@@ -338,7 +338,7 @@ test('MIMT telephony: card, six-step board with real MIMT links, honest status, 
   for (let i = 0; i < 6; i += 1) {
     const page = content.innerHTML;
     assert.match(page, new RegExp(`Étape ${i + 1} / 6`, 'u'));
-    assert.match(page, /À venir — MIMT Connect pas encore activé/u);
+    assert.match(page, /À raccorder — clé MIMT Connect absente du serveur/u);
     assert.match(page, /Ce qui est partagé avec BesoinAvocat/u);
     assert.match(page, /aria-current="step"/u);
     for (const [, href] of page.matchAll(/<a [^>]*href="([^"]+)"/gu)) seen.push(href);
@@ -353,7 +353,7 @@ test('MIMT telephony: card, six-step board with real MIMT links, honest status, 
   assert.doesNotMatch(content.innerHTML, /data-action="mimt-next"/u, 'no « Suivant » on the last step');
   h.click({ action: 'mimt-step', step: '4' }, { inModal: true });
   assert.equal(h.ui.mimtMemory.step, 4);
-  assert.match(content.innerHTML, /PUT \/v1\/partner\/members\/:externalId/u);
+  assert.match(content.innerHTML, /PUT \/v1\/partner\/members\/:id/u);
   h.click({ action: 'mimt-prev' }, { inModal: true });
   assert.equal(h.ui.mimtMemory.step, 3);
   h.click({ action: 'cockpit-modal-close' }, { inModal: true });
@@ -367,7 +367,7 @@ test('group calling explains the coming flow without any lawyer, call or amount'
   h.click({ action: 'mimt-group' });
   const page = h.node('cockpit-modal-content').innerHTML;
   assert.match(page, /Équipe · Appel de groupe/u);
-  assert.match(page, /bientôt/u);
+  assert.match(page, /à raccorder/u);
   assert.match(page, /sonnent en même temps/u);
   assert.match(page, /Le premier qui accepte prend l’appel/u);
   assert.match(page, /Stripe/u); assert.match(page, /commission/u);
@@ -383,9 +383,9 @@ test('« Besoin d’aide ? » button: menu with the MIMT board, call-back, group
   h.click({}, { id: 'help-fab' });
   const menu = h.node('help-menu');
   assert.equal(menu.hidden, false); assert.equal(h.ui.helpMemory.menuOpen, true); assert.equal(h.ui.helpMemory.used, true);
-  assert.match(menu.innerHTML, /data-action="mimt-board"[^>]*>.*Appeler · Téléphonie MIMT.*à venir/su);
+  assert.match(menu.innerHTML, /data-view="live"[^>]*>.*Appeler · Téléphonie MIMT.*à raccorder/su);
   assert.match(menu.innerHTML, /data-action="call-lawyer">/u, 'the existing message-in-dossier call-back');
-  assert.match(menu.innerHTML, /data-action="mimt-group"[^>]*>.*Équipe · appel de groupe.*bientôt/su);
+  assert.match(menu.innerHTML, /data-view="equipe"[^>]*>.*Équipe · appel de groupe.*à raccorder/su);
   assert.match(menu.innerHTML, /data-action="tutorial-start"/u);
   assert.doesNotMatch(menu.innerHTML, /href="tel:/u);
   keydown(h, { key: 'Escape', target: { closest: () => null }, preventDefault() {} });
@@ -457,8 +457,8 @@ test('desktop workspace: dossiers list, selected dossier stage with tabs, guide 
   for (const view of ['documents', 'messages', 'communications', 'time', 'search']) assert.match(html, new RegExp(`class="ws-tab" data-view="${view}"`, 'u'));
   assert.match(html, /id="cockpit-dials"/u, 'the instruments stay on the stage');
   assert.match(html, /id="work-queue"/u); assert.match(html, /id="activity-feed"/u);
-  assert.match(html, /data-action="mimt-board"[^>]*>.*?à venir/su, 'calls come from MIMT only and say « à venir »');
-  assert.match(html, /data-action="mimt-group"/u);
+  assert.match(html, /data-action="mimt-board"[^>]*>.*?à raccorder/su, 'calls come from MIMT only and say « à raccorder » until configured');
+  assert.match(html, /class="ws-call team" data-view="equipe"/u);
   assert.match(html, /IA bientôt/u, 'no AI answer is pretended');
   assert.ok(html.includes(h.ui.GUIDE_DISCLAIMER.replace(/’/gu, '&#39;').slice(0, 30)) || html.includes(h.ui.GUIDE_DISCLAIMER.slice(0, 30)));
   assert.match(html, /Rencontre fictive/u, 'upcoming meeting from the loaded dossier');

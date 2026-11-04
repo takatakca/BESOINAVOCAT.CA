@@ -413,3 +413,20 @@ test('the PDF writer encodes French text in WinAnsi, escapes delimiters and prod
   const offsets = [...text.slice(xref).matchAll(/^([0-9]{10}) 00000 n $/gmu)].map(m => Number(m[1]));
   offsets.forEach((offset, i) => assert.ok(text.startsWith(`${i + 1} 0 obj`, offset), `object ${i + 1} offset`));
 });
+
+test('the live screens script is served, loaded before app.js, CSP-clean and stores nothing in the browser', async t => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../public/live.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.match(source, /window\.BALive = Object\.freeze\(\{/u);
+  for (const name of ['init', 'afterRender', 'reset']) assert.match(source, new RegExp(`\\b${name}\\b`, 'u'));
+  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|document\.cookie/u, 'nothing kept in the browser');
+  assert.doesNotMatch(source, /\beval\(|new Function\(|style="|setAttribute\('style'/u, 'strict CSP: no eval and no inline styles');
+  assert.doesNotMatch(source, /twilio/iu, 'telephony is MIMT only');
+  assert.ok(html.indexOf('./live.js') > 0 && html.indexOf('./live.js') < html.indexOf('./app.js'), 'live.js loads before app.js');
+  const f = await fixture(t);
+  const served = await f.request('/live.js', { token: null });
+  assert.equal(served.status, 200);
+  assert.match(served.type, /^text\/javascript/u);
+  assert.equal(served.bytes.toString('utf8'), source);
+});

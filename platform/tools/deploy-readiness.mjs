@@ -8,6 +8,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
+import { reviewerDirectory } from '../lib/intake.mjs';
 
 function httpsOrigin(value) {
   if (typeof value !== 'string' || value.length > 300) return null;
@@ -114,10 +115,13 @@ export function readiness(env = process.env) {
     add('fail', 'requests', `${path.dirname(intakeDb)} is ${octal(mode(path.dirname(intakeDb)))}; the request database directory must be 0700.`);
   if (env.BESOINAVOCAT_INTAKE_REQUEST_ENABLED === 'true') add('ok', 'requests', 'The detailed request form is open.');
   else add('warn', 'requests', 'BESOINAVOCAT_INTAKE_REQUEST_ENABLED is not true: only the short request is open (open it after the consent text is reviewed).');
+  // The same parser as the server: one malformed entry empties the whole list, and the report must say so.
   let reviewers = [];
   try { reviewers = JSON.parse(env.BESOINAVOCAT_INTAKE_REVIEWERS || '[]'); } catch { reviewers = null; }
+  const directory = reviewerDirectory(env.BESOINAVOCAT_INTAKE_REVIEWERS);
   if (!Array.isArray(reviewers)) add('warn', 'requests', 'BESOINAVOCAT_INTAKE_REVIEWERS is not a JSON array: nobody can read received requests at /demandes.');
-  else add(reviewers.length ? 'ok' : 'warn', 'requests', `${reviewers.length} team member(s) can read received requests at /demandes.`);
+  else if (reviewers.length && !directory.length) add('fail', 'requests', 'BESOINAVOCAT_INTAKE_REVIEWERS has an invalid or duplicate entry (each one is a subject or {subject, name}, 32 at most): the server ignores the whole list and nobody can read received requests at /demandes.');
+  else add(directory.length ? 'ok' : 'warn', 'requests', `${directory.length} team member(s) can read received requests at /demandes${directory.length ? ` (${directory.filter(entry => entry.name).length} with a display name)` : ''}.`);
 
   // Connectors are optional; report only whether the encryption key exists.
   const integrationsKey = env.BESOINAVOCAT_INTEGRATIONS_KEY_FILE;

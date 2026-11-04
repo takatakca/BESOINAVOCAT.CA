@@ -292,6 +292,7 @@ export function createApp({
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (parts.length === 1 && parts[0] === 'reviewers' && method === 'GET') return json(res, 200, intake.reviewDirectory(user));
       if (parts.length === 1 && method === 'GET') return json(res, 200, intake.reviewRead(user, parts[0]));
+      if (parts.length === 2 && parts[1] === 'access' && method === 'GET') return json(res, 200, intake.reviewTrail(user, parts[0]));
       if (parts.length === 2 && parts[1] === 'assign' && method === 'POST') return json(res, 200, intake.reviewAssign(user, parts[0], await readJson(req, 512)));
       if (parts.length === 2 && parts[1] === 'status' && method === 'POST') return json(res, 200, intake.reviewStatus(user, parts[0], await readJson(req, 512)));
       if (parts.length === 2 && parts[1] === 'notes' && method === 'POST') return json(res, 201, intake.reviewNote(user, parts[0], await readJson(req, 20000)));

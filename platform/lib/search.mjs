@@ -45,8 +45,42 @@ function excerpt(value, folded, terms) {
   return `${start ? '…' : ''}${value.slice(start, end)}${end < value.length ? '…' : ''}`;
 }
 
+// Folded (accent- and case-insensitive) copies of page and document text, computed once.
+// Pages and documents are immutable (see the triggers in store.mjs and corpus.mjs), so a cached
+// row never goes stale. Bump FOLD_VERSION whenever normalizeSearch changes. The cache is filled
+// lazily at search time rather than by triggers, so other tools that open the database without the
+// ba_fold function can still insert pages.
+const FOLD_VERSION = 1;
+
 export function createStructuredSearch({ db, access, audit, publicDocument }) {
   const sql = statement => db.prepare(statement);
+  db.function('ba_fold', { deterministic: true }, value => (typeof value === 'string' ? normalizeSearch(value) : ''));
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS search_folded_pages (tenantId TEXT NOT NULL, caseId TEXT NOT NULL, documentId TEXT NOT NULL,
+      ordinal INTEGER NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(tenantId,caseId,documentId,ordinal)) STRICT;
+    CREATE TABLE IF NOT EXISTS search_folded_documents (tenantId TEXT NOT NULL, caseId TEXT NOT NULL, documentId TEXT NOT NULL,
+      version INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(tenantId,caseId,documentId)) STRICT;`);
+  sql('DELETE FROM search_folded_pages WHERE version<>?').run(FOLD_VERSION);
+  sql('DELETE FROM search_folded_documents WHERE version<>?').run(FOLD_VERSION);
+  const fillPages = sql(`INSERT OR IGNORE INTO search_folded_pages SELECT p.tenantId,p.caseId,p.documentId,p.ordinal,${FOLD_VERSION},ba_fold(p.text)
+    FROM document_pages p WHERE p.tenantId=? AND NOT EXISTS (SELECT 1 FROM search_folded_pages f
+      WHERE f.tenantId=p.tenantId AND f.caseId=p.caseId AND f.documentId=p.documentId AND f.ordinal=p.ordinal)`);
+  const fillDocuments = sql(`INSERT OR IGNORE INTO search_folded_documents SELECT d.tenantId,d.caseId,d.id,${FOLD_VERSION},ba_fold(d.extractedText)
+    FROM documents d WHERE d.tenantId=? AND NOT EXISTS (SELECT 1 FROM search_folded_documents f
+      WHERE f.tenantId=d.tenantId AND f.caseId=d.caseId AND f.documentId=d.id)`);
+  // Rows are never deleted, so equal counts mean the cache is complete for this tenant.
+  const counts = sql(`SELECT (SELECT COUNT(*) FROM document_pages WHERE tenantId=?1) AS pages,
+    (SELECT COUNT(*) FROM search_folded_pages WHERE tenantId=?1) AS foldedPages,
+    (SELECT COUNT(*) FROM documents WHERE tenantId=?1) AS documents,
+    (SELECT COUNT(*) FROM search_folded_documents WHERE tenantId=?1) AS foldedDocuments`);
+  function refreshFolded(tenantId) {
+    const count = counts.get(tenantId);
+    if (count.pages !== count.foldedPages) fillPages.run(tenantId);
+    if (count.documents !== count.foldedDocuments) fillDocuments.run(tenantId);
+  }
+  // SQL prefilter equivalent to the JavaScript match below: every term must appear in the body or the
+  // metadata, and page hits also need one term in the page itself. JavaScript re-checks each row.
+  const termClause = `(instr(f.body,?)>0 OR instr(ba_fold(d.name),?)>0 OR instr(ba_fold(d.sourceReference),?)>0 OR instr(ba_fold(COALESCE(i.category,'')),?)>0)`;
   function searchStructured(user, query, options = {}) {
     const input = structuredSearchInput(query, options);
     if (input.caseId) access(user, input.caseId);
@@ -57,10 +91,17 @@ export function createStructuredSearch({ db, access, audit, publicDocument }) {
       JOIN members m ON m.caseId=d.caseId AND m.tenantId=d.tenantId
       LEFT JOIN document_imports i ON i.documentId=d.id AND i.tenantId=d.tenantId AND i.caseId=d.caseId
       WHERE d.tenantId=? AND m.subject=? AND (? IS NULL OR d.caseId=?)`;
-    const pageRows = sql(`SELECT p.*,d.name,d.sourceReference,d.mimeType,d.sha256,c.title AS caseTitle,i.category,i.sourceDocumentId
+    refreshFolded(user.tenantId);
+    const allTerms = input.terms.map(() => termClause).join(' AND ');
+    const anyBody = input.terms.map(() => 'instr(f.body,?)>0').join(' OR ');
+    const termParams = input.terms.flatMap(term => [term, term, term, term]);
+    const pageRows = sql(`SELECT p.*,f.body AS foldedBody,d.name,d.sourceReference,d.mimeType,d.sha256,c.title AS caseTitle,i.category,i.sourceDocumentId
       FROM document_pages p JOIN documents d ON d.id=p.documentId AND d.tenantId=p.tenantId AND d.caseId=p.caseId
-      ${scoped} ORDER BY c.id,d.id,p.ordinal`);
-    const documentRows = sql(`SELECT d.*,c.title AS caseTitle,i.category,i.sourceDocumentId FROM documents d ${scoped} ORDER BY c.id,d.id`);
+      JOIN search_folded_pages f ON f.tenantId=p.tenantId AND f.caseId=p.caseId AND f.documentId=p.documentId AND f.ordinal=p.ordinal
+      ${scoped} AND (${anyBody}) AND ${allTerms} ORDER BY c.id,d.id,p.ordinal`);
+    const documentRows = sql(`SELECT d.*,f.body AS foldedBody,c.title AS caseTitle,i.category,i.sourceDocumentId FROM documents d
+      JOIN search_folded_documents f ON f.tenantId=d.tenantId AND f.caseId=d.caseId AND f.documentId=d.id
+      ${scoped} AND ${allTerms} ORDER BY c.id,d.id`);
     const results = [], pageMatches = new Set(), publicDocs = new Map();
     let skipped = 0, hasMore = false;
     const matches = fields => input.mode === 'literal' ? fields.some(field => field.value.includes(input.terms[0]))
@@ -82,8 +123,8 @@ export function createStructuredSearch({ db, access, audit, publicDocument }) {
       if (results.length === input.limit) { hasMore = true; return false; }
       results.push(produce()); return true;
     };
-    for (const row of pageRows.iterate(...params)) {
-      const folded = normalizeSearch(row.text), fields = [...metadataFields(row), { source: 'page_text', value: folded }];
+    for (const row of pageRows.iterate(...params, ...input.terms, ...termParams)) {
+      const folded = row.foldedBody, fields = [...metadataFields(row), { source: 'page_text', value: folded }];
       // A metadata-only hit must not fabricate a page citation.
       if (!input.terms.some(term => folded.includes(term)) || !matches(fields)) continue;
       pageMatches.add(row.documentId);
@@ -93,9 +134,9 @@ export function createStructuredSearch({ db, access, audit, publicDocument }) {
           method: row.method, ocrToVerify: /ocr/iu.test(row.method), extractionVerified: false,
           pagesUrl: `/api/cases/${row.caseId}/documents/${row.documentId}/pages?offset=${row.ordinal - 1}&limit=1` } }))) break;
     }
-    if (!hasMore) for (const row of documentRows.iterate(...params)) {
+    if (!hasMore) for (const row of documentRows.iterate(...params, ...termParams)) {
       if (pageMatches.has(row.id)) continue;
-      const folded = normalizeSearch(row.extractedText || '');
+      const folded = row.foldedBody;
       const fields = [...metadataFields(row), { source: 'extracted_text', value: folded }];
       if (!matches(fields)) continue;
       if (!append(() => ({ ...publicResult(row), citation: null, matchSources: matchSources(fields),

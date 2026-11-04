@@ -98,3 +98,10 @@ Tests : 313/313.
 - Aucun rappel par courriel ni texto n'est envoyé.
 
 Tests : 317/317 Node, 17/17 Python de sauvegarde.
+
+## Lot 5 — cadran « Nouvelles demandes » (4 novembre 2026)
+
+- Pour l'équipe de réception seulement (`BESOINAVOCAT_INTAKE_REVIEWERS`) : le cadran affiche le nombre de demandes reçues non traitées; son tiroir donne les décomptes par statut et ouvre `/demandes`. Seuls les décomptes sont lus, jamais une coordonnée.
+- Les avocats et l'aperçu gardent « bientôt » : les demandes publiques ne sont transmises à aucun avocat (le consentement ne le couvre pas).
+
+Tests : 318/318.

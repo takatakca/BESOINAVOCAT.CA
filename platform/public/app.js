@@ -521,7 +521,7 @@
       { panel: 'messages', glyph: 'message', label: 'Messages', value: state.detail ? String((state.detail.messages || []).length) : '—' },
       { panel: 'etat', tone: lights.connexion.tone, label: 'Connexion', value: lights.connexion.state },
       { panel: 'etat', tone: lights.courriel.tone, label: 'Courriel', value: lights.courriel.state },
-      { panel: 'demandes', glyph: 'inbox', label: 'Nouvelles demandes', value: null },
+      { panel: 'demandes', glyph: 'inbox', label: 'Nouvelles demandes', value: intakeReviewer() ? window.BALive?.intakeCount?.() ?? null : null },
       { panel: 'echeances', glyph: 'calendar', label: 'Échéances · 7 jours', value: state.demo ? null : window.BALive?.deadlineWeek?.() ?? null },
       { action: 'mimt-board', glyph: 'phone', label: 'Téléphonie MIMT', value: mimtBadge() },
     ];
@@ -544,6 +544,7 @@
     if (panel === 'rendezvous') return drawerRows([...communicationSessions()].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).map(item => drawerRow(item.kind === 'video' ? 'video' : 'phone', item.title, `${date(item.scheduledAt, true)} · ${item.status === 'cancelled' ? 'annulé' : kindLabel(item.kind).toLowerCase()}`)), communicationReady() ? 'Aucun rendez-vous dans ce dossier.' : 'Liste des rendez-vous indisponible.');
     if (panel === 'messages') return drawerRows([...(state.detail?.messages || [])].slice(-5).reverse().map(message => drawerRow('message', String(message.body || '').slice(0, 140), `${message.authorSubject === state.user?.subject ? 'Vous' : message.authorSubject || 'Auteur non précisé'} · ${date(message.createdAt, true)}`)), 'Aucun message dans ce dossier.');
     if (panel === 'etat') return drawerRows(statusLights().map(light => `<li><i class="chip-dot" data-tone="${esc(light.tone)}" aria-hidden="true"></i><span class="queue-text"><strong>${esc(light.label)} : ${esc(light.state)}</strong><small>${esc({ connexion: 'Vert seulement quand le serveur a vérifié la session.', courriel: 'La configuration ne prouve pas la livraison des courriels.', sauvegarde: 'Le serveur n’expose aucun état de sauvegarde.' }[light.id])}</small></span></li>`), '');
+    if (panel === 'demandes' && intakeReviewer() && window.BALive) return '<div data-live="intake-counts" aria-live="polite"></div>';
     if (panel === 'demandes') return '<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les demandes reçues par la page publique ne sont pas encore reliées au portail. Aucun chiffre n’est affiché tant qu’elles ne le sont pas.</p>';
     if (panel === 'echeances') return !state.demo && window.BALive ? '<div data-live="deadline-week" aria-live="polite"></div>' : `<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les échéances se lisent dans un dossier réel, après connexion. Rendez-vous à 7 jours dans ce dossier : ${communicationReady() ? upcoming().length : 'inconnu'}.</p>`;
     return '';
@@ -802,6 +803,8 @@
   // https://api.mimt.ca/v1/partner/…, off by default with PARTNERS=off) is not active yet, so no step calls anything.
   // Links are the public MIMT pages listed in the mimtcaapp sources (apps/web/lib/site.ts, apps/webphone routes).
   // Honest status from the server's /api/capabilities: connected only when the MIMT Connect key and webhook secret are set.
+  // The intake team (BESOINAVOCAT_INTAKE_REVIEWERS) reads the public requests; nobody else sees a figure.
+  function intakeReviewer() { return !state.demo && state.capabilities?.intakeReview === true; }
   function mimtConnected() { return !state.demo && state.capabilities?.telephony?.configured === true; }
   function mimtStatus() { return state.demo ? 'Aperçu — aucun appel n’est lancé' : mimtConnected() ? 'Raccordé — MIMT Connect actif' : 'À raccorder — clé MIMT Connect absente du serveur'; }
   function mimtBadge() { return state.demo ? 'aperçu' : mimtConnected() ? 'actif' : 'à raccorder'; }
@@ -1869,7 +1872,7 @@
   async function start() {
     fillIcons();
     window.BAWorkspace?.init(workspaceBridge);
-    window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null, documents: () => state.detail?.documents || [], nextMeeting: () => nextMeeting(),
+    window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null, documents: () => state.detail?.documents || [], nextMeeting: () => nextMeeting(), intakeReviewer: () => intakeReviewer(),
       refresh: () => render(), reloadCase: async () => { if (state.selectedId) { await refreshDetail(state.selectedId).catch(() => false); render(); } } });
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
     state.health = await publicHealth();

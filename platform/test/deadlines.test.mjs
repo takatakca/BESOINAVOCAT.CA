@@ -117,3 +117,13 @@ test('deadlines validate input, list the week across cases and export an iCalend
   assert.match(app, /data-live="case-deadlines"/u);
   assert.match(app, /window\.BALive\?\.deadlineWeek\?\.\(\) \?\? null/u, 'the dial stays « bientôt » until the count is read');
 });
+
+test('the « Nouvelles demandes » dial is real only for the intake team and links to the queue', async () => {
+  const live = await readFile(new URL('../public/live.js', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /function intakeReviewer\(\) \{ return !state\.demo && state\.capabilities\?\.intakeReview === true; \}/u);
+  assert.match(app, /label: 'Nouvelles demandes', value: intakeReviewer\(\) \? window\.BALive\?\.intakeCount\?\.\(\) \?\? null : null/u);
+  assert.match(live, /'intake-counts': paintIntakes/u);
+  assert.match(live, /\/api\/intakes\?status=received&limit=1/u, 'only the counts are read, never a contact');
+  assert.match(live, /href="\/demandes"/u);
+});

@@ -423,6 +423,30 @@
     }
   }
 
+  // « Nouvelles demandes » dial, for the BesoinAvocat intake team only (BESOINAVOCAT_INTAKE_REVIEWERS): requests
+  // received on the public page and not yet handled. Nothing is shown to anyone else, and no contact detail is read.
+  const intakes = { counts: null };
+  async function loadIntakes(force = false) {
+    if (bridge.isDemo() || !bridge.intakeReviewer()) return null;
+    if (!intakes.counts || force) intakes.counts = (await api('/api/intakes?status=received&limit=1')).counts;
+    return intakes.counts;
+  }
+  function syncIntakeChip() {
+    if (!intakes.counts) return;
+    for (const chip of document.querySelectorAll('[data-panel="demandes"].chip')) {
+      chip.classList.remove('is-soon');
+      const value = chip.querySelector('.chip-soon, .chip-value');
+      if (value) { value.className = 'chip-value'; value.textContent = String(intakes.counts.received ?? 0); }
+    }
+  }
+  async function paintIntakes(node) {
+    const counts = await loadIntakes(true);
+    syncIntakeChip();
+    const label = { received: 'Reçues, à traiter', in_review: 'En traitement', contacted: 'Personne recontactée', closed: 'Fermées', spam: 'Indésirables' };
+    node.innerHTML = `<ul class="drawer-list">${Object.entries(label).filter(([k]) => counts[k] !== undefined).map(([k, v]) => `<li><span class="queue-icon">${icon('inbox')}</span><span class="queue-text"><strong>${esc(v)} : ${esc(counts[k])}</strong></span></li>`).join('')}</ul>
+      <p class="drawer-note">Demandes déposées sur la page publique, visibles seulement par l’équipe BesoinAvocat. Elles ne sont transmises à aucun avocat.</p><div class="tile-actions"><a class="button small" href="/demandes">Ouvrir la file des demandes ${icon('arrow')}</a></div>`;
+  }
+
   // ---------- Abonnement de l'avocat (Stripe) ----------
   const MEMBERSHIP_STATUS = { active: ['ok', 'Actif'], trialing: ['ok', 'Essai'], past_due: ['warn', 'Paiement en retard'], unpaid: ['warn', 'Impayé'], incomplete: ['wait', 'En attente de paiement'], incomplete_expired: ['off', 'Expiré'], canceled: ['off', 'Terminé'], paused: ['off', 'En pause'], none: ['off', 'Aucun'] };
   const INTERVAL = { week: 'semaine', month: 'mois', year: 'an', day: 'jour' };
@@ -443,7 +467,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -460,6 +484,9 @@
   function afterRender(root) {
     if (!bridge.isDemo() && document.querySelector('[data-panel="echeances"].chip')) {
       if (deadlines.week) syncWeekChip(); else loadWeek().then(syncWeekChip, () => {});
+    }
+    if (!bridge.isDemo() && bridge.intakeReviewer() && document.querySelector('[data-panel="demandes"].chip')) {
+      if (intakes.counts) syncIntakeChip(); else loadIntakes().then(syncIntakeChip, () => {});
     }
     for (const node of root.querySelectorAll('[data-live]')) {
       if (!node.querySelector('.panel-body, .panel-heading')) node.innerHTML = `<div class="panel-body"><p class="table-subtext">Chargement…</p></div>`;
@@ -570,8 +597,9 @@
   window.BALive = Object.freeze({
     init(next) { bridge = next; },
     afterRender,
-    reset() { requests.data = null; deadlines.data = null; deadlines.week = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
+    reset() { requests.data = null; deadlines.data = null; deadlines.week = null; intakes.counts = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
     status: () => cache.overview,
+    intakeCount: () => (intakes.counts ? String(intakes.counts.received ?? 0) : null),
     deadlineWeek: () => (deadlines.week ? String(deadlines.week.deadlines.length) : null),
     inRoom: () => Boolean(room.id),
   });

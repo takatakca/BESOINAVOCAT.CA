@@ -86,3 +86,15 @@ Choix du propriétaire : **« Lawyer subscription only »**. Les avocats paient 
 **À raccorder** (détail dans `docs/INTEGRATIONS.md`, section Stripe) : créer le produit et les prix dans Stripe, poser `BESOINAVOCAT_STRIPE_SECRET_KEY`, `BESOINAVOCAT_STRIPE_PRICE_WEEKLY` et/ou `_MONTHLY`, `BESOINAVOCAT_STRIPE_WEBHOOK_SECRET` dans Coolify, cocher les quatre événements du webhook, activer le portail client et Stripe Tax.
 
 Tests : 313/313.
+
+## Lot 4 — échéances du dossier (4 novembre 2026)
+
+- `lib/deadlines.mjs`, routes `GET/POST /api/cases/:id/deadlines`, `POST …/deadlines/:id` (modifier), `POST …/deadlines/:id/(done|reopen|cancel)`, `GET …/deadlines/:id/history`, `GET …/deadlines.ics`, et `GET /api/deadlines/upcoming?days=7` (tous les dossiers de la personne).
+- L'avocat saisit chaque date (audience, dépôt, prescription, rencontre, autre), avec heure et note facultatives, et choisit si le client la voit. **Le portail ne calcule aucun délai légal** : l'avocat reste responsable de chaque date.
+- Le client ne voit que les échéances partagées, jamais une échéance interne, même par son identifiant ou dans le calendrier exporté.
+- Historique en ajout seul (déclencheurs SQLite), chaque étape versée au journal du dossier (`deadline.*`), export de calendrier journalisé.
+- Écrans : panneau « Échéances du dossier » dans l'espace avocat, la vue client et Rendez-vous; bouton « Ajouter à mon calendrier » (.ics, fuseau America/Toronto). Le cadran « Échéances · 7 jours » du cockpit affiche maintenant le vrai nombre et son tiroir liste les échéances de la semaine, dossier par dossier (« bientôt » seulement dans l'aperçu).
+- Tables `case_deadlines` et `case_deadline_events` ajoutées à la liste de sauvegarde (`tools/backup-corpus.py`), selon la règle du fil backend.
+- Aucun rappel par courriel ni texto n'est envoyé.
+
+Tests : 317/317 Node, 17/17 Python de sauvegarde.

@@ -522,7 +522,7 @@
       { panel: 'etat', tone: lights.connexion.tone, label: 'Connexion', value: lights.connexion.state },
       { panel: 'etat', tone: lights.courriel.tone, label: 'Courriel', value: lights.courriel.state },
       { panel: 'demandes', glyph: 'inbox', label: 'Nouvelles demandes', value: null },
-      { panel: 'echeances', glyph: 'calendar', label: 'Échéances · 7 jours', value: null },
+      { panel: 'echeances', glyph: 'calendar', label: 'Échéances · 7 jours', value: state.demo ? null : window.BALive?.deadlineWeek?.() ?? null },
       { action: 'mimt-board', glyph: 'phone', label: 'Téléphonie MIMT', value: mimtBadge() },
     ];
   }
@@ -545,7 +545,7 @@
     if (panel === 'messages') return drawerRows([...(state.detail?.messages || [])].slice(-5).reverse().map(message => drawerRow('message', String(message.body || '').slice(0, 140), `${message.authorSubject === state.user?.subject ? 'Vous' : message.authorSubject || 'Auteur non précisé'} · ${date(message.createdAt, true)}`)), 'Aucun message dans ce dossier.');
     if (panel === 'etat') return drawerRows(statusLights().map(light => `<li><i class="chip-dot" data-tone="${esc(light.tone)}" aria-hidden="true"></i><span class="queue-text"><strong>${esc(light.label)} : ${esc(light.state)}</strong><small>${esc({ connexion: 'Vert seulement quand le serveur a vérifié la session.', courriel: 'La configuration ne prouve pas la livraison des courriels.', sauvegarde: 'Le serveur n’expose aucun état de sauvegarde.' }[light.id])}</small></span></li>`), '');
     if (panel === 'demandes') return '<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les demandes reçues par la page publique ne sont pas encore reliées au portail. Aucun chiffre n’est affiché tant qu’elles ne le sont pas.</p>';
-    if (panel === 'echeances') return `<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les échéances ne sont pas encore modélisées. Rendez-vous à 7 jours dans ce dossier : ${communicationReady() ? upcoming().length : 'inconnu'}.</p>`;
+    if (panel === 'echeances') return !state.demo && window.BALive ? '<div data-live="deadline-week" aria-live="polite"></div>' : `<p class="drawer-empty"><span class="badge neutral">bientôt</span> Les échéances se lisent dans un dossier réel, après connexion. Rendez-vous à 7 jours dans ce dossier : ${communicationReady() ? upcoming().length : 'inconnu'}.</p>`;
     return '';
   }
   function cockpitDrawer() {
@@ -685,8 +685,8 @@
     const head = item ? `<div class="ws-stage-head"><span class="ws-case-mark large" aria-hidden="true">${esc(initials(item.title))}</span><div class="ws-stage-title"><span class="eyebrow">${state.demo ? 'DOSSIER FICTIF' : 'DOSSIER'}</span><h1>${esc(item.title)}</h1><p><span class="mono">${esc(item.reference || 'Référence à préciser')}</span> · ${esc(roleLabel(item.role))}</p></div></div>` : `<div class="ws-stage-head"><div class="ws-stage-title"><span class="eyebrow">ESPACE DE TRAVAIL</span><h1>Bonjour.</h1><p>${state.cases.length ? 'Choisissez un dossier à gauche pour l’ouvrir ici.' : 'Créez votre premier dossier pour commencer.'}</p></div></div>`;
     const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : l’espace de travail</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
     // Client side: one clear next step, four large actions and the pieces the lawyer is waiting for. Nothing else.
-    if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>${readOnlyNote()}</section>`;
-    const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>' : '';
+    if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</section>`;
+    const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>' : '';
     return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
   }
   function wsContext() {
@@ -707,9 +707,9 @@
     const greeting = state.demo ? 'Aperçu en lecture seule, avec des données fictives.' : 'Vos dossiers, vos pièces et ce qui demande votre attention.';
     if (state.detail && !state.demo && isClientSide()) {
       const item = currentCase();
-      return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div><section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>${readOnlyNote()}</div>`;
+      return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div><section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</div>`;
     }
-    const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>' : '';
+    const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>' : '';
     return `<div class="cockpit">${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
   }
   function clientsView() {
@@ -1029,7 +1029,7 @@
     else if (state.view === 'settings') main.innerHTML = settingsView();
     else if (state.view === 'equipe') main.innerHTML = equipeView();
     else if (!state.detail) main.innerHTML = noCase();
-    else main.innerHTML = ({ documents: () => documentsView() + (state.demo ? '' : '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>'), messages: messagesView, time: timeView, communications: communicationsView, usage: usageView, live: liveView, journal: journalView })[state.view]();
+    else main.innerHTML = ({ documents: () => documentsView() + (state.demo ? '' : '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section>'), messages: messagesView, time: timeView, communications: () => communicationsView() + (state.demo ? '' : '<section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>'), usage: usageView, live: liveView, journal: journalView })[state.view]();
     window.BAWorkspace?.afterRender(main);
     window.BALive?.afterRender(main);
     if (focus) main.focus({ preventScroll: true });

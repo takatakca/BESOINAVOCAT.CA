@@ -6,7 +6,7 @@ Le parcours existant `/demande` reçoit une étape de questions conditionnelles 
 
 Sept étapes pour le client lorsque la demande détaillée est ouverte : parcours, domaine/région, questions ciblées, situation, urgence/échéance, coordonnées et récapitulatif confirmé. Le parcours professionnel conserve ses quatre étapes. Les résumés de 20 à 1 500 caractères, l’Ontario, les 18 autres régions, les préférences de contact et les contrôles de dates existants sont conservés.
 
-Le module `platform/lib/questionnaire.mjs` définit 27 questions possibles dans huit domaines; seules deux à quatre apparaissent pour un choix donné. Les questions sont des choix fermés, avec une option d’incertitude lorsque pertinente.
+Le module `platform/lib/questionnaire.mjs` définit 51 questions possibles dans les 16 domaines du catalogue (depuis le 4 novembre 2026; 27 dans huit domaines auparavant); seules deux à quatre apparaissent pour un choix donné. Les questions sont des choix fermés, avec une option d’incertitude lorsque pertinente.
 
 | Domaine | Choix conditionnels principaux |
 |---|---|
@@ -18,6 +18,14 @@ Le module `platform/lib/questionnaire.mjs` définit 27 questions possibles dans 
 | Affaires | Organisation d’entreprise → étape du projet |
 | Immigration | Décision/refus → disponibilité de l’écrit |
 | Autre | Catégorie à préciser, contexte et disponibilité d’un document pour plus tard |
+| Immobilier (4 nov.) | Sujet et rôle; problème après l’achat, voisinage ou construction → demande écrite envoyée ou reçue |
+| Administratif (4 nov.) | Type d’organisme et étape du dossier; décision, révision ou audience → disponibilité de l’écrit |
+| Responsabilité civile (4 nov.) | Type de préjudice, position (préjudice subi, réclamation reçue, pour un proche) et assureur impliqué |
+| Fiscalité (4 nov.) | Sujet et contexte; cotisation ou recouvrement → étape de l’opposition |
+| Successions (4 nov.) | Sujet et rôle; règlement ou désaccord → testament connu |
+| Droits et libertés (4 nov.) | Sujet, contexte et plainte déjà déposée |
+| Faillite et dettes (4 nov.) | Situation, position (débiteur, créancier, caution) et ordre de montant |
+| Municipal (4 nov.) | Sujet, rôle et avis ou décision écrite reçue |
 
 Changer de domaine efface ses anciennes réponses. Changer une réponse parent retire les enfants devenus inapplicables. Un changement de données annule la confirmation du récapitulatif. Le serveur refuse les réponses absentes, inconnues, inactives, d’un autre domaine ou non conformes à leur type. Aucun résultat juridique, admissibilité à l’aide juridique ou délai légal n’est calculé.
 
@@ -55,7 +63,7 @@ Après une réponse réseau incertaine, changer seulement la langue d’affichag
 
 L’observation navigateur de JuriGo transmise par l’agent principal le 28 octobre a porté uniquement sur : choix initial de 16 domaines; sélection « Logement »; court récit; noms des parties adverses pour conflit, avec possibilité « NA »; province et tranche de revenus pour présélection d’aide juridique. Aucune donnée personnelle réelle ni demande n’a été soumise. Les autres branches n’ont pas été vérifiées.
 
-Les questions de BesoinAvocat sont des formulations originales pour les huit domaines déjà présents au catalogue. Elles ne prétendent pas reproduire tout JuriGo. Aucun nom de tiers ni revenu n’est collecté. Le lien institutionnel d’aide juridique déjà présent est conservé; aucune admissibilité n’est annoncée. Les deux langues concernent ce parcours, pas une traduction des 348 pages migrées. Le contenu WordPress et le corpus juridique n’ont pas été modifiés par cette sous-tâche.
+Les questions de BesoinAvocat sont des formulations originales pour les 16 domaines du catalogue (les huit domaines ajoutés avec le parcours du 4 novembre ont reçu les leurs le même jour). Elles ne prétendent pas reproduire tout JuriGo. Aucun nom de tiers ni revenu n’est collecté. Le lien institutionnel d’aide juridique déjà présent est conservé; aucune admissibilité n’est annoncée. Les deux langues concernent ce parcours, pas une traduction des 348 pages migrées. Le contenu WordPress et le corpus juridique n’ont pas été modifiés par cette sous-tâche.
 
 ## Vérification locale
 

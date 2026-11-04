@@ -72,7 +72,9 @@ test('the guided path follows the domain: conflict check and legal aid are skipp
   assert.deepEqual(steps('criminal'), ['domain', 'details', 'situation', 'timing', 'legalAid', 'availability', 'contact', 'review']);
   assert.deepEqual(steps('immigration'), ['domain', 'details', 'situation', 'timing', 'legalAid', 'availability', 'contact', 'review']);
   assert.deepEqual(steps('business'), ['domain', 'details', 'situation', 'parties', 'timing', 'availability', 'contact', 'review']);
-  assert.deepEqual(steps('municipal'), ['domain', 'situation', 'parties', 'timing', 'legalAid', 'availability', 'contact', 'review'], 'no domain questions, no details step');
+  assert.deepEqual(steps('municipal'), ['domain', 'details', 'situation', 'parties', 'timing', 'legalAid', 'availability', 'contact', 'review']);
+  const schema = plain(QUESTIONNAIRE_SCHEMA); schema.domains.municipal = { questions: [] };
+  assert.deepEqual(steps('municipal', { questionnaireSchema: schema }), ['domain', 'situation', 'parties', 'timing', 'legalAid', 'availability', 'contact', 'review'], 'an area the catalogue publishes without questions has no details step');
   assert.deepEqual(plain(api.stepsFor(api.initialState('client', 'fr', false))), ['domain', 'contact', 'review']);
   assert.deepEqual(plain(api.stepsFor(api.initialState('professional', 'fr', true))), ['domain', 'preferences', 'contact', 'review']);
   assert.equal(api.consentVersionFor(api.initialState('client', 'fr', true)), QUESTIONNAIRE_VERSION);
@@ -177,8 +179,8 @@ test('every payload the page builds is accepted unchanged by the real intake ser
   assert.equal('otherParties' in criminal, false, 'no names are collected for criminal matters');
   const business = plain(api.payloadFrom(detailedState({ email: 'business@example.test', domain: 'business', answers: { topic: 'corporate', businessRole: 'owner', businessStage: 'planning' } })));
   assert.equal('legalAid' in business, false);
-  const municipal = plain(api.payloadFrom(detailedState({ email: 'municipal@example.test', domain: 'municipal', answers: {}, otherPartiesStatus: 'unknown' })));
-  assert.deepEqual(municipal.questionnaire.answers, {}); assert.deepEqual(municipal.otherParties, { status: 'unknown' });
+  const municipal = plain(api.payloadFrom(detailedState({ email: 'municipal@example.test', domain: 'municipal', answers: { topic: 'permit', municipalRole: 'resident', writtenDecision: 'no' }, otherPartiesStatus: 'unknown' })));
+  assert.deepEqual(municipal.questionnaire.answers, { topic: 'permit', municipalRole: 'resident', writtenDecision: 'no' }); assert.deepEqual(municipal.otherParties, { status: 'unknown' });
   const contact = plain(api.payloadFrom({ ...api.initialState('client', 'en', false), domain: 'civil', region: 'estrie', name: 'Synthetic', email: 'contact@example.test', consent: true }));
   assert.equal(contact.consentVersion, CONSENT_VERSION); assert.equal('summary' in contact, false);
   const lawyer = plain(api.payloadFrom({ ...api.initialState('professional', 'fr', true), domain: 'business', region: 'montreal', periodicity: 'weekly', name: 'Avocate', email: 'lawyer@example.test', consent: true }));

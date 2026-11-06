@@ -31,6 +31,7 @@ ALLOWLIST = {
     'lib/document-requests.mjs': 'platform/lib/document-requests.mjs',
     'lib/deadlines.mjs': 'platform/lib/deadlines.mjs',
     'lib/calendar-feed.mjs': 'platform/lib/calendar-feed.mjs',
+    'lib/signatures.mjs': 'platform/lib/signatures.mjs',
     'lib/membership.mjs': 'platform/lib/membership.mjs',
     'lib/audit-seal.mjs': 'platform/lib/audit-seal.mjs',
     'lib/document-generator.mjs': 'platform/lib/document-generator.mjs',

@@ -211,3 +211,16 @@ Chaque personne (avocat ou client) peut créer, dans Réglages, un lien iCal sec
 - Le jeton (32 octets) n'est montré qu'une fois; seule son empreinte SHA-256 est gardée (table `calendar_feeds`, ajoutée à la sauvegarde). Remplacer ou désactiver le lien coupe l'ancien aussitôt. Tout jeton inconnu répond 404.
 - Routes : `GET/POST /api/calendar-feed`, `POST /api/calendar-feed/revoke`, lecture publique `GET /api/calendar/<jeton>.ics`.
 - Activation dans Coolify : `BESOINAVOCAT_CALENDAR_FEED_ENABLED=true` (avec `APP_ORIGIN`). Désactivé par défaut.
+
+## DocuSign : envoi pour signature (lot 9, 2026-11-06)
+
+L'avocat connecte son propre compte DocuSign (Intégrations), puis, dans un dossier, choisit une pièce et saisit le nom et le courriel du signataire. Seule cette pièce part chez DocuSign (eSignature REST API v2.1, `POST …/envelopes`, statut `sent`). Le signataire place lui-même sa signature (signature libre, sans champs préplacés).
+
+- Compte : lu sur `/oauth/userinfo` (compte par défaut). Seule une adresse `https://*.docusign.net` est acceptée comme `base_uri`.
+- Suivi : notifications DocuSign Connect vérifiées par HMAC (`/api/webhooks/docusign`, en-tête `X-DocuSign-Signature-1`, format JSON), et bouton « Actualiser » (`GET …/envelopes/{id}`). Un état final (signé, refusé, annulé) ne change plus. Un événement d'un autre compte DocuSign est ignoré.
+- Version signée : `GET …/documents/combined?certificate=true`, versée comme nouvelle version de la pièce d'origine (« … (signé).pdf », provenance « original », à vérifier), avec le certificat de signature de DocuSign.
+- Annulation : `PUT …/envelopes/{id}` `{ status: 'voided', voidedReason }`.
+- Seule la personne qui a envoyé peut agir (son jeton). Les autres avocats du dossier voient l'envoi. Le client ne voit pas ce panneau.
+- Tables `signature_envelopes` et `signature_envelope_events` (append-only), ajoutées à la sauvegarde. Chaque étape est au journal du dossier.
+- Le portail ne juge pas si ce mode de signature suffit pour un acte donné : l'avocat en décide.
+- Coolify : `BESOINAVOCAT_DOCUSIGN_CLIENT_ID`, `BESOINAVOCAT_DOCUSIGN_CLIENT_SECRET`, `BESOINAVOCAT_DOCUSIGN_ENVIRONMENT` (`demo` par défaut, `production` après la revue « Go-Live » de DocuSign), `BESOINAVOCAT_DOCUSIGN_CONNECT_HMAC_KEY`, plus `BESOINAVOCAT_INTEGRATIONS_KEY_FILE` et `APP_ORIGIN`. URL de rappel OAuth : `<APP_ORIGIN>/integrations/callback`. URL Connect : `<APP_ORIGIN>/api/webhooks/docusign`, événements d'enveloppe sent, delivered, completed, declined, voided, format JSON, HMAC activé.

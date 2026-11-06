@@ -17,6 +17,7 @@ import { createIceServers, createVideoRooms, iceConfiguration } from './lib/vide
 import { createDocumentRequests } from './lib/document-requests.mjs';
 import { createDeadlines } from './lib/deadlines.mjs';
 import { calendarFeedConfiguration, createCalendarFeed } from './lib/calendar-feed.mjs';
+import { createSignatures } from './lib/signatures.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
@@ -147,6 +148,7 @@ export function createApp({
   const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS) });
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
+  const signatures = createSignatures({ db: store.db, access: store.access, audit: store.audit, store, docusign: integrations.docusign, clock });
   const calendarFeed = createCalendarFeed({ db: store.db, audit: store.audit, config: calendarFeedConfiguration(env), clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
   const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
@@ -189,6 +191,7 @@ export function createApp({
       try {
         const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
         if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) membership.stripeEvent(result.event);
+        if (webhook[1] === 'docusign' && result.event && !result.body.duplicate) signatures.connectEvent(result.event);
         return json(res, result.status, result.body);
       } finally { webhooksInFlight--; }
     }
@@ -393,7 +396,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -527,6 +530,18 @@ export function createApp({
       if (room[2] === 'poll') return json(res, 200, video.poll(user, caseId, room[1], body));
       fields(body, []);
       return json(res, 200, room[2] === 'leave' ? video.leave(user, caseId, room[1]) : video.end(user, caseId, room[1]));
+    }
+    // Signature électronique par DocuSign, avec le compte de l'avocat (lib/signatures.mjs).
+    if (suffix === '/signatures' && method === 'GET') return json(res, 200, signatures.list(user, caseId));
+    if (suffix === '/signatures' && method === 'POST') return json(res, 201, await signatures.send(user, caseId, await readJson(req, 4096)));
+    const signature = /^\/signatures\/([^/]+)\/(refresh|void|retrieve|history)$/u.exec(suffix);
+    if (signature && signature[2] === 'history' && method === 'GET') return json(res, 200, signatures.history(user, caseId, signature[1]));
+    if (signature && signature[2] === 'void' && method === 'POST') return json(res, 200, await signatures.void(user, caseId, signature[1], await readJson(req, 1024)));
+    if (signature && ['refresh', 'retrieve'].includes(signature[2]) && method === 'POST') {
+      fields(await readJson(req, 128, { allowEmpty: true }), []);
+      if (signature[2] === 'refresh') return json(res, 200, await signatures.refresh(user, caseId, signature[1]));
+      const result = await signatures.retrieve(user, caseId, signature[1]);
+      return json(res, result.created ? 201 : 200, result);
     }
     // Échéances du dossier, saisies par l'avocat (lib/deadlines.mjs).
     if (suffix === '/deadlines' && method === 'GET') return json(res, 200, deadlines.list(user, caseId));

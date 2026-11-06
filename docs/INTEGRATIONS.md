@@ -201,3 +201,13 @@ Les tests du dépôt ne prouvent rien sur les vrais comptes. Pour chaque fournis
   - les routes HTTP et la page de retour.
 - `node --test platform/test/workspace-integrations.test.mjs` (4 tests) : l'écran Intégrations et les boutons des rendez-vous.
 - QA Chromium du parcours complet sous la CSP réelle : Connecter, consentement simulé, retour, puis création de la réunion depuis un rendez-vous. À 1440 et 390 px : aucune erreur de script et aucun débordement. Les seuls contrastes signalés par axe-core sont ceux déjà présents dans l'en-tête et le pied de page du portail.
+
+## Abonnement agenda privé (lot 8, 2026-11-06)
+
+Chaque personne (avocat ou client) peut créer, dans Réglages, un lien iCal secret que son agenda lit lui-même (Outlook « Ajouter un calendrier à partir d'Internet », Google Agenda « À partir de l'URL », Apple Calendrier « Nouvel abonnement »). Aucun compte tiers ni clé de fournisseur.
+
+- Contenu : échéances ouvertes (30 jours passés à 365 jours) et rendez-vous planifiés de tous les dossiers dont la personne est membre, avec ce que son rôle permet de voir (le client ne voit que les échéances partagées). L'appartenance est revérifiée à chaque lecture.
+- Mode « discret » par défaut : type et référence du dossier seulement, parce que le fournisseur d'agenda garde une copie. Mode « complet » au choix : titres et notes. Les liens de visioconférence n'y figurent jamais.
+- Le jeton (32 octets) n'est montré qu'une fois; seule son empreinte SHA-256 est gardée (table `calendar_feeds`, ajoutée à la sauvegarde). Remplacer ou désactiver le lien coupe l'ancien aussitôt. Tout jeton inconnu répond 404.
+- Routes : `GET/POST /api/calendar-feed`, `POST /api/calendar-feed/revoke`, lecture publique `GET /api/calendar/<jeton>.ics`.
+- Activation dans Coolify : `BESOINAVOCAT_CALENDAR_FEED_ENABLED=true` (avec `APP_ORIGIN`). Désactivé par défaut.

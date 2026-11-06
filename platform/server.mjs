@@ -16,6 +16,7 @@ import { createTelephony, telephonyConfiguration, teamMembers } from './lib/tele
 import { createIceServers, createVideoRooms, iceConfiguration } from './lib/video-room.mjs';
 import { createDocumentRequests } from './lib/document-requests.mjs';
 import { createDeadlines } from './lib/deadlines.mjs';
+import { calendarFeedConfiguration, createCalendarFeed } from './lib/calendar-feed.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
@@ -146,6 +147,7 @@ export function createApp({
   const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS) });
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
+  const calendarFeed = createCalendarFeed({ db: store.db, audit: store.audit, config: calendarFeedConfiguration(env), clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
   const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
@@ -202,6 +204,24 @@ export function createApp({
         const result = telephony.webhook({ headers: req.headers, raw: await readWebhookBody(req) });
         return json(res, result.status, result.body);
       } finally { webhooksInFlight--; }
+    }
+
+    // Private calendar subscription read by Outlook, Google or Apple: no session, the secret token is the only key
+    // (lib/calendar-feed.mjs). Every failure answers the same 404.
+    const feed = /^\/api\/calendar\/([^/]+)\.ics$/u.exec(path);
+    if (feed) {
+      if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      const calendar = calendarFeed.read(feed[1]);
+      if (calendar === null) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+      const body = Buffer.from(calendar, 'utf8');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Content-Length', body.length);
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      return res.end(method === 'HEAD' ? undefined : body);
     }
 
     // Public contact intake is isolated from client identity and case storage.
@@ -321,6 +341,14 @@ export function createApp({
       if (!/^[0-9]{1,2}$/u.test(raw)) throw invalid('Période attendue entre 1 et 90 jours.');
       return json(res, 200, deadlines.upcoming(user, Number(raw)));
     }
+    // The person's own private calendar link (lib/calendar-feed.mjs).
+    if (path === '/api/calendar-feed' || path === '/api/calendar-feed/revoke') {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (path === '/api/calendar-feed' && method === 'GET') return json(res, 200, calendarFeed.status(user));
+      if (path === '/api/calendar-feed' && method === 'POST') return json(res, 201, calendarFeed.create(user, await readJson(req, 256, { allowEmpty: true })));
+      if (path === '/api/calendar-feed/revoke' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, calendarFeed.revoke(user)); }
+      throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+    }
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
@@ -365,7 +393,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });

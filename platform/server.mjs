@@ -18,6 +18,7 @@ import { createDocumentRequests } from './lib/document-requests.mjs';
 import { createDeadlines } from './lib/deadlines.mjs';
 import { calendarFeedConfiguration, createCalendarFeed } from './lib/calendar-feed.mjs';
 import { createSignatures } from './lib/signatures.mjs';
+import { createNotifications, notificationConfiguration } from './lib/notifications.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
@@ -126,6 +127,7 @@ export function createApp({
   integrationFetch = globalThis.fetch,
   telephonyFetch = globalThis.fetch,
   paymentsFetch = globalThis.fetch,
+  notificationFetch = globalThis.fetch,
   clock = Date.now,
 } = {}) {
   const config = identityConfiguration(env);
@@ -148,6 +150,9 @@ export function createApp({
   const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS) });
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
+  const notifications = createNotifications({ db: store.db, audit: store.audit, config: notificationConfiguration(env), fetch: notificationFetch, clock, log: message => console.warn(message) });
+  // Email notices never delay or fail the action that caused them.
+  const notify = (actor, caseId, kind, extra) => { void notifications.caseEvent(actor, caseId, kind, extra).catch(error => console.warn(`notification ${kind}: ${error.message}`)); };
   const signatures = createSignatures({ db: store.db, access: store.access, audit: store.audit, store, docusign: integrations.docusign, clock });
   const calendarFeed = createCalendarFeed({ db: store.db, audit: store.audit, config: calendarFeedConfiguration(env), clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -191,7 +196,10 @@ export function createApp({
       try {
         const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
         if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) membership.stripeEvent(result.event);
-        if (webhook[1] === 'docusign' && result.event && !result.body.duplicate) signatures.connectEvent(result.event);
+        if (webhook[1] === 'docusign' && result.event && !result.body.duplicate) {
+          const changed = signatures.connectEvent(result.event);
+          if (changed?.changed && changed.status === 'completed') notify({ tenantId: changed.tenantId, subject: 'docusign' }, changed.caseId, 'signature_completed', { sender: changed.sender });
+        }
         return json(res, result.status, result.body);
       } finally { webhooksInFlight--; }
     }
@@ -344,6 +352,17 @@ export function createApp({
       if (!/^[0-9]{1,2}$/u.test(raw)) throw invalid('Période attendue entre 1 et 90 jours.');
       return json(res, 200, deadlines.upcoming(user, Number(raw)));
     }
+    // Email notices: the person's own address, confirmed by a code (lib/notifications.mjs).
+    if (path === '/api/notifications' || path.startsWith('/api/notifications/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (path === '/api/notifications' && method === 'GET') return json(res, 200, notifications.status(user));
+      if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (path === '/api/notifications/email') return json(res, 200, await notifications.register(user, await readJson(req, 512)));
+      if (path === '/api/notifications/verify') return json(res, 200, notifications.verify(user, await readJson(req, 128)));
+      if (path === '/api/notifications/pause') return json(res, 200, notifications.pause(user, await readJson(req, 128)));
+      if (path === '/api/notifications/remove') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, notifications.remove(user)); }
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
     // The person's own private calendar link (lib/calendar-feed.mjs).
     if (path === '/api/calendar-feed' || path === '/api/calendar-feed/revoke') {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
@@ -396,7 +415,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -545,7 +564,11 @@ export function createApp({
     }
     // Échéances du dossier, saisies par l'avocat (lib/deadlines.mjs).
     if (suffix === '/deadlines' && method === 'GET') return json(res, 200, deadlines.list(user, caseId));
-    if (suffix === '/deadlines' && method === 'POST') return json(res, 201, deadlines.create(user, caseId, await readJson(req, 8192)));
+    if (suffix === '/deadlines' && method === 'POST') {
+      const created = deadlines.create(user, caseId, await readJson(req, 8192));
+      if (created.deadline.visibleToClient) notify(user, caseId, 'deadline_shared');
+      return json(res, 201, created);
+    }
     if (suffix === '/deadlines.ics' && method === 'GET') {
       const body = Buffer.from(deadlines.calendar(user, caseId), 'utf8');
       res.statusCode = 200;
@@ -560,10 +583,18 @@ export function createApp({
     if (deadline && deadline[2] && deadline[2] !== 'history' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, deadlines.transition(user, caseId, deadline[1], deadline[2])); }
     // Pièces demandées au client (lib/document-requests.mjs).
     if (suffix === '/requests' && method === 'GET') return json(res, 200, documentRequests.list(user, caseId));
-    if (suffix === '/requests' && method === 'POST') return json(res, 201, documentRequests.create(user, caseId, await readJson(req, 8192)));
+    if (suffix === '/requests' && method === 'POST') {
+      const created = documentRequests.create(user, caseId, await readJson(req, 8192));
+      notify(user, caseId, 'document_requested');
+      return json(res, 201, created);
+    }
     const docRequest = /^\/requests\/([^/]+)\/(provide|decide|history)$/u.exec(suffix);
     if (docRequest && docRequest[2] === 'history' && method === 'GET') return json(res, 200, documentRequests.history(user, caseId, docRequest[1]));
-    if (docRequest && docRequest[2] === 'provide' && method === 'POST') return json(res, 200, documentRequests.provide(user, caseId, docRequest[1], await readJson(req, 8192)));
+    if (docRequest && docRequest[2] === 'provide' && method === 'POST') {
+      const provided = documentRequests.provide(user, caseId, docRequest[1], await readJson(req, 8192));
+      notify(user, caseId, 'document_provided');
+      return json(res, 200, provided);
+    }
     if (docRequest && docRequest[2] === 'decide' && method === 'POST') return json(res, 200, documentRequests.decide(user, caseId, docRequest[1], await readJson(req, 8192)));
     if (suffix === '/journal' && method === 'GET') return json(res, 200, auditSeal.timeline(user, caseId));
     if (suffix === '/journal/verify' && method === 'GET') return json(res, 200, auditSeal.verify(user, caseId));

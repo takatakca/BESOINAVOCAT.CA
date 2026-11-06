@@ -185,8 +185,8 @@ export function createSignatures({ db, access, audit, store, docusign, clock = D
       const row = sql('SELECT * FROM signature_envelopes WHERE envelopeId=?').get(envelopeId);
       if (!row) return false;
       if (typeof event.data.accountId === 'string' && event.data.accountId.toLowerCase() !== row.accountId.toLowerCase()) return false;
-      setStatus(row, status, 'connect');
-      return true;
+      const next = setStatus(row, status, 'connect');
+      return { tenantId: row.tenantId, caseId: row.caseId, sender: row.subject, status: next.status, changed: next.status !== row.status };
     },
   };
 }

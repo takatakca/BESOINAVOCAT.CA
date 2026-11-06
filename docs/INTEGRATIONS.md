@@ -224,3 +224,13 @@ L'avocat connecte son propre compte DocuSign (Intégrations), puis, dans un doss
 - Tables `signature_envelopes` et `signature_envelope_events` (append-only), ajoutées à la sauvegarde. Chaque étape est au journal du dossier.
 - Le portail ne juge pas si ce mode de signature suffit pour un acte donné : l'avocat en décide.
 - Coolify : `BESOINAVOCAT_DOCUSIGN_CLIENT_ID`, `BESOINAVOCAT_DOCUSIGN_CLIENT_SECRET`, `BESOINAVOCAT_DOCUSIGN_ENVIRONMENT` (`demo` par défaut, `production` après la revue « Go-Live » de DocuSign), `BESOINAVOCAT_DOCUSIGN_CONNECT_HMAC_KEY`, plus `BESOINAVOCAT_INTEGRATIONS_KEY_FILE` et `APP_ORIGIN`. URL de rappel OAuth : `<APP_ORIGIN>/integrations/callback`. URL Connect : `<APP_ORIGIN>/api/webhooks/docusign`, événements d'enveloppe sent, delivered, completed, declined, voided, format JSON, HMAC activé.
+
+## Courriels d'avis (lot 10, 2026-11-06)
+
+Le portail ne connaît les personnes que par leur identifiant : chacun qui veut des avis par courriel donne son adresse dans Réglages, consent, puis la confirme avec un code à six chiffres (15 minutes, 5 essais, 3 codes par heure). L'adresse est masquée à l'écran.
+
+- Avis envoyés : pièce demandée (aux clients du dossier), date partagée avec le client (aux clients), pièce demandée déposée (aux avocats), document signé chez DocuSign (à l'expéditeur, sur notification Connect). Jamais à la personne qui a fait l'action.
+- Contenu : seulement « quelque chose vous attend » et le lien du portail. Aucun nom de client, titre de dossier, nom de pièce ou contenu. Mention : BesoinAvocat n'est pas un cabinet et ne donne pas d'avis juridique.
+- Limites : au plus un avis par sorte, par dossier et par personne toutes les 10 minutes, et 20 par jour. Chaque envoi est consigné (sorte, dossier, statut), jamais le contenu (table `notification_log`). L'envoi ne retarde ni ne bloque l'action qui le cause.
+- Suspendre ou retirer l'adresse en tout temps (table `notification_contacts`, ajoutée à la sauvegarde avec `notification_log`).
+- Fournisseur : Resend (`POST https://api.resend.com/emails`). Coolify : `BESOINAVOCAT_EMAIL_PROVIDER=resend`, `BESOINAVOCAT_EMAIL_API_KEY`, `BESOINAVOCAT_EMAIL_FROM` (ex. `BesoinAvocat <avis@besoinavocat.ca>`, domaine vérifié chez Resend : enregistrements SPF et DKIM à ajouter dans la zone DNS, sans toucher aux MX), `APP_ORIGIN`.

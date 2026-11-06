@@ -91,10 +91,10 @@ test('send a case document for signature, follow it by Connect, and file the sig
   const sign = body => ({ 'x-docusign-signature-1': createHmac('sha256', 'docusign-hmac-key').update(body).digest('base64') });
   const deliver = raw({ event: 'envelope-delivered', data: { envelopeId: ENVELOPE, accountId: ACCOUNT } });
   const delivered = f.integrations.webhook('docusign', { headers: sign(deliver), raw: deliver, url: '/' });
-  assert.equal(f.signatures.connectEvent(delivered.event), true);
+  assert.equal(f.signatures.connectEvent(delivered.event).status, 'delivered');
   assert.equal(f.signatures.list(users.lawyer, f.caseId).envelopes[0].status, 'delivered');
   assert.equal(f.signatures.connectEvent({ event: 'envelope-completed', data: { envelopeId: ENVELOPE, accountId: '99999999-2222-4333-8444-555555555555' } }), false);
-  assert.equal(f.signatures.connectEvent({ event: 'envelope-sent', data: { envelopeId: ENVELOPE } }), true);
+  assert.equal(f.signatures.connectEvent({ event: 'envelope-sent', data: { envelopeId: ENVELOPE } }).changed, false);
   assert.equal(f.signatures.list(users.lawyer, f.caseId).envelopes[0].status, 'delivered', 'never goes back to sent');
   await rejects(f.signatures.retrieve(users.lawyer, f.caseId, sent.envelope.id), 409);
 
@@ -107,7 +107,7 @@ test('send a case document for signature, follow it by Connect, and file the sig
   assert.equal(filed.document.name, 'Convention de mandat (signé).pdf');
   assert.equal(filed.document.versionNumber, 2);
   assert.equal((await f.signatures.retrieve(users.lawyer, f.caseId, sent.envelope.id)).created, false);
-  assert.equal(f.signatures.connectEvent({ event: 'envelope-voided', data: { envelopeId: ENVELOPE } }), true);
+  assert.equal(f.signatures.connectEvent({ event: 'envelope-voided', data: { envelopeId: ENVELOPE } }).changed, false);
   assert.equal(f.signatures.list(users.lawyer, f.caseId).envelopes[0].status, 'completed', 'a final state never changes');
 
   const history = f.signatures.history(users.lawyer, f.caseId, sent.envelope.id).events.map(e => `${e.status}:${e.source}`);

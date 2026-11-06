@@ -492,6 +492,27 @@
     node.innerHTML = `${head}<div class="panel-body">${form}${list.envelopes.length ? `<div class="live-stack">${list.envelopes.map(card).join('')}</div>` : (list.connected ? empty('Aucun envoi pour signature dans ce dossier.') : '')}</div>`;
   }
 
+  // ---------- Courriels d'avis (adresse confirmée par code) ----------
+  async function paintNotices(node) {
+    if (bridge.isDemo()) { node.innerHTML = demo('Courriels d’avis'); return; }
+    const o = await api('/api/notifications');
+    const head = `<div class="panel-heading"><div><h2>Courriels d’avis</h2><p>Un courriel bref quand quelque chose vous attend dans le portail. Jamais de nom, de titre de dossier ni de contenu.</p></div></div>`;
+    if (!o.configured) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Courriels d’avis à activer</strong>Variables à renseigner dans Coolify : ${esc(o.missing.join(', '))}.</p></div></div>`; return; }
+    const c = o.contact;
+    const register = `<form data-live-form="notice-email" class="live-form"><div class="field"><label for="nt-email">Adresse courriel pour les avis</label><input id="nt-email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+      <label class="check"><input type="checkbox" name="consent" required> J’accepte de recevoir à cette adresse des avis de BesoinAvocat sur mes dossiers. Je peux les suspendre ou retirer l’adresse en tout temps.</label>
+      <p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button small" type="submit">Recevoir un code de confirmation</button></div></form>`;
+    let body;
+    if (!c) body = register;
+    else if (c.status === 'pending') body = `<p>${pill('wait', 'À confirmer')} Un code a été envoyé à <span class="mono">${esc(c.email)}</span>.</p>
+      <form data-live-form="notice-verify" class="live-inline"><label class="sr-only" for="nt-code">Code à six chiffres</label><input id="nt-code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required placeholder="000000"><button class="button small" type="submit">Confirmer</button><p class="form-error" role="alert" hidden></p></form>
+      <details class="live-template"><summary>Changer d’adresse ou renvoyer un code</summary>${register}</details>`;
+    else body = `<p>${pill(c.paused ? 'off' : 'ok', c.paused ? 'Suspendus' : 'Actifs')} Avis envoyés à <span class="mono">${esc(c.email)}</span>, confirmée le ${esc(when(c.verifiedAt))}.</p>
+      <ul class="drawer-list">${Object.values(o.kinds).map(k => `<li><span class="queue-icon">${icon('inbox')}</span><span class="queue-text"><strong>${esc(k)}</strong></span></li>`).join('')}</ul>
+      <div class="tile-actions"><button type="button" class="button secondary small" data-live-action="notice-pause" data-paused="${c.paused ? 'false' : 'true'}">${c.paused ? 'Reprendre les avis' : 'Suspendre les avis'}</button><button type="button" class="button subtle small" data-live-action="notice-remove">Retirer mon adresse</button></div>`;
+    node.innerHTML = `${head}<div class="panel-body">${body}<p class="table-subtext">Au plus un avis par sorte et par dossier toutes les 10 minutes, et 20 par jour. Votre adresse sert seulement à ces avis.</p></div>`;
+  }
+
   // ---------- Abonnement agenda privé (lien iCal secret) ----------
   let feedLink = null;
   const FEED_DETAIL = { discreet: 'Discret : type et référence du dossier seulement', full: 'Complet : titres et notes inclus' };
@@ -511,7 +532,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -577,6 +598,8 @@
     else if (action === 'signature-refresh') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/refresh`); repaint('case-signatures'); bridge.notify('Statut lu chez DocuSign.'); }
     else if (action === 'signature-void') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/void`, { reason: 'Envoi annulé par l’avocat depuis BesoinAvocat.' }); repaint('case-signatures'); bridge.notify('Envoi annulé chez DocuSign.'); }
     else if (action === 'signature-retrieve') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/retrieve`); repaint('case-signatures'); await bridge.reloadCase(); bridge.notify('La version signée et son certificat sont versés aux pièces.'); }
+    else if (action === 'notice-pause') { await post('/api/notifications/pause', { paused: button.dataset.paused === 'true' }); repaint('notices'); bridge.notify(button.dataset.paused === 'true' ? 'Avis suspendus.' : 'Avis repris.'); }
+    else if (action === 'notice-remove') { await post('/api/notifications/remove'); repaint('notices'); bridge.notify('Adresse retirée. Aucun avis ne sera envoyé.'); }
     else if (action === 'feed-create') { feedLink = await post('/api/calendar-feed', { detail: document.getElementById('feed-detail')?.value || 'discreet' }); repaint('calendar-feed'); bridge.notify('Lien d’agenda créé. Copiez-le avant de quitter la page.'); }
     else if (action === 'feed-revoke') { await post('/api/calendar-feed/revoke'); feedLink = null; repaint('calendar-feed'); bridge.notify('Lien d’agenda désactivé.'); }
     else if (action === 'feed-copy') { const field = document.getElementById('feed-url'); if (field) { try { await navigator.clipboard.writeText(field.value); bridge.notify('Lien copié.'); } catch { field.select(); bridge.notify('Sélectionné : copiez avec Ctrl+C.'); } } }
@@ -622,6 +645,8 @@
       if (kind === 'line') cache.overview = await post('/api/telephony/member/line', { e164: String(data.get('e164') || '') });
       if (kind === 'request-create') { await post(`${caseBase()}/requests`, { title: String(data.get('title') || '').trim(), note: String(data.get('note') || '').trim(), ...(data.get('dueDate') ? { dueDate: String(data.get('dueDate')) } : {}) }); form.reset(); bridge.notify('Demande envoyée au client, dans le dossier.'); await loadRequests(true); repaint('case-requests'); return; }
       if (kind === 'request-provide') { await post(`${caseBase()}/requests/${encodeURIComponent(form.dataset.id)}/provide`, { ...(data.get('documentId') ? { documentId: String(data.get('documentId')) } : {}), ...(String(data.get('answer') || '').trim() ? { answer: String(data.get('answer')).trim() } : {}) }); bridge.notify('Envoyé à votre avocat.'); await loadRequests(true); repaint('case-requests'); repaint('client-home'); return; }
+      if (kind === 'notice-email') { await post('/api/notifications/email', { email: String(data.get('email') || '').trim(), consent: data.get('consent') === 'on' }); bridge.notify('Code envoyé. Vérifiez votre boîte de réception.'); repaint('notices'); return; }
+      if (kind === 'notice-verify') { await post('/api/notifications/verify', { code: String(data.get('code') || '').trim() }); bridge.notify('Adresse confirmée. Les avis sont actifs.'); repaint('notices'); return; }
       if (kind === 'signature-send') { await post(`${caseBase()}/signatures`, { documentId: String(data.get('documentId') || ''), signerName: String(data.get('signerName') || '').trim(), signerEmail: String(data.get('signerEmail') || '').trim(), ...(String(data.get('message') || '').trim() ? { message: String(data.get('message')).trim() } : {}) }); form.reset(); bridge.notify('Document envoyé par DocuSign au signataire.'); repaint('case-signatures'); return; }
       if (kind === 'deadline-create') { await post(`${caseBase()}/deadlines`, { title: String(data.get('title') || '').trim(), kind: String(data.get('kind') || 'autre'), dueDate: String(data.get('dueDate') || ''), ...(data.get('dueTime') ? { dueTime: String(data.get('dueTime')) } : {}), note: String(data.get('note') || '').trim(), visibleToClient: data.get('visibleToClient') === 'on' }); form.reset(); bridge.notify('Échéance enregistrée au dossier.'); await loadDeadlines(true); deadlines.week = null; repaint('case-deadlines'); loadWeek().then(syncWeekChip, () => {}); return; }
       if (kind === 'template') { const made = await post(`${caseBase()}/generate`, { kind: 'template', title: String(data.get('title') || ''), body: String(data.get('body') || '') }); bridge.notify(`« ${made.document.name} » est versé aux pièces, à vérifier.`); form.reset(); await bridge.reloadCase(); return; }

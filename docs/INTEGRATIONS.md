@@ -234,3 +234,13 @@ Le portail ne connaît les personnes que par leur identifiant : chacun qui veut 
 - Limites : au plus un avis par sorte, par dossier et par personne toutes les 10 minutes, et 20 par jour. Chaque envoi est consigné (sorte, dossier, statut), jamais le contenu (table `notification_log`). L'envoi ne retarde ni ne bloque l'action qui le cause.
 - Suspendre ou retirer l'adresse en tout temps (table `notification_contacts`, ajoutée à la sauvegarde avec `notification_log`).
 - Fournisseur : Resend (`POST https://api.resend.com/emails`). Coolify : `BESOINAVOCAT_EMAIL_PROVIDER=resend`, `BESOINAVOCAT_EMAIL_API_KEY`, `BESOINAVOCAT_EMAIL_FROM` (ex. `BesoinAvocat <avis@besoinavocat.ca>`, domaine vérifié chez Resend : enregistrements SPF et DKIM à ajouter dans la zone DNS, sans toucher aux MX), `APP_ORIGIN`.
+
+## CanLII : vérifier une décision citée (lot 11, 2026-11-06)
+
+Dans Recherche, un avocat (owner ou lawyer d'au moins un dossier) colle une citation neutre (« 2020 QCCS 1234 », « 2019 CSC 65 ») ou une adresse canlii.org. Le portail interroge l'API de CanLII (`/v1/caseBrowse/{langue}/{banque}/{décision}/` puis `/v1/caseCitator/…/citingCases`). Il rend le titre officiel, la date, le numéro de dossier, les mots-clés, le lien canlii.org, et le nombre de décisions qui la citent (10 premières).
+
+- Seule la citation saisie part chez CanLII. Aucune donnée de dossier.
+- La clé reste sur le serveur. Les réponses sont gardées 7 jours (table `canlii_cache`). Chaque personne a droit à 60 vérifications par heure (table `canlii_usage`). Les deux tables sont ajoutées à la sauvegarde. Chaque vérification est inscrite au journal.
+- Correspondances de banques : CSC/SCC → `csc-scc`, CF/FC → `fct`, CAF/FCA → `fca`, CCI/TCC → `tcc`. Sinon, le code en minuscules (qcca, qccs, qccq, onca…). Une décision absente de CanLII est dite « introuvable », pas « inexistante ».
+- Le portail ne dit jamais si une décision fait encore autorité.
+- Coolify : `BESOINAVOCAT_CANLII_API_KEY`. La clé se demande à CanLII (formulaire de demande d'accès à l'API, usage soumis à leurs conditions).

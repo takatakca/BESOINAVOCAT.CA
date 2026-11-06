@@ -32,8 +32,8 @@ const CATALOG = Object.freeze([
     routine: 'Inscrire le rendez-vous dans votre agenda Outlook, avec le lien de la réunion.' },
   { id: 'google', label: 'Google Agenda', category: 'calendar', connectionType: 'oauth', status: 'implemented', actions: ['calendar_event'],
     routine: 'Inscrire le rendez-vous dans votre Google Agenda, avec le lien de la réunion.' },
-  { id: 'docusign', label: 'DocuSign', category: 'signature', connectionType: 'oauth', status: 'connect_only', actions: [],
-    routine: 'Faire signer une convention de mandat ou une procuration. Connexion du compte disponible; envoi pour signature au prochain lot.' },
+  { id: 'docusign', label: 'DocuSign', category: 'signature', connectionType: 'oauth', status: 'implemented', actions: ['signature'],
+    routine: 'Envoyer une pièce du dossier pour signature, suivre son statut et verser la version signée au dossier, avec son certificat.' },
   { id: 'clio', label: 'Clio Manage (Canada)', category: 'practice', connectionType: 'oauth', status: 'connect_only', actions: [],
     routine: 'Relier vos dossiers, contacts et heures au logiciel de gestion du cabinet. Connexion disponible; synchronisation au prochain lot.' },
   { id: 'stripe', label: 'Stripe', category: 'payments', connectionType: 'platform', status: 'platform', actions: [],
@@ -242,7 +242,7 @@ export function createIntegrations({ db, access, audit, config = integrationConf
       .run(randomUUID(), iso(), row.tenantId, row.subject, row.provider);
   }
 
-  async function call(url, { method = 'GET', headers = {}, form, json } = {}) {
+  async function call(url, { method = 'GET', headers = {}, form, json, binary = false, limit = MAX_PROVIDER_RESPONSE } = {}) {
     let response;
     try {
       response = await fetchImpl(url, { method, redirect: 'error', signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
@@ -254,10 +254,11 @@ export function createIntegrations({ db, access, audit, config = integrationConf
     try {
       if (response.body) for await (const chunk of response.body) {
         size += chunk.length;
-        if (size > MAX_PROVIDER_RESPONSE) throw new Error('Oversized provider response');
+        if (size > limit) throw new Error('Oversized provider response');
         chunks.push(chunk);
       }
     } catch { throw unavailable(); }
+    if (binary) return { status: response.status, body: null, bytes: Buffer.concat(chunks), type: response.headers.get('content-type') || '' };
     const raw = Buffer.concat(chunks).toString('utf8');
     let body = null;
     if (raw && /json/iu.test(response.headers.get('content-type') || '')) { try { body = JSON.parse(raw); } catch { body = null; } }
@@ -588,8 +589,16 @@ export function createIntegrations({ db, access, audit, config = integrationConf
     const signatures = [1, 2, 3, 4, 5].map(n => header(headers, `x-docusign-signature-${n}`)).filter(Boolean);
     if (!signatures.some(value => sameSecret(value, expected))) throw badSignature();
     const event = parse(raw);
-    return record(id, sha256(raw), eventType(event.event), raw);
+    // The verified event is handed back so the signature module (lib/signatures.mjs) can update the envelope.
+    return { ...record(id, sha256(raw), eventType(event.event), raw), event };
   }
 
-  return Object.freeze({ list, connect, complete, disconnect, linkAppointment, unlinkAppointment, linksFor, webhook, engineReady });
+  // Narrow server-side handle for lib/signatures.mjs: calls DocuSign with the person's own sealed token.
+  const docusign = Object.freeze({
+    ready: () => engineReady() && Boolean(config.oauth.docusign),
+    userinfoUrl: () => config.oauth.docusign?.account.url ?? null,
+    connected: user => connectionRow(user, 'docusign')?.status === 'connected',
+    api: (user, url, options) => api(user, 'docusign', url, options),
+  });
+  return Object.freeze({ list, connect, complete, disconnect, linkAppointment, unlinkAppointment, linksFor, webhook, engineReady, docusign });
 }

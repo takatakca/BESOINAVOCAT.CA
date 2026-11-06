@@ -466,6 +466,32 @@
       <p class="table-subtext">L’abonnement couvre l’accès des avocats à la plateforme. Aucun paiement de client, aucune avance d’honoraires et aucune commission sur vos honoraires ne passent par BesoinAvocat.</p></div>`;
   }
 
+  // ---------- Signature électronique (DocuSign, compte de l'avocat) ----------
+  const SIGN_TONE = { sent: 'wait', delivered: 'wait', completed: 'ok', declined: 'warn', voided: 'off' };
+  async function paintSignatures(node) {
+    if (!bridge.caseId()) { node.hidden = true; return; }
+    if (bridge.isDemo()) { node.innerHTML = demo('Signature électronique'); return; }
+    let list;
+    try { list = await api(`${caseBase()}/signatures`); }
+    catch (error) { if (error.status === 403 || error.status === 404) { node.hidden = true; node.innerHTML = ''; return; } throw error; }
+    node.hidden = false;
+    const head = `<div class="panel-heading"><div><h2>Signature électronique</h2><p>Par DocuSign, avec votre propre compte. La version signée revient au dossier avec son certificat.</p></div></div>`;
+    let form = '';
+    if (!list.configured) form = `<div class="callout">${icon('info')}<p><strong>DocuSign à raccorder</strong>Variables à renseigner dans Coolify : BESOINAVOCAT_DOCUSIGN_CLIENT_ID, BESOINAVOCAT_DOCUSIGN_CLIENT_SECRET, BESOINAVOCAT_DOCUSIGN_ENVIRONMENT et, pour le suivi automatique, BESOINAVOCAT_DOCUSIGN_CONNECT_HMAC_KEY.</p></div>`;
+    else if (!list.connected) form = `<div class="callout">${icon('info')}<p><strong>Connectez votre compte DocuSign</strong>Dans Intégrations, « DocuSign », puis revenez ici.</p></div>`;
+    else if (bridge.canMutate()) form = list.documents.length ? `<details class="live-template"><summary>Envoyer une pièce pour signature</summary><form data-live-form="signature-send" class="live-form"><div class="form-grid">
+      <div class="field"><label for="sg-doc">Pièce</label><select id="sg-doc" name="documentId" required>${list.documents.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select></div>
+      <div class="field"><label for="sg-name">Nom du signataire</label><input id="sg-name" name="signerName" maxlength="100" required autocomplete="off"></div>
+      <div class="field"><label for="sg-email">Courriel du signataire</label><input id="sg-email" name="signerEmail" type="email" maxlength="254" required autocomplete="off"></div></div>
+      <div class="field"><label for="sg-msg">Message dans le courriel (facultatif)</label><textarea id="sg-msg" name="message" rows="2" maxlength="1000"></textarea></div>
+      <p class="table-subtext">Seule cette pièce est transmise à DocuSign, avec ce nom et ce courriel. Le signataire place lui-même sa signature dans le document. Vérifiez que ce mode de signature convient à l’acte.</p>
+      <p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button small" type="submit">Envoyer par DocuSign</button></div></form></details>` : empty('Versez d’abord la pièce à faire signer.');
+    const card = e => `<div class="live-card"><h4>${esc(e.documentName)}</h4><p>${pill(SIGN_TONE[e.status] || 'off', e.statusLabel)} ${esc(e.signerName)} · <span class="mono">${esc(e.signerEmail)}</span></p>
+      <p class="table-subtext">Envoyé le ${esc(when(e.createdAt))} · mis à jour le ${esc(when(e.updatedAt))}${e.signedDocumentId ? ' · version signée versée au dossier' : ''}</p>
+      ${e.mine && list.connected && bridge.canMutate() ? `<div class="tile-actions">${e.open ? `<button type="button" class="button secondary small" data-live-action="signature-refresh" data-id="${esc(e.id)}">Actualiser</button><button type="button" class="button subtle small" data-live-action="signature-void" data-id="${esc(e.id)}">Annuler l’envoi</button>` : ''}${e.canRetrieve ? `<button type="button" class="button small" data-live-action="signature-retrieve" data-id="${esc(e.id)}">Verser la version signée au dossier</button>` : ''}</div>` : ''}</div>`;
+    node.innerHTML = `${head}<div class="panel-body">${form}${list.envelopes.length ? `<div class="live-stack">${list.envelopes.map(card).join('')}</div>` : (list.connected ? empty('Aucun envoi pour signature dans ce dossier.') : '')}</div>`;
+  }
+
   // ---------- Abonnement agenda privé (lien iCal secret) ----------
   let feedLink = null;
   const FEED_DETAIL = { discreet: 'Discret : type et référence du dossier seulement', full: 'Complet : titres et notes inclus' };
@@ -485,7 +511,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -548,6 +574,9 @@
       link.href = url; link.download = 'echeances.ics'; document.body.append(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
+    else if (action === 'signature-refresh') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/refresh`); repaint('case-signatures'); bridge.notify('Statut lu chez DocuSign.'); }
+    else if (action === 'signature-void') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/void`, { reason: 'Envoi annulé par l’avocat depuis BesoinAvocat.' }); repaint('case-signatures'); bridge.notify('Envoi annulé chez DocuSign.'); }
+    else if (action === 'signature-retrieve') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/retrieve`); repaint('case-signatures'); await bridge.reloadCase(); bridge.notify('La version signée et son certificat sont versés aux pièces.'); }
     else if (action === 'feed-create') { feedLink = await post('/api/calendar-feed', { detail: document.getElementById('feed-detail')?.value || 'discreet' }); repaint('calendar-feed'); bridge.notify('Lien d’agenda créé. Copiez-le avant de quitter la page.'); }
     else if (action === 'feed-revoke') { await post('/api/calendar-feed/revoke'); feedLink = null; repaint('calendar-feed'); bridge.notify('Lien d’agenda désactivé.'); }
     else if (action === 'feed-copy') { const field = document.getElementById('feed-url'); if (field) { try { await navigator.clipboard.writeText(field.value); bridge.notify('Lien copié.'); } catch { field.select(); bridge.notify('Sélectionné : copiez avec Ctrl+C.'); } } }
@@ -593,6 +622,7 @@
       if (kind === 'line') cache.overview = await post('/api/telephony/member/line', { e164: String(data.get('e164') || '') });
       if (kind === 'request-create') { await post(`${caseBase()}/requests`, { title: String(data.get('title') || '').trim(), note: String(data.get('note') || '').trim(), ...(data.get('dueDate') ? { dueDate: String(data.get('dueDate')) } : {}) }); form.reset(); bridge.notify('Demande envoyée au client, dans le dossier.'); await loadRequests(true); repaint('case-requests'); return; }
       if (kind === 'request-provide') { await post(`${caseBase()}/requests/${encodeURIComponent(form.dataset.id)}/provide`, { ...(data.get('documentId') ? { documentId: String(data.get('documentId')) } : {}), ...(String(data.get('answer') || '').trim() ? { answer: String(data.get('answer')).trim() } : {}) }); bridge.notify('Envoyé à votre avocat.'); await loadRequests(true); repaint('case-requests'); repaint('client-home'); return; }
+      if (kind === 'signature-send') { await post(`${caseBase()}/signatures`, { documentId: String(data.get('documentId') || ''), signerName: String(data.get('signerName') || '').trim(), signerEmail: String(data.get('signerEmail') || '').trim(), ...(String(data.get('message') || '').trim() ? { message: String(data.get('message')).trim() } : {}) }); form.reset(); bridge.notify('Document envoyé par DocuSign au signataire.'); repaint('case-signatures'); return; }
       if (kind === 'deadline-create') { await post(`${caseBase()}/deadlines`, { title: String(data.get('title') || '').trim(), kind: String(data.get('kind') || 'autre'), dueDate: String(data.get('dueDate') || ''), ...(data.get('dueTime') ? { dueTime: String(data.get('dueTime')) } : {}), note: String(data.get('note') || '').trim(), visibleToClient: data.get('visibleToClient') === 'on' }); form.reset(); bridge.notify('Échéance enregistrée au dossier.'); await loadDeadlines(true); deadlines.week = null; repaint('case-deadlines'); loadWeek().then(syncWeekChip, () => {}); return; }
       if (kind === 'template') { const made = await post(`${caseBase()}/generate`, { kind: 'template', title: String(data.get('title') || ''), body: String(data.get('body') || '') }); bridge.notify(`« ${made.document.name} » est versé aux pièces, à vérifier.`); form.reset(); await bridge.reloadCase(); return; }
       repaint('phone');

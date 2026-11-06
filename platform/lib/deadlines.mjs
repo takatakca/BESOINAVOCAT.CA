@@ -5,7 +5,7 @@ import { HttpError, fields, identifier, invalid, text } from './validation.mjs';
 // The portal never computes a legal delay: every date is typed by the lawyer, who stays responsible for it. Each
 // deadline says whether the client sees it. Steps are timestamped, kept append-only and written to the case audit.
 const MANAGERS = ['owner', 'lawyer'];
-const KINDS = Object.freeze({ audience: 'Audience', depot: 'Dépôt', prescription: 'Prescription', rencontre: 'Rencontre', autre: 'Autre' });
+export const KINDS = Object.freeze({ audience: 'Audience', depot: 'Dépôt', prescription: 'Prescription', rencontre: 'Rencontre', autre: 'Autre' });
 const MAX_OPEN = 300;
 const missing = () => new HttpError(404, 'NOT_FOUND', 'Échéance introuvable.');
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
@@ -16,9 +16,9 @@ function validDate(value) {
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
-const ics = value => String(value).replace(/\\/gu, '\\\\').replace(/;/gu, '\\;').replace(/,/gu, '\\,').replace(/\r?\n/gu, '\\n');
+export const ics = value => String(value).replace(/\\/gu, '\\\\').replace(/;/gu, '\\;').replace(/,/gu, '\\,').replace(/\r?\n/gu, '\\n');
 // RFC 5545 lines are folded at 75 octets.
-function fold(line) {
+export function fold(line) {
   const bytes = Buffer.from(line, 'utf8');
   if (bytes.length <= 75) return line;
   const parts = [];

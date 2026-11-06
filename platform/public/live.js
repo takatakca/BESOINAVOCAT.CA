@@ -466,8 +466,26 @@
       <p class="table-subtext">L’abonnement couvre l’accès des avocats à la plateforme. Aucun paiement de client, aucune avance d’honoraires et aucune commission sur vos honoraires ne passent par BesoinAvocat.</p></div>`;
   }
 
+  // ---------- Abonnement agenda privé (lien iCal secret) ----------
+  let feedLink = null;
+  const FEED_DETAIL = { discreet: 'Discret : type et référence du dossier seulement', full: 'Complet : titres et notes inclus' };
+  async function paintCalendarFeed(node) {
+    if (bridge.isDemo()) { node.innerHTML = demo('Abonnement agenda'); return; }
+    const o = await api('/api/calendar-feed');
+    const head = `<div class="panel-heading"><div><h2>Abonnement agenda</h2><p>Vos échéances et rendez-vous dans Outlook, Google Agenda ou Apple Calendrier, mis à jour automatiquement.</p></div></div>`;
+    if (!o.enabled) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Abonnement agenda à activer</strong>Variables à renseigner dans Coolify : ${esc(o.missing.join(', '))}. En attendant, chaque dossier offre l’export .ics de ses échéances.</p></div></div>`; return; }
+    const select = `<label class="field-inline">Détail <select id="feed-detail">${o.details.map(d => `<option value="${esc(d)}"${(o.feed?.detail || 'discreet') === d ? ' selected' : ''}>${esc(FEED_DETAIL[d] || d)}</option>`).join('')}</select></label>`;
+    const fresh = feedLink ? `<div class="callout success">${icon('check')}<p><strong>Votre lien privé</strong>Copiez-le maintenant : il ne sera plus affiché. Collez-le dans votre agenda (« Ajouter un agenda par URL » ou « S’abonner »).</p></div>
+      <p><input class="mono" id="feed-url" type="text" readonly value="${esc(feedLink.url)}" aria-label="Lien privé de l’agenda"></p>
+      <div class="tile-actions"><button type="button" class="button small" data-live-action="feed-copy">Copier le lien</button><a class="button secondary small" href="${esc(feedLink.webcalUrl)}">Ouvrir dans mon agenda</a></div>` : '';
+    const state = o.feed ? `<p>${pill('ok', 'Actif')} Créé le ${esc(when(o.feed.createdAt))} · ${esc(o.feed.detail === 'full' ? 'complet' : 'discret')}${o.feed.lastFetchedAt ? ` · dernière lecture par votre agenda le ${esc(when(o.feed.lastFetchedAt))}` : ' · pas encore lu par un agenda'}</p>` : `<p>${pill('off', 'Aucun lien')}</p>`;
+    const actions = `<div class="tile-actions">${select}<button type="button" class="button small" data-live-action="feed-create">${o.feed ? 'Remplacer le lien' : 'Créer mon lien'}</button>${o.feed ? '<button type="button" class="button subtle small" data-live-action="feed-revoke">Désactiver</button>' : ''}</div>`;
+    node.innerHTML = `${head}<div class="panel-body">${state}${fresh}${actions}
+      <p class="table-subtext">Ce lien donne accès à votre agenda sans mot de passe : ne le partagez pas. Remplacez-le ou désactivez-le en tout temps; l’ancien cesse aussitôt. Les liens de visioconférence n’y figurent jamais. En mode discret, votre fournisseur d’agenda ne reçoit ni nom de client ni note.</p></div>`;
+  }
+
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -530,6 +548,9 @@
       link.href = url; link.download = 'echeances.ics'; document.body.append(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
+    else if (action === 'feed-create') { feedLink = await post('/api/calendar-feed', { detail: document.getElementById('feed-detail')?.value || 'discreet' }); repaint('calendar-feed'); bridge.notify('Lien d’agenda créé. Copiez-le avant de quitter la page.'); }
+    else if (action === 'feed-revoke') { await post('/api/calendar-feed/revoke'); feedLink = null; repaint('calendar-feed'); bridge.notify('Lien d’agenda désactivé.'); }
+    else if (action === 'feed-copy') { const field = document.getElementById('feed-url'); if (field) { try { await navigator.clipboard.writeText(field.value); bridge.notify('Lien copié.'); } catch { field.select(); bridge.notify('Sélectionné : copiez avec Ctrl+C.'); } } }
     else if (action === 'member-unlink') { cache.overview = await post('/api/telephony/member/unlink'); repaint('phone'); }
     else if (action === 'member-deactivate') { cache.overview = await post('/api/telephony/member/deactivate'); repaint('phone'); }
     else if (action === 'availability') { cache.overview = await post('/api/telephony/member/availability', { status: button.dataset.status }); repaint('phone'); }
@@ -597,7 +618,7 @@
   window.BALive = Object.freeze({
     init(next) { bridge = next; },
     afterRender,
-    reset() { requests.data = null; deadlines.data = null; deadlines.week = null; intakes.counts = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
+    reset() { feedLink = null; requests.data = null; deadlines.data = null; deadlines.week = null; intakes.counts = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
     status: () => cache.overview,
     intakeCount: () => (intakes.counts ? String(intakes.counts.received ?? 0) : null),
     deadlineWeek: () => (deadlines.week ? String(deadlines.week.deadlines.length) : null),

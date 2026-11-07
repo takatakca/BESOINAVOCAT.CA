@@ -82,6 +82,8 @@ Toutes les routes ci-dessous, sauf health, sont protégées :
 | `POST /api/integrations/complete` | Appelé par `/integrations/callback` : `{ "state", "code" }` |
 | `POST /api/cases/:caseId/communications/:sessionId/integrations/:id` (`/remove`) | Réunion Zoom ou inscription Outlook/Google d'un rendez-vous (owner/lawyer) |
 | `POST /api/webhooks/:provider` | Notifications signées de Zoom, Stripe, Twilio et DocuSign, sans session |
+| `GET /api/openapi.json` | Description OpenAPI 3.1 de l'API, publique |
+| `GET /api/v1/me` · `GET /api/v1/catalog` · `POST /api/v1/intake` · `GET /api/v1/intakes/summary` | API de plateforme pour le site et les outils du propriétaire, avec une clé `Authorization: Bearer ba_…` (jamais un dossier) : voir [API](../docs/API.md) |
 
 La recherche est une sous-chaîne littérale SQLite, limitée à 100 résultats; elle n’est pas une recherche sémantique ni une garantie de couverture documentaire. Les outils d’IA, paiements et Twilio ne sont pas raccordés. Les connecteurs Zoom, Outlook et Google fonctionnent dès que leurs accès développeur sont configurés : voir [INTEGRATIONS](../docs/INTEGRATIONS.md).
 

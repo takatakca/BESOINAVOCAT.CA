@@ -8,6 +8,8 @@ import { authenticateRequest, createIntrospection, identityConfiguration, validI
 import { BROWSER_SESSION_COOKIE, createBrowserSessions, browserSessionConfiguration } from './lib/browser-session.mjs';
 import { publicCatalog } from './lib/catalog.mjs';
 import { createIntake, intakeConfiguration } from './lib/intake.mjs';
+import { apiKeyConfiguration, createApiKeys } from './lib/api-keys.mjs';
+import { openApiDocument } from './lib/api-spec.mjs';
 import { readiness, report } from './tools/deploy-readiness.mjs';
 import { createCommunications, COMMUNICATION_PROVIDERS } from './lib/communications.mjs';
 import { publicAddonCatalog } from './lib/addon-catalog.mjs';
@@ -165,6 +167,9 @@ export function createApp({
   const generator = createDocumentGenerator({ db: store.db, access: store.access, store, communications, telephony, video, auditSeal, clock });
   const intake = createIntake({ config: intakeConfiguration(env), excludedDirs: [blobDir],
     excludedPaths: [dbPath, env.BESOINAVOCAT_SESSION_DB_PATH, env.BESOINAVOCAT_SESSION_KEY_FILE, env.BESOINAVOCAT_GRANTS_FILE] });
+  // Platform API keys for the owner's own systems (site, WordPress, TAKATAK tools): /api/v1, never a case.
+  const apiKeys = createApiKeys({ config: apiKeyConfiguration(env), now: clock });
+  const openApi = JSON.stringify(openApiDocument({ origin: /^https:\/\/[a-z0-9.-]+$/u.test(env.APP_ORIGIN ?? '') ? env.APP_ORIGIN : 'https://portail.besoinavocat.ca' }));
 
   async function route(req, res) {
     if (!req.url || req.url.length > 4096 || !req.url.startsWith('/') || req.url.startsWith('//')) throw invalid('URL invalide.');
@@ -173,7 +178,18 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured });
+    // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
+    if (path === '/api/openapi.json') {
+      if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      const body = Buffer.from(openApi, 'utf8');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', body.length);
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.end(method === 'HEAD' ? undefined : body);
+    }
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       const asset = assets.get(path);
@@ -239,6 +255,34 @@ export function createApp({
       res.setHeader('X-Robots-Tag', 'noindex, nofollow');
       res.setHeader('Referrer-Policy', 'no-referrer');
       return res.end(method === 'HEAD' ? undefined : body);
+    }
+
+    // Platform API (/api/v1): the owner's own systems call the portal server to server with a platform key.
+    // No CORS, no cookie, no case: catalogue, deposit of a contact request, totals without personal data.
+    if (path === '/api/v1' || path.startsWith('/api/v1/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      const operation = `${method} ${path}`;
+      const known = ['GET /api/v1/me', 'GET /api/v1/catalog', 'POST /api/v1/intake', 'GET /api/v1/intakes/summary'];
+      if (!known.some(item => item.endsWith(' ' + path))) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+      if (!known.includes(operation)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      let client;
+      try { client = apiKeys.authenticate(req); }
+      catch (error) { if (error.challenge) res.setHeader('WWW-Authenticate', 'Bearer realm="besoinavocat", charset="UTF-8"'); throw error; }
+      apiKeys.reserve(client);
+      if (path === '/api/v1/me') return json(res, 200, apiKeys.describe(client));
+      if (path === '/api/v1/catalog') { apiKeys.require(client, 'catalog:read'); return json(res, 200, publicCatalog({ intakeConfigured: intake.configured, requestEnabled: intake.requestEnabled })); }
+      if (path === '/api/v1/intakes/summary') { apiKeys.require(client, 'intakes:read'); return json(res, 200, intake.summary()); }
+      apiKeys.require(client, 'intake:write');
+      intake.requireReady();
+      const idempotency = req.headers['idempotency-key'];
+      if (typeof idempotency !== 'string') throw invalid('En-tête Idempotency-Key requis.');
+      if (intakesInFlight >= MAX_CONCURRENT_INTAKES) {
+        res.setHeader('Retry-After', '1');
+        throw new HttpError(429, 'INTAKE_RATE_LIMIT', 'Réessayez dans un instant.');
+      }
+      intakesInFlight++;
+      try { return json(res, 201, intake.receiveFor(await readJson(req, MAX_INTAKE_JSON_BYTES), idempotency, `apikey:${client.id}`)); }
+      finally { intakesInFlight--; }
     }
 
     // Public contact intake is isolated from client identity and case storage.

@@ -1,5 +1,18 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## Réception du portail — 2026-11-07 08:02 UTC
+
+Signé **Codex**. Le propriétaire a demandé de fusionner, pousser et vérifier les dépôts **un par un**, en commençant par BESOINAVOCAT.
+
+Le portail existant a été déployé au code `749d1b05e945df9c10c5fa1277802f51394c5aef` par Coolify `4u9anis5o0p81iw5mkmyr8pn`, terminé à 07:58:19 UTC, conteneur sain. Les 20 routes publiques ont leurs empreintes exactes sur `portail.besoinavocat.ca` et l’hôte HTTPS de diagnostic. Santé 200, API privées anonymes 401, chemins privés 404. L’écran de connexion courant et l’absence d’erreur console ont été vérifiés. Sauvegarde privée créée et vérifiée avant remplacement, volume et habilitations conservés.
+
+La PR documentaire 6 est fusionnée après quatre contrôles verts et identification explicite de sa carte historique. La dernière ligne du journal de la branche backend est réintégrée sans modifier son auteur ni les changements plus récents de main. Aucun fichier applicatif n’est modifié par cette réception.
+
+**Suivi du dernier SHA et de sa CI/déploiement après ces notes** : [issue 45](https://github.com/takatakca/BESOINAVOCAT.CA/issues/45). Le site d’orientation Render reste distinct. La vitrine WordPress, les DNS et le courrier restent inchangés. Livraison réelle du code courriel et session utilisateur à vérifier dans l’issue 5. Les services optionnels restent soumis à leur configuration et aux validations existantes; aucun paiement, appel, intégration ou formulaire supplémentaire n’a été activé. L’automatisation de déploiement reste à vérifier séparément des tâches ignorées en CI.
+
+Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
+
+
 ## D-030 — Instructions écrites du propriétaire du 4 novembre 2026
 
 **Contexte** : reprise en parallèle par deux fils Claude (backend et tableau de bord) et un fil de contrôle à distance sur le poste du propriétaire, avec un livrable attendu au plus vite.

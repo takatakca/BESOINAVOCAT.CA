@@ -492,6 +492,29 @@
     node.innerHTML = `${head}<div class="panel-body">${form}${list.envelopes.length ? `<div class="live-stack">${list.envelopes.map(card).join('')}</div>` : (list.connected ? empty('Aucun envoi pour signature dans ce dossier.') : '')}</div>`;
   }
 
+  // ---------- Clio Manage (compte de l'avocat) ----------
+  async function paintClio(node) {
+    if (!bridge.caseId() || bridge.isDemo()) { node.hidden = true; return; }
+    let o;
+    try { o = await api(`${caseBase()}/clio`); }
+    catch (error) { if (error.status === 403 || error.status === 404) { node.hidden = true; node.innerHTML = ''; return; } throw error; }
+    if (!o.configured) { node.hidden = true; return; }
+    node.hidden = false;
+    const head = `<div class="panel-heading"><div><h2>Clio Manage</h2><p>Le client, le dossier et les heures approuvées, dans votre compte Clio.</p></div></div>`;
+    let body;
+    if (!o.connected) body = `<div class="callout">${icon('info')}<p><strong>Connectez votre compte Clio</strong>Dans Intégrations, « Clio Manage », puis revenez ici.</p></div>`;
+    else if (!o.matter) body = bridge.canMutate() ? `<form data-live-form="clio-matter" class="live-form"><div class="form-grid">
+      <div class="field"><label for="clio-first">Prénom du client</label><input id="clio-first" name="firstName" maxlength="100" required autocomplete="off"></div>
+      <div class="field"><label for="clio-last">Nom du client</label><input id="clio-last" name="lastName" maxlength="100" required autocomplete="off"></div>
+      <div class="field"><label for="clio-email">Courriel (facultatif)</label><input id="clio-email" name="email" type="email" maxlength="254" autocomplete="off"></div></div>
+      <p class="table-subtext">Clio reçoit ce nom, ce courriel, la référence et le titre du dossier. Aucune pièce ni aucun message.</p>
+      <p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button small" type="submit">Créer le client et le dossier dans Clio</button></div></form>` : empty('Aucun dossier Clio relié.');
+    else body = `<p>${pill('ok', 'Relié')} Dossier Clio <strong class="mono">${esc(o.matter.displayNumber)}</strong>, créé le ${esc(when(o.matter.createdAt))}.</p>
+      <div class="tile-actions"><a class="button secondary small" href="${esc(o.matter.url)}" target="_blank" rel="noopener noreferrer">Ouvrir dans Clio ${icon('arrow')}</a>${o.pendingTime && bridge.canMutate() ? `<button type="button" class="button small" data-live-action="clio-time">Envoyer ${o.pendingTime} entrée${o.pendingTime > 1 ? 's' : ''} de temps approuvée${o.pendingTime > 1 ? 's' : ''}</button>` : ''}</div>
+      <p class="table-subtext">${o.pendingTime ? 'Chaque entrée approuvée est envoyée une seule fois.' : 'Toutes les heures approuvées sont dans Clio.'}</p>`;
+    node.innerHTML = `${head}<div class="panel-body">${body}</div>`;
+  }
+
   // ---------- Vérifier une décision citée (CanLII) ----------
   let canliiResult = null;
   async function paintCanlii(node) {
@@ -548,7 +571,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, canlii: paintCanlii };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, canlii: paintCanlii, 'case-clio': paintClio };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -616,6 +639,7 @@
     else if (action === 'signature-retrieve') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/retrieve`); repaint('case-signatures'); await bridge.reloadCase(); bridge.notify('La version signée et son certificat sont versés aux pièces.'); }
     else if (action === 'notice-pause') { await post('/api/notifications/pause', { paused: button.dataset.paused === 'true' }); repaint('notices'); bridge.notify(button.dataset.paused === 'true' ? 'Avis suspendus.' : 'Avis repris.'); }
     else if (action === 'notice-remove') { await post('/api/notifications/remove'); repaint('notices'); bridge.notify('Adresse retirée. Aucun avis ne sera envoyé.'); }
+    else if (action === 'clio-time') { const r = await post(`${caseBase()}/clio/time`); repaint('case-clio'); bridge.notify(`${r.sent} entrée${r.sent > 1 ? 's' : ''} de temps envoyée${r.sent > 1 ? 's' : ''} à Clio.`); }
     else if (action === 'feed-create') { feedLink = await post('/api/calendar-feed', { detail: document.getElementById('feed-detail')?.value || 'discreet' }); repaint('calendar-feed'); bridge.notify('Lien d’agenda créé. Copiez-le avant de quitter la page.'); }
     else if (action === 'feed-revoke') { await post('/api/calendar-feed/revoke'); feedLink = null; repaint('calendar-feed'); bridge.notify('Lien d’agenda désactivé.'); }
     else if (action === 'feed-copy') { const field = document.getElementById('feed-url'); if (field) { try { await navigator.clipboard.writeText(field.value); bridge.notify('Lien copié.'); } catch { field.select(); bridge.notify('Sélectionné : copiez avec Ctrl+C.'); } } }
@@ -661,6 +685,7 @@
       if (kind === 'line') cache.overview = await post('/api/telephony/member/line', { e164: String(data.get('e164') || '') });
       if (kind === 'request-create') { await post(`${caseBase()}/requests`, { title: String(data.get('title') || '').trim(), note: String(data.get('note') || '').trim(), ...(data.get('dueDate') ? { dueDate: String(data.get('dueDate')) } : {}) }); form.reset(); bridge.notify('Demande envoyée au client, dans le dossier.'); await loadRequests(true); repaint('case-requests'); return; }
       if (kind === 'request-provide') { await post(`${caseBase()}/requests/${encodeURIComponent(form.dataset.id)}/provide`, { ...(data.get('documentId') ? { documentId: String(data.get('documentId')) } : {}), ...(String(data.get('answer') || '').trim() ? { answer: String(data.get('answer')).trim() } : {}) }); bridge.notify('Envoyé à votre avocat.'); await loadRequests(true); repaint('case-requests'); repaint('client-home'); return; }
+      if (kind === 'clio-matter') { await post(`${caseBase()}/clio/matter`, { firstName: String(data.get('firstName') || '').trim(), lastName: String(data.get('lastName') || '').trim(), ...(String(data.get('email') || '').trim() ? { email: String(data.get('email')).trim() } : {}) }); bridge.notify('Client et dossier créés dans Clio.'); repaint('case-clio'); return; }
       if (kind === 'canlii') { canliiResult = await api(`/api/research/canlii?citation=${encodeURIComponent(String(data.get('citation') || '').trim())}`); repaint('canlii'); return; }
       if (kind === 'notice-email') { await post('/api/notifications/email', { email: String(data.get('email') || '').trim(), consent: data.get('consent') === 'on' }); bridge.notify('Code envoyé. Vérifiez votre boîte de réception.'); repaint('notices'); return; }
       if (kind === 'notice-verify') { await post('/api/notifications/verify', { code: String(data.get('code') || '').trim() }); bridge.notify('Adresse confirmée. Les avis sont actifs.'); repaint('notices'); return; }

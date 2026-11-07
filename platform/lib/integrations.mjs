@@ -34,8 +34,8 @@ const CATALOG = Object.freeze([
     routine: 'Inscrire le rendez-vous dans votre Google Agenda, avec le lien de la réunion.' },
   { id: 'docusign', label: 'DocuSign', category: 'signature', connectionType: 'oauth', status: 'implemented', actions: ['signature'],
     routine: 'Envoyer une pièce du dossier pour signature, suivre son statut et verser la version signée au dossier, avec son certificat.' },
-  { id: 'clio', label: 'Clio Manage (Canada)', category: 'practice', connectionType: 'oauth', status: 'connect_only', actions: [],
-    routine: 'Relier vos dossiers, contacts et heures au logiciel de gestion du cabinet. Connexion disponible; synchronisation au prochain lot.' },
+  { id: 'clio', label: 'Clio Manage (Canada)', category: 'practice', connectionType: 'oauth', status: 'implemented', actions: ['matter', 'time'],
+    routine: 'Créer le client et le dossier dans Clio depuis un dossier du portail, puis y envoyer les heures approuvées, une seule fois chacune.' },
   { id: 'stripe', label: 'Stripe', category: 'payments', connectionType: 'platform', status: 'platform', actions: [],
     routine: 'Abonnements professionnels de la plateforme. Jamais les avances d’un client : elles vont au compte en fidéicommis de l’avocat.' },
   { id: 'twilio', label: 'Twilio', category: 'telephony', connectionType: 'platform', status: 'platform', actions: [],
@@ -600,5 +600,12 @@ export function createIntegrations({ db, access, audit, config = integrationConf
     connected: user => connectionRow(user, 'docusign')?.status === 'connected',
     api: (user, url, options) => api(user, 'docusign', url, options),
   });
-  return Object.freeze({ list, connect, complete, disconnect, linkAppointment, unlinkAppointment, linksFor, webhook, engineReady, docusign });
+  // Same narrow handle for lib/clio.mjs, with the Clio region's host.
+  const clio = Object.freeze({
+    ready: () => engineReady() && Boolean(config.oauth.clio),
+    host: () => (config.oauth.clio ? new URL(config.oauth.clio.token).host : null),
+    connected: user => connectionRow(user, 'clio')?.status === 'connected',
+    api: (user, url, options) => api(user, 'clio', url, options),
+  });
+  return Object.freeze({ list, connect, complete, disconnect, linkAppointment, unlinkAppointment, linksFor, webhook, engineReady, docusign, clio });
 }

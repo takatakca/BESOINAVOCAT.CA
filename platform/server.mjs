@@ -20,6 +20,7 @@ import { calendarFeedConfiguration, createCalendarFeed } from './lib/calendar-fe
 import { createSignatures } from './lib/signatures.mjs';
 import { createNotifications, notificationConfiguration } from './lib/notifications.mjs';
 import { createCanlii } from './lib/canlii.mjs';
+import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
@@ -157,6 +158,7 @@ export function createApp({
   const notify = (actor, caseId, kind, extra) => { void notifications.caseEvent(actor, caseId, kind, extra).catch(error => console.warn(`notification ${kind}: ${error.message}`)); };
   const canliiKey = typeof env.BESOINAVOCAT_CANLII_API_KEY === 'string' && /^[\x21-\x7e]{8,4096}$/u.test(env.BESOINAVOCAT_CANLII_API_KEY) ? env.BESOINAVOCAT_CANLII_API_KEY : null;
   const canlii = createCanlii({ db: store.db, config: { apiKey: canliiKey }, fetch: researchFetch, clock });
+  const clio = createClio({ db: store.db, access: store.access, audit: store.audit, clio: integrations.clio, clock });
   const signatures = createSignatures({ db: store.db, access: store.access, audit: store.audit, store, docusign: integrations.docusign, clock });
   const calendarFeed = createCalendarFeed({ db: store.db, audit: store.audit, config: calendarFeedConfiguration(env), clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -429,7 +431,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -564,6 +566,10 @@ export function createApp({
       fields(body, []);
       return json(res, 200, room[2] === 'leave' ? video.leave(user, caseId, room[1]) : video.end(user, caseId, room[1]));
     }
+    // Clio Manage: client and matter, then approved time entries, with the lawyer's own Clio account (lib/clio.mjs).
+    if (suffix === '/clio' && method === 'GET') return json(res, 200, clio.status(user, caseId));
+    if (suffix === '/clio/matter' && method === 'POST') return json(res, 201, await clio.createMatter(user, caseId, await readJson(req, 1024)));
+    if (suffix === '/clio/time' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, await clio.exportTime(user, caseId)); }
     // Signature électronique par DocuSign, avec le compte de l'avocat (lib/signatures.mjs).
     if (suffix === '/signatures' && method === 'GET') return json(res, 200, signatures.list(user, caseId));
     if (suffix === '/signatures' && method === 'POST') return json(res, 201, await signatures.send(user, caseId, await readJson(req, 4096)));

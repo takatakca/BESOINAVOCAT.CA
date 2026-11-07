@@ -244,3 +244,14 @@ Dans Recherche, un avocat (owner ou lawyer d'au moins un dossier) colle une cita
 - Correspondances de banques : CSC/SCC → `csc-scc`, CF/FC → `fct`, CAF/FCA → `fca`, CCI/TCC → `tcc`. Sinon, le code en minuscules (qcca, qccs, qccq, onca…). Une décision absente de CanLII est dite « introuvable », pas « inexistante ».
 - Le portail ne dit jamais si une décision fait encore autorité.
 - Coolify : `BESOINAVOCAT_CANLII_API_KEY`. La clé se demande à CanLII (formulaire de demande d'accès à l'API, usage soumis à leurs conditions).
+
+## Clio Manage : client, dossier et heures (lot 12, 2026-11-07)
+
+Une fois son compte Clio connecté (région `ca` par défaut, `BESOINAVOCAT_CLIO_REGION`), l'avocat peut, dans un dossier du portail :
+
+1. **Créer le client et le dossier dans Clio.** Il saisit le prénom, le nom et, au choix, le courriel du client. Le portail crée le contact (`POST /api/v4/contacts.json`, type Person), puis le dossier (`POST /api/v4/matters.json`, description « référence · titre », statut Open). Le lien « Ouvrir dans Clio » est gardé dans la table `clio_matters`.
+2. **Envoyer les heures approuvées.** Chaque entrée de temps approuvée devient une entrée de temps Clio (`POST /api/v4/activities.json`, type TimeEntry, durée en secondes, date d'approbation à Montréal, description). Elle n'est envoyée qu'une fois par avocat (table `clio_time_exports`). Un refus de Clio la laisse à envoyer. Une interruption pendant l'envoi peut, au pire, la renvoyer une fois.
+
+Aucune pièce, aucun message et aucune note ne sont transmis. Les deux tables sont ajoutées à la sauvegarde. Chaque action est inscrite au journal du dossier.
+
+Coolify : `BESOINAVOCAT_CLIO_CLIENT_ID`, `BESOINAVOCAT_CLIO_CLIENT_SECRET` (application créée dans le Clio Developer Portal, URL de rappel `<APP_ORIGIN>/integrations/callback`), avec `BESOINAVOCAT_INTEGRATIONS_KEY_FILE` et `APP_ORIGIN`.

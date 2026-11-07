@@ -478,7 +478,7 @@
   // Same catalog as platform/lib/integrations.mjs, shown in the preview without any account or state.
   const DEMO_PROVIDERS = [
     ['zoom', 'Zoom', 'video', 'oauth', 'implemented'], ['microsoft365', 'Outlook · Microsoft 365', 'calendar', 'oauth', 'implemented'], ['google', 'Google Agenda', 'calendar', 'oauth', 'implemented'],
-    ['docusign', 'DocuSign', 'signature', 'oauth', 'implemented'], ['clio', 'Clio Manage (Canada)', 'practice', 'oauth', 'connect_only'], ['canlii', 'CanLII', 'research', 'platform', 'platform'],
+    ['docusign', 'DocuSign', 'signature', 'oauth', 'implemented'], ['clio', 'Clio Manage (Canada)', 'practice', 'oauth', 'implemented'], ['canlii', 'CanLII', 'research', 'platform', 'platform'],
     ['twilio', 'Twilio', 'telephony', 'platform', 'platform'], ['stripe', 'Stripe', 'payments', 'platform', 'platform'], ['notarius', 'Notarius · ConsignO Cloud', 'signature', 'partnership', 'planned'], ['quickbooks', 'QuickBooks Online', 'accounting', 'oauth', 'planned'],
   ].map(([id, label, category, connectionType, status]) => ({ id, label, category, connectionType, status, state: 'demo', routine: 'Aperçu : aucun compte réel n’est relié.' }));
   function cockpitProviders() { return state.demo ? DEMO_PROVIDERS : Array.isArray(state.integrations?.providers) ? state.integrations.providers : null; }
@@ -687,7 +687,7 @@
     const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : l’espace de travail</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
     // Client side: one clear next step, four large actions and the pieces the lawyer is waiting for. Nothing else.
     if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</section>`;
-    const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section>' : '';
+    const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section><section class="panel cockpit-panel live-panel" data-live="case-clio" aria-label="Clio Manage" hidden></section>' : '';
     return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
   }
   function wsContext() {
@@ -710,7 +710,7 @@
       const item = currentCase();
       return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div><section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</div>`;
     }
-    const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section>' : '';
+    const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section><section class="panel cockpit-panel live-panel" data-live="case-clio" aria-label="Clio Manage" hidden></section>' : '';
     return `<div class="cockpit">${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
   }
   function clientsView() {
@@ -765,6 +765,10 @@
     if (['zoom', 'microsoft365', 'google'].includes(provider.id)) return {
       shared: ['Le titre, la date et la durée du rendez-vous que vous choisissez (60 minutes par défaut).', ...(provider.id === 'zoom' ? ['Une réunion est créée avec salle d’attente, sans enregistrement par défaut.'] : ['Le lien Zoom du rendez-vous, s’il existe.'])],
       never: ['Aucun nom de client, aucune pièce et aucun message du dossier.', 'Votre mot de passe : vous consentez sur le site du fournisseur (OAuth 2.0).'],
+    };
+    if (provider.id === 'clio') return {
+      shared: ['Le nom et, si vous le saisissez, le courriel du client, avec la référence et le titre du dossier, quand vous créez le dossier dans Clio.', 'La date, la durée et la description des heures approuvées, quand vous les envoyez.'],
+      never: ['Aucune pièce, aucun message et aucune note du dossier.', 'Votre mot de passe : vous consentez sur le site du fournisseur (OAuth 2.0).'],
     };
     if (provider.id === 'docusign') return {
       shared: ['Seulement la pièce que vous choisissez d’envoyer, avec le nom et le courriel du signataire que vous saisissez.', 'La version signée et son certificat reviennent au dossier quand vous la récupérez.'],

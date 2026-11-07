@@ -9,6 +9,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 import { reviewerDirectory } from '../lib/intake.mjs';
+import { apiKeyConfiguration } from '../lib/api-keys.mjs';
 
 function httpsOrigin(value) {
   if (typeof value !== 'string' || value.length > 300) return null;
@@ -144,6 +145,12 @@ export function readiness(env = process.env) {
   if (!Array.isArray(reviewers)) add('warn', 'requests', 'BESOINAVOCAT_INTAKE_REVIEWERS is not a JSON array: nobody can read received requests at /demandes.');
   else if (reviewers.length && !directory.length) add('fail', 'requests', 'BESOINAVOCAT_INTAKE_REVIEWERS has an invalid or duplicate entry (each one is a subject or {subject, name}, 32 at most): the server ignores the whole list and nobody can read received requests at /demandes.');
   else add(directory.length ? 'ok' : 'warn', 'requests', `${directory.length} team member(s) can read received requests at /demandes${directory.length ? ` (${directory.filter(entry => entry.name).length} with a display name)` : ''}.`);
+
+  // Platform API keys (site besoinavocat.ca, TAKATAK tools): optional; a malformed list disables every key.
+  const apiKeys = apiKeyConfiguration(env);
+  if (apiKeys.malformed) add('fail', 'api', 'BESOINAVOCAT_API_KEYS is not a valid JSON array of {id, name, sha256, scopes}: every platform key is ignored and /api/v1 refuses all calls.');
+  else if (apiKeys.configured) add('ok', 'api', `${apiKeys.keys.length} platform API key(s) accepted on /api/v1: ${apiKeys.keys.map(entry => `${entry.id} [${entry.scopes.join(' ')}]`).join(', ')}.`);
+  else add('warn', 'api', 'No BESOINAVOCAT_API_KEYS: the site and the owner\'s tools cannot call /api/v1 (create one with node platform/tools/api-key.mjs).');
 
   // Connectors are optional; report only whether the encryption key exists.
   const integrationsKey = env.BESOINAVOCAT_INTEGRATIONS_KEY_FILE;

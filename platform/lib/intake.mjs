@@ -459,6 +459,39 @@ export function createIntake({ config, excludedPaths = [], excludedDirs = [], no
         return { reference, status:'received' };
       });
     }),
+    // Server-to-server deposit with a platform API key (lib/api-keys.mjs): same validation, limits and
+    // idempotency as the browser form; the recorded origin is `apikey:<id>` so the queue can tell them apart.
+    receiveFor: safe((body, key, source) => {
+      if (typeof source !== 'string' || !/^apikey:[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/u.test(source)) throw forbidden();
+      if (typeof key !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(key)) throw invalid();
+      const data = input(body, { requestEnabled, time: now() }), payload = JSON.stringify(data);
+      const digest = hash(payload), keyHash = hash(key.toLowerCase());
+      return transaction(() => {
+        const prior = db.prepare('SELECT reference,payloadHash,origin FROM ba_intakes WHERE idempotencyHash=?').get(keyHash);
+        if (prior) {
+          if (prior.payloadHash !== digest || prior.origin !== source) throw new HttpError(409, 'IDEMPOTENCY_CONFLICT', 'Cette clé a déjà servi à une autre demande.');
+          return { reference: prior.reference, status: 'received' };
+        }
+        if (db.prepare('SELECT COUNT(*) AS n FROM ba_intakes').get().n >= MAX_LEADS) throw unavailable();
+        const time = now();
+        consume([[`email:${hash(data.email.toLowerCase())}`,3,86_400_000]], time);
+        const reference = 'BA-' + randomBytes(18).toString('base64url');
+        const price = interestPrice(data.role, data.periodicity);
+        const consentText = (data.consentVersion === QUESTIONNAIRE_CONSENT_VERSION ? QUESTIONNAIRE_CONSENT_TEXT : data.consentVersion === REQUEST_CONSENT_VERSION ? REQUEST_CONSENT_TEXT : CONSENT_TEXT)[data.language];
+        db.prepare('INSERT INTO ba_intakes VALUES(?,?,?,?,?,?,?,?,?,?)').run(reference,keyHash,digest,payload,source,CATALOG_VERSION,consentText,JSON.stringify(price),new Date(time).toISOString(),'received');
+        return { reference, status:'received' };
+      });
+    }),
+    // Totals only, for the owner's own systems: no name, no contact, no reference.
+    summary: safe(() => {
+      ready();
+      const counts = Object.fromEntries(INTAKE_STATUSES.map(name => [name, 0]));
+      for (const row of db.prepare(`SELECT COALESCE(r.status,'received') AS status,COUNT(*) AS n FROM ba_intakes i
+        LEFT JOIN ba_intake_reviews r ON r.reference=i.reference GROUP BY 1`).all()) counts[row.status] = row.n;
+      const last = db.prepare('SELECT MAX(createdAt) AS at FROM ba_intakes').get().at ?? null;
+      const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+      return { total, counts, open: counts.received + counts.in_review, lastReceivedAt: last, generatedAt: new Date(now()).toISOString() };
+    }),
     get reviewEnabled() { return Boolean(db) && reviewers.size > 0; },
     isReviewer(user) { return Boolean(db) && reviewers.has(user?.subject) && user?.active === true; },
     reviewList: safe((user, query = {}) => { review(user); return listRequests(user, query); }),

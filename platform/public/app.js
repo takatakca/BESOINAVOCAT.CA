@@ -479,7 +479,7 @@
   const DEMO_PROVIDERS = [
     ['zoom', 'Zoom', 'video', 'oauth', 'implemented'], ['microsoft365', 'Outlook · Microsoft 365', 'calendar', 'oauth', 'implemented'], ['google', 'Google Agenda', 'calendar', 'oauth', 'implemented'],
     ['docusign', 'DocuSign', 'signature', 'oauth', 'implemented'], ['clio', 'Clio Manage (Canada)', 'practice', 'oauth', 'implemented'], ['canlii', 'CanLII', 'research', 'platform', 'platform'],
-    ['twilio', 'Twilio', 'telephony', 'platform', 'platform'], ['stripe', 'Stripe', 'payments', 'platform', 'platform'], ['notarius', 'Notarius · ConsignO Cloud', 'signature', 'partnership', 'planned'], ['quickbooks', 'QuickBooks Online', 'accounting', 'oauth', 'planned'],
+    ['twilio', 'Twilio · SMS', 'telephony', 'platform', 'platform'], ['stripe', 'Stripe', 'payments', 'platform', 'platform'], ['notarius', 'Notarius · ConsignO Cloud', 'signature', 'partnership', 'planned'], ['quickbooks', 'QuickBooks Online', 'accounting', 'oauth', 'planned'],
   ].map(([id, label, category, connectionType, status]) => ({ id, label, category, connectionType, status, state: 'demo', routine: 'Aperçu : aucun compte réel n’est relié.' }));
   function cockpitProviders() { return state.demo ? DEMO_PROVIDERS : Array.isArray(state.integrations?.providers) ? state.integrations.providers : null; }
 

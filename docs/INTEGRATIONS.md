@@ -12,7 +12,7 @@ Lot du 29 octobre 2026 (D-027). Le portail `platform/` relie chaque avocat à se
 | **DocuSign** | connexion seulement | Compte relié. L'envoi d'une convention de mandat ou d'une procuration pour signature viendra au prochain lot. |
 | **Clio Manage (Canada)** | connexion seulement | Compte relié (région `ca.app.clio.com`). La synchronisation des dossiers, contacts et heures viendra au prochain lot. |
 | **Stripe** | réceptions signées | Abonnements professionnels de la plateforme (100 $/semaine, 300 $/mois). Les paiements restent désactivés. |
-| **Twilio** | réceptions signées | Rappels SMS et appels plus tard, avec le consentement de la personne. Aucun envoi pour l'instant. |
+| **Twilio · SMS** | réceptions signées | Réceptions d'état SMS seulement. Aucun appel : la téléphonie du portail passe uniquement par MIMT (PR 18). Aucun envoi pour l'instant. |
 | **CanLII** | clé de plateforme | Vérifier une décision citée et ses citations, à partir des métadonnées CanLII. Recherche au prochain lot. |
 | Notarius ConsignO Cloud | à venir | Signature numérique reconnue par le Barreau du Québec; accès par entente de partenariat. |
 | QuickBooks Online | à venir | Comptabilité du cabinet. |

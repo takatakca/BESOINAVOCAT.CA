@@ -26,7 +26,7 @@ Aucun autre fichier n'existait : il n'y a donc eu **aucun déplacement** et **au
 | Fichiers du projet Claude (captures du parcours, brouillon CanLII, note cockpit) | `05`, `08` |
 
 ## Ce qui n'a pas été fait, et pourquoi
-- `docs/REMISE-INTEGRATIONS-2026-11-07.md` n'est pas encore sur `main` (branche du fil « Connecter et activer toutes les intégrations ») : il sera à copier dans `04` après sa fusion.
+- `docs/REMISE-INTEGRATIONS-2026-11-07.md` est arrivé sur `main` à 13 h 10 UTC (PR 51) : copié dans `04 — Intégrations` à 13 h 15 UTC (copie, l'original reste dans le dépôt; le fil « Connecter et activer toutes les intégrations » le met encore à jour, reprendre la copie à sa note FIN).
 - Les notes Drive n'ont pas été déplacées dans Drive : les autres fils de travail déposent leurs notes dans « 00 — Opérations TAKATAK » et une réorganisation de Drive casserait cette règle. Ce dossier PC est le miroir; Drive reste la source des notes.
 - Aucun secret copié. Le fichier de clés n'apparaît ni dans le CLONE ni dans l'inventaire.
 

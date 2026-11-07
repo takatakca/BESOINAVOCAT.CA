@@ -10,6 +10,8 @@
   const message = document.getElementById('callback-message');
   const show = (heading, text) => { title.textContent = heading; message.textContent = text; };
   const state = params.get('state'), code = params.get('code'), error = params.get('error');
+  // QuickBooks adds the chosen company; other providers send nothing more.
+  const realmId = params.get('realmId');
   if (!state || (!code && !error)) {
     show('Connexion interrompue', 'Aucune autorisation n’a été reçue. Recommencez depuis la page Intégrations du portail.');
     return;
@@ -17,7 +19,7 @@
   fetch('/api/integrations/complete', {
     method: 'POST', credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    body: JSON.stringify(error ? { state, error: error.slice(0, 200) } : { state, code }),
+    body: JSON.stringify(error ? { state, error: error.slice(0, 200) } : { state, code, ...(realmId ? { realmId: realmId.slice(0, 32) } : {}) }),
   })
     .then(async (response) => {
       const payload = await response.json().catch(() => ({}));

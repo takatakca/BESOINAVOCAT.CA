@@ -44,10 +44,11 @@ const CATALOG = Object.freeze([
     routine: 'Vérifier une décision citée : titre officiel, date, numéro de dossier, lien canlii.org et nombre de décisions qui la citent. Dans Recherche.' },
   { id: 'notarius', label: 'Notarius · ConsignO Cloud', category: 'signature', connectionType: 'partnership', status: 'planned', actions: [],
     routine: 'Signature numérique reconnue par le Barreau du Québec. Accès par entente de partenariat avec Notarius.' },
-  { id: 'quickbooks', label: 'QuickBooks Online', category: 'accounting', connectionType: 'oauth', status: 'planned', actions: [],
-    routine: 'Comptabilité du cabinet : clients et factures. À réaliser.' },
+  { id: 'quickbooks', label: 'QuickBooks Online', category: 'accounting', connectionType: 'oauth', status: 'connect_only', actions: [],
+    routine: 'Relier le compte QuickBooks du cabinet (entreprise choisie à la connexion). L’envoi des clients et des factures viendra à un prochain lot.' },
 ]);
-const ENV_PREFIX = Object.freeze({ zoom: 'ZOOM', microsoft365: 'MICROSOFT', google: 'GOOGLE', docusign: 'DOCUSIGN', clio: 'CLIO' });
+const ENV_PREFIX = Object.freeze({ zoom: 'ZOOM', microsoft365: 'MICROSOFT', google: 'GOOGLE', docusign: 'DOCUSIGN', clio: 'CLIO', quickbooks: 'QUICKBOOKS' });
+const QUICKBOOKS_API = Object.freeze({ sandbox: 'sandbox-quickbooks.api.intuit.com', production: 'quickbooks.api.intuit.com' });
 const CLIO_HOSTS = Object.freeze({ ca: 'ca.app.clio.com', us: 'app.clio.com', eu: 'eu.app.clio.com', au: 'au.app.clio.com' });
 
 // Server-side OAuth endpoints, from each provider's official documentation (see docs/INTEGRATIONS.md).
@@ -76,6 +77,15 @@ function oauthDefinition(id, env) {
     if (!host) return null;
     return { authorize: `https://${host}/oauth/authorize`, token: `https://${host}/oauth/token`, clientAuth: 'post', pkce: false, scope: null,
       revoke: { url: `https://${host}/oauth/deauthorize`, style: 'bearer_form' }, account: { url: `https://${host}/api/v4/users/who_am_i?fields=id,email`, id: 'data.id', label: 'data.email' } };
+  }
+  if (id === 'quickbooks') {
+    // Intuit sends the chosen company (realmId) back with the code; the account is that company, named by CompanyInfo.
+    const apiHost = QUICKBOOKS_API[env.BESOINAVOCAT_QUICKBOOKS_ENVIRONMENT || 'sandbox'];
+    if (!apiHost) return null;
+    return { authorize: 'https://appcenter.intuit.com/connect/oauth2', token: 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', clientAuth: 'basic', pkce: false,
+      scope: 'com.intuit.quickbooks.accounting', realm: true, apiHost,
+      revoke: { url: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke', style: 'basic_json' },
+      account: { url: realm => `https://${apiHost}/v3/company/${realm}/companyinfo/${realm}?minorversion=75`, id: 'CompanyInfo.Id', label: ['CompanyInfo.CompanyName', 'CompanyInfo.LegalName'] } };
   }
   return null;
 }
@@ -357,7 +367,7 @@ export function createIntegrations({ db, access, audit, config = integrationConf
   // The provider sends the browser back to /integrations/callback; that page posts state and code here, with the
   // person's own session. The state is single-use, short-lived and bound to the same tenant, person and provider.
   async function complete(user, body) {
-    fields(body, ['state', 'code', 'error'], ['state']);
+    fields(body, ['state', 'code', 'error', 'realmId'], ['state']);
     const state = text(body.state, 'Autorisation', 64);
     if (!/^[A-Za-z0-9_-]{43}$/u.test(state)) throw expired();
     const time = clock();
@@ -379,15 +389,21 @@ export function createIntegrations({ db, access, audit, config = integrationConf
     const code = text(body.code, 'Code d’autorisation', 4096);
     if (!PRINTABLE.test(code)) throw invalid('Code d’autorisation invalide.');
     const provider = oauthProvider(id); requireEngine();
+    // Checked before the code is exchanged: a single-use code must not be spent on a request that cannot be stored.
+    let realm = null;
+    if (provider.realm) {
+      realm = body.realmId === undefined ? null : text(body.realmId, 'Entreprise', 32);
+      if (!realm || !/^\d{1,32}$/u.test(realm)) throw invalid('Aucune entreprise QuickBooks n’a été choisie. Recommencez la connexion.');
+    }
     let verifier;
     try { ({ verifier } = unseal(vault.key, row.sealed, aad('state', row.tenantId, row.subject, id))); } catch { throw expired(); }
     let tokens;
     try { tokens = await tokenRequest(provider, { grant_type: 'authorization_code', code, redirect_uri: config.redirectUri, ...(verifier ? { code_verifier: verifier } : {}) }); }
     catch (error) { if (error instanceof GrantRejected) throw expired(); throw error; }
-    const account = await call(provider.account.url, { headers: { Authorization: `Bearer ${tokens.accessToken}` } });
+    const account = await call(typeof provider.account.url === 'function' ? provider.account.url(realm) : provider.account.url, { headers: { Authorization: `Bearer ${tokens.accessToken}` } });
     if (account.status >= 500) throw unavailable();
     const accountId = account.status === 200 ? accountValue(account.body, provider.account.id) : null;
-    if (!accountId) throw rejected();
+    if (!accountId || (realm && accountId !== realm)) throw rejected();
     const label = accountValue(account.body, provider.account.label) || accountId;
     const stamp = iso();
     const binding = aad('token', user.tenantId, user.subject, id);
@@ -412,6 +428,7 @@ export function createIntegrations({ db, access, audit, config = integrationConf
         const { url, style } = provider.revoke;
         const basic = { Authorization: `Basic ${Buffer.from(`${provider.clientId}:${provider.clientSecret}`, 'utf8').toString('base64')}` };
         const response = style === 'zoom' ? await call(url, { method: 'POST', headers: basic, form: { token: tokens.accessToken } })
+          : style === 'basic_json' ? await call(url, { method: 'POST', headers: basic, json: { token: tokens.refreshToken || tokens.accessToken } })
           : style === 'bearer_form' ? await call(url, { method: 'POST', headers: { Authorization: `Bearer ${tokens.accessToken}` }, form: { token: tokens.accessToken } })
           : await call(url, { method: 'POST', form: { token: tokens.refreshToken || tokens.accessToken } });
         revocation = response.status >= 200 && response.status < 300 ? 'revoked' : 'failed';
@@ -607,5 +624,13 @@ export function createIntegrations({ db, access, audit, config = integrationConf
     connected: user => connectionRow(user, 'clio')?.status === 'connected',
     api: (user, url, options) => api(user, 'clio', url, options),
   });
-  return Object.freeze({ list, connect, complete, disconnect, linkAppointment, unlinkAppointment, linksFor, webhook, engineReady, docusign, clio });
+  // Same narrow handle for a future accounting lot: the company (realmId) chosen at connection and the API host.
+  const quickbooks = Object.freeze({
+    ready: () => engineReady() && Boolean(config.oauth.quickbooks),
+    host: () => config.oauth.quickbooks?.apiHost ?? null,
+    realm: user => { const row = connectionRow(user, 'quickbooks'); return row?.status === 'connected' ? row.accountId : null; },
+    connected: user => connectionRow(user, 'quickbooks')?.status === 'connected',
+    api: (user, url, options) => api(user, 'quickbooks', url, options),
+  });
+  return Object.freeze({ list, connect, complete, disconnect, linkAppointment, unlinkAppointment, linksFor, webhook, engineReady, docusign, clio, quickbooks });
 }

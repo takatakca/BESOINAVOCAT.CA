@@ -44,6 +44,7 @@ Cocher chaque ligne quand la valeur est en place. Une variable manquante laisse 
 | **Clio Manage** | `BESOINAVOCAT_CLIO_CLIENT_ID` · `BESOINAVOCAT_CLIO_CLIENT_SECRET` · `BESOINAVOCAT_CLIO_REGION` | `REGION=ca` (valeur par défaut). |
 | **Stripe (abonnement des avocats)** | `BESOINAVOCAT_STRIPE_SECRET_KEY` · `BESOINAVOCAT_STRIPE_WEBHOOK_SECRET` · `BESOINAVOCAT_STRIPE_PRICE_WEEKLY` et/ou `BESOINAVOCAT_STRIPE_PRICE_MONTHLY` | Rester en **mode test** jusqu'à l'approbation des prix et taxes (D-025). Événements du webhook : `checkout.session.completed`, `customer.subscription.created`, `.updated`, `.deleted`. |
 | **Twilio (SMS, réceptions seulement)** | `BESOINAVOCAT_TWILIO_ACCOUNT_SID` · `BESOINAVOCAT_TWILIO_AUTH_TOKEN` | Facultatif. Aucun appel par Twilio : les appels passent par MIMT. |
+| **QuickBooks Online** (ajouté le 7 nov. par le fil tableau de bord) | `BESOINAVOCAT_QUICKBOOKS_CLIENT_ID` · `BESOINAVOCAT_QUICKBOOKS_CLIENT_SECRET` · `BESOINAVOCAT_QUICKBOOKS_ENVIRONMENT` | App Intuit « QuickBooks Online and Payments », scope `com.intuit.quickbooks.accounting` seulement, même adresse de retour. `ENVIRONMENT=sandbox` puis `production`. |
 | **CanLII** | `BESOINAVOCAT_CANLII_API_KEY` | Clé obtenue par courriel auprès de CanLII (délai de quelques jours). |
 | **Courriels de notification** | `BESOINAVOCAT_EMAIL_PROVIDER=resend` · `BESOINAVOCAT_EMAIL_API_KEY` · `BESOINAVOCAT_EMAIL_FROM` | Domaine d'envoi vérifié chez Resend (SPF/DKIM). |
 | **Abonnement agenda (.ics)** | `BESOINAVOCAT_CALENDAR_FEED_ENABLED=true` | Aucune clé; simple interrupteur. |
@@ -57,6 +58,8 @@ Règles de saisie : caractères imprimables sans espace; au moins 8 caractères 
 3. Le propriétaire clique **Connecter** sur chacun, consent chez le fournisseur, et la page affiche « Service connecté ».
 4. Recette complète : [INTEGRATIONS.md, section « Vérifier avec un vrai compte »](INTEGRATIONS.md#vérifier-avec-un-vrai-compte-à-faire-après-la-configuration).
 
-## 5. Pas encore programmé dans le portail
+## 5. État des comptes développeur au 7 novembre 2026 (soir)
 
-Notarius ConsignO Cloud et QuickBooks Online sont affichés « à venir » : aucune variable à poser, aucun compte à ouvrir pour l'instant.
+- **Microsoft / Outlook — bloqué** : le compte Microsoft du propriétaire (takatak.ca@gmail.com) est personnel, sans annuaire Entra, et Azure refuse la création d'un locataire sans abonnement (« You do not have access », vérifié 09:08 UTC). Il faut un abonnement Microsoft 365 Entreprise ou un compte Azure ouvert par le propriétaire (carte de crédit). Jusque-là, laisser les variables `BESOINAVOCAT_MICROSOFT_*` vides : le portail affiche simplement « Accès développeur à configurer » pour Outlook.
+- **Notarius ConsignO Cloud** : fiche de partenariat, aucune application à créer.
+- Les autres fournisseurs : voir le journal (entrées du 7 novembre) pour l'avancement.

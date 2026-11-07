@@ -50,6 +50,7 @@ OPTIONAL_TABLES = {
     "case_deadlines", "case_deadline_events",
     "calendar_feeds", "signature_envelopes", "signature_envelope_events",
     "notification_contacts", "notification_log",
+    "canlii_cache", "canlii_usage",
 }
 INTAKE_TABLES = {"ba_intake_meta", "ba_intakes", "ba_intake_limits", "ba_intake_reviews", "ba_intake_notes", "ba_intake_access", "ba_intake_assignments"}
 INTAKE_APP_ID = 0x4241494E  # must match APP_ID in lib/intake.mjs

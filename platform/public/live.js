@@ -492,6 +492,22 @@
     node.innerHTML = `${head}<div class="panel-body">${form}${list.envelopes.length ? `<div class="live-stack">${list.envelopes.map(card).join('')}</div>` : (list.connected ? empty('Aucun envoi pour signature dans ce dossier.') : '')}</div>`;
   }
 
+  // ---------- Vérifier une décision citée (CanLII) ----------
+  let canliiResult = null;
+  async function paintCanlii(node) {
+    if (bridge.isDemo() || !bridge.capabilities()?.canlii) { node.hidden = true; return; }
+    node.hidden = false;
+    const r = canliiResult;
+    const result = !r ? '' : !r.found ? `<div class="callout warning">${icon('info')}<p><strong>Introuvable chez CanLII</strong>Aucune décision ${esc(r.reference.caseId)} dans la banque ${esc(r.reference.databaseId)}. Vérifiez la citation; CanLII ne contient pas toutes les décisions.</p></div>`
+      : `<div class="live-card"><h4>${esc(r.decision.title || r.decision.citation)}</h4><p>${esc(r.decision.citation || '')}${r.decision.decisionDate ? ` · rendue le ${esc(r.decision.decisionDate)}` : ''}${r.decision.docketNumber ? ` · dossier ${esc(r.decision.docketNumber)}` : ''}</p>
+        ${r.decision.keywords ? `<p class="table-subtext">${esc(r.decision.keywords)}</p>` : ''}
+        ${r.citing ? `<p>${pill('ok', `${r.citing.count} décision${r.citing.count > 1 ? 's' : ''} la cite${r.citing.count > 1 ? 'nt' : ''}`)}</p>${r.citing.sample.length ? `<ul class="drawer-list">${r.citing.sample.map(c => `<li><span class="queue-text"><strong>${esc(c.citation || '')}</strong><small>${esc(c.title || '')}</small></span></li>`).join('')}</ul>` : ''}` : ''}
+        ${r.decision.url ? `<div class="tile-actions"><a class="button secondary small" href="${esc(r.decision.url)}" target="_blank" rel="noopener noreferrer">Lire sur CanLII ${icon('arrow')}</a></div>` : ''}</div>`;
+    node.innerHTML = `<div class="panel-heading"><div><h2>Vérifier une décision citée</h2><p>Métadonnées officielles de CanLII. Seule la citation saisie est transmise.</p></div></div><div class="panel-body">
+      <form data-live-form="canlii" class="live-inline"><label class="sr-only" for="cl-cit">Citation ou adresse canlii.org</label><input id="cl-cit" name="citation" maxlength="300" required placeholder="Ex. : 2020 QCCS 1234"><button class="button small" type="submit">Vérifier</button><p class="form-error" role="alert" hidden></p></form>
+      ${result}<p class="table-subtext">Le nombre de décisions qui citent un jugement ne dit pas s’il fait encore autorité : lisez-le.</p></div>`;
+  }
+
   // ---------- Courriels d'avis (adresse confirmée par code) ----------
   async function paintNotices(node) {
     if (bridge.isDemo()) { node.innerHTML = demo('Courriels d’avis'); return; }
@@ -532,7 +548,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, canlii: paintCanlii };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -645,6 +661,7 @@
       if (kind === 'line') cache.overview = await post('/api/telephony/member/line', { e164: String(data.get('e164') || '') });
       if (kind === 'request-create') { await post(`${caseBase()}/requests`, { title: String(data.get('title') || '').trim(), note: String(data.get('note') || '').trim(), ...(data.get('dueDate') ? { dueDate: String(data.get('dueDate')) } : {}) }); form.reset(); bridge.notify('Demande envoyée au client, dans le dossier.'); await loadRequests(true); repaint('case-requests'); return; }
       if (kind === 'request-provide') { await post(`${caseBase()}/requests/${encodeURIComponent(form.dataset.id)}/provide`, { ...(data.get('documentId') ? { documentId: String(data.get('documentId')) } : {}), ...(String(data.get('answer') || '').trim() ? { answer: String(data.get('answer')).trim() } : {}) }); bridge.notify('Envoyé à votre avocat.'); await loadRequests(true); repaint('case-requests'); repaint('client-home'); return; }
+      if (kind === 'canlii') { canliiResult = await api(`/api/research/canlii?citation=${encodeURIComponent(String(data.get('citation') || '').trim())}`); repaint('canlii'); return; }
       if (kind === 'notice-email') { await post('/api/notifications/email', { email: String(data.get('email') || '').trim(), consent: data.get('consent') === 'on' }); bridge.notify('Code envoyé. Vérifiez votre boîte de réception.'); repaint('notices'); return; }
       if (kind === 'notice-verify') { await post('/api/notifications/verify', { code: String(data.get('code') || '').trim() }); bridge.notify('Adresse confirmée. Les avis sont actifs.'); repaint('notices'); return; }
       if (kind === 'signature-send') { await post(`${caseBase()}/signatures`, { documentId: String(data.get('documentId') || ''), signerName: String(data.get('signerName') || '').trim(), signerEmail: String(data.get('signerEmail') || '').trim(), ...(String(data.get('message') || '').trim() ? { message: String(data.get('message')).trim() } : {}) }); form.reset(); bridge.notify('Document envoyé par DocuSign au signataire.'); repaint('case-signatures'); return; }
@@ -673,7 +690,7 @@
   window.BALive = Object.freeze({
     init(next) { bridge = next; },
     afterRender,
-    reset() { feedLink = null; requests.data = null; deadlines.data = null; deadlines.week = null; intakes.counts = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
+    reset() { feedLink = null; canliiResult = null; requests.data = null; deadlines.data = null; deadlines.week = null; intakes.counts = null; cache.overview = null; cache.link = null; cache.team = null; for (const t of timers.values()) clearTimeout(t); timers.clear(); if (room.id) videoCleanup(); },
     status: () => cache.overview,
     intakeCount: () => (intakes.counts ? String(intakes.counts.received ?? 0) : null),
     deadlineWeek: () => (deadlines.week ? String(deadlines.week.deadlines.length) : null),

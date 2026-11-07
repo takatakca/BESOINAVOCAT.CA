@@ -1030,7 +1030,7 @@
     else if (state.view === 'home' && desktop()) { const railScroll = document.getElementById('cockpit-dials')?.scrollLeft, listScroll = document.querySelector?.('.ws-list')?.scrollTop; main.innerHTML = workspaceView(); paintWorkspace(main); const rail = document.getElementById('cockpit-dials'); if (rail && Number.isFinite(railScroll)) rail.scrollLeft = railScroll; const list = document.querySelector?.('.ws-list'); if (list && Number.isFinite(listScroll)) list.scrollTop = listScroll; }
     else if (state.view === 'home') { const railScroll = document.getElementById('cockpit-dials')?.scrollLeft; main.innerHTML = cockpitView(); const rail = document.getElementById('cockpit-dials'); if (rail && Number.isFinite(railScroll)) rail.scrollLeft = railScroll; }
     else if (state.view === 'cases') main.innerHTML = casesView();
-    else if (state.view === 'search') main.innerHTML = searchView();
+    else if (state.view === 'search') main.innerHTML = searchView() + (state.demo ? '' : '<section class="panel cockpit-panel live-panel" data-live="canlii" aria-label="Vérifier une décision citée" hidden></section>');
     else if (state.view === 'integrations') main.innerHTML = integrationsView();
     else if (state.view === 'clients') main.innerHTML = clientsView();
     else if (state.view === 'settings') main.innerHTML = settingsView();
@@ -1907,7 +1907,7 @@
   async function start() {
     fillIcons();
     window.BAWorkspace?.init(workspaceBridge);
-    window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null, documents: () => state.detail?.documents || [], nextMeeting: () => nextMeeting(), intakeReviewer: () => intakeReviewer(),
+    window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null, documents: () => state.detail?.documents || [], nextMeeting: () => nextMeeting(), intakeReviewer: () => intakeReviewer(), capabilities: () => state.capabilities || null,
       refresh: () => render(), reloadCase: async () => { if (state.selectedId) { await refreshDetail(state.selectedId).catch(() => false); render(); } } });
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
     state.health = await publicHealth();

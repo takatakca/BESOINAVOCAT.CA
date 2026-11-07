@@ -41,7 +41,7 @@ const CATALOG = Object.freeze([
   { id: 'twilio', label: 'Twilio', category: 'telephony', connectionType: 'platform', status: 'platform', actions: [],
     routine: 'Appels et rappels de rendez-vous par SMS, avec le consentement de la personne. Réceptions signées prêtes; envois au prochain lot.' },
   { id: 'canlii', label: 'CanLII', category: 'research', connectionType: 'platform', status: 'platform', actions: [],
-    routine: 'Vérifier une décision citée et ses citations (métadonnées CanLII). Clé de plateforme; recherche au prochain lot.' },
+    routine: 'Vérifier une décision citée : titre officiel, date, numéro de dossier, lien canlii.org et nombre de décisions qui la citent. Dans Recherche.' },
   { id: 'notarius', label: 'Notarius · ConsignO Cloud', category: 'signature', connectionType: 'partnership', status: 'planned', actions: [],
     routine: 'Signature numérique reconnue par le Barreau du Québec. Accès par entente de partenariat avec Notarius.' },
   { id: 'quickbooks', label: 'QuickBooks Online', category: 'accounting', connectionType: 'oauth', status: 'planned', actions: [],

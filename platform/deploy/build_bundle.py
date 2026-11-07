@@ -33,6 +33,7 @@ ALLOWLIST = {
     'lib/calendar-feed.mjs': 'platform/lib/calendar-feed.mjs',
     'lib/signatures.mjs': 'platform/lib/signatures.mjs',
     'lib/notifications.mjs': 'platform/lib/notifications.mjs',
+    'lib/canlii.mjs': 'platform/lib/canlii.mjs',
     'lib/membership.mjs': 'platform/lib/membership.mjs',
     'lib/audit-seal.mjs': 'platform/lib/audit-seal.mjs',
     'lib/document-generator.mjs': 'platform/lib/document-generator.mjs',

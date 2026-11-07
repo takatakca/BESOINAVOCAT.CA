@@ -19,6 +19,7 @@ import { createDeadlines } from './lib/deadlines.mjs';
 import { calendarFeedConfiguration, createCalendarFeed } from './lib/calendar-feed.mjs';
 import { createSignatures } from './lib/signatures.mjs';
 import { createNotifications, notificationConfiguration } from './lib/notifications.mjs';
+import { createCanlii } from './lib/canlii.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
@@ -128,6 +129,7 @@ export function createApp({
   telephonyFetch = globalThis.fetch,
   paymentsFetch = globalThis.fetch,
   notificationFetch = globalThis.fetch,
+  researchFetch = globalThis.fetch,
   clock = Date.now,
 } = {}) {
   const config = identityConfiguration(env);
@@ -153,6 +155,8 @@ export function createApp({
   const notifications = createNotifications({ db: store.db, audit: store.audit, config: notificationConfiguration(env), fetch: notificationFetch, clock, log: message => console.warn(message) });
   // Email notices never delay or fail the action that caused them.
   const notify = (actor, caseId, kind, extra) => { void notifications.caseEvent(actor, caseId, kind, extra).catch(error => console.warn(`notification ${kind}: ${error.message}`)); };
+  const canliiKey = typeof env.BESOINAVOCAT_CANLII_API_KEY === 'string' && /^[\x21-\x7e]{8,4096}$/u.test(env.BESOINAVOCAT_CANLII_API_KEY) ? env.BESOINAVOCAT_CANLII_API_KEY : null;
+  const canlii = createCanlii({ db: store.db, config: { apiKey: canliiKey }, fetch: researchFetch, clock });
   const signatures = createSignatures({ db: store.db, access: store.access, audit: store.audit, store, docusign: integrations.docusign, clock });
   const calendarFeed = createCalendarFeed({ db: store.db, audit: store.audit, config: calendarFeedConfiguration(env), clock });
   const auditSeal = createAuditSeal({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -345,6 +349,16 @@ export function createApp({
         offset: number('offset', 0), limit: number('limit', 25),
       }));
     }
+    // Check a cited decision against CanLII's metadata (lib/canlii.mjs). Only the typed citation leaves the portal.
+    if (path === '/api/research/canlii') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if ([...url.searchParams.keys()].some(key => !['citation', 'lang'].includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');
+      const lang = url.searchParams.get('lang') ?? 'fr';
+      if (!['fr', 'en'].includes(lang)) throw invalid('Langue attendue : fr ou en.');
+      const result = await canlii.verify(user, { citation: text(url.searchParams.get('citation') ?? '', 'Citation', 300), lang });
+      store.audit(user, null, 'research.canlii_checked', null, { databaseId: result.reference.databaseId, caseId: result.reference.caseId, found: result.found });
+      return json(res, 200, result);
+    }
     // Open deadlines of every case of the user in the next days (lib/deadlines.mjs).
     if (path === '/api/deadlines/upcoming' && method === 'GET') {
       for (const key of url.searchParams.keys()) if (key !== 'days') throw invalid('Paramètre URL non autorisé.');
@@ -415,7 +429,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });

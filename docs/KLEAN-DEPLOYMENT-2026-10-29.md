@@ -1,5 +1,7 @@
 # KLEAN — Carte de déploiement — besoinavocat.ca — 2026-10-29
 
+> Archive historique du 29 octobre 2026. Cette carte décrit l’état à cette date. Pour les opérations actuelles, appliquer les sections récentes de `docs/DEPLOYMENT.md`, `docs/DECISIONS.md` et `docs/JOURNAL-AGENTS.md`. Les procédures DNS/courriel ci-dessous ne sont pas une instruction de les exécuter pendant la mise à jour du portail.
+
 Signé : KLEAN (Muse), mission déploiement 2026-10-29 ~17:14 EDT.
 Règles respectées : journal `docs/JOURNAL-AGENTS.md` en ajout seul (entrées DÉBUT/FIN séparées) ; zones réservées de Claude non touchées ; branche `codex/workspace-premium-2026-10-29` NON fusionnée ; aucun code OTP demandé/lu/utilisé ; aucun compte créé ; aucun droit ajouté ; aucun secret copié ; aucun DNS modifié.
 

@@ -20,6 +20,7 @@ const credentials = {
   [`${base}MICROSOFT_CLIENT_ID`]: 'ms-client', [`${base}MICROSOFT_CLIENT_SECRET`]: 'ms-secret-value',
   [`${base}GOOGLE_CLIENT_ID`]: 'google-client', [`${base}GOOGLE_CLIENT_SECRET`]: 'google-secret-value',
   [`${base}CLIO_CLIENT_ID`]: 'clio-client', [`${base}CLIO_CLIENT_SECRET`]: 'clio-secret-value',
+  [`${base}QUICKBOOKS_CLIENT_ID`]: 'qb-client', [`${base}QUICKBOOKS_CLIENT_SECRET`]: 'qb-secret-value',
 };
 
 // Everything SQLite holds on disk, including recent writes still in the WAL file.
@@ -88,9 +89,10 @@ test('without server configuration every connector reports its real state and no
   assert.deepEqual(list.engine, { ready: false, reason: 'origin_not_configured', redirectUri: null });
   const state = Object.fromEntries(list.providers.map(item => [item.id, item.state]));
   assert.deepEqual(state, { zoom: 'not_configured', microsoft365: 'not_configured', google: 'not_configured', docusign: 'not_configured', clio: 'not_configured',
-    stripe: 'not_configured', twilio: 'not_configured', canlii: 'not_configured', notarius: 'planned', quickbooks: 'planned' });
+    stripe: 'not_configured', twilio: 'not_configured', canlii: 'not_configured', notarius: 'planned', quickbooks: 'not_configured' });
   throws(() => bare.connect(users.lawyer, 'zoom'), 503, 'INTEGRATION_NOT_CONFIGURED');
-  throws(() => bare.connect(users.lawyer, 'quickbooks'), 404);
+  throws(() => bare.connect(users.lawyer, 'quickbooks'), 503, 'INTEGRATION_NOT_CONFIGURED');
+  throws(() => bare.connect(users.lawyer, 'notarius'), 404);
   throws(() => bare.connect(users.lawyer, 'stripe'), 404);
   throws(() => bare.connect(users.lawyer, '__proto__'), 404);
   // Credentials alone are not enough: without the vault key no token could be stored.
@@ -459,4 +461,44 @@ test('over HTTP: account connectors, appointment actions, signed notifications a
   assert.match(page.headers.get('content-security-policy'), /script-src 'self'/u);
   assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
   assert.equal((await request('/integrations-callback.js', { token: null })).status, 200);
+});
+
+test('QuickBooks connects the company chosen at Intuit: realmId required, Basic token auth, revocation by JSON', async t => {
+  const f = fixture(t);
+  let issued = 0, revoked = null;
+  f.fake.on('POST https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', request => {
+    assert.match(request.headers.Authorization, /^Basic /u);
+    assert.equal(request.form.client_secret, undefined);
+    issued++;
+    return { body: { access_token: `qb-access-${issued}`, refresh_token: `qb-refresh-${issued}`, token_type: 'bearer', expires_in: 3600, x_refresh_token_expires_in: 8726400 } };
+  });
+  f.fake.on('GET https://sandbox-quickbooks.api.intuit.com/v3/company/9130357/companyinfo/9130357', () => ({ body: { CompanyInfo: { Id: '9130357', CompanyName: 'Cabinet synthétique inc.' } } }));
+  f.fake.on('POST https://developer.api.intuit.com/v2/oauth2/tokens/revoke', request => { revoked = request.json; return { status: 200, body: {} }; });
+  const url = new URL(f.api.connect(users.lawyer, 'quickbooks').authorizationUrl);
+  assert.equal(`${url.origin}${url.pathname}`, 'https://appcenter.intuit.com/connect/oauth2');
+  assert.equal(url.searchParams.get('scope'), 'com.intuit.quickbooks.accounting');
+  assert.equal(url.searchParams.get('redirect_uri'), `${ORIGIN}/integrations/callback`);
+  assert.equal(url.searchParams.has('code_challenge'), false);
+  // Without the company nothing is stored, and the state was consumed: the person starts again.
+  await rejects(f.api.complete(users.lawyer, { state: url.searchParams.get('state'), code: 'qb-code' }), 400);
+  assert.equal(f.api.list(users.lawyer).providers.find(item => item.id === 'quickbooks').state, 'available');
+  const state = new URL(f.api.connect(users.lawyer, 'quickbooks').authorizationUrl).searchParams.get('state');
+  await rejects(f.api.complete(users.lawyer, { state, code: 'qb-code', realmId: 'not-a-realm' }), 400);
+  const again = new URL(f.api.connect(users.lawyer, 'quickbooks').authorizationUrl).searchParams.get('state');
+  const done = await f.api.complete(users.lawyer, { state: again, code: 'qb-code', realmId: '9130357' });
+  assert.equal(done.connection.account, 'Cabinet synthétique inc.');
+  assert.equal(f.api.quickbooks.realm(users.lawyer), '9130357');
+  assert.equal(f.api.quickbooks.host(), 'sandbox-quickbooks.api.intuit.com');
+  assert.equal(f.api.quickbooks.realm(users.owner), null);
+  // A company that does not match the token's realm is refused.
+  f.fake.on('GET https://sandbox-quickbooks.api.intuit.com/v3/company/42/companyinfo/42', () => ({ body: { CompanyInfo: { Id: '43', CompanyName: 'Autre' } } }));
+  const mismatch = new URL(f.api.connect(users.owner, 'quickbooks').authorizationUrl).searchParams.get('state');
+  await rejects(f.api.complete(users.owner, { state: mismatch, code: 'qb-code', realmId: '42' }), 502);
+  const result = await f.api.disconnect(users.lawyer, 'quickbooks');
+  assert.deepEqual(result, { provider: 'quickbooks', disconnected: true, revocation: 'revoked' });
+  assert.deepEqual(revoked, { token: 'qb-refresh-1' });
+  assert.equal(f.api.quickbooks.realm(users.lawyer), null);
+  const production = f.make({ [`${base}QUICKBOOKS_ENVIRONMENT`]: 'production' });
+  assert.equal(production.quickbooks.host(), 'quickbooks.api.intuit.com');
+  assert.equal(f.make({ [`${base}QUICKBOOKS_ENVIRONMENT`]: 'other' }).list(users.lawyer).providers.find(item => item.id === 'quickbooks').state, 'not_configured');
 });

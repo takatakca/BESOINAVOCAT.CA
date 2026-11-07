@@ -15,7 +15,7 @@ Lot du 29 octobre 2026 (D-027). Le portail `platform/` relie chaque avocat à se
 | **Twilio · SMS** | réceptions signées | Réceptions d'état SMS seulement. Aucun appel : la téléphonie du portail passe uniquement par MIMT (PR 18). Aucun envoi pour l'instant. |
 | **CanLII** | clé de plateforme | Vérifier une décision citée et ses citations, à partir des métadonnées CanLII. Recherche au prochain lot. |
 | Notarius ConsignO Cloud | à venir | Signature numérique reconnue par le Barreau du Québec; accès par entente de partenariat. |
-| QuickBooks Online | à venir | Comptabilité du cabinet. |
+| **QuickBooks Online** | connexion seulement | Compte du cabinet relié (entreprise choisie à la connexion, bac à sable puis production). Clients et factures à un prochain lot. |
 
 Où le trouver dans le portail :
 - page **Intégrations** : connecter ou déconnecter chaque service;
@@ -139,6 +139,22 @@ Documentation : [OAuth 2.0 pour applications Web](https://developers.google.com/
 
 Documentation : [autorisation Clio](https://docs.developers.clio.com/api-docs/clio-manage/authorization/).
 
+### QuickBooks Online — comptabilité du cabinet (connexion)
+
+Documentation : Intuit Developer, *OAuth 2.0* (`appcenter.intuit.com/connect/oauth2`, `oauth.platform.intuit.com/oauth2/v1/tokens/bearer`, révocation `developer.api.intuit.com/v2/oauth2/tokens/revoke`).
+
+1. Sur <https://developer.intuit.com>, créer une app **QuickBooks Online and Payments** (une seule pour BesoinAvocat).
+2. Onglet *Keys & credentials* : bac à sable (**Development**) d'abord, puis **Production** après la revue d'Intuit. Inscrire comme *Redirect URI* `<APP_ORIGIN>/integrations/callback`, exactement.
+3. Scope demandé par le portail : `com.intuit.quickbooks.accounting` seulement (aucun paiement, aucun OpenID).
+4. Particularité : Intuit renvoie l'entreprise choisie (`realmId`) avec le code. Le portail l'exige, vérifie qu'elle correspond au jeton (`companyinfo`) et la garde comme compte relié; sans entreprise, rien n'est stocké et la personne recommence. Le jeton de rafraîchissement expire au bout de 100 jours sans usage : le portail demande alors de reconnecter.
+5. Variables Coolify : `BESOINAVOCAT_QUICKBOOKS_CLIENT_ID`, `BESOINAVOCAT_QUICKBOOKS_CLIENT_SECRET`, `BESOINAVOCAT_QUICKBOOKS_ENVIRONMENT=sandbox` (puis `production`; toute autre valeur laisse le connecteur « à configurer »).
+
+Chaque avocat connecte son propre QuickBooks depuis Intégrations. Aucune donnée n'est encore envoyée : ce lot relie le compte; clients et factures viendront ensuite (`integrations.quickbooks` expose l'entreprise et l'hôte API au prochain lot).
+
+### Notarius — ConsignO Cloud (partenariat)
+
+Pas d'app développeur à créer : Notarius ouvre son API par entente de partenariat. Fiche « À venir » dans la grille tant que l'entente n'est pas signée par le propriétaire.
+
 ### Stripe — paiements de la plateforme (réceptions)
 
 1. Sur le [tableau de bord Stripe](https://dashboard.stripe.com), rester en **mode test**.
@@ -255,3 +271,19 @@ Une fois son compte Clio connecté (région `ca` par défaut, `BESOINAVOCAT_CLIO
 Aucune pièce, aucun message et aucune note ne sont transmis. Les deux tables sont ajoutées à la sauvegarde. Chaque action est inscrite au journal du dossier.
 
 Coolify : `BESOINAVOCAT_CLIO_CLIENT_ID`, `BESOINAVOCAT_CLIO_CLIENT_SECRET` (application créée dans le Clio Developer Portal, URL de rappel `<APP_ORIGIN>/integrations/callback`), avec `BESOINAVOCAT_INTEGRATIONS_KEY_FILE` et `APP_ORIGIN`.
+
+## Connexions par compte : état au 7 novembre 2026
+
+Directive du propriétaire : chaque client du portail (avocat, cabinet) relie **ses propres** comptes depuis Intégrations, pas seulement le compte du propriétaire. C'est ce que fait `lib/integrations.mjs` depuis le lot du 29 octobre : une app développeur BesoinAvocat par fournisseur (clés dans Coolify), puis chaque personne consent chez le fournisseur et obtient ses propres jetons, scellés sous la clé `BESOINAVOCAT_INTEGRATIONS_KEY_FILE` et liés à son organisation, à elle et au fournisseur.
+
+| Fournisseur | Connexion par compte | Ce qu'il faut côté serveur |
+|---|---|---|
+| Zoom, Microsoft 365, Google, DocuSign, Clio | oui, depuis le 29 octobre | clés de l'app + `APP_ORIGIN` + clé de scellement |
+| QuickBooks Online | oui, depuis le 7 novembre (ce lot) | `BESOINAVOCAT_QUICKBOOKS_*` |
+| Stripe | non : abonnement de chaque avocat par Stripe Checkout sur le compte Stripe de la plateforme (D-025 : jamais l'argent des clients, donc pas de Stripe Connect) | clés Stripe de la plateforme |
+| CanLII, Twilio, MIMT | clés de plateforme, partagées par tous | clés dans Coolify |
+| Notarius | partenariat, pas d'OAuth public | entente à signer |
+
+Adresse de rappel unique, à inscrire chez chaque fournisseur : `https://portail.besoinavocat.ca/integrations/callback`. Réceptions : `https://portail.besoinavocat.ca/api/webhooks/{zoom,stripe,docusign,twilio}` et `https://portail.besoinavocat.ca/api/mimt/webhook`.
+
+Déploiement : le déploiement automatique du portail est désactivé; après la fusion, le technicien ajoute les variables dans Coolify et relance le déploiement à la main (`docs/COOLIFY.md`).

@@ -1,4 +1,5 @@
-# besoinavocat.ca for Coolify (base directory /www): the exact copy of the WordPress site in legal colours.
+# besoinavocat.ca for Coolify (base directory /www): the exact copy of the WordPress site.
+# BA_STYLE=wordpress (default, D-031) keeps the WordPress colours, logo and cookie banner; BA_STYLE=legal applies D-026.
 # The build checks every page, word for word, against the mirror before anything is served.
 FROM node:24-bookworm-slim AS build
 WORKDIR /src
@@ -7,7 +8,8 @@ COPY site ./site
 COPY overrides ./overrides
 COPY tools/check-site.mjs ./tools/
 ARG BA_REQUEST_URL=https://portail.besoinavocat.ca/demande
-RUN BA_REQUEST_URL="$BA_REQUEST_URL" node build.mjs && node tools/check-site.mjs
+ARG BA_STYLE=wordpress
+RUN BA_REQUEST_URL="$BA_REQUEST_URL" BA_STYLE="$BA_STYLE" node build.mjs && BA_STYLE="$BA_STYLE" node tools/check-site.mjs
 
 FROM nginx:1.28-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf

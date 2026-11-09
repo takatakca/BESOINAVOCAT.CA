@@ -1,22 +1,35 @@
 // Builds the deployable besoinavocat.ca from www/site, the exact copy of the WordPress site (tools/mirror-wordpress.mjs).
 //   node www/build.mjs           BA_REQUEST_URL overrides the request page (default: portal /demande)
+//                                BA_STYLE=wordpress (default, D-031) keeps the WordPress colours, logo and cookie banner;
+//                                BA_STYLE=legal applies the D-026 legal colours and the French cookie labels.
 // The owner's design and every word stay as built on WordPress. Only these changes are made:
-//  - colours move to legal tones (palette.mjs), and the recoloured logo and icon come from overrides/;
+//  - with BA_STYLE=legal only: colours move to legal tones (palette.mjs), and the recoloured logo and icon come from overrides/;
 //  - links to the site work on any host (canonical and sharing tags keep the real address);
 //  - "Trouver mon avocat" leads to the portal request page, with the page's law domain preselected;
 //    buttons that had no destination on WordPress get one;
 //  - WordPress-only parts that cannot work without WordPress are bridged (forms, login, cookie consent) or removed (REST, feeds);
-//  - the cookie banner's own labels are in French (consent.mjs); search metadata is added in <head> (seo.mjs).
+//  - with BA_STYLE=legal only: the cookie banner's own labels are in French (consent.mjs);
+//  - search metadata is added in <head> (seo.mjs).
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { frenchConsent } from './consent.mjs';
 import { withSearchMetadata } from './seo.mjs';
 import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { keepReadable, recolour } from './palette.mjs';
+import { keepReadable as legalReadable, recolour as legalRecolour } from './palette.mjs';
+
+const STYLE = process.env.BA_STYLE === 'legal' ? 'legal' : 'wordpress';
+const LEGAL = STYLE === 'legal';
+// WordPress style: colours, logo and cookie labels stay exactly as served by WordPress.
+const recolour = LEGAL ? legalRecolour : (text) => text;
+const keepReadable = LEGAL ? legalReadable : (text) => text;
+const consentLabels = LEGAL ? frenchConsent : (html) => html;
 
 const ROOT = fileURLToPath(new URL('./', import.meta.url));
 const SITE = join(ROOT, 'site'), DIST = join(ROOT, 'dist'), OVERRIDES = join(ROOT, 'overrides');
+// The recoloured logo and icon (overrides/wp-content/) and the palette fixes belong to the legal style only.
+const LEGAL_ONLY = (path) => path.startsWith('/wp-content/') || path === '/assets/palette-fixes.css';
+const overridden = (path) => existsSync(join(OVERRIDES, path)) && (LEGAL || !LEGAL_ONLY(path));
 const ORIGIN = 'https://besoinavocat.ca';
 const REQUEST_URL = process.env.BA_REQUEST_URL || 'https://portail.besoinavocat.ca/demande';
 const PORTAL = new URL('/', REQUEST_URL).href;
@@ -120,7 +133,7 @@ function recolourHtml(html) {
 }
 
 // Readability fixes of the colour change, loaded after every other stylesheet.
-const withPaletteFixes = (html) => html.replace(/<\/head>/i, '<link rel="stylesheet" href="/assets/palette-fixes.css">\n</head>');
+const withPaletteFixes = (html) => (LEGAL ? html.replace(/<\/head>/i, '<link rel="stylesheet" href="/assets/palette-fixes.css">\n</head>') : html);
 
 // Keep the historical form and labels, but make it inactive before scripts run: collecting fields here would lose them.
 // MetForm builds its actual form from a script template, so lock its real outer wrapper, not that template.
@@ -159,7 +172,7 @@ const withFreshAddresses = (text) => text.replace(/(^|["'\s,(=])(\/(?!\/)[^"'\s,
 
 rmSync(DIST, { recursive: true, force: true });
 cpSync(SITE, DIST, { recursive: true, filter: (src) => relative(SITE, src) !== 'manifest.json' });
-if (existsSync(OVERRIDES)) cpSync(OVERRIDES, DIST, { recursive: true });
+if (existsSync(OVERRIDES)) cpSync(OVERRIDES, DIST, { recursive: true, filter: (src) => LEGAL || !LEGAL_ONLY('/' + relative(OVERRIDES, src).split(sep).join('/')) });
 const domains = domainsOf(readFileSync(join(SITE, 'index.html'), 'utf8'));
 // Web paths use / on every system (the build also runs on Windows).
 const files = walk(DIST).map((file) => ({ file, path: '/' + relative(DIST, file).split(sep).join('/') }));
@@ -167,14 +180,14 @@ const changedFrom = (path, content) => { const source = join(SITE, path); return
 
 // Images first (stylesheets point to them), then stylesheets, then pages.
 for (const { file, path } of files) {
-  if (existsSync(join(OVERRIDES, path))) { stamp(path, readFileSync(file)); continue; }
+  if (overridden(path)) { stamp(path, readFileSync(file)); continue; }
   if (!/\.svg$/i.test(file) || path.startsWith('/vendor/')) continue;
   const svg = recolour(readFileSync(file, 'utf8'));
   writeFileSync(file, svg);
   if (changedFrom(path, svg)) stamp(path, svg);
 }
 for (const { file, path } of files) {
-  if (!/\.css$/i.test(file) || existsSync(join(OVERRIDES, path))) continue;
+  if (!/\.css$/i.test(file) || overridden(path)) continue;
   const css = keepReadable(recolour(readFileSync(file, 'utf8'))).replace(/https:\/\/fonts\.gstatic\.com\//g, '/vendor/fonts.gstatic.com/').replace(/https?:\/\/(?:www\.)?besoinavocat\.ca\//g, '/');
   const out = withFreshAddresses(css);
   writeFileSync(file, out);
@@ -187,7 +200,7 @@ for (const { file, path } of files) {
   let html = readFileSync(file, 'utf8');
   html = repairKnownReferences(withoutWordPressEndpoints(localFonts(relativeLinks(html))));
   html = withPaletteFixes(bridge(recolourHtml(wireButtons(html, domains.get(pagePath), pagePath))));
-  html = withLocalConsent(frenchConsent(html));
+  html = withLocalConsent(consentLabels(html));
   if (pagePath.endsWith('/') && html.includes('rel="canonical"')) html = withSearchMetadata(html, pagePath);
   writeFileSync(file, withFreshAddresses(html));
   report.pages++;
@@ -197,4 +210,4 @@ const pages = manifest.pages.filter((p) => p.status === 200).map((p) => p.path).
 writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => `<url><loc>${ORIGIN}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 writeFileSync(join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 const digest = createHash('sha256').update(JSON.stringify(manifest.pages.map((p) => p.sha256))).digest('hex').slice(0, 12);
-console.log(JSON.stringify({ pages: report.pages, stylesheets: report.css, filesWithNewAddress: fresh.size, mirroredAt: manifest.takenAt, mirrorDigest: digest, buttonsWithoutDestination: report.buttons, requestUrl: REQUEST_URL }));
+console.log(JSON.stringify({ style: STYLE, pages: report.pages, stylesheets: report.css, filesWithNewAddress: fresh.size, mirroredAt: manifest.takenAt, mirrorDigest: digest, buttonsWithoutDestination: report.buttons, requestUrl: REQUEST_URL }));

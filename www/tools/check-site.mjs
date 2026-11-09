@@ -2,11 +2,15 @@
 //   node www/tools/check-site.mjs        exits 1 when a rule below is broken
 // Rules: every mirrored page is built; its visible text is identical, word for word, to the mirror;
 // internal links and files resolve (WordPress-only endpoints that the copy has no file for are listed apart); no file is loaded from another
-// site; no orange colour is left in stylesheets or inline styles; no HTML character (&#039;…) is damaged.
+// site; with BA_STYLE=legal, no orange colour is left in stylesheets or inline styles; no HTML character (&#039;…) is damaged.
+// Use the same BA_STYLE as the build (default wordpress: colours and cookie labels must stay exactly as on WordPress).
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { frenchConsent } from '../consent.mjs';
+
+const LEGAL = process.env.BA_STYLE === 'legal';
+const consentLabels = LEGAL ? frenchConsent : (html) => html;
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const SITE = join(ROOT, 'site'), DIST = join(ROOT, 'dist');
@@ -77,8 +81,8 @@ let compared = 0;
 for (const page of manifest.pages) {
   const file = join(page.path, 'index.html');
   if (!existsSync(join(DIST, file))) { errors.push(`${page.path}: not built`); continue; }
-  // The only approved wording change: the cookie banner's own labels, translated by the same table as the build.
-  const source = visibleText(frenchConsent(readFileSync(join(SITE, file), 'utf8')));
+  // The only approved wording change (legal style only): the cookie banner's own labels, translated by the same table as the build.
+  const source = visibleText(consentLabels(readFileSync(join(SITE, file), 'utf8')));
   const built = visibleText(withoutMigrationNotices(readFileSync(join(DIST, file), 'utf8')));
   // Characters written as HTML entities (the quotes of font names in inline styles, &#038; in addresses) are not
   // damaged by the build: a recoloured "&#039;" would become "&#112d5e", a broken entity.
@@ -105,10 +109,10 @@ for (const file of walk(DIST)) {
     for (const match of html.matchAll(/<(?:script|img|source|iframe)\b[^>]*\ssrc=["'](https?:\/\/[^"']+)["']|<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'](https?:\/\/[^"']+)["']/gi)) errors.push(`${path}: third-party file ${match[1] || match[2]}`);
     for (const problem of validateLegacyForms(html)) errors.push(`${path}: ${problem}`);
     const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>|\sstyle="([^"]*)"/gi)].map((m) => m[1] || m[2]).join('\n');
-    const left = oranges(styles); if (left.length) errors.push(`${path}: orange left in inline styles ${[...new Set(left)].slice(0, 4).join(' ')}`);
+    const left = LEGAL ? oranges(styles) : []; if (left.length) errors.push(`${path}: orange left in inline styles ${[...new Set(left)].slice(0, 4).join(' ')}`);
   } else if (path.endsWith('.css')) {
     const css = readFileSync(file, 'utf8');
-    const left = oranges(css); if (left.length) errors.push(`${path}: orange left ${[...new Set(left)].slice(0, 4).join(' ')}`);
+    const left = LEGAL ? oranges(css) : []; if (left.length) errors.push(`${path}: orange left ${[...new Set(left)].slice(0, 4).join(' ')}`);
     for (const [, ref] of css.matchAll(/url\(\s*['"]?(https?:\/\/[^'")]+)/g)) errors.push(`${path}: third-party file ${ref}`);
   }
 }

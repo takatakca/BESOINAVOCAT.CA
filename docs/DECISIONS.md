@@ -13,6 +13,21 @@ La PR documentaire 6 est fusionnée après quatre contrôles verts et identifica
 Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
 
 
+## D-031 — La copie de prévisualisation reprend les couleurs du WordPress (9 novembre 2026)
+
+Instruction du propriétaire du 9 novembre : `preview.besoinavocat.ca` doit être **identique** à `besoinavocat.ca`, même contenu et même mise en page sur toutes les pages. Contrôle du jour : les 348 pages de `www/site` ont un texte identique, mot pour mot, au WordPress en ligne; seules différaient les couleurs juridiques de D-026 et les libellés français de la bannière de témoins.
+
+Règles :
+
+- la construction prend un interrupteur `BA_STYLE` (argument Docker et variable) :
+  - `wordpress`, **par défaut** : couleurs, logo et libellés de la bannière de témoins exactement comme sur WordPress;
+  - `legal` : la version D-026 (orange → bordeaux, bleus et verts → marine, logo recoloré, libellés français), conservée telle quelle;
+- `www/tools/check-site.mjs` suit le même interrupteur : texte comparé mot pour mot dans les deux cas, absence d'orange exigée seulement en `legal`;
+- les ponts qui font fonctionner la copie sans WordPress restent dans les deux styles : liens, destination des boutons, formulaires vers le portail, choix des témoins gardé dans le navigateur, métadonnées de recherche;
+- la bannière de témoins du WordPress est en anglais : la copie la garde en anglais. Une version française exige `BA_STYLE=legal` ou une décision du propriétaire.
+
+D-026 n'est pas effacée : elle redevient active avec `BA_STYLE=legal`.
+
 ## D-030 — Instructions écrites du propriétaire du 4 novembre 2026
 
 **Contexte** : reprise en parallèle par deux fils Claude (backend et tableau de bord) et un fil de contrôle à distance sur le poste du propriétaire, avec un livrable attendu au plus vite.

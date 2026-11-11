@@ -402,6 +402,49 @@ test('« Besoin d’aide ? » button: menu with the MIMT board, call-back, group
   assert.match(empty.node('help-menu').innerHTML, /data-action="call-lawyer" disabled/u);
 });
 
+test('lawyer contact card: temporary phone and chat/email choices for the client and the owner', () => {
+  const client = harness();
+  signedIn(client, { role: 'client' });
+  client.ui.navigate('cases'); client.ui.render();
+  const html = client.main();
+  assert.match(html, /Votre avocat/u);
+  assert.match(html, /<a class="button secondary small" href="tel:\+15149490887">/u);
+  assert.match(html, /\(514\) 949-0887/u);
+  assert.match(html, /Avocat Remplacement/u, 'no invented lawyer name: the temporary label only');
+  assert.match(html, /<button type="button" class="button secondary small" data-view="messages">/u);
+  assert.match(html, /Par chat/u);
+  assert.match(html, /<a class="button secondary small" href="mailto:6280\.ca@gmail\.com">Par courriel<\/a>/u);
+  assert.match(html, /Courriel temporaire de l’avocat : 6280\.ca@gmail\.com/u);
+  // The owner (responsable) sees the same lawyer contact, per the owner's 2026-11-11 decision.
+  const owner = harness();
+  signedIn(owner, { role: 'owner' });
+  owner.ui.navigate('cases'); owner.ui.render();
+  const ownerHtml = owner.main();
+  assert.match(ownerHtml, /La personne cliente/u);
+  assert.match(ownerHtml, /<a class="button secondary small" href="tel:\+15149490887">/u);
+  assert.match(ownerHtml, /\(514\) 949-0887/u);
+  assert.match(ownerHtml, /<a class="button secondary small" href="mailto:6280\.ca@gmail\.com">Par courriel<\/a>/u);
+  assert.match(ownerHtml, /Courriel temporaire de l’avocat : 6280\.ca@gmail\.com/u);
+  // « Par chat » opens the case messages (Échanges).
+  client.click({ view: 'messages' });
+  assert.equal(client.ui.state.view, 'messages');
+  // The lawyer side sees the client card instead: no lawyer phone or email there.
+  const lawyer = harness();
+  signedIn(lawyer);
+  lawyer.ui.navigate('cases'); lawyer.ui.render();
+  const pro = lawyer.main();
+  assert.match(pro, /La personne cliente/u);
+  assert.doesNotMatch(pro, /949-0887|6280\.ca@gmail\.com/u);
+  assert.equal(lawyer.requests.length, 0);
+  // The preview shows no real contact data, even with a client role.
+  const preview = harness(true);
+  signedIn(preview, { role: 'client' });
+  preview.ui.state.demo = true;
+  preview.ui.navigate('cases'); preview.ui.render();
+  assert.match(preview.main(), /Votre avocat/u);
+  assert.doesNotMatch(preview.main(), /949-0887|6280\.ca@gmail\.com/u);
+});
+
 test('the pulse is slow and switched off by reduced motion and after first use', () => {
   const pulse = styles.match(/\.help-fab \{[^}]*animation: fab-pulse ([\d.]+)s/u);
   assert.ok(pulse, 'pulse animation declared');

@@ -11,7 +11,7 @@
   const timers = new Map();
   const STATUS = { queued: 'En file', initiated: 'Lancé', ringing: 'Sonnerie', answered: 'En ligne', completed: 'Terminé', missed: 'Sans réponse', failed: 'Échec' };
   const AVAILABILITY = { available: 'Disponible', busy: 'Occupé', offline: 'Hors ligne' };
-  const SUBSCRIPTION = { active: 'Actif', trialing: 'Essai', past_due: 'Paiement en retard', canceled: 'Terminé', none: 'Aucun' };
+  const SUBSCRIPTION = { active: 'Actif', trialing: 'Essai', trial_expired: 'Essai terminé', past_due: 'Paiement en retard', canceled: 'Terminé', none: 'Aucun' };
   const ROLE = { owner: 'Responsable', lawyer: 'Avocat', client: 'Client' };
   const FINAL = new Set(['completed', 'missed', 'failed']);
 
@@ -448,7 +448,7 @@
   }
 
   // ---------- Abonnement de l'avocat (Stripe) ----------
-  const MEMBERSHIP_STATUS = { active: ['ok', 'Actif'], trialing: ['ok', 'Essai'], past_due: ['warn', 'Paiement en retard'], unpaid: ['warn', 'Impayé'], incomplete: ['wait', 'En attente de paiement'], incomplete_expired: ['off', 'Expiré'], canceled: ['off', 'Terminé'], paused: ['off', 'En pause'], none: ['off', 'Aucun'] };
+  const MEMBERSHIP_STATUS = { active: ['ok', 'Actif'], trialing: ['ok', 'Essai'], trial_expired: ['warn', 'Essai terminé'], past_due: ['warn', 'Paiement en retard'], unpaid: ['warn', 'Impayé'], incomplete: ['wait', 'En attente de paiement'], incomplete_expired: ['off', 'Expiré'], canceled: ['off', 'Terminé'], paused: ['off', 'En pause'], none: ['off', 'Aucun'] };
   const INTERVAL = { week: 'semaine', month: 'mois', year: 'an', day: 'jour' };
   const money = (cents, currency) => new Intl.NumberFormat('fr-CA', { style: 'currency', currency }).format(cents / 100);
   async function paintMembership(node) {
@@ -459,7 +459,7 @@
     const head = `<div class="panel-heading"><div><h2>Abonnement à la plateforme</h2><p>Pour les avocats. Payé chez Stripe; BesoinAvocat ne voit jamais votre carte.</p></div></div>`;
     if (!o.configured) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Abonnement par Stripe à raccorder</strong>Aucun paiement n’est possible pour l’instant. Variables à renseigner dans Coolify : ${esc(o.missing.join(', '))}.</p></div></div>`; return; }
     const m = o.membership, [tone, label] = MEMBERSHIP_STATUS[m.status] || ['off', m.status];
-    const status = `<p>${pill(tone, label)}${m.plan ? ` Forfait ${m.plan === 'weekly' ? 'hebdomadaire' : 'mensuel'}` : ''}${m.currentPeriodEnd ? ` · ${m.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(m.currentPeriodEnd))}` : ''}</p>`;
+    const status = `<p>${pill(tone, label)}${m.plan ? ` Forfait ${{ weekly: 'hebdomadaire', monthly: 'mensuel', trial: 'd’essai' }[m.plan] || esc(m.plan)}` : ''}${m.trial && !m.trial.expired && Number.isFinite(m.trial.daysLeft) ? ` · ${m.trial.daysLeft} jour${m.trial.daysLeft > 1 ? 's' : ''} d’essai restant${m.trial.daysLeft > 1 ? 's' : ''}` : ''}${m.trial?.expired ? ' · essai terminé, choisissez un forfait pour continuer' : ''}${m.currentPeriodEnd ? ` · ${m.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(m.currentPeriodEnd))}` : ''}</p>`;
     const manage = m.canManage ? `<button type="button" class="button secondary small" data-live-action="membership-portal">Gérer mon abonnement chez Stripe</button>` : '';
     const plans = m.active ? '' : `<div class="live-grid">${o.plans.map(p => `<div class="live-card"><h4>${p.plan === 'weekly' ? 'Hebdomadaire' : 'Mensuel'}</h4><p class="live-big mono">${esc(money(p.amountCents, p.currency))}</p><p class="table-subtext">par ${p.intervalCount > 1 ? `${p.intervalCount} ` : ''}${esc(INTERVAL[p.interval] || p.interval)}, taxes calculées par Stripe</p><div class="tile-actions"><button type="button" class="button small" data-live-action="membership-checkout" data-plan="${esc(p.plan)}">S’abonner</button></div></div>`).join('') || empty('Les forfaits n’ont pas pu être lus chez Stripe.')}</div>`;
     node.innerHTML = `${head}<div class="panel-body">${o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : ''}${status}${plans}<div class="tile-actions">${manage}</div>

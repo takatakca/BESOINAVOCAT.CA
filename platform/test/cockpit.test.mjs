@@ -13,7 +13,7 @@ const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'u
 const exported = ['state', 'start', 'render', 'navigate', 'statusLights', 'workItems', 'activityEntries', 'openIntegrationModal', 'startTour', 'endTour', 'showTourStep', 'tutorialMemory', 'localResults', 'TOUR_STEPS', 'ACADEMY_URL', 'MIMT_STEPS', 'mimtMemory', 'instruments', 'guideMemory', 'helpMemory', 'GUIDE_TEXT', 'GUIDE_DISCLAIMER', 'workspaceView', 'wsMemory', 'caseSwitcher', 'casesOverview', 'loadOverview', 'loadCase'];
 assert.equal(source.split('  void start();').length, 2, 'The harness must replace exactly one bootstrap call.');
 
-function harness(demo = false) {
+function harness(demo = false, { hash = '' } = {}) {
   const nodes = new Map(), requests = [], assigned = [], listeners = {};
   const makeNode = id => ({
     id, innerHTML: '', textContent: '', hidden: false, disabled: false, dataset: {}, open: false, isConnected: true, focused: 0, value: '',
@@ -35,7 +35,7 @@ function harness(demo = false) {
   const h = { node, nodes, requests, assigned, listeners, zones, handler: null, focused: [], lists: {} };
   const context = vm.createContext({
     URL, URLSearchParams, Intl, Date, console, AbortSignal, crypto: { randomUUID },
-    window: { location: { search: demo ? '?demo=1' : '', hash: '', assign: url => assigned.push(url) }, setTimeout: () => 1, clearTimeout() {}, innerHeight: 900, innerWidth: 1440 },
+    window: { location: { search: demo ? '?demo=1' : '', hash, assign: url => assigned.push(url) }, setTimeout: () => 1, clearTimeout() {}, innerHeight: 900, innerWidth: 1440 },
     document: { getElementById: node, querySelectorAll: selector => h.lists[selector] || [], querySelector: selector => selector === 'dialog[open]' ? null : zone(selector), addEventListener(type, fn) { (listeners[type] ||= []).push(fn); }, body: { classList: { add() {}, remove() {} } }, activeElement: null },
     fetch: async (path, options) => {
       requests.push({ path, options });
@@ -580,4 +580,49 @@ test('a figure of another dossier opens that dossier directly in the right secti
   h.click({ action: 'cockpit-select-case', id: 'case-b' });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(h.requests.length, 1, 'tapping the shown dossier reloads nothing');
+});
+
+// Deep links (13 nov 2026) : /#case/<id>/<section> opens one dossier directly, so the lawyer space can link to it.
+test('a deep link #case/<id>/<section> opens that dossier and section at start; unknown ids or sections fall back', async () => {
+  const cases = [{ id: 'case-a', title: 'A', reference: 'FICTIF-A', role: 'lawyer' }, { id: 'case-b', title: 'B', reference: 'FICTIF-B', role: 'lawyer' }];
+  const detail = id => ({ case: cases.find(c => c.id === id), documents: [], messages: [], timeEntries: [], communications: { sessions: [], hasMore: false }, usage: { entries: [], hasMore: false, billingEnabled: false }, integrationLinks: [] });
+  const boot = async hash => {
+    const h = harness(false, { hash });
+    h.handler = async path => {
+      if (path === '/api/health') return response({ status: 'ok', loginConfigured: true, lawyerSpace: { url: './avocat', trialDays: 14 } });
+      if (path === '/api/me') return response({ user: { active: true, subject: 'avocate-fictive' } });
+      if (path === '/api/capabilities') return response({});
+      if (path === '/api/integrations') return response({ engine: { ready: false }, providers: [] });
+      if (path === '/api/cases') return response({ cases });
+      const m = /^\/api\/cases\/(case-[ab])$/u.exec(path); if (m) return response(detail(m[1]));
+      throw new Error(`unexpected ${path}`);
+    };
+    await h.ui.start();
+    await new Promise(resolve => setImmediate(resolve));
+    return h;
+  };
+  const deep = await boot('#case/case-b/documents');
+  assert.equal(deep.ui.state.selectedId, 'case-b'); assert.equal(deep.ui.state.view, 'documents');
+  const home = await boot('#case/case-a/time');
+  assert.equal(home.ui.state.selectedId, 'case-a'); assert.equal(home.ui.state.view, 'time');
+  const unknown = await boot('#case/case-z/documents');
+  assert.equal(unknown.ui.state.selectedId, 'case-a'); assert.equal(unknown.ui.state.view, 'home', 'an unknown dossier changes nothing');
+  const badSection = await boot('#case/case-b/nope');
+  assert.equal(badSection.ui.state.selectedId, 'case-b'); assert.equal(badSection.ui.state.view, 'home', 'an unknown section opens the dossier home');
+  assert.ok(!deep.requests.some(r => r.path.includes('case-z')), 'no request for an id the account cannot see');
+});
+
+test('the sign-in screen offers the lawyer sign-up only once the server announces the lawyer space', () => {
+  const h = harness();
+  h.ui.state.mode = 'signedout';
+  h.ui.state.health = { status: 'ok', loginConfigured: true, lawyerSpace: { url: './avocat', trialDays: 14 } };
+  h.ui.render();
+  assert.match(h.main(), /<p class="login-lawyer">Vous êtes avocat \? <a href="\.\/avocat">Créer mon compte \(14 jours gratuits, sans carte\)<\/a><\/p>/u);
+  h.ui.state.health = { status: 'ok', loginConfigured: true };
+  h.ui.render();
+  assert.doesNotMatch(h.main(), /login-lawyer/u, 'no link to a page that does not exist yet');
+  h.ui.state.health = { status: 'ok', loginConfigured: true, lawyerSpace: { url: 'https://ailleurs.example/x' } };
+  h.ui.render();
+  assert.doesNotMatch(h.main(), /login-lawyer/u, 'only a local path is linked');
+  assert.equal(h.requests.length, 0);
 });

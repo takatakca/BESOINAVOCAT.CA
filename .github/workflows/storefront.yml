@@ -40,9 +40,13 @@ jobs:
           check /xmlrpc.php 404
           check /wp-json/ 404
           check /.env 404
-          check /sitemap.xml 200
+          # D-032 : /sitemap.xml renvoie vers /wp-sitemap.xml comme sur WordPress ; le vrai plan de site répond 200.
+          check /sitemap.xml 301
+          check /wp-sitemap.xml 200
+          check /robots.txt 200
           check /wp-content/plugins/complianz-terms-conditions/download.php 200
           curl -sI http://127.0.0.1:8080/ | grep -qi '^content-security-policy:'
           curl -s http://127.0.0.1:8080/ | grep -q 'portail.besoinavocat.ca/demande'
-          curl -s http://127.0.0.1:8080/ | grep -q '/assets/palette-fixes.css'
+          # D-031/D-032 : la copie exacte garde les couleurs WordPress ; la feuille D-026 n'est injectée qu'avec BA_STYLE=legal.
+          ! curl -s http://127.0.0.1:8080/ | grep -q '/assets/palette-fixes.css'
           curl -s http://127.0.0.1:8080/n-existe-pas/ | grep -qi '<title>'

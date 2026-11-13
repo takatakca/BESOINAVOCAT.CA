@@ -1,5 +1,9 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
+## Espace avocat — 13 novembre 2026 (branche `claude/project-thread-llrshb`)
+
+Inscription des avocats avec essai gratuit de 14 jours à 0 $, sans carte ni Stripe, page `/avocat`, codes d'invitation pour rejoindre le dossier d'un client (D-034, [ESPACE-AVOCAT](ESPACE-AVOCAT.md)). 378/378 tests Node, 17/17 tests Python. Reste au technicien : redéploiement manuel depuis `main`, `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` et signups courriel actifs chez le fournisseur; au propriétaire : choix du compte Stripe pour le paiement après l'essai.
+
 ## Réception du portail — 2026-11-07 08:02 UTC
 
 Signé **Codex**. Le propriétaire a demandé de fusionner, pousser et vérifier les dépôts **un par un**, en commençant par BESOINAVOCAT.

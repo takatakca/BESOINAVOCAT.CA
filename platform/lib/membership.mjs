@@ -24,7 +24,7 @@ export function membershipConfiguration(env = process.env) {
   return Object.freeze({ secretKey, prices: Object.freeze(prices), origin, missing: Object.freeze(missing), configured: missing.length === 0, mode: secretKey?.includes('_live_') ? 'live' : 'test' });
 }
 
-export function createMembership({ db, config = membershipConfiguration(), fetch = globalThis.fetch, clock = Date.now, teamMembers = [] }) {
+export function createMembership({ db, config = membershipConfiguration(), fetch = globalThis.fetch, clock = Date.now, teamMembers = [], isLawyer = () => false, trialDays = 14 }) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS lawyer_memberships (
       tenantId TEXT NOT NULL, subject TEXT NOT NULL, memberKey TEXT NOT NULL UNIQUE,
@@ -39,13 +39,19 @@ export function createMembership({ db, config = membershipConfiguration(), fetch
     CREATE TRIGGER IF NOT EXISTS lawyer_membership_events_no_update BEFORE UPDATE ON lawyer_membership_events BEGIN SELECT RAISE(ABORT, 'append-only'); END;
     CREATE TRIGGER IF NOT EXISTS lawyer_membership_events_no_delete BEFORE DELETE ON lawyer_membership_events BEGIN SELECT RAISE(ABORT, 'append-only'); END;
   `);
+  // Essai gratuit local (13 novembre 2026) : 14 jours à 0 $ sans carte, tenu ici sans Stripe. Colonnes ajoutées aux
+  // bases existantes au démarrage.
+  const columns = db.prepare('PRAGMA table_info(lawyer_memberships)').all().map(c => c.name);
+  if (!columns.includes('trialStartedAt')) db.exec('ALTER TABLE lawyer_memberships ADD COLUMN trialStartedAt TEXT');
+  if (!columns.includes('trialEndsAt')) db.exec('ALTER TABLE lawyer_memberships ADD COLUMN trialEndsAt TEXT');
   const sql = query => db.prepare(query);
   const now = () => new Date(clock()).toISOString();
   const priceCache = new Map();
   // Opaque key sent to Stripe instead of the TAKATAK identity.
   const memberKey = user => `ba_${createHash('sha256').update(`${user.tenantId}\u0000${user.subject}`).digest('hex').slice(0, 32)}`;
   const eligible = user => teamMembers.some(m => m.tenantId === user.tenantId && m.subject === user.subject)
-    || Boolean(sql("SELECT 1 FROM members WHERE tenantId=? AND subject=? AND role IN ('owner','lawyer') LIMIT 1").get(user.tenantId, user.subject));
+    || Boolean(sql("SELECT 1 FROM members WHERE tenantId=? AND subject=? AND role IN ('owner','lawyer') LIMIT 1").get(user.tenantId, user.subject))
+    || Boolean(isLawyer(user));
   const row = user => sql('SELECT * FROM lawyer_memberships WHERE tenantId=? AND subject=?').get(user.tenantId, user.subject);
   const planOf = priceId => Object.entries(config.prices).find(([, id]) => id === priceId)?.[0] ?? null;
 
@@ -72,14 +78,25 @@ export function createMembership({ db, config = membershipConfiguration(), fetch
   const safeUrl = (value, hosts) => {
     try { const u = new URL(value); return u.protocol === 'https:' && hosts.includes(u.hostname) ? u.href : null; } catch { return null; }
   };
+  // L'essai local est « trialing » avec le forfait « trial »; passé son terme, sans abonnement Stripe, il devient
+  // « trial_expired » : l'accès de l'avocat aux nouveaux dossiers attend alors un paiement.
+  const localTrial = r => r?.plan === 'trial' && r?.status === 'trialing';
+  const trialOf = r => {
+    if (!r?.trialEndsAt) return null;
+    const endsAt = Date.parse(r.trialEndsAt), left = Math.ceil((endsAt - clock()) / 86_400_000);
+    return { startedAt: r.trialStartedAt, endsAt: r.trialEndsAt, daysLeft: Math.max(0, left), expired: endsAt <= clock(), days: trialDays };
+  };
   function publicState(user, r = row(user)) {
-    const status = r?.status ?? 'none';
-    return { status, active: ACTIVE.has(status), plan: r?.plan ?? null, currentPeriodEnd: r?.currentPeriodEnd ?? null, cancelAtPeriodEnd: Boolean(r?.cancelAtPeriodEnd), canManage: Boolean(r?.customerId) };
+    const trial = trialOf(r);
+    const status = localTrial(r) && trial?.expired ? 'trial_expired' : (r?.status ?? 'none');
+    const active = ACTIVE.has(status);
+    return { status, active, plan: r?.plan ?? null, currentPeriodEnd: r?.currentPeriodEnd ?? null, cancelAtPeriodEnd: Boolean(r?.cancelAtPeriodEnd), canManage: Boolean(r?.customerId),
+      trial, paymentRequired: !active && Boolean(r) && status !== 'none' };
   }
 
   return {
     async overview(user) {
-      const base = { configured: config.configured, missing: config.missing, mode: config.secretKey ? config.mode : null, eligible: eligible(user), membership: publicState(user), plans: [] };
+      const base = { configured: config.configured, missing: config.missing, mode: config.secretKey ? config.mode : null, eligible: eligible(user), membership: publicState(user), plans: [], trialDays };
       if (!config.configured || !base.eligible) return base;
       base.plans = (await Promise.all(Object.keys(config.prices).map(plan => price(plan).catch(() => null)))).filter(Boolean).filter(p => p.active);
       return base;
@@ -90,12 +107,15 @@ export function createMembership({ db, config = membershipConfiguration(), fetch
       const { plan } = fields(body, ['plan'], ['plan']);
       if (!config.prices[plan]) throw invalid('Forfait inconnu.');
       const current = row(user);
-      if (current && ACTIVE.has(current.status)) throw new HttpError(409, 'ALREADY_SUBSCRIBED', 'Votre abonnement est déjà actif. Gérez-le depuis le portail Stripe.');
+      if (current && ACTIVE.has(current.status) && !localTrial(current)) throw new HttpError(409, 'ALREADY_SUBSCRIBED', 'Votre abonnement est déjà actif. Gérez-le depuis le portail Stripe.');
       const key = current?.memberKey ?? memberKey(user);
       if (!current) sql("INSERT INTO lawyer_memberships (tenantId,subject,memberKey,status,updatedAt) VALUES (?,?,?,'none',?)").run(user.tenantId, user.subject, key, now());
+      // Les jours d'essai qui restent sont conservés chez Stripe (au moins 48 h exigées par Stripe pour un trial_end).
+      const trial = trialOf(current);
+      const remainingTrial = localTrial(current) && trial && !trial.expired && Date.parse(trial.endsAt) - clock() >= 48 * 3600_000 ? { 'subscription_data[trial_end]': String(Math.floor(Date.parse(trial.endsAt) / 1000)) } : {};
       const form = {
         mode: 'subscription', 'line_items[0][price]': config.prices[plan], 'line_items[0][quantity]': '1',
-        client_reference_id: key, 'subscription_data[metadata][ba_member]': key, 'metadata[ba_member]': key,
+        client_reference_id: key, 'subscription_data[metadata][ba_member]': key, 'metadata[ba_member]': key, ...remainingTrial,
         success_url: `${config.origin}/#settings`, cancel_url: `${config.origin}/#settings`, locale: 'fr-CA', billing_address_collection: 'required', 'automatic_tax[enabled]': 'true',
         ...(current?.customerId ? { customer: current.customerId } : {}),
       };
@@ -143,7 +163,18 @@ export function createMembership({ db, config = membershipConfiguration(), fetch
       } catch (error) { db.exec('ROLLBACK'); throw error; }
       return { handled: true };
     },
-    isActive: user => ACTIVE.has(row(user)?.status),
+    isActive: user => publicState(user).active,
+    state: user => publicState(user),
+    // Ouvre l'essai gratuit : aucune carte, aucun appel Stripe. Un compte qui a déjà une ligne garde son état.
+    startTrial(user) {
+      if (!eligible(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'L’essai est réservé aux avocats de la plateforme.');
+      const current = row(user);
+      if (current) return publicState(user, current);
+      const at = clock();
+      sql("INSERT INTO lawyer_memberships (tenantId,subject,memberKey,status,plan,currentPeriodEnd,updatedAt,trialStartedAt,trialEndsAt) VALUES (?,?,?,'trialing','trial',?,?,?,?)")
+        .run(user.tenantId, user.subject, memberKey(user), new Date(at + trialDays * 86_400_000).toISOString(), new Date(at).toISOString(), new Date(at).toISOString(), new Date(at + trialDays * 86_400_000).toISOString());
+      return publicState(user);
+    },
     newId: randomUUID,
   };
 }

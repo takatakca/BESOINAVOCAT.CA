@@ -13,6 +13,10 @@ La PR documentaire 6 est fusionnée après quatre contrôles verts et identifica
 Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
 
 
+## D-034 — Un avocat s'inscrit seul, avec un essai gratuit de 14 jours sans carte (13 novembre 2026)
+
+Demande du propriétaire (13 novembre 2026, 04:31 UTC) : un avocat doit pouvoir s'inscrire, obtenir « 14 jours gratuits, sans carte de crédit, sans paiement », puis rejoindre le dossier de son client; après 14 jours, on lui demande un paiement. Mise en œuvre : page `/avocat`, inscription par code courriel qui crée le compte à la volée, essai local `plan: trial` géré par `membership.mjs` sans Stripe, codes d'invitation `AV-XXXX-XXXX` pour rejoindre un dossier avec le rôle avocat. Après l'essai : lecture conservée des dossiers rejoints, aucun nouveau dossier (402), forfaits Stripe affichés seulement quand les clés existent. Locataire par défaut des avocats inscrits : `takatak`. Détails : [ESPACE-AVOCAT](ESPACE-AVOCAT.md).
+
 ## D-033 — Les deux images mortes et le lien mort sont réparés dans la copie exacte (13 novembre 2026)
 
 Demande du propriétaire : réparer sur `preview.besoinavocat.ca` les liens et images morts de WordPress. Dans la construction exacte (D-032), `repairKnownReferences` s'applique de nouveau, sans les liens `wp-login.php` : les deux images de `jurigo.ca` (404) de `/regroupement-familial-quebec/` utilisent les fichiers locaux déjà prévus, et le lien `/contact/` (404) de `/terms-and-conditions/` mène à `https://portail.besoinavocat.ca/demande`. Tout le reste de D-032 est inchangé.

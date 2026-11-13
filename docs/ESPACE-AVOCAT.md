@@ -41,7 +41,7 @@
 
 - Aucun paiement, aucune carte, aucun appel à Stripe pendant l'essai.
 - Aucune vérification automatique au tableau du Barreau : le numéro est déclaratif.
-- Aucun changement de `app.js`, `live.js` ou `index.html` (fil du tableau de bord). Le lien « Vous êtes avocat ? » sur l'écran de connexion et le lien direct vers un dossier lui sont demandés.
+- Aucun changement de `app.js`, `live.js` ou `index.html` (fil du tableau de bord). Ce fil ajoute de son côté (PR 57) le lien « Vous êtes avocat ? » sur l'écran de connexion, lu dans `lawyerSpace` de `/api/health` (public), et le lien profond `./#case/<id>` que « Ouvrir le dossier » utilise.
 - Aucun courriel de rappel avant la fin de l'essai (à prévoir avec le service de notification Resend quand il sera activé).
 
 ## Vérifications

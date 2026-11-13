@@ -7,7 +7,7 @@
 // The owner's design and every word stay as built on WordPress. Only these changes are made:
 //  - with BA_STYLE=legal only: colours move to legal tones (palette.mjs), and the recoloured logo and icon come from overrides/;
 //  - links to the site work on any host (canonical and sharing tags keep the real address);
-//  - "Trouver mon avocat" leads to the portal request page, with the page's law domain preselected;
+//  - the call to action reads "Préparer mon dossier" (D-035) and, with BA_STYLE=legal, leads to the portal request page with the page's law domain preselected;
 //    buttons that had no destination on WordPress get one;
 //  - WordPress-only parts that cannot work without WordPress are bridged (forms, login, cookie consent) or removed (REST, feeds);
 //  - with BA_STYLE=legal only: the cookie banner's own labels are in French (consent.mjs);
@@ -115,6 +115,17 @@ function wireButtons(html, domainId, page) {
   });
 }
 
+// Owner's instruction of 13 November 2026 (D-035): the pink call to action no longer says « find a lawyer » but
+// « prepare my file » (the file is prepared on the platform, then a lawyer in the field accepts it). Only these labels
+// change, in both styles; destinations, colours and every other word stay as on WordPress (D-032).
+const CTA_LABELS = [['TROUVER MON AVOCAT', 'PRÉPARER MON DOSSIER'], ['Trouver mon avocat', 'Préparer mon dossier'], ['Trouver un avocat', 'Préparer mon dossier'], ['FIND MY LAWYER', 'PREPARE MY FILE'], ['Find my lawyer', 'Prepare my file']];
+function repositionCta(html) {
+  return html.replace(/(<(?:a|span|button)\b[^>]*>)(\s*)([^<]*?)(\s*)(<\/(?:a|span|button)>)/g, (m, open, before, text, after, close) => {
+    const pair = CTA_LABELS.find(([from]) => from === text.trim());
+    return pair ? `${open}${before}${pair[1]}${after}${close}` : m;
+  });
+}
+
 // Approved migration repairs: keep the mirror unchanged and repair only known dead destinations in the build.
 function repairKnownReferences(html, { loginLinks = true } = {}) {
   const images = {
@@ -208,7 +219,7 @@ for (const { file, path } of files) {
   html = localFonts(relativeLinks(html));
   // D-033: even in the exact copy, the two dead jurigo.ca images and the dead /contact/ link work (they are broken on WordPress too).
   html = EXACT ? repairKnownReferences(html, { loginLinks: false }) : repairKnownReferences(withoutWordPressEndpoints(html));
-  html = withPaletteFixes(bridge(recolourHtml(EXACT ? html : wireButtons(html, domains.get(pagePath), pagePath))));
+  html = withPaletteFixes(bridge(recolourHtml(repositionCta(EXACT ? html : wireButtons(html, domains.get(pagePath), pagePath)))));
   html = withLocalConsent(consentLabels(html));
   if (!EXACT && pagePath.endsWith('/') && html.includes('rel="canonical"')) html = withSearchMetadata(html, pagePath);
   writeFileSync(file, withFreshAddresses(html));

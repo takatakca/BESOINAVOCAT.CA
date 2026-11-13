@@ -159,7 +159,7 @@
       secureUnavailable: 'L’envoi sécurisé n’est pas disponible dans ce navigateur. Veuillez appeler BesoinAvocat.',
       retryLanguage: 'La langue de suivi reste celle de la première tentative, pour permettre une reprise sans double envoi.',
       changedAttempt: 'La réception de la tentative précédente reste inconnue. Vous avez changé des renseignements : cet envoi créera une nouvelle demande et peut faire doublon avec la précédente.',
-      website: 'Laisser ce champ vide', title: 'Trouver un avocat — demande gratuite | BesoinAvocat'
+      website: 'Laisser ce champ vide', title: 'Préparer mon dossier pour trouver mon avocat — demande gratuite | BesoinAvocat'
     },
     en: {
       steps: ['Area of law', 'Targeted questions', 'Your situation', 'Other parties', 'Urgency', 'Legal aid', 'Availability', 'Region and plan', 'Contact details', 'Summary'],
@@ -238,7 +238,7 @@
       secureUnavailable: 'Secure sending is unavailable in this browser. Please call BesoinAvocat.',
       retryLanguage: 'The follow-up language remains that of the first attempt, so a retry does not create a duplicate.',
       changedAttempt: 'Receipt of the previous attempt is still unknown. You changed some details: sending now will create a new request and may duplicate the previous one.',
-      website: 'Leave this field empty', title: 'Find a lawyer — free request | BesoinAvocat'
+      website: 'Leave this field empty', title: 'Prepare my file to find my lawyer — free request | BesoinAvocat'
     }
   };
   const ERROR_KEYS = {

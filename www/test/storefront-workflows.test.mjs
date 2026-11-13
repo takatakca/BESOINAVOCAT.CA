@@ -193,3 +193,15 @@ test('exact copy is the default style: no destination added, no heading, languag
   assert.match(source, /if \(!EXACT && pagePath\.endsWith/);
   assert.match(source, /\(EXACT \? html : prepareLegacyForms\(html\)\)/);
 });
+
+test('D-035: the call to action reads « Préparer mon dossier » in both styles, nothing else is reworded', () => {
+  assert.match(source, /repositionCta\(EXACT \? html : wireButtons\(/);
+  assert.match(source, /\['TROUVER MON AVOCAT', 'PRÉPARER MON DOSSIER'\]/);
+  assert.match(source, /\['Trouver un avocat', 'Préparer mon dossier'\]/);
+  assert.match(source, /\['FIND MY LAWYER', 'PREPARE MY FILE'\]/);
+  const fn = source.match(/function repositionCta\(html\) \{[\s\S]*?\n\}/)[0];
+  const CTA_LABELS = eval(source.match(/const CTA_LABELS = (\[[\s\S]*?\]);\n/)[1]);
+  const repositionCta = new Function('CTA_LABELS', `${fn}; return repositionCta;`)(CTA_LABELS);
+  const html = '<a class="x" href="https://besoinavocat.ca/demande/">Trouver un avocat</a><span class="elementor-button-text">TROUVER MON AVOCAT</span><p>Besoinavocat vous aide à trouver un avocat rapidement.</p>';
+  assert.equal(repositionCta(html), '<a class="x" href="https://besoinavocat.ca/demande/">Préparer mon dossier</a><span class="elementor-button-text">PRÉPARER MON DOSSIER</span><p>Besoinavocat vous aide à trouver un avocat rapidement.</p>');
+});

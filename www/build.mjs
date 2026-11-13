@@ -2,6 +2,8 @@
 //   node www/build.mjs           BA_REQUEST_URL overrides the request page (default: portal /demande)
 //                                BA_STYLE=wordpress (default, D-031) keeps the WordPress colours, logo and cookie banner;
 //                                BA_STYLE=legal applies the D-026 legal colours and the French cookie labels.
+//   With the default style the copy is exact (D-032): no button destination is added or changed, no head tag, heading level or
+//   language is changed, forms look and behave as on WordPress (no notice), and the sitemaps, robots.txt and feeds are WordPress's own.
 // The owner's design and every word stay as built on WordPress. Only these changes are made:
 //  - with BA_STYLE=legal only: colours move to legal tones (palette.mjs), and the recoloured logo and icon come from overrides/;
 //  - links to the site work on any host (canonical and sharing tags keep the real address);
@@ -20,6 +22,8 @@ import { keepReadable as legalReadable, recolour as legalRecolour } from './pale
 
 const STYLE = process.env.BA_STYLE === 'legal' ? 'legal' : 'wordpress';
 const LEGAL = STYLE === 'legal';
+// D-032: with the WordPress style the copy changes nothing a visitor or a crawler can see; only what cannot work without WordPress is bridged.
+const EXACT = !LEGAL;
 // WordPress style: colours, logo and cookie labels stay exactly as served by WordPress.
 const recolour = LEGAL ? legalRecolour : (text) => text;
 const keepReadable = LEGAL ? legalReadable : (text) => text;
@@ -154,10 +158,13 @@ function prepareLegacyForms(html) {
 }
 
 // The defensive submit handler never transfers values from the archived forms.
+// Exact copy (D-032): the forms look and read as on WordPress (no notice, fields usable); only the submission, which needs WordPress,
+// goes to the portal without any value. The legal style keeps the inert forms with their notice.
 function bridge(html) {
   if (!/metform|elementor-login|elementor-form|lostpasswordform/i.test(html)) return html;
-  const tag = `<script src="/assets/static-bridge.js" data-professional="${new URL('/demande?role=professional', PORTAL).href}" data-portal="${PORTAL}" defer></script>`;
-  return prepareLegacyForms(html).replace(/<\/body>/i, `${tag}\n</body>`);
+  const mode = EXACT ? ' data-mode="exact"' : '';
+  const tag = `<script src="/assets/static-bridge.js"${mode} data-professional="${new URL('/demande?role=professional', PORTAL).href}" data-portal="${PORTAL}" defer></script>`;
+  return (EXACT ? html : prepareLegacyForms(html)).replace(/<\/body>/i, `${tag}\n</body>`);
 }
 
 // CookieAdmin Pro saved consent through admin-ajax.php; the copy keeps it in the visitor's cookie (overrides/assets/consent-local.js).
@@ -198,16 +205,22 @@ for (const { file, path } of files) {
   if (!/\.html$/i.test(file)) continue;
   const pagePath = path.replace(/index\.html$/, '');
   let html = readFileSync(file, 'utf8');
-  html = repairKnownReferences(withoutWordPressEndpoints(localFonts(relativeLinks(html))));
-  html = withPaletteFixes(bridge(recolourHtml(wireButtons(html, domains.get(pagePath), pagePath))));
+  html = localFonts(relativeLinks(html));
+  if (!EXACT) html = repairKnownReferences(withoutWordPressEndpoints(html));
+  html = withPaletteFixes(bridge(recolourHtml(EXACT ? html : wireButtons(html, domains.get(pagePath), pagePath))));
   html = withLocalConsent(consentLabels(html));
-  if (pagePath.endsWith('/') && html.includes('rel="canonical"')) html = withSearchMetadata(html, pagePath);
+  if (!EXACT && pagePath.endsWith('/') && html.includes('rel="canonical"')) html = withSearchMetadata(html, pagePath);
   writeFileSync(file, withFreshAddresses(html));
   report.pages++;
 }
 const today = new Date().toISOString().slice(0, 10);
 const pages = manifest.pages.filter((p) => p.status === 200).map((p) => p.path).sort();
-writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => `<url><loc>${ORIGIN}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}\n</urlset>\n`);
-writeFileSync(join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`);
+if (EXACT) {
+  // WordPress's own robots.txt, sitemaps and feeds, as served at besoinavocat.ca (parity/, refreshed by tools/mirror-parity.mjs).
+  if (existsSync(join(ROOT, 'parity'))) cpSync(join(ROOT, 'parity'), DIST, { recursive: true });
+} else {
+  writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => `<url><loc>${ORIGIN}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}\n</urlset>\n`);
+  writeFileSync(join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`);
+}
 const digest = createHash('sha256').update(JSON.stringify(manifest.pages.map((p) => p.sha256))).digest('hex').slice(0, 12);
 console.log(JSON.stringify({ style: STYLE, pages: report.pages, stylesheets: report.css, filesWithNewAddress: fresh.size, mirroredAt: manifest.takenAt, mirrorDigest: digest, buttonsWithoutDestination: report.buttons, requestUrl: REQUEST_URL }));

@@ -2437,6 +2437,41 @@
    "finalUrl": "https://besoinavocat.ca/tableau-de-bord/",
    "bytes": 226923,
    "sha256": "11f4e9fc39c6ef06950160280bbd12e92eb1273ba445db2bfae0f4674c991700"
+  },
+  {
+   "path": "/author/admin/",
+   "status": 200,
+   "finalUrl": "https://besoinavocat.ca/author/admin/",
+   "bytes": 221969,
+   "sha256": "b41738cf2238c897c14e0382cd937154e7f2a178800670210129a1c6850ab74e"
+  },
+  {
+   "path": "/category/uncategorized/",
+   "status": 200,
+   "finalUrl": "https://besoinavocat.ca/category/uncategorized/",
+   "bytes": 222106,
+   "sha256": "69cb93b2fd3531c003fb4db3cdd6e23e92efc09a47cf26abea9e539a2bb245bd"
+  },
+  {
+   "path": "/metform-form/become-a-partner/",
+   "status": 200,
+   "finalUrl": "https://besoinavocat.ca/metform-form/become-a-partner/",
+   "bytes": 181837,
+   "sha256": "4e9a338a4c6c1e8f9227fe22aa347950a0a63f0cc4c0bfbf09cac1323adf54a8"
+  },
+  {
+   "path": "/metform-form/find-a-lawyer/",
+   "status": 200,
+   "finalUrl": "https://besoinavocat.ca/metform-form/find-a-lawyer/",
+   "bytes": 169695,
+   "sha256": "e68d46eb4bf21fb96a4a92b0758b16f48d252b8e4ec5d060cb61ee02ba190a27"
+  },
+  {
+   "path": "/metform-form/new-form-1759089507/",
+   "status": 200,
+   "finalUrl": "https://besoinavocat.ca/metform-form/new-form-1759089507/",
+   "bytes": 169578,
+   "sha256": "6848a96de985f419645798d2c2c3983b23689e6d1706048c9f96da435a2bc569"
   }
  ],
  "assets": [
@@ -2465,22 +2500,6 @@
    "sha256": "9abb4087ffe24374a0e9d41152aa68bfe68c82786af437c3a02f3ab089db80c2"
   },
   {
-   "url": "https://fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-daLY50.woff2",
-   "path": "/vendor/fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-daLY50.woff2",
-   "status": 200,
-   "type": "font/woff2",
-   "bytes": 30344,
-   "sha256": "f3093f72aabbc08b8f00f185aef1b9503519a227c3d75a057dc7a3c47d7c6151"
-  },
-  {
-   "url": "https://fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-laLQ.woff2",
-   "path": "/vendor/fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-laLQ.woff2",
-   "status": 200,
-   "type": "font/woff2",
-   "bytes": 33080,
-   "sha256": "8904d953726b43ded1a16bfd43398325d2382dd50780c10f18d048e0e73f84a8"
-  },
-  {
    "url": "https://fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-RaLY50.woff2",
    "path": "/vendor/fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-RaLY50.woff2",
    "status": 200,
@@ -2495,6 +2514,22 @@
    "type": "font/woff2",
    "bytes": 11600,
    "sha256": "07ecf36ca209630c7a76d8c3ed7a30c2af7d06118c4c961b44645edcbc53718f"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-daLY50.woff2",
+   "path": "/vendor/fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-daLY50.woff2",
+   "status": 200,
+   "type": "font/woff2",
+   "bytes": 30344,
+   "sha256": "f3093f72aabbc08b8f00f185aef1b9503519a227c3d75a057dc7a3c47d7c6151"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-laLQ.woff2",
+   "path": "/vendor/fonts.gstatic.com/s/nunitosans/v19/pe0RMImSLYBIv1o4X1M8cce4OdVisMz5nZRqy6cmmmU3t2FQWEAEOvV9wNvrwlNstMKW3Y6K5WMwd-laLQ.woff2",
+   "status": 200,
+   "type": "font/woff2",
+   "bytes": 33080,
+   "sha256": "8904d953726b43ded1a16bfd43398325d2382dd50780c10f18d048e0e73f84a8"
   },
   {
    "url": "https://fonts.gstatic.com/s/nunitosans/v19/pe0TMImSLYBIv1o4X1M8ce2xCx3yop4tQpF_MeTm0lfGWVpNn64CL7U8upHZIbMV51Q42ptCp7t1R-s.woff2",
@@ -2537,14 +2572,6 @@
    "sha256": "d3fe75d4c86f6df84f37c76ad44fa21c45778d7e14160b0294f92ec248fa144a"
   },
   {
-   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkaHkaWzU.woff2",
-   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkaHkaWzU.woff2",
-   "status": 200,
-   "type": "font/woff2",
-   "bytes": 22440,
-   "sha256": "3c9dec1a3e93c3effb3ec8805a71890dc81d0a0c3e64fd95f4d138d8e300aeff"
-  },
-  {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkAnkaWzU.woff2",
    "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkAnkaWzU.woff2",
    "status": 200,
@@ -2553,20 +2580,20 @@
    "sha256": "f2ab3c15c750e03fb1bc8887786a9ef826d134c461f830877366399295861e55"
   },
   {
-   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkBnka.woff2",
-   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkBnka.woff2",
-   "status": 200,
-   "type": "font/woff2",
-   "bytes": 47208,
-   "sha256": "14f23757c6b41b4b6c0b967ca3fa74ff47a868728158373461c4e6e4b6368f19"
-  },
-  {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkBXkaWzU.woff2",
    "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkBXkaWzU.woff2",
    "status": 200,
    "type": "font/woff2",
    "bytes": 18780,
    "sha256": "abf79b1a281be8135c1bde7bf807267b1507adbdbe3023d5f5a8781ab6655371"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkBnka.woff2",
+   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkBnka.woff2",
+   "status": 200,
+   "type": "font/woff2",
+   "bytes": 47208,
+   "sha256": "14f23757c6b41b4b6c0b967ca3fa74ff47a868728158373461c4e6e4b6368f19"
   },
   {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkC3kaWzU.woff2",
@@ -2585,6 +2612,14 @@
    "sha256": "7f21d061a9de1ea78a858938ff3b8e677869656b10bad470fc6039f8f3daf329"
   },
   {
+   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkCXkaWzU.woff2",
+   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkCXkaWzU.woff2",
+   "status": 200,
+   "type": "font/woff2",
+   "bytes": 15344,
+   "sha256": "3e6b22d2171656f2f886c209e04c70555a6bdb4903c011811726830492cd6ba9"
+  },
+  {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkCnkaWzU.woff2",
    "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkCnkaWzU.woff2",
    "status": 200,
@@ -2593,12 +2628,12 @@
    "sha256": "75697119399fa9c3be54924e02b42ba6dc2a430b2984479cb5d8f291f09a44f3"
   },
   {
-   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkCXkaWzU.woff2",
-   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkCXkaWzU.woff2",
+   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkaHkaWzU.woff2",
+   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkaHkaWzU.woff2",
    "status": 200,
    "type": "font/woff2",
-   "bytes": 15344,
-   "sha256": "3e6b22d2171656f2f886c209e04c70555a6bdb4903c011811726830492cd6ba9"
+   "bytes": 22440,
+   "sha256": "3c9dec1a3e93c3effb3ec8805a71890dc81d0a0c3e64fd95f4d138d8e300aeff"
   },
   {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO5CnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmkenkaWzU.woff2",
@@ -2633,14 +2668,6 @@
    "sha256": "01f94d674db55952c35898fa4da22c3e7065c3cc4dbbcc9cb7beb8b6b017fbc9"
   },
   {
-   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3iUBGEe.woff2",
-   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3iUBGEe.woff2",
-   "status": 200,
-   "type": "font/woff2",
-   "bytes": 23664,
-   "sha256": "481dd0c01e6bbb129fd147eb5d8571016193cba141c4627ca60ceabdb5a46ea8"
-  },
-  {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3KUBGEe.woff2",
    "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3KUBGEe.woff2",
    "status": 200,
@@ -2655,6 +2682,14 @@
    "type": "font/woff2",
    "bytes": 14340,
    "sha256": "0b60bbe04e9c479444b31270a72179f53e400beee57b7dd176c08e5e2e716831"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3iUBGEe.woff2",
+   "path": "/vendor/fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3iUBGEe.woff2",
+   "status": 200,
+   "type": "font/woff2",
+   "bytes": 23664,
+   "sha256": "481dd0c01e6bbb129fd147eb5d8571016193cba141c4627ca60ceabdb5a46ea8"
   },
   {
    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2",
@@ -3198,6 +3233,38 @@
    "sha256": "c5eff682e704ca5964acccb02596a2fccae1abeb5224919385bc5dc8e860e83c"
   },
   {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-06.svg",
+   "path": "/wp-content/uploads/2025/09/Jurigo-06.svg",
+   "status": 200,
+   "type": "image/svg+xml",
+   "bytes": 6671,
+   "sha256": "97678fcfd3c9c05edb6ac0ea1f8afb02aee916e68a0538eef25bfd8b851ce412"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-07.svg",
+   "path": "/wp-content/uploads/2025/09/Jurigo-07.svg",
+   "status": 200,
+   "type": "image/svg+xml",
+   "bytes": 8288,
+   "sha256": "c82ecfcd0722f17b9b6e6bbb18102667625671564b985e80c5f4871a9faa7c84"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-08.svg",
+   "path": "/wp-content/uploads/2025/09/Jurigo-08.svg",
+   "status": 200,
+   "type": "image/svg+xml",
+   "bytes": 19839,
+   "sha256": "3654d8eee81076a3fd2bb68205023dfb34b27745eb15cb7d2fefd2431b9e189b"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d.svg",
+   "path": "/wp-content/uploads/2025/09/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d.svg",
+   "status": 200,
+   "type": "image/svg+xml",
+   "bytes": 53055,
+   "sha256": "a5ee9afea860f23c81163a57a8c542fa81681a286280b5d820ffe7b857991669"
+  },
+  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/avocat-cession-bail.webp",
    "path": "/wp-content/uploads/2025/09/avocat-cession-bail.webp",
    "status": 200,
@@ -3294,38 +3361,6 @@
    "sha256": "e45f70a258cfff03411d6caa4ed015c74372bc183ab6b89a3d1f1e7579685084"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-06.svg",
-   "path": "/wp-content/uploads/2025/09/Jurigo-06.svg",
-   "status": 200,
-   "type": "image/svg+xml",
-   "bytes": 6671,
-   "sha256": "97678fcfd3c9c05edb6ac0ea1f8afb02aee916e68a0538eef25bfd8b851ce412"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-07.svg",
-   "path": "/wp-content/uploads/2025/09/Jurigo-07.svg",
-   "status": 200,
-   "type": "image/svg+xml",
-   "bytes": 8288,
-   "sha256": "c82ecfcd0722f17b9b6e6bbb18102667625671564b985e80c5f4871a9faa7c84"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-08.svg",
-   "path": "/wp-content/uploads/2025/09/Jurigo-08.svg",
-   "status": 200,
-   "type": "image/svg+xml",
-   "bytes": 19839,
-   "sha256": "3654d8eee81076a3fd2bb68205023dfb34b27745eb15cb7d2fefd2431b9e189b"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d.svg",
-   "path": "/wp-content/uploads/2025/09/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d.svg",
-   "status": 200,
-   "type": "image/svg+xml",
-   "bytes": 53055,
-   "sha256": "a5ee9afea860f23c81163a57a8c542fa81681a286280b5d820ffe7b857991669"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/lady-lawyer-jurigo.webp",
    "path": "/wp-content/uploads/2025/09/lady-lawyer-jurigo.webp",
    "status": 200,
@@ -3350,20 +3385,20 @@
    "sha256": "d540639646b5205b691dac557e9d5786d7b47fe618830c3de81c63bd4436a382"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/undraw_happy_birthday_s72n.svg",
-   "path": "/wp-content/uploads/2025/09/undraw_happy_birthday_s72n.svg",
-   "status": 200,
-   "type": "image/svg+xml",
-   "bytes": 12665,
-   "sha256": "778cfdaf3f3409e0f060de31041065aed5c66005353494947e67eda5fbe2a0a1"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/undraw_To_the_stars_qhyy.svg",
    "path": "/wp-content/uploads/2025/09/undraw_To_the_stars_qhyy.svg",
    "status": 200,
    "type": "image/svg+xml",
    "bytes": 17132,
    "sha256": "bbfdb6f3adc4d8a9fb797a8b6b89d4526f5b92ccfc13a61ce7a6a8bbd59628a9"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/undraw_happy_birthday_s72n.svg",
+   "path": "/wp-content/uploads/2025/09/undraw_happy_birthday_s72n.svg",
+   "status": 200,
+   "type": "image/svg+xml",
+   "bytes": 12665,
+   "sha256": "778cfdaf3f3409e0f060de31041065aed5c66005353494947e67eda5fbe2a0a1"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/09/undraw_winners.svg",
@@ -3380,6 +3415,54 @@
    "type": "image/svg+xml",
    "bytes": 24135,
    "sha256": "faf4106a0fb3580c9288d95b45d9ed1dfa2a7e158028c9f9912d87ca925382af"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d-1.svg",
+   "path": "/wp-content/uploads/2025/10/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d-1.svg",
+   "status": 200,
+   "type": "image/svg+xml",
+   "bytes": 53055,
+   "sha256": "a5ee9afea860f23c81163a57a8c542fa81681a286280b5d820ffe7b857991669"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Meilleur-avocat-immigration.webp",
+   "path": "/wp-content/uploads/2025/10/Meilleur-avocat-immigration.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 20496,
+   "sha256": "c48b28a342a1d5a70ecc79de03ddd31fd3a03845f92290e60a549eb220801b0e"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Obligations-contrat-entreprise.webp",
+   "path": "/wp-content/uploads/2025/10/Obligations-contrat-entreprise.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 25790,
+   "sha256": "c8e3c056084f2f22b8c2a5e6ba6d464ef8d89711c1b0ce7a84a17cf8ecf30b82"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Refus-payer-entrepreneur.webp",
+   "path": "/wp-content/uploads/2025/10/Refus-payer-entrepreneur.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 58382,
+   "sha256": "040ed1cb9272cd9a276a788a9ff8592adbc8bb5031f75138a76b062bf4afcdb4"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Steps-in-the-adoption-process-in-Quebec.webp",
+   "path": "/wp-content/uploads/2025/10/Steps-in-the-adoption-process-in-Quebec.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 15410,
+   "sha256": "8eafeb0804df17da4951b13d3705600946004a23618e01e2278c08b39ce8a89c"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Travaux-renovation-mal-faits.webp",
+   "path": "/wp-content/uploads/2025/10/Travaux-renovation-mal-faits.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 34170,
+   "sha256": "cad506e23298be5e7bfc75a7508bcafa4f8e7cefa7b21aa69d12ae33e596d34b"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/accord-parties-modification-contrat.webp",
@@ -4686,14 +4769,6 @@
    "sha256": "35bca58ba5477423f125472305599c8898c35c942e5c135adcd7133a17811f93"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d-1.svg",
-   "path": "/wp-content/uploads/2025/10/Jurigo-09-0d092cb45f5d9400a13b6ce81681dd4d-1.svg",
-   "status": 200,
-   "type": "image/svg+xml",
-   "bytes": 53055,
-   "sha256": "a5ee9afea860f23c81163a57a8c542fa81681a286280b5d820ffe7b857991669"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/labor-top-32b6585393a82e9bf9142a8b92ca4aca.svg",
    "path": "/wp-content/uploads/2025/10/labor-top-32b6585393a82e9bf9142a8b92ca4aca.svg",
    "status": 200,
@@ -4764,14 +4839,6 @@
    "type": "image/webp",
    "bytes": 67250,
    "sha256": "6ef4e15ec88bca30cbc92c3eae48dd4d06ebed0d55567ea6586cbc7ed03156cb"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Meilleur-avocat-immigration.webp",
-   "path": "/wp-content/uploads/2025/10/Meilleur-avocat-immigration.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 20496,
-   "sha256": "c48b28a342a1d5a70ecc79de03ddd31fd3a03845f92290e60a549eb220801b0e"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/mineur-commet-crime.webp",
@@ -4852,14 +4919,6 @@
    "type": "image/webp",
    "bytes": 29470,
    "sha256": "5abc990c7087b697fd5b45ad874d414eb9923bbb1dea3c9e0db515a5d4b28b67"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Obligations-contrat-entreprise.webp",
-   "path": "/wp-content/uploads/2025/10/Obligations-contrat-entreprise.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 25790,
-   "sha256": "c8e3c056084f2f22b8c2a5e6ba6d464ef8d89711c1b0ce7a84a17cf8ecf30b82"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/obtenir-permis-conduire-restreint.webp",
@@ -5286,14 +5345,6 @@
    "sha256": "56f66397e96e257a66a792aeaa7f2a4a6bb50269bae842439268ba87fc1543ae"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Refus-payer-entrepreneur.webp",
-   "path": "/wp-content/uploads/2025/10/Refus-payer-entrepreneur.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 58382,
-   "sha256": "040ed1cb9272cd9a276a788a9ff8592adbc8bb5031f75138a76b062bf4afcdb4"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/refus-payer-frais-supplementaires.webp",
    "path": "/wp-content/uploads/2025/10/refus-payer-frais-supplementaires.webp",
    "status": 200,
@@ -5446,14 +5497,6 @@
    "sha256": "de1a5e67d6bafd487dbdd793746a49e981f64c9736aaa0ff346dc7ccd56aa2db"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Steps-in-the-adoption-process-in-Quebec.webp",
-   "path": "/wp-content/uploads/2025/10/Steps-in-the-adoption-process-in-Quebec.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 15410,
-   "sha256": "8eafeb0804df17da4951b13d3705600946004a23618e01e2278c08b39ce8a89c"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/succession-top-b5a7f995cd7e27af60cf6828a25370c4.svg",
    "path": "/wp-content/uploads/2025/10/succession-top-b5a7f995cd7e27af60cf6828a25370c4.svg",
    "status": 200,
@@ -5564,14 +5607,6 @@
    "type": "image/webp",
    "bytes": 34456,
    "sha256": "82ee7083437a5e7f2426431b58524ad04afd58dac1fd403fd196632ec8b84632"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/Travaux-renovation-mal-faits.webp",
-   "path": "/wp-content/uploads/2025/10/Travaux-renovation-mal-faits.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 34170,
-   "sha256": "cad506e23298be5e7bfc75a7508bcafa4f8e7cefa7b21aa69d12ae33e596d34b"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/10/tribunal-dommages-interets.webp",
@@ -5764,6 +5799,78 @@
    "type": "image/webp",
    "bytes": 31592,
    "sha256": "3efdc198522114fcb378c7eff3a28e5731814787fa1bbb2ae94c01f11c6b9d62"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Annuler-pension-consentement-1.webp",
+   "path": "/wp-content/uploads/2025/11/Annuler-pension-consentement-1.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 53646,
+   "sha256": "791d964e985339c18a221ec44e01663bd60b433ee61c55b0decae3dc728a0b43"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Annuler-pension-enfant-1.webp",
+   "path": "/wp-content/uploads/2025/11/Annuler-pension-enfant-1.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 42792,
+   "sha256": "1fde657b9aa442f209dd07948b9c97c99fee9e2b68becfc14c49551ab343e982"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Casier-judiciaire.webp",
+   "path": "/wp-content/uploads/2025/11/Casier-judiciaire.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 27446,
+   "sha256": "424f952bccd7e08bdc91f67be4176ea309a594f8b176c7c09fd5b4c4433c33eb"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Chute-glace-recours-faute.webp",
+   "path": "/wp-content/uploads/2025/11/Chute-glace-recours-faute.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 65616,
+   "sha256": "336ff488f7316921952970b9a00980f3a7d0cb439c6977493b1283785a537180"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Consequence-annuler-pension-1.webp",
+   "path": "/wp-content/uploads/2025/11/Consequence-annuler-pension-1.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 37522,
+   "sha256": "1077f7403a97f914aa9c52d8d57aaa4005885d868ec73c9d94513a8af4d54093"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Envoi-lettre-courrier.webp",
+   "path": "/wp-content/uploads/2025/11/Envoi-lettre-courrier.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 20724,
+   "sha256": "d3350b38e90975407e4544005b1c9a4e70a0cfae2769f3d93fdb480123529e2b"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Infraction-alcool-volant.webp",
+   "path": "/wp-content/uploads/2025/11/Infraction-alcool-volant.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 31860,
+   "sha256": "c8765507652dffda1ac89909144009fd9d5359a7bb9d23539d019ff7a39a6cf1"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Mediation-pension-enfant-2.webp",
+   "path": "/wp-content/uploads/2025/11/Mediation-pension-enfant-2.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 44096,
+   "sha256": "4489cf9c7f20b652cbfbd07079927bc7fbe7227a452e014b7308b95b43020ef9"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Meilleur-avocat-fiscaliste.webp",
+   "path": "/wp-content/uploads/2025/11/Meilleur-avocat-fiscaliste.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 21276,
+   "sha256": "93c38023a879f04d66a668164a290bbc7a22508842299dd3ef9ed3dbbe995e81"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/absence-travail-renvoi.webp",
@@ -6092,22 +6199,6 @@
    "type": "image/webp",
    "bytes": 24478,
    "sha256": "da35caeebd8330f635bf97460cb891d6fc7c97fddb031f8babe0567f1a26ff38"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Annuler-pension-consentement-1.webp",
-   "path": "/wp-content/uploads/2025/11/Annuler-pension-consentement-1.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 53646,
-   "sha256": "791d964e985339c18a221ec44e01663bd60b433ee61c55b0decae3dc728a0b43"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Annuler-pension-enfant-1.webp",
-   "path": "/wp-content/uploads/2025/11/Annuler-pension-enfant-1.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 42792,
-   "sha256": "1fde657b9aa442f209dd07948b9c97c99fee9e2b68becfc14c49551ab343e982"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/appauvrissement-conjoint-de-fait.webp",
@@ -8062,14 +8153,6 @@
    "sha256": "fe3a89039974eaab6d2b7151906d63be8d3c216ec7f9365d375d87def5559438"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Casier-judiciaire.webp",
-   "path": "/wp-content/uploads/2025/11/Casier-judiciaire.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 27446,
-   "sha256": "424f952bccd7e08bdc91f67be4176ea309a594f8b176c7c09fd5b4c4433c33eb"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/cause-contrat-licite.webp",
    "path": "/wp-content/uploads/2025/11/cause-contrat-licite.webp",
    "status": 200,
@@ -8140,14 +8223,6 @@
    "type": "image/webp",
    "bytes": 33544,
    "sha256": "5cf225d6cfecdb8fe029a8c6b60ee6db3e2fc7231030a4549df8405d36301f87"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Chute-glace-recours-faute.webp",
-   "path": "/wp-content/uploads/2025/11/Chute-glace-recours-faute.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 65616,
-   "sha256": "336ff488f7316921952970b9a00980f3a7d0cb439c6977493b1283785a537180"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/chute-glace-recours.webp",
@@ -8620,14 +8695,6 @@
    "type": "image/webp",
    "bytes": 15194,
    "sha256": "3e9e402cbf23c6662375e5d6b678d096551e172ecf3b0dbcedad4a8554fb50eb"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Consequence-annuler-pension-1.webp",
-   "path": "/wp-content/uploads/2025/11/Consequence-annuler-pension-1.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 37522,
-   "sha256": "1077f7403a97f914aa9c52d8d57aaa4005885d868ec73c9d94513a8af4d54093"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/consequence-evasions-fiscale.webp",
@@ -10118,14 +10185,6 @@
    "sha256": "458def6fed348b8cdc75ee9c1282e292e1715863bc78dc014ebdef9f9e175390"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Envoi-lettre-courrier.webp",
-   "path": "/wp-content/uploads/2025/11/Envoi-lettre-courrier.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 20724,
-   "sha256": "d3350b38e90975407e4544005b1c9a4e70a0cfae2769f3d93fdb480123529e2b"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/equite-procedural-commission-transports.webp",
    "path": "/wp-content/uploads/2025/11/equite-procedural-commission-transports.webp",
    "status": 200,
@@ -10942,14 +11001,6 @@
    "sha256": "5d361fa1adad74733eaf841aae6e698bec8b750c36a7deb924d97d547728337c"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Infraction-alcool-volant.webp",
-   "path": "/wp-content/uploads/2025/11/Infraction-alcool-volant.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 31860,
-   "sha256": "c8765507652dffda1ac89909144009fd9d5359a7bb9d23539d019ff7a39a6cf1"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/inscription-depot-volontaire.webp",
    "path": "/wp-content/uploads/2025/11/inscription-depot-volontaire.webp",
    "status": 200,
@@ -11502,14 +11553,6 @@
    "sha256": "43c03b230b2838fb1e38435f6957144341592dd5b7aefba814fbd82b4ca445cd"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Mediation-pension-enfant-2.webp",
-   "path": "/wp-content/uploads/2025/11/Mediation-pension-enfant-2.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 44096,
-   "sha256": "4489cf9c7f20b652cbfbd07079927bc7fbe7227a452e014b7308b95b43020ef9"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/mediation-succesorale-avantages.webp",
    "path": "/wp-content/uploads/2025/11/mediation-succesorale-avantages.webp",
    "status": 200,
@@ -11588,14 +11631,6 @@
    "type": "image/webp",
    "bytes": 27496,
    "sha256": "6b76d6b1a8a136b1659f4204d46df02db0759d3e4b669955dd01dfb68b5e7105"
-  },
-  {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/Meilleur-avocat-fiscaliste.webp",
-   "path": "/wp-content/uploads/2025/11/Meilleur-avocat-fiscaliste.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 21276,
-   "sha256": "93c38023a879f04d66a668164a290bbc7a22508842299dd3ef9ed3dbbe995e81"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/meilleur-avocat-immigration-1.webp",
@@ -12350,20 +12385,20 @@
    "sha256": "b8f066d934d42e62fa08c304972a22b1c5a81b4a4e638bfc63b0a183634e9281"
   },
   {
-   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/permis-conduire-suspendu-medicale.webp",
-   "path": "/wp-content/uploads/2025/11/permis-conduire-suspendu-medicale.webp",
-   "status": 200,
-   "type": "image/webp",
-   "bytes": 31494,
-   "sha256": "e78b9bd3727f3b9910e96590b50b4d23fe6adda277b94a5e4ff4b982ac75e26e"
-  },
-  {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/permis-conduire-suspendu-SAAQ.webp",
    "path": "/wp-content/uploads/2025/11/permis-conduire-suspendu-SAAQ.webp",
    "status": 200,
    "type": "image/webp",
    "bytes": 48266,
    "sha256": "daa9ce326f864868e970df7fb56c8109c7390482a45b01889d1933b9d130bbaf"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/permis-conduire-suspendu-medicale.webp",
+   "path": "/wp-content/uploads/2025/11/permis-conduire-suspendu-medicale.webp",
+   "status": 200,
+   "type": "image/webp",
+   "bytes": 31494,
+   "sha256": "e78b9bd3727f3b9910e96590b50b4d23fe6adda277b94a5e4ff4b982ac75e26e"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/2025/11/permis-revoque-facultes-affaiblies.webp",
@@ -16302,6 +16337,14 @@
    "sha256": "c105ae3812baca21fbad329d12dda566afb4facd8854d850e420cd6bebb234e3"
   },
   {
+   "url": "https://besoinavocat.ca/wp-content/uploads/elementor/css/post-430.css?ver=1794534122",
+   "path": "/wp-content/uploads/elementor/css/post-430.css",
+   "status": 200,
+   "type": "text/css",
+   "bytes": 333,
+   "sha256": "46b31f2c866be86d8cf984559b3032988ee5fbd4ce97567e83a0395ef5c5e44e"
+  },
+  {
    "url": "https://besoinavocat.ca/wp-content/uploads/elementor/css/post-4305.css?ver=1793076772",
    "path": "/wp-content/uploads/elementor/css/post-4305.css",
    "status": 200,
@@ -16508,6 +16551,14 @@
    "type": "text/css",
    "bytes": 59435,
    "sha256": "e62ca6616288a45c4b46c9253f922164648269d70c31ff42c153a12f70cbf95f"
+  },
+  {
+   "url": "https://besoinavocat.ca/wp-content/uploads/elementor/css/post-461.css?ver=1794534122",
+   "path": "/wp-content/uploads/elementor/css/post-461.css",
+   "status": 200,
+   "type": "text/css",
+   "bytes": 76,
+   "sha256": "07af52cd9669834a19f74ad4ef6b58c09b7e2c7f7a92757081caec6f38901f64"
   },
   {
    "url": "https://besoinavocat.ca/wp-content/uploads/elementor/css/post-4610.css?ver=1793076792",

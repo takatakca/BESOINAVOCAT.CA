@@ -1,6 +1,6 @@
 // Checks the built copy in www/dist against the WordPress mirror in www/site. No dependency; run after node www/build.mjs.
 //   node www/tools/check-site.mjs        exits 1 when a rule below is broken
-// Rules: every mirrored page is built; its visible text is identical, word for word, to the mirror;
+// Rules: every mirrored page is built; (exact copy) every link, its target and rel, the language, the headings and the head tags are those of WordPress; its visible text is identical, word for word, to the mirror;
 // internal links and files resolve (WordPress-only endpoints that the copy has no file for are listed apart); no file is loaded from another
 // site; with BA_STYLE=legal, no orange colour is left in stylesheets or inline styles; no HTML character (&#039;…) is damaged.
 // Use the same BA_STYLE as the build (default wordpress: colours and cookie labels must stay exactly as on WordPress).
@@ -10,13 +10,15 @@ import { fileURLToPath } from 'node:url';
 import { frenchConsent } from '../consent.mjs';
 
 const LEGAL = process.env.BA_STYLE === 'legal';
+// D-032: the default style is an exact copy; the legal style keeps its approved changes (D-026).
+const EXACT = !LEGAL;
 const consentLabels = LEGAL ? frenchConsent : (html) => html;
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const SITE = join(ROOT, 'site'), DIST = join(ROOT, 'dist');
 const manifest = JSON.parse(readFileSync(join(SITE, 'manifest.json'), 'utf8'));
 const errors = [], wordpressOnly = new Map(), warnings = [];
-const WORDPRESS = /^\/(wp-admin|wp-login\.php|wp-json|xmlrpc\.php|feed|comments\/feed|wp-content\/plugins\/[^?]*\.php)(\/|\?|$)|^\/\?s=/;
+const WORDPRESS = /^\/(wp-admin|wp-login\.php|wp-json|xmlrpc\.php|feed|comments\/feed|(?:author|category)\/[^?]*\/feed|wp-content\/plugins\/[^?]*\.php)(\/|\?|$)|^\/\?s=/;
 
 const decode = (text) => text.replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16)))
   .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'");
@@ -49,17 +51,44 @@ function validateLegacyForms(html) {
   return problems;
 }
 
+
+// Exact copy (D-032): what a visitor or a crawler can read is what WordPress served. Only the host of same-site addresses may change.
+const sameSite = (value) => value.replace(/^https?:\/\/(?:www\.)?besoinavocat\.ca(?=[\/?#]|$)/, '') || '/';
+const anchors = (html) => [...html.matchAll(/<a\b([^>]*)>/gi)].map((m) => ['href', 'target', 'rel'].map((name) => {
+  const v = (m[1].match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']*)["']`, 'i')) || [])[1];
+  return v === undefined ? '' : name === 'href' ? sameSite(decode(v)) : v;
+}).join('|'));
+function exactProblems(source, built) {
+  const problems = [];
+  const a = anchors(source), b = anchors(built);
+  if (a.length !== b.length) problems.push(`link count ${b.length}, WordPress ${a.length}`);
+  else for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) { problems.push(`link ${i + 1} is « ${b[i]} », WordPress « ${a[i]} »`); break; }
+  const lang = (html) => (html.match(/<html\b[^>]*\blang="([^"]*)"/i) || [])[1];
+  if (lang(source) !== lang(built)) problems.push(`html lang ${lang(built)}, WordPress ${lang(source)}`);
+  for (const tag of ['h1', 'h2', 'h3']) {
+    const n = (html) => (html.match(new RegExp(`<${tag}\\b`, 'gi')) || []).length;
+    if (n(source) !== n(built)) problems.push(`${n(built)} <${tag}>, WordPress ${n(source)}`);
+  }
+  const head = (html) => ((html.match(/<head\b[\s\S]*?<\/head>/i) || [''])[0].match(/<meta\b[^>]*>/gi) || []).map((m) => m.replace(/\s+/g, ' ')).filter((m) => !/name="generator"/.test(m)).sort().join('\n');
+  if (head(source) !== head(built)) problems.push('meta tags differ from WordPress');
+  if (/data-ba-(?:migration-notice|legacy-form)|\binert\b/.test(built.replace(/<(script|style|template)\b[\s\S]*?<\/\1>/gi, ''))) problems.push('form notice or inert marker present');
+  return problems;
+}
+
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) { const file = join(dir, name); if (statSync(file).isDirectory()) walk(file, out); else out.push(file); }
   return out;
 }
 // Old WordPress addresses that nginx.conf redirects to a page of the copy.
-const REDIRECTED = new Set(['/avocat-aide-juridique', '/avocat-aide-juridique/', '/wp-sitemap.xml', '/sitemap_index.xml']);
+const REDIRECTED = new Set(['/avocat-aide-juridique', '/avocat-aide-juridique/', '/wp-sitemap.xml', '/sitemap_index.xml', '/sitemap.xml', '/favicon.ico']);
+// Exact copy (D-032): addresses that answer 404 on besoinavocat.ca too (links WordPress itself left dead) and files WordPress loads from another host.
+const DEAD_ON_WORDPRESS = new Set(['/contact/']);
+const WORDPRESS_THIRD_PARTY = /^https:\/\/(?:jurigo\.ca\/|secure\.gravatar\.com\/)/;
 const existenceCache = new Map();
 const exists = (ref) => {
   const path = decodeURIComponent(ref.split(/[?#]/)[0]);
   if (existenceCache.has(path)) return existenceCache.get(path);
-  if (REDIRECTED.has(path)) return true;
+  if (REDIRECTED.has(path) || (EXACT && DEAD_ON_WORDPRESS.has(path))) return true;
   if (path === '' || path.includes('..')) return false;
   const file = join(DIST, path);
   const found = path.endsWith('/') ? existsSync(join(file, 'index.html')) : existsSync(file) && statSync(file).isFile() || existsSync(join(file, 'index.html'));
@@ -93,6 +122,7 @@ for (const page of manifest.pages) {
     let i = 0; while (i < source.length && source[i] === built[i]) i++;
     errors.push(`${page.path}: text differs from WordPress near « ${source.slice(Math.max(0, i - 40), i + 40)} »`);
   }
+  if (EXACT) for (const problem of exactProblems(readFileSync(join(SITE, file), 'utf8'), readFileSync(join(DIST, file), 'utf8'))) errors.push(`${page.path}: ${problem}`);
   compared++;
 }
 if (!existsSync(join(DIST, '404.html'))) errors.push('missing 404.html');
@@ -106,8 +136,8 @@ for (const file of walk(DIST)) {
       if (WORDPRESS.test(clean) && !exists(clean)) { wordpressOnly.set(clean.split('?')[0], (wordpressOnly.get(clean.split('?')[0]) || 0) + 1); continue; }
       if (!exists(clean)) errors.push(`${path}: missing ${clean}`);
     }
-    for (const match of html.matchAll(/<(?:script|img|source|iframe)\b[^>]*\ssrc=["'](https?:\/\/[^"']+)["']|<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'](https?:\/\/[^"']+)["']/gi)) errors.push(`${path}: third-party file ${match[1] || match[2]}`);
-    for (const problem of validateLegacyForms(html)) errors.push(`${path}: ${problem}`);
+    for (const match of html.matchAll(/<(?:script|img|source|iframe)\b[^>]*\ssrc=["'](https?:\/\/[^"']+)["']|<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'](https?:\/\/[^"']+)["']/gi)) { const file = match[1] || match[2]; if (!((EXACT || /^https:\/\/secure\.gravatar\.com\//.test(file)) && WORDPRESS_THIRD_PARTY.test(file))) errors.push(`${path}: third-party file ${match[1] || match[2]}`); }
+    if (!EXACT) for (const problem of validateLegacyForms(html)) errors.push(`${path}: ${problem}`);
     const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>|\sstyle="([^"]*)"/gi)].map((m) => m[1] || m[2]).join('\n');
     const left = LEGAL ? oranges(styles) : []; if (left.length) errors.push(`${path}: orange left in inline styles ${[...new Set(left)].slice(0, 4).join(' ')}`);
   } else if (path.endsWith('.css')) {

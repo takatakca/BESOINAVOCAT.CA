@@ -127,3 +127,13 @@ Demande du propriétaire : « ça me dit ce dossier, mais ça me donne pas le ch
 Tests : 375/375 (3 nouveaux dans `platform/test/cockpit.test.mjs`). Aucun style en ligne, aucun `localStorage`.
 
 **Mise en ligne** : l'autodéploiement est désactivé ; après la fusion dans `main`, un redéploiement manuel du portail dans Coolify est nécessaire pour voir ce lot sur portail.besoinavocat.ca.
+
+## Lot 8 — liens profonds et passerelle vers l'espace avocat (13 novembre 2026)
+
+Demandes du fil « Ouvrir l'inscription avocat avec essai gratuit » (PR 56) :
+
+- **Lien profond** `portail/#case/<id>` ou `#case/<id>/<section>` : à l'ouverture, le portail affiche directement ce dossier et cette section (sections = celles de la barre : `documents`, `messages`, `time`, `communications`, `live`, `journal`, …). Un dossier que le compte ne voit pas, ou une section inconnue, retombe sur le comportement habituel (premier dossier, accueil). Aucune requête n'est faite pour un identifiant inconnu.
+- **Écran de connexion** : « Vous êtes avocat ? Créer mon compte (14 jours gratuits, sans carte) » vers l'espace avocat, affiché seulement quand `/api/health` annonce `lawyerSpace: { url, trialDays }` (chemin local uniquement). Tant que le serveur ne l'annonce pas, aucun lien vers une page absente.
+- **Abonnement** (`live.js`) : statut `trial_expired` libellé « Essai terminé » (ton d'alerte), forfait `trial` libellé « d'essai », jours d'essai restants affichés quand `membership.trial` est présent, invitation à choisir un forfait quand l'essai est terminé.
+
+Tests : 377/377 (+2 dans `cockpit.test.mjs`).

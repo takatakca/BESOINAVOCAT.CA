@@ -112,7 +112,9 @@ for (const page of manifest.pages) {
   if (!existsSync(join(DIST, file))) { errors.push(`${page.path}: not built`); continue; }
   // The only approved wording change (legal style only): the cookie banner's own labels, translated by the same table as the build.
   const source = visibleText(consentLabels(readFileSync(join(SITE, file), 'utf8')));
-  const built = visibleText(withoutMigrationNotices(readFileSync(join(DIST, file), 'utf8')));
+  // The only wording the owner changed on the copy (D-035): the call to action « Préparer mon dossier »; it is read back as the WordPress label so the rest stays word for word.
+  const built = visibleText(withoutMigrationNotices(readFileSync(join(DIST, file), 'utf8')))
+    .replace(/PRÉPARER MON DOSSIER/g, 'TROUVER MON AVOCAT').replace(/Préparer mon dossier/g, 'Trouver un avocat').replace(/PREPARE MY FILE/g, 'FIND MY LAWYER').replace(/Prepare my file/g, 'Find my lawyer');
   // Characters written as HTML entities (the quotes of font names in inline styles, &#038; in addresses) are not
   // damaged by the build: a recoloured "&#039;" would become "&#112d5e", a broken entity.
   const broken = (html) => (html.match(/&#\d+(?![\d;])/g) || []).length;

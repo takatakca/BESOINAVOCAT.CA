@@ -75,3 +75,15 @@ Les valeurs secrètes sont dans le fichier `CLES-INTEGRATIONS-BESOINAVOCAT.txt`,
 | **Twilio** | Facultatif (SMS reçus seulement). Compte existant du propriétaire : SID + jeton dans Coolify si voulu. | — |
 | **Notarius ConsignO Cloud** | Fiche de partenariat, aucune application à créer. | — |
 | **MIMT** | Voir [MIMT-ACTIVATION-2026-11-07.md](MIMT-ACTIVATION-2026-11-07.md). | — |
+
+## 6. Constat du 13 novembre 2026 (04:35 UTC) : rien du §1 ni du §3 n'a été appliqué sur le serveur
+
+Vérifié depuis le navigateur du propriétaire sur le portail en ligne :
+
+- `GET /api/integrations` : moteur `ready:false, reason:"key_invalid"` → le fichier `/data/integrations.key` du §1 n'existe pas (ou n'a pas 32 octets). Tous les fournisseurs OAuth (Google, Zoom, Clio, DocuSign, QuickBooks) et Stripe sont `not_configured` (« Accès développeur à configurer ») : aucune variable `BESOINAVOCAT_*_CLIENT_ID` n'est posée dans Coolify. Seul Twilio est `active_on_server`.
+- `GET /api/telephony` : `configured:false`, manquent `BESOINAVOCAT_MIMT_API_KEY` et `BESOINAVOCAT_MIMT_WEBHOOK_SECRET`.
+- Le portail en ligne tourne toujours sur le code du 29-30 octobre (autodéploiement inactif).
+
+Conséquence : le tableau de bord affiche « Version pilote » et aucun bouton **Connecter** n'est actif, bien que les applications Google Agenda, Clio et Zoom (§5) soient prêtes et leurs clés dans `CLES-INTEGRATIONS-BESOINAVOCAT.txt`.
+
+**À faire par le technicien, dans l'ordre** : §1 (clé + `APP_ORIGIN`), §3 (coller chaque ligne du fichier local), variables MIMT selon [MIMT-ACTIVATION-2026-11-07.md](MIMT-ACTIVATION-2026-11-07.md), redéployer `main`, activer l'autodéploiement, puis §4. Côté propriétaire au 13 novembre : connexions Intuit et DocuSign toujours attendues, choix du compte Stripe toujours attendu.

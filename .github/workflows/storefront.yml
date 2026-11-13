@@ -47,5 +47,6 @@ jobs:
           check /wp-content/plugins/complianz-terms-conditions/download.php 200
           curl -sI http://127.0.0.1:8080/ | grep -qi '^content-security-policy:'
           curl -s http://127.0.0.1:8080/ | grep -q 'portail.besoinavocat.ca/demande'
-          curl -s http://127.0.0.1:8080/ | grep -q '/assets/palette-fixes.css'
+          # D-031/D-032 : la copie exacte garde les couleurs WordPress ; la feuille D-026 n'est injectée qu'avec BA_STYLE=legal.
+          ! curl -s http://127.0.0.1:8080/ | grep -q '/assets/palette-fixes.css'
           curl -s http://127.0.0.1:8080/n-existe-pas/ | grep -qi '<title>'

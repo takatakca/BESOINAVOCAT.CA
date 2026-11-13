@@ -189,7 +189,7 @@ test('exact copy: a MetForm submission opens the professional portal page and a 
 test('exact copy is the default style: no destination added, no heading, language or head change, no form notice', () => {
   assert.match(source, /const EXACT = !LEGAL;/);
   assert.match(source, /EXACT \? html : wireButtons\(/);
-  assert.match(source, /if \(!EXACT\) html = repairKnownReferences/);
+  assert.match(source, /repairKnownReferences\(html, \{ loginLinks: false \}\)/);
   assert.match(source, /if \(!EXACT && pagePath\.endsWith/);
   assert.match(source, /\(EXACT \? html : prepareLegacyForms\(html\)\)/);
 });

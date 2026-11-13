@@ -13,6 +13,10 @@ La PR documentaire 6 est fusionnée après quatre contrôles verts et identifica
 Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
 
 
+## D-033 — Les deux images mortes et le lien mort sont réparés dans la copie exacte (13 novembre 2026)
+
+Demande du propriétaire : réparer sur `preview.besoinavocat.ca` les liens et images morts de WordPress. Dans la construction exacte (D-032), `repairKnownReferences` s'applique de nouveau, sans les liens `wp-login.php` : les deux images de `jurigo.ca` (404) de `/regroupement-familial-quebec/` utilisent les fichiers locaux déjà prévus, et le lien `/contact/` (404) de `/terms-and-conditions/` mène à `https://portail.besoinavocat.ca/demande`. Tout le reste de D-032 est inchangé.
+
 ## D-032 — La copie de prévisualisation est strictement identique au WordPress (13 novembre 2026)
 
 Instruction du propriétaire du 13 novembre : `preview.besoinavocat.ca` doit être identique à `besoinavocat.ca` en tout : liens, contenu, mise en page, boutons et effets, « rien de différent ». Comparaison des 352 adresses en ligne (statut, texte visible, liens, structure du corps, scripts) puis de rendus Chromium (bureau 1440 px et mobile 390 px, 17 types de pages, survols, menu, bannière de témoins, accordéons, clic sur « Trouver mon avocat ») : les rendus étaient déjà identiques au pixel; les écarts restants étaient des ajouts de la copie, retirés par cette décision.

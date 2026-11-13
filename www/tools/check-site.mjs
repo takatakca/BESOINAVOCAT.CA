@@ -53,7 +53,7 @@ function validateLegacyForms(html) {
 
 
 // Exact copy (D-032): what a visitor or a crawler can read is what WordPress served. Only the host of same-site addresses may change.
-const sameSite = (value) => value.replace(/^https?:\/\/(?:www\.)?besoinavocat\.ca(?=[\/?#]|$)/, '') || '/';
+const sameSite = (value) => { const path = value.replace(/^https?:\/\/(?:www\.)?besoinavocat\.ca(?=[\/?#]|$)/, '') || '/'; return /^\/contact\/?$/.test(path) ? 'https://portail.besoinavocat.ca/demande' : path; }; // /contact/ is dead on WordPress; the copy repairs it (D-033)
 const anchors = (html) => [...html.matchAll(/<a\b([^>]*)>/gi)].map((m) => ['href', 'target', 'rel'].map((name) => {
   const v = (m[1].match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']*)["']`, 'i')) || [])[1];
   return v === undefined ? '' : name === 'href' ? sameSite(decode(v)) : v;
@@ -82,8 +82,8 @@ function walk(dir, out = []) {
 // Old WordPress addresses that nginx.conf redirects to a page of the copy.
 const REDIRECTED = new Set(['/avocat-aide-juridique', '/avocat-aide-juridique/', '/wp-sitemap.xml', '/sitemap_index.xml', '/sitemap.xml', '/favicon.ico']);
 // Exact copy (D-032): addresses that answer 404 on besoinavocat.ca too (links WordPress itself left dead) and files WordPress loads from another host.
-const DEAD_ON_WORDPRESS = new Set(['/contact/']);
-const WORDPRESS_THIRD_PARTY = /^https:\/\/(?:jurigo\.ca\/|secure\.gravatar\.com\/)/;
+const DEAD_ON_WORDPRESS = new Set();
+const WORDPRESS_THIRD_PARTY = /^https:\/\/secure\.gravatar\.com\//;
 const existenceCache = new Map();
 const exists = (ref) => {
   const path = decodeURIComponent(ref.split(/[?#]/)[0]);

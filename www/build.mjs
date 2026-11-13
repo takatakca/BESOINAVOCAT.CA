@@ -116,14 +116,14 @@ function wireButtons(html, domainId, page) {
 }
 
 // Approved migration repairs: keep the mirror unchanged and repair only known dead destinations in the build.
-function repairKnownReferences(html) {
+function repairKnownReferences(html, { loginLinks = true } = {}) {
   const images = {
     'https://jurigo.ca/images/regroupement-familial-quebec/document-parrainage-familial?': '/wp-content/uploads/2025/10/fonctionnement-demande-parrainage-canada.webp',
     'https://jurigo.ca/images/regroupement-familial-quebec/restrictions-parrainage-familial?': '/wp-content/uploads/2025/10/regroupement-familial-canada.webp',
   };
   return html.replace(/(\ssrc=["'])([^"']+)(["'])/g, (m, before, url, after) => images[url] ? before + images[url] + after : m)
     .replace(/(\shref=["'])\/contact\/?(["'])/g, (m, before, after) => before + new URL('/demande', PORTAL).href + after)
-    .replace(/(\shref=["'])\/wp-login\.php\?action=(lostpassword|register)(["'])/g, (m, before, action, after) => before + (action === 'register' ? new URL('/demande', PORTAL).href : PORTAL) + after);
+    .replace(/(\shref=["'])\/wp-login\.php\?action=(lostpassword|register)(["'])/g, (m, before, action, after) => (loginLinks ? before + (action === 'register' ? new URL('/demande', PORTAL).href : PORTAL) + after : m));
 }
 
 // Colours of inline styles, style blocks and SVG attributes.
@@ -206,7 +206,8 @@ for (const { file, path } of files) {
   const pagePath = path.replace(/index\.html$/, '');
   let html = readFileSync(file, 'utf8');
   html = localFonts(relativeLinks(html));
-  if (!EXACT) html = repairKnownReferences(withoutWordPressEndpoints(html));
+  // D-033: even in the exact copy, the two dead jurigo.ca images and the dead /contact/ link work (they are broken on WordPress too).
+  html = EXACT ? repairKnownReferences(html, { loginLinks: false }) : repairKnownReferences(withoutWordPressEndpoints(html));
   html = withPaletteFixes(bridge(recolourHtml(EXACT ? html : wireButtons(html, domains.get(pagePath), pagePath))));
   html = withLocalConsent(consentLabels(html));
   if (!EXACT && pagePath.endsWith('/') && html.includes('rel="canonical"')) html = withSearchMetadata(html, pagePath);

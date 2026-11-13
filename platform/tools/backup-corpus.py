@@ -47,6 +47,7 @@ OPTIONAL_TABLES = {
     "search_folded_pages", "search_folded_documents",
     "document_requests", "document_request_events",
     "lawyer_memberships", "lawyer_membership_events",
+    "lawyer_signups", "lawyer_accounts", "case_invitations",
     "case_deadlines", "case_deadline_events",
     "calendar_feeds", "signature_envelopes", "signature_envelope_events",
     "notification_contacts", "notification_log",

@@ -92,7 +92,9 @@ export function assertBrowserMutation(req, appOrigin) {
   }
 }
 
-async function readGrant(config, subject) {
+// Habilitation : le fichier privé de grants d'abord; sinon la source supplémentaire du serveur (comptes avocats
+// inscrits eux-mêmes, lib/lawyer-accounts.mjs), relue elle aussi à chaque requête. Même forme, même tenant obligatoire.
+async function readGrant(config, subject, extraGrants) {
   let handle;
   try {
     const target = await realpath(config.grantsFile);
@@ -117,15 +119,18 @@ async function readGrant(config, subject) {
           !externalIdentifier(grant.tenantId) || grant.product !== 'besoinavocat' || typeof grant.active !== 'boolean') throw unavailable();
     }
     const grant = Object.hasOwn(payload.grants, subject) ? payload.grants[subject] : null;
-    if (!grant || !grant.active) throw denied();
-    return Object.freeze({ subject, tenantId: grant.tenantId, product: 'besoinavocat', active: true });
+    if (grant && grant.active) return Object.freeze({ subject, tenantId: grant.tenantId, product: 'besoinavocat', active: true });
+    if (grant) throw denied();
+    const extra = typeof extraGrants === 'function' ? await extraGrants(subject) : null;
+    if (!extra || extra.subject !== subject || !externalIdentifier(extra.tenantId) || extra.product !== 'besoinavocat' || extra.active !== true) throw denied();
+    return Object.freeze({ subject, tenantId: extra.tenantId, product: 'besoinavocat', active: true });
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw unavailable();
   } finally { await handle?.close(); }
 }
 
-export function createBrowserSessions({ config = browserSessionConfiguration(), fetchImpl = fetch, now = Date.now } = {}) {
+export function createBrowserSessions({ config = browserSessionConfiguration(), fetchImpl = fetch, now = Date.now, extraGrants = null } = {}) {
   const settings = normalizeConfiguration(config);
   let sessions = null;
   try { if (settings) sessions = createSessionStore(settings); } catch { /* fail closed; no private paths or provider details logged */ }
@@ -174,7 +179,7 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     return email.trim().toLowerCase();
   }
 
-  async function establishSession(result, startedAt, reservation, expectedEmail) {
+  async function establishSession(result, startedAt, reservation, expectedEmail, onVerified) {
     // The refresh token is deliberately discarded; no automatic renewal or persistence.
     delete result.refresh_token;
     const accessToken = result.access_token;
@@ -185,7 +190,9 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
       result.expires_at === undefined ? Infinity : result.expires_at * 1000);
     const subject = await verifiedSubject(accessToken, expectedEmail);
     if (result.user?.id !== subject || expiresAt <= now()) throw unauthenticated();
-    const identity = await readGrant(settings, subject);
+    // Inscription : le serveur enregistre l'habilitation du compte confirmé juste avant qu'elle soit relue.
+    if (typeof onVerified === 'function') await onVerified(subject, expectedEmail);
+    const identity = await readGrant(settings, subject, extraGrants);
     if (expiresAt <= now()) throw unauthenticated();
     const token = randomBytes(32).toString('base64url');
     sessions.set(hash(token), { accessToken, subject, tenantId: identity.tenantId, expiresAt }, now(), reservation);
@@ -205,7 +212,8 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     } finally { sessions.release(reservation); }
   }
 
-  async function requestEmailCode(email, { clientKey = 'unknown' } = {}) {
+  // createUser: true = inscription (le fournisseur crée le compte au premier code); false = connexion seule.
+  async function requestEmailCode(email, { clientKey = 'unknown', createUser = false } = {}) {
     if (settings?.emailCodeEnabled !== true) throw unavailable();
     const normalizedEmail = loginEmail(email, clientKey);
     // Share the same durable account/client/global budgets with verification and password login.
@@ -213,18 +221,19 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     try {
       try {
         await provider('/auth/v1/otp', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: normalizedEmail, create_user: false }) });
+          body: JSON.stringify({ email: normalizedEmail, create_user: createUser === true }) });
       } catch (error) {
         // Provider account-specific rejection/rate limits must not enumerate accounts.
         // Local admission limits above remain a genuine, uniform 429 response.
         if (!(error instanceof HttpError) || ![401, 429].includes(error.status)) throw error;
       }
       return Object.freeze({ accepted: true,
-        message: 'Si cette adresse correspond à un compte TAKATAK existant, un code pourra être envoyé. Consultez votre courriel et vos indésirables.' });
+        message: createUser === true ? 'Un code vous a été envoyé par courriel pour confirmer votre adresse. Consultez votre courriel et vos indésirables.'
+          : 'Si cette adresse correspond à un compte TAKATAK existant, un code pourra être envoyé. Consultez votre courriel et vos indésirables.' });
     } finally { sessions.release(reservation); }
   }
 
-  async function verifyEmailCode(email, code, { clientKey = 'unknown' } = {}) {
+  async function verifyEmailCode(email, code, { clientKey = 'unknown', onVerified = null } = {}) {
     if (settings?.emailCodeEnabled !== true) throw unavailable();
     const normalizedEmail = loginEmail(email, clientKey);
     // Preserve leading zeroes and accept the provider-configured length (6–10 digits).
@@ -234,7 +243,7 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
       const startedAt = now();
       const result = await provider('/auth/v1/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalizedEmail, token: code, type: 'email' }) });
-      return await establishSession(result, startedAt, reservation, normalizedEmail);
+      return await establishSession(result, startedAt, reservation, normalizedEmail, onVerified);
     } finally { sessions.release(reservation); }
   }
 
@@ -248,7 +257,7 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     try {
       const subject = await verifiedSubject(session.accessToken);
       if (subject !== session.subject) throw unauthenticated();
-      const identity = await readGrant(settings, subject);
+      const identity = await readGrant(settings, subject, extraGrants);
       if (identity.tenantId !== session.tenantId) throw unauthenticated();
       // Logout or expiry during a provider request must not revive a session.
       if (!sessions.isCurrent(key, session, now())) throw unauthenticated();

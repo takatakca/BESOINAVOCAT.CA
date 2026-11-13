@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="same-origin">
+  <meta name="description" content="Espace avocat BesoinAvocat : inscription, essai gratuit de 14 jours sans carte, dossiers de vos clients.">
+  <title>Espace avocat · BesoinAvocat</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./avocat.css">
+  <script src="./avocat.js" defer></script>
+</head>
+<body class="lawyer-page">
+  <a class="skip-link" href="#lawyer-main">Aller au contenu</a>
+  <header class="lawyer-top">
+    <a class="brand" href="./" aria-label="BesoinAvocat — espace de travail"><span class="brand-mark" aria-hidden="true">b<span>.</span></span><span>besoin<span class="brand-light">avocat</span><small>ESPACE AVOCAT</small></span></a>
+    <nav class="lawyer-top-actions" aria-label="Actions du compte">
+      <a class="text-button" href="./">Centre de commandement</a>
+      <button type="button" class="button secondary small" id="lawyer-logout" hidden>Fermer la session</button>
+    </nav>
+  </header>
+  <main id="lawyer-main" class="lawyer" tabindex="-1">
+    <div id="lawyer-state" class="lawyer-state" role="status" aria-live="polite">Ouverture de votre espace…</div>
+    <div id="lawyer-content"></div>
+  </main>
+  <footer class="page-footer lawyer-foot"><span>BesoinAvocat <span aria-hidden="true">·</span> besoinavocat.ca</span><span>Un outil de préparation, pas un cabinet d’avocats ni un service de conseils juridiques. Aucune commission sur vos honoraires.</span></footer>
+  <dialog id="lawyer-dialog" class="lawyer-dialog" aria-labelledby="lawyer-dialog-title"><div id="lawyer-dialog-content"></div></dialog>
+  <div id="lawyer-toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p class="noscript">Cette page nécessite JavaScript.</p></noscript>
+</body>
+</html>

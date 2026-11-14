@@ -5,6 +5,7 @@
 La PR #52 (cockpit : carte « Votre avocat », téléphone (514) 949-0887 + « Par chat / Par courriel », coordonnées aussi côté responsable) ne pouvait plus fusionner : `main` (c603a550, PR #60) avait avancé. Conflit limité à `docs/JOURNAL-AGENTS.md` (ajout-ajout) : les 4 entrées SOCIO du 2026-11-11 sont conservées avant les 20 entrées `main` du 2026-11-13, verbatim (133 entrées). `platform/public/app.js` et `platform/test/cockpit.test.mjs` ont fusionné sans conflit. Contrôles : `node --check` OK, suite plateforme 384/384 (Node 24.22). Branche `socio/cockpit-avocat-2026-11-11` mise à jour par fusion de `main` (commit `a2e8131`). **La PR n'est pas fusionnée** : fusion décidée à la revue de ce soir 20:00 avec Matt. Reste ensuite : redéploiement manuel Coolify (`besoinavocat-portail`) et provisionnement du compte avocat 6280.ca@gmail.com (accès Supabase + Coolify à confirmer : propriétaire ou Matt). — SOCIO, Agent Lévesque, 2026-11-14.
 
 
+
 ## Espace avocat — 13 novembre 2026 (branche `claude/project-thread-llrshb`)
 
 Inscription des avocats avec essai gratuit de 14 jours à 0 $, sans carte ni Stripe, page `/avocat`, codes d'invitation pour rejoindre le dossier d'un client (D-034, [ESPACE-AVOCAT](ESPACE-AVOCAT.md)). 378/378 tests Node, 17/17 tests Python. Reste au technicien : redéploiement manuel depuis `main`, `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` et signups courriel actifs chez le fournisseur; au propriétaire : choix du compte Stripe pour le paiement après l'essai.

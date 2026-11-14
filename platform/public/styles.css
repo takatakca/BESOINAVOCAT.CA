@@ -1321,3 +1321,23 @@ dialog::backdrop { background: rgb(15 23 42 / 32%); backdrop-filter: blur(3px); 
 .live-deadline[data-tone="late"] { border-left-color: #b4232f; background: #fdf3f2; }
 .live-deadline[data-tone="ok"], .live-deadline[data-tone="off"] { opacity: .78; }
 .live-deadline p { margin: 0; }
+
+/* ---------- Vers votre avocat (D-036) : création du tableau de bord, dossier prêt, dossier accepté ---------- */
+.welcome-actions { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
+.welcome-card .welcome-actions .button { margin-top: 0; }
+.welcome-card .button.subtle { color: #e8edf5; border: 1px solid rgb(255 255 255 / 25%); background: transparent; }
+.welcome-card .button.subtle:hover { background: rgb(255 255 255 / 8%); }
+.auth-consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-size: 13px; font-weight: 500; color: var(--ink-2); line-height: 1.5; }
+.auth-consent input { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; }
+.ready-card { display: grid; gap: 10px; padding: 20px 22px; border-left: 4px solid var(--amber); }
+.ready-card[data-tone="wait"] { border-left-color: var(--navy-3); }
+.ready-card[data-tone="ok"] { border-left-color: var(--green-dark); }
+.ready-card .ready-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.ready-card .ready-head .eyebrow { margin-bottom: 4px; }
+.ready-card h2 { margin: 0; font-size: 20px; line-height: 1.25; letter-spacing: -.01em; }
+.ready-card > p { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 70ch; }
+.ready-summary { margin: 0; padding: 10px 14px; border-radius: var(--r); background: var(--sunken); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink); white-space: pre-wrap; max-width: 70ch; }
+.ready-summary.muted { color: var(--muted); font-style: italic; }
+.ready-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ready-actions .button[disabled] { opacity: .55; cursor: not-allowed; }
+.client-cockpit .ready-card { margin-bottom: 14px; }

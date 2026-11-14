@@ -26,6 +26,33 @@
   - `/api/capabilities` annonce `lawyerSpace: {url: '/avocat', trialDays, account}` pour que le tableau de bord puisse afficher le lien.
 - **Journal d'audit** : `lawyer.signed_up`, `lawyer.activated`, `invitation.created`, `invitation.revoked`, `invitation.accepted`.
 
+## Dossiers prêts à accepter — lot du 14 novembre 2026 (D-036)
+
+*Branche `claude/project-thread-x6dyq7`. Décision : [D-036](DECISIONS.md).*
+
+Ce lot relie l'espace avocat au message D-035 : la personne prépare son dossier, l'avocat du domaine l'accepte.
+
+**Côté personne (tableau de bord `app.js`)**
+1. **« Créer mon tableau de bord »** sur l'écran de connexion : nom, courriel, consentement, puis le code reçu. Visible seulement si `/api/health` renvoie `clientSignup: true` (code courriel activé). Le compte client (`platform/lib/client-accounts.mjs`, tables `client_signups`, `client_accounts`) ouvre l'accès au portail comme un grant.
+2. **Nouveau dossier** : titre, référence, **domaine de droit** (les 16 domaines de la demande guidée) et **résumé** pour l'avocat. La carte « Préparer le dossier pour un avocat » montre l'état : *En préparation* (bouton « Mon dossier est prêt », désactivé sans domaine), *Prêt* (« Reprendre la préparation »), *Accepté* (lien vers les échanges). Modifier domaine/résumé : « Préciser le dossier ».
+3. Ce que l'avocat voit avant d'accepter est écrit sur la carte : titre, domaine, résumé, nombre de pièces. Pas les pièces.
+
+**Côté avocat (`/avocat`)**
+1. **« Dossiers prêts à accepter »** en tête de l'espace : les dossiers prêts de l'organisation dans les domaines cochés dans « Mon profil » (aucun domaine coché = tous), dont l'avocat n'est pas déjà membre. Bouton **« Accepter ce dossier »** : l'avocat devient membre (rôle avocat), le dossier passe à *Accepté*, un message dans le dossier avise la personne, « Ouvrir le dossier » mène au centre de commandement.
+2. **« Mes dossiers »** affiche l'état et le domaine de chaque dossier.
+3. Après l'essai (14 jours) : la liste est remplacée par l'avis « Essai terminé » et l'acceptation répond 402, comme les codes d'invitation.
+
+**Routes ajoutées**
+- `POST /api/auth/client/signup` `{email, name, consent: true}` → envoi du code (503 `EMAIL_CODE_UNAVAILABLE` sans code courriel); `POST /api/auth/client/verify` `{email, code}` → `{user, expiresAt, created}`; 403 `NO_PENDING_SIGNUP` sans inscription en attente.
+- `GET|POST /api/cases/:id/profile` `{domain?, summary?}`; `POST /api/cases/:id/ready` (409 `DOMAIN_REQUIRED` sans domaine); `POST /api/cases/:id/reopen`. `POST /api/cases` accepte aussi `domain` et `summary`. Chaque dossier porte `profile: {domain, domainLabel, summary, status, readyAt, acceptedBy, acceptedAt}`.
+- `GET /api/lawyer/ready-cases` → `{cases: [{id, title, reference, createdAt, domain, domainLabel, summary, documents, readyAt}], domains, total}`; `POST /api/lawyer/accept` `{caseId}` → `{case, alreadyMember}` (404 `CASE_NOT_READY` si le dossier n'est pas, ou plus, prêt).
+- `POST /api/lawyer/profile`, `/api/auth/lawyer/signup` et `/api/lawyer/activate` acceptent `domains: [...]` (identifiants du catalogue); `/api/lawyer/me` renvoie `domains` (le catalogue) et `account.domains`; `/api/capabilities` renvoie `clientAccount` et `caseMatching.domains`.
+- Audit : `client.signed_up`, `case.profile_updated`, `case.ready`, `case.reopened`, `case.accepted`.
+
+**Ce qu'il faut en ligne** : rien de plus que pour l'espace avocat (redéploiement manuel, `BESOINAVOCAT_EMAIL_OTP_ENABLED=true`, « Enable email signups » chez le fournisseur). Les avocats inscrits et les personnes inscrites partagent le locataire `BESOINAVOCAT_LAWYER_TENANT` (`takatak`) : c'est ce qui leur permet de se voir.
+
+**Vérifications** : `platform/test/client-journey.test.mjs` (4 tests). Suite au 14 novembre 2026 : 388/388 Node, 17/17 Python, 3/3 archive.
+
 ## Ce qu'il faut pour que ça marche en ligne
 
 | Qui | Quoi |

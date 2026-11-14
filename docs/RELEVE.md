@@ -1,5 +1,10 @@
 # Relève — BESOINAVOCAT.CA
 
+## Parcours complet « préparer son dossier → un avocat l'accepte » — 14 novembre 2026 (branche `claude/project-thread-x6dyq7`)
+
+Inscription libre d'une personne cliente par code courriel (« Créer mon tableau de bord »), domaine de droit + résumé + état *préparation / prêt / accepté* sur chaque dossier, liste « Dossiers prêts à accepter » et bouton « Accepter ce dossier » dans l'espace avocat, domaines de pratique dans le profil de l'avocat, message automatique à la personne à l'acceptation (D-036, [ESPACE-AVOCAT](ESPACE-AVOCAT.md)). 388/388 tests Node, 17/17 Python, 3/3 archive. Aucun paiement (consigne du 13 novembre). Reste au technicien : redéploiement manuel du portail depuis `main` (autodéploiement éteint), `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` avec livraison réelle du courriel, « Enable email signups » chez le fournisseur TAKATAK; au propriétaire : rien de nouveau pour ce lot.
+
+
 ## Réception du portail — 2026-11-07 08:02 UTC
 
 Signé **Codex**. Le propriétaire a demandé de fusionner, pousser et vérifier les dépôts **un par un**, en commençant par BESOINAVOCAT.

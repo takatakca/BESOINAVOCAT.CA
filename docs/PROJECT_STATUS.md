@@ -1,5 +1,10 @@
 # PROJECT_STATUS — BESOINAVOCAT.CA
 
+## Parcours complet « préparer son dossier → un avocat l'accepte » — 14 novembre 2026 (branche `claude/project-thread-x6dyq7`)
+
+Inscription libre d'une personne cliente par code courriel (« Créer mon tableau de bord »), domaine de droit + résumé + état *préparation / prêt / accepté* sur chaque dossier, liste « Dossiers prêts à accepter » et bouton « Accepter ce dossier » dans l'espace avocat, domaines de pratique dans le profil de l'avocat, message automatique à la personne à l'acceptation (D-036, [ESPACE-AVOCAT](ESPACE-AVOCAT.md)). 388/388 tests Node, 17/17 Python, 3/3 archive. Aucun paiement (consigne du 13 novembre). Reste au technicien : redéploiement manuel du portail depuis `main` (autodéploiement éteint), `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` avec livraison réelle du courriel, « Enable email signups » chez le fournisseur TAKATAK; au propriétaire : rien de nouveau pour ce lot.
+
+
 ## PR #52 — conflit de fusion résolu, en attente de la revue du 14 novembre 2026 20:00
 
 La PR #52 (cockpit : carte « Votre avocat », téléphone (514) 949-0887 + « Par chat / Par courriel », coordonnées aussi côté responsable) ne pouvait plus fusionner : `main` (c603a550, PR #60) avait avancé. Conflit limité à `docs/JOURNAL-AGENTS.md` (ajout-ajout) : les 4 entrées SOCIO du 2026-11-11 sont conservées avant les 20 entrées `main` du 2026-11-13, verbatim (133 entrées). `platform/public/app.js` et `platform/test/cockpit.test.mjs` ont fusionné sans conflit. Contrôles : `node --check` OK, suite plateforme 384/384 (Node 24.22). Branche `socio/cockpit-avocat-2026-11-11` mise à jour par fusion de `main` (commit `a2e8131`). **La PR n'est pas fusionnée** : fusion décidée à la revue de ce soir 20:00 avec Matt. Reste ensuite : redéploiement manuel Coolify (`besoinavocat-portail`) et provisionnement du compte avocat 6280.ca@gmail.com (accès Supabase + Coolify à confirmer : propriétaire ou Matt). — SOCIO, Agent Lévesque, 2026-11-14.

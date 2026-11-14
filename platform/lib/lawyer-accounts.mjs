@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { HttpError, externalIdentifier, fields, identifier, invalid, text } from './validation.mjs';
+import { validDomains } from './case-matching.mjs';
 
 // Espace avocat : inscription libre d'un avocat, essai gratuit, et rattachement aux dossiers de ses clients.
 //
@@ -49,6 +50,10 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
     ) STRICT;
     CREATE INDEX IF NOT EXISTS case_invitations_case ON case_invitations(tenantId,caseId,createdAt);
   `);
+  // Domaines de pratique déclarés par l'avocat (D-036) : filtrent les dossiers prêts qu'il voit. Liste JSON d'identifiants
+  // du catalogue (catalog.mjs); vide = tous les domaines.
+  if (!db.prepare('PRAGMA table_info(lawyer_accounts)').all().some(column => column.name === 'domains')) db.exec("ALTER TABLE lawyer_accounts ADD COLUMN domains TEXT NOT NULL DEFAULT '[]'");
+  if (!db.prepare('PRAGMA table_info(lawyer_signups)').all().some(column => column.name === 'domains')) db.exec("ALTER TABLE lawyer_signups ADD COLUMN domains TEXT NOT NULL DEFAULT '[]'");
   const sql = query => db.prepare(query);
   const now = () => new Date(clock()).toISOString();
   const transaction = fn => {
@@ -59,14 +64,16 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
   const joinAttempts = new Map();
 
   function profileInput(body, required = ['name']) {
-    fields(body, ['name', 'barNumber', 'firm'], required);
+    fields(body, ['name', 'barNumber', 'firm', 'domains'], required);
     return {
       name: text(body.name, 'Nom', 160).trim(),
       barNumber: text(body.barNumber, 'Numéro de membre du Barreau', 40, { optional: true }).trim(),
       firm: text(body.firm, 'Cabinet', 160, { optional: true }).trim(),
+      domains: validDomains(body.domains),
     };
   }
-  const publicAccount = row => (row ? { name: row.name, barNumber: row.barNumber, firm: row.firm, email: row.email, createdAt: row.createdAt, source: row.source } : null);
+  const domainsOf = row => { try { const list = JSON.parse(row.domains || '[]'); return Array.isArray(list) ? list : []; } catch { return []; } };
+  const publicAccount = row => (row ? { name: row.name, barNumber: row.barNumber, firm: row.firm, email: row.email, createdAt: row.createdAt, source: row.source, domains: domainsOf(row) } : null);
   const accountOf = user => sql('SELECT * FROM lawyer_accounts WHERE subject=? AND tenantId=? AND active=1').get(user.subject, user.tenantId) ?? null;
   const publicInvitation = row => ({ id: row.id, caseId: row.caseId, role: row.role, createdBy: row.createdBy, createdAt: row.createdAt, expiresAt: row.expiresAt,
     status: row.revokedAt ? 'revoked' : row.usedAt ? 'used' : Date.parse(row.expiresAt) <= clock() ? 'expired' : 'open', usedAt: row.usedAt, usedBy: row.usedBy, revokedAt: row.revokedAt });
@@ -81,6 +88,7 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
     config,
     has: user => Boolean(accountOf(user)),
     get: user => publicAccount(accountOf(user)),
+    domainsOf: user => { const row = accountOf(user); return row ? domainsOf(row) : []; },
     // Lu à chaque connexion et à chaque requête, comme le fichier de grants : désactiver le compte coupe l'accès.
     grantFor(subject) {
       if (!externalIdentifier(subject)) return null;
@@ -90,15 +98,15 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
     // Étape 1 de l'inscription : le profil attend, sous l'empreinte du courriel, que le code envoyé par le fournisseur
     // soit saisi. Rien n'est créé chez TAKATAK par ce module; c'est browser-session.mjs qui demande le code.
     beginSignup(body) {
-      fields(body, ['email', 'name', 'barNumber', 'firm', 'consent'], ['email', 'name', 'consent']);
+      fields(body, ['email', 'name', 'barNumber', 'firm', 'consent', 'domains'], ['email', 'name', 'consent']);
       if (body.consent !== true) throw invalid('Le consentement aux conditions d’essai est requis.');
       const email = normalizeEmail(body.email);
       if (!validEmail(email)) throw invalid('Adresse courriel invalide.');
-      const profile = profileInput({ name: body.name, barNumber: body.barNumber, firm: body.firm });
+      const profile = profileInput({ name: body.name, barNumber: body.barNumber, firm: body.firm, domains: body.domains });
       const at = clock();
       sql('DELETE FROM lawyer_signups WHERE expiresAt<=?').run(new Date(at).toISOString());
-      sql('INSERT INTO lawyer_signups (emailHash,name,barNumber,firm,createdAt,expiresAt) VALUES (?,?,?,?,?,?) ON CONFLICT(emailHash) DO UPDATE SET name=excluded.name,barNumber=excluded.barNumber,firm=excluded.firm,createdAt=excluded.createdAt,expiresAt=excluded.expiresAt')
-        .run(hash(email), profile.name, profile.barNumber, profile.firm, new Date(at).toISOString(), new Date(at + SIGNUP_TTL_MS).toISOString());
+      sql('INSERT INTO lawyer_signups (emailHash,name,barNumber,firm,domains,createdAt,expiresAt) VALUES (?,?,?,?,?,?,?) ON CONFLICT(emailHash) DO UPDATE SET name=excluded.name,barNumber=excluded.barNumber,firm=excluded.firm,domains=excluded.domains,createdAt=excluded.createdAt,expiresAt=excluded.expiresAt')
+        .run(hash(email), profile.name, profile.barNumber, profile.firm, JSON.stringify(profile.domains), new Date(at).toISOString(), new Date(at + SIGNUP_TTL_MS).toISOString());
       return email;
     },
     // Étape 2 : appelée par la vérification du code, avec l'identifiant confirmé par le fournisseur, avant la lecture de
@@ -112,10 +120,10 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
       return transaction(() => {
         const at = now();
         if (existing) {
-          sql('UPDATE lawyer_accounts SET active=1,email=?,name=?,barNumber=?,firm=?,updatedAt=? WHERE subject=?').run(email, pending.name, pending.barNumber, pending.firm, at, subject);
+          sql('UPDATE lawyer_accounts SET active=1,email=?,name=?,barNumber=?,firm=?,domains=?,updatedAt=? WHERE subject=?').run(email, pending.name, pending.barNumber, pending.firm, pending.domains ?? '[]', at, subject);
         } else {
-          sql('INSERT INTO lawyer_accounts (subject,tenantId,email,name,barNumber,firm,active,createdAt,updatedAt,source) VALUES (?,?,?,?,?,?,1,?,?,?)')
-            .run(subject, config.tenantId, email, pending.name, pending.barNumber, pending.firm, at, at, 'signup');
+          sql('INSERT INTO lawyer_accounts (subject,tenantId,email,name,barNumber,firm,domains,active,createdAt,updatedAt,source) VALUES (?,?,?,?,?,?,?,1,?,?,?)')
+            .run(subject, config.tenantId, email, pending.name, pending.barNumber, pending.firm, pending.domains ?? '[]', at, at, 'signup');
         }
         sql('DELETE FROM lawyer_signups WHERE emailHash=?').run(hash(email));
         const tenantId = existing?.tenantId ?? config.tenantId;
@@ -130,8 +138,8 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
       if (accountOf(user)) throw new HttpError(409, 'ALREADY_LAWYER', 'Votre espace avocat est déjà ouvert.');
       return transaction(() => {
         const at = now();
-        sql('INSERT INTO lawyer_accounts (subject,tenantId,email,name,barNumber,firm,active,createdAt,updatedAt,source) VALUES (?,?,?,?,?,?,1,?,?,?) ON CONFLICT(subject) DO UPDATE SET active=1,tenantId=excluded.tenantId,name=excluded.name,barNumber=excluded.barNumber,firm=excluded.firm,updatedAt=excluded.updatedAt')
-          .run(user.subject, user.tenantId, email, profile.name, profile.barNumber, profile.firm, at, at, 'activation');
+        sql('INSERT INTO lawyer_accounts (subject,tenantId,email,name,barNumber,firm,domains,active,createdAt,updatedAt,source) VALUES (?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT(subject) DO UPDATE SET active=1,tenantId=excluded.tenantId,name=excluded.name,barNumber=excluded.barNumber,firm=excluded.firm,domains=excluded.domains,updatedAt=excluded.updatedAt')
+          .run(user.subject, user.tenantId, email, profile.name, profile.barNumber, profile.firm, JSON.stringify(profile.domains), at, at, 'activation');
         audit(user, null, 'lawyer.space_activated', user.subject, {});
         return publicAccount(accountOf(user));
       });
@@ -139,7 +147,7 @@ export function createLawyerAccounts({ db, store, audit, config = lawyerAccounts
     update(user, body) {
       const profile = profileInput(body);
       if (!accountOf(user)) throw new HttpError(404, 'NOT_A_LAWYER', 'Aucun espace avocat pour ce compte.');
-      sql('UPDATE lawyer_accounts SET name=?,barNumber=?,firm=?,updatedAt=? WHERE subject=? AND tenantId=?').run(profile.name, profile.barNumber, profile.firm, now(), user.subject, user.tenantId);
+      sql('UPDATE lawyer_accounts SET name=?,barNumber=?,firm=?,domains=?,updatedAt=? WHERE subject=? AND tenantId=?').run(profile.name, profile.barNumber, profile.firm, JSON.stringify(profile.domains), now(), user.subject, user.tenantId);
       audit(user, null, 'lawyer.profile_updated', user.subject, {});
       return publicAccount(accountOf(user));
     },

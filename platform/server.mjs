@@ -25,6 +25,8 @@ import { createCanlii } from './lib/canlii.mjs';
 import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createLawyerAccounts, lawyerAccountsConfiguration } from './lib/lawyer-accounts.mjs';
+import { createClientAccounts } from './lib/client-accounts.mjs';
+import { createCaseMatching } from './lib/case-matching.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, documentHeaderInput, readJson, readRawBody, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
@@ -154,7 +156,10 @@ export function createApp({
   const store = createStore({ dbPath, blobDir, blobKey: loadBlobKey(env.BESOINAVOCAT_BLOB_KEY_FILE) });
   // Comptes avocats inscrits eux-mêmes : leur habilitation est lue à chaque connexion, en plus du fichier de grants.
   const accounts = createLawyerAccounts({ db: store.db, store, audit: store.audit, config: lawyerAccountsConfiguration(env), clock });
-  browserSessions ??= createBrowserSessions({ config: browserSessionConfiguration(env), fetchImpl: identityFetch, now: clock, extraGrants: subject => accounts.grantFor(subject) });
+  // Trois sources d'habilitation, relues à chaque requête : le fichier privé de grants, les comptes avocats, les comptes clients (D-036).
+  const clients = createClientAccounts({ db: store.db, audit: store.audit, tenantId: accounts.config.tenantId, clock });
+  const matching = createCaseMatching({ db: store.db, access: store.access, audit: store.audit, clock });
+  browserSessions ??= createBrowserSessions({ config: browserSessionConfiguration(env), fetchImpl: identityFetch, now: clock, extraGrants: subject => accounts.grantFor(subject) ?? clients.grantFor(subject) });
   if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
   const loginConfigured = browserSessions.configured === true;
   const emailCodeConfigured = loginConfigured && browserSessions.emailCodeConfigured === true;
@@ -193,7 +198,7 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays } });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured });
     // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
     if (path === '/api/openapi.json') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -331,12 +336,12 @@ export function createApp({
     const hasSessionCookie = typeof cookieHeader === 'string' && cookieHeader.split(';').some(part => part.trim().split('=', 1)[0].trim() === BROWSER_SESSION_COOKIE);
     const hasAuthorization = Object.hasOwn(req.headers, 'authorization');
     if (hasSessionCookie && hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Utilisez une seule méthode de connexion.');
-    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify'].includes(path)) {
+    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify', '/api/auth/client/signup', '/api/auth/client/verify'].includes(path)) {
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Cette connexion utilise une session de navigateur.');
       browserSessions.assertMutation(req);
-      if ((path.startsWith('/api/auth/email/') || path.startsWith('/api/auth/lawyer/')) && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
+      if ((path.startsWith('/api/auth/email/') || path.startsWith('/api/auth/lawyer/') || path.startsWith('/api/auth/client/')) && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
       // Inscription d'un avocat : profil gardé en attente, code envoyé par le fournisseur TAKATAK (le compte y est créé
       // au premier code), puis vérification qui enregistre l'habilitation et ouvre l'essai gratuit avant la session.
       if (path === '/api/auth/lawyer/signup') {
@@ -355,6 +360,22 @@ export function createApp({
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), membership: opened });
+      }
+      // Tableau de bord d'une personne cliente (D-036) : nom et consentement en attente, code envoyé par le fournisseur
+      // (compte créé au premier code), puis vérification qui enregistre l'habilitation client avant la session.
+      if (path === '/api/auth/client/signup') {
+        const email = clients.beginSignup(await readJson(req, 1024));
+        return json(res, 200, await browserSessions.requestEmailCode(email, { clientKey: clientAddress(req, trustProxy), createUser: true }));
+      }
+      if (path === '/api/auth/client/verify') {
+        const body = fields(await readJson(req, 1024), ['email', 'code'], ['email', 'code']);
+        const email = text(body.email, 'Adresse courriel', 320).trim();
+        let account = null;
+        const session = await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy), onVerified: (subject, confirmedEmail) => { account = clients.completeSignup(subject, confirmedEmail); } });
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (hasSessionCookie) browserSessions.logout(cookieHeader);
+        res.setHeader('Set-Cookie', session.setCookie);
+        return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), created: Boolean(account?.created) });
       }
       if (path === '/api/auth/email/request') {
         const body = fields(await readJson(req, 1024), ['email'], ['email']);
@@ -470,8 +491,10 @@ export function createApp({
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (path === '/api/lawyer/me' && method === 'GET') {
         const account = accounts.get(user);
-        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? await membership.overview(user) : null, cases: store.listCases(user), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured });
+        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? await membership.overview(user) : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
       }
+      // Dossiers prêts du domaine de l'avocat (D-036) : titre, domaine, résumé, nombre de pièces; jamais les pièces.
+      if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user))); }
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (path === '/api/lawyer/activate') {
         const account = accounts.activate(user, await readJson(req, 2048));
@@ -479,6 +502,11 @@ export function createApp({
       }
       if (path === '/api/lawyer/profile') return json(res, 200, { account: accounts.update(user, await readJson(req, 2048)) });
       if (path === '/api/lawyer/join') { requireLawyerAccess(user); return json(res, 200, accounts.join(user, await readJson(req, 256))); }
+      if (path === '/api/lawyer/accept') {
+        requireLawyerAccess(user);
+        const body = fields(await readJson(req, 256), ['caseId'], ['caseId']);
+        return json(res, 200, matching.accept(user, identifier(body.caseId), { lawyerName: accounts.get(user)?.name ?? '' }));
+      }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     }
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
@@ -525,16 +553,29 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
-      if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
-      if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
+      if (method === 'GET') return json(res, 200, { cases: matching.decorate(user.tenantId, store.listCases(user)) });
+      if (method === 'POST') {
+        // Le domaine de droit et le résumé (D-036) accompagnent le titre et la référence; ils restent facultatifs.
+        const body = await readJson(req, 8192);
+        if (!body || typeof body !== 'object' || Array.isArray(body)) throw invalid();
+        const { domain, summary, ...rest } = body;
+        const created = store.createCase(user, caseInput(rest));
+        const profile = domain !== undefined || summary !== undefined ? matching.setProfile(user, created.id, { ...(domain !== undefined ? { domain } : {}), ...(summary !== undefined ? { summary } : {}) }) : matching.profile(user, created.id);
+        return json(res, 201, { case: { ...created, profile } });
+      }
     }
     const match = /^\/api\/cases\/([^/]+)(.*)$/u.exec(path);
     if (!match) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     const caseId = identifier(match[1]), suffix = match[2];
     store.access(user, caseId);
-    if (!suffix && method === 'GET') return json(res, 200, { ...store.details(user, caseId), communications: communications.list(user, caseId), usage: communications.listUsage(user, caseId), integrationLinks: integrations.linksFor(user, caseId) });
+    if (!suffix && method === 'GET') { const details = store.details(user, caseId); return json(res, 200, { ...details, case: { ...details.case, profile: matching.profile(user, caseId) }, communications: communications.list(user, caseId), usage: communications.listUsage(user, caseId), integrationLinks: integrations.linksFor(user, caseId) }); }
+    // Préparation du dossier pour un avocat (D-036) : domaine, résumé, « prêt », retour en préparation.
+    if (suffix === '/profile' && method === 'GET') return json(res, 200, { profile: matching.profile(user, caseId) });
+    if (suffix === '/profile' && method === 'POST') return json(res, 200, { profile: matching.setProfile(user, caseId, await readJson(req, 4096)) });
+    if (suffix === '/ready' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, { profile: matching.markReady(user, caseId) }); }
+    if (suffix === '/reopen' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, { profile: matching.reopen(user, caseId) }); }
     // Older appointments and usages, page by page (?offset=200&limit=200).
     const pageQuery = () => {
       if ([...url.searchParams.keys()].some(key => !['offset', 'limit'].includes(key) || url.searchParams.getAll(key).length !== 1)) throw invalid('Paramètre URL non autorisé.');

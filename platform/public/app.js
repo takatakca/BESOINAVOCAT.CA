@@ -69,7 +69,7 @@
   const state = {
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
     mode: 'loading', view: 'home', cases: [], selectedId: null, detail: null,
-    capabilities: null, health: null, user: null, integrations: null, cockpitQuery: '', cockpitPanel: null,
+    capabilities: null, health: null, user: null, integrations: null, cockpitQuery: '', cockpitPanel: null, signupName: '',
     loginStep: 'email', loginEmail: '', loginNotice: '',
     documentCategory: '', onlyUnresolved: false, pageRequest: 0, searchResults: null, searchQuery: '', requestVersion: 0, sessionVersion: 0, caseLoading: false, busy: false,
     searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
@@ -247,20 +247,28 @@
     const space = state.health?.lawyerSpace, trialDays = Number(space?.trialDays) || 0;
     const lawyer = space?.url && /^(\.\/|\/)[A-Za-z0-9/_-]*$/u.test(space.url) ? `<p class="login-lawyer">Vous êtes avocat ? <a href="${esc(space.url)}">Créer mon compte${trialDays ? ` (${trialDays} jours gratuits, sans carte)` : ''}</a></p>` : '';
     const emailCode = login && state.health?.emailCodeConfigured === true;
+    // Création du tableau de bord d'une personne (D-036) : annoncée par le serveur seulement quand le code courriel marche.
+    const signupOpen = emailCode && state.health?.clientSignup === true;
     const unavailable = state.health === null;
     const disabled = state.busy ? ' disabled' : '';
     const emailField = `<label for="login-email">Adresse courriel de votre compte TAKATAK</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}>`;
     const notice = state.loginNotice ? `<p class="auth-notice" role="status">${esc(state.loginNotice)}</p>` : '';
     const switchButton = (mode, label) => `<button class="button subtle" type="button" data-action="login-mode" data-mode="${mode}"${disabled}>${label}</button>`;
     let loginForm;
-    if (emailCode && state.loginStep === 'code') {
+    if (signupOpen && state.loginStep === 'signup-code') {
+      loginForm = `${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="client-signup-verify-form" class="auth-form"><label for="signup-code">Code reçu par courriel</label><input id="signup-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="signup-code-help" required${disabled}><small id="signup-code-help">Saisissez les 6 à 10 chiffres, y compris les zéros au début.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Ouvrir mon tableau de bord'} ${icon('arrow')}</button></form>${switchButton('signup', 'Modifier l’adresse ou demander un autre code')}`;
+    } else if (signupOpen && state.loginStep === 'signup') {
+      loginForm = `${notice}<form id="client-signup-form" class="auth-form"><label for="signup-name">Votre nom</label><input id="signup-name" name="name" type="text" autocomplete="name" maxlength="160" value="${esc(state.signupName)}" required${disabled}><label for="login-email">Votre adresse courriel</label><input id="login-email" name="email" type="email" autocomplete="email" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}><label class="auth-consent"><input type="checkbox" name="consent" required${disabled}><span>Je comprends que BesoinAvocat est un outil de préparation de dossier, pas un cabinet d’avocats, et que mon dossier ne sera visible d’un avocat que lorsque je le déclarerai prêt.</span></label><button class="button" type="submit"${disabled}>${state.busy ? 'Envoi du code…' : 'Créer mon tableau de bord'} ${icon('arrow')}</button></form><small>Aucun mot de passe : un code à usage unique vous est envoyé par courriel à chaque connexion.</small>${switchButton('email', 'J’ai déjà un compte')}`;
+    } else if (emailCode && state.loginStep === 'code') {
       loginForm = `${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="email-code-verify-form" class="auth-form"><label for="login-code">Code reçu par courriel pour ce portail</label><input id="login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="login-code-help" required${disabled}><small id="login-code-help">Saisissez les 6 à 10 chiffres, y compris les zéros au début. Utilisez le code demandé sur cette page.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Vérifier le code'} ${icon('arrow')}</button></form>${switchButton('email', 'Modifier l’adresse ou demander un autre code')}`;
     } else if (!emailCode || state.loginStep === 'password') {
       loginForm = `${notice}<form id="login-form" class="auth-form">${emailField}<label for="login-password">Mot de passe existant, si vous en avez un</label><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="2048" required${disabled}><button class="button" type="submit"${disabled}>${state.busy ? 'Connexion en cours…' : 'Se connecter avec le mot de passe'} ${icon('arrow')}</button></form>${emailCode ? switchButton('email', 'Recevoir plutôt un code par courriel') : '<p>La connexion par code courriel est en préparation.</p>'}`;
     } else {
-      loginForm = `${notice}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}`;
+      loginForm = `${notice}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}${signupOpen ? switchButton('signup', 'Pas encore de compte ? Créer mon tableau de bord') : ''}`;
     }
-    return `${intro('PRÉPAREZ VOTRE DOSSIER', 'Préparez votre dossier. Trouvez votre avocat.', 'Créez votre tableau de bord, rassemblez vos pièces : un avocat du domaine concerné voit un dossier déjà prêt et peut l’accepter.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU MANDAT</span><h2>Un dossier prêt.<br>Un avocat qui l’accepte.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat. Les conditions du mandat se conviennent ensuite directement entre vous.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot">${lawyer}<p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
+    const signingUp = signupOpen && ['signup', 'signup-code'].includes(state.loginStep);
+    const welcomeAction = signupOpen && !signingUp ? `<button class="button light" type="button" data-action="login-mode" data-mode="signup"${disabled}>Créer mon tableau de bord ${icon('arrow')}</button>` : '';
+    return `${intro('PRÉPAREZ VOTRE DOSSIER', 'Préparez votre dossier. Trouvez votre avocat.', 'Créez votre tableau de bord, rassemblez vos pièces : un avocat du domaine concerné voit un dossier déjà prêt et peut l’accepter.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU MANDAT</span><h2>Un dossier prêt.<br>Un avocat qui l’accepte.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat. Les conditions du mandat se conviennent ensuite directement entre vous.</p><div class="welcome-rule"></div><div class="welcome-actions">${welcomeAction}<a class="button ${welcomeAction ? 'subtle' : 'light'}" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a></div><small>${signupOpen ? 'Gratuit pour la personne cliente · ' : ''}Aperçu : données entièrement fictives, lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon(signingUp ? 'folder' : 'lock')}</span><span class="badge ${signingUp ? 'teal' : 'neutral'}">${signingUp ? 'Inscription gratuite' : login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>${signingUp ? 'Créez votre tableau de bord.<br>Préparez votre dossier.' : 'Votre accès<br>à l’espace de travail.'}</h2><p>${signingUp ? 'Votre nom, votre courriel, un code : votre espace est prêt. Vous y rassemblez vos pièces; quand votre dossier est prêt, un avocat du domaine peut l’accepter.' : unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${signingUp ? 'Vos pièces ne sont visibles que de vous, puis de l’avocat qui accepte votre dossier. Aucune garantie qu’un avocat accepte ni dans quel délai.' : login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot">${lawyer}<p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
   }
   function noCase() {
     return `${intro('VOTRE ESPACE DE TRAVAIL', VIEW_LABELS[state.view], 'Chaque pièce et chaque échange sont rattachés à un dossier.')}<section class="panel empty-state">${icon('folder')}<h2>Commencez par un dossier.</h2><p>Ouvrez un dossier existant ou créez-en un depuis la page Dossiers.</p><button class="button" data-action="go-cases">Voir mes dossiers ${icon('arrow')}</button></section>`;
@@ -784,9 +792,9 @@
     const head = item ? `<div class="ws-stage-head"><span class="ws-case-mark large" aria-hidden="true">${esc(initials(item.title))}</span><div class="ws-stage-title"><span class="eyebrow">${state.demo ? 'DOSSIER FICTIF' : 'DOSSIER'}</span><h1>${esc(item.title)}</h1><p><span class="mono">${esc(item.reference || 'Référence à préciser')}</span> · ${esc(roleLabel(item.role))}</p></div></div>` : `<div class="ws-stage-head"><div class="ws-stage-title"><span class="eyebrow">ESPACE DE TRAVAIL</span><h1>Bonjour.</h1><p>${state.cases.length ? 'Choisissez un dossier à gauche pour l’ouvrir ici.' : 'Créez votre premier dossier pour commencer.'}</p></div></div>`;
     const banner = tutorialMemory.status === 'unseen' ? `<div class="tour-banner" role="region" aria-label="Visite guidée"><span class="tile-icon">${icon('compass')}</span><p><strong>Nouveau : l’espace de travail</strong>Une visite de deux minutes présente chaque zone. Vous pouvez la passer.</p><div class="tile-actions"><button type="button" class="button small" data-action="tutorial-start">Commencer</button><button type="button" class="button subtle small" data-action="tutorial-dismiss">Plus tard</button></div></div>` : '';
     // Client side: one clear next step, four large actions and the pieces the lawyer is waiting for. Nothing else.
-    if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</section>`;
+    if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${caseReadiness()}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</section>`;
     const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section><section class="panel cockpit-panel live-panel" data-live="case-clio" aria-label="Clio Manage" hidden></section>' : '';
-    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${caseSwitcher()}${tabbar}${cockpitRail()}${banner}${wsProgress()}${casesOverview()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
+    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${caseSwitcher()}${tabbar}${cockpitRail()}${banner}${wsProgress()}${caseReadiness()}${casesOverview()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
   }
   function wsContext() {
     const next = upcoming(30).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).slice(0, 3);
@@ -806,10 +814,10 @@
     const greeting = state.demo ? 'Aperçu en lecture seule, avec des données fictives.' : 'Vos dossiers, vos pièces et ce qui demande votre attention.';
     if (state.detail && !state.demo && isClientSide()) {
       const item = currentCase();
-      return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div><section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</div>`;
+      return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div>${caseReadiness()}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</div>`;
     }
     const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section><section class="panel cockpit-panel live-panel" data-live="case-clio" aria-label="Clio Manage" hidden></section>' : '';
-    return `<div class="cockpit">${caseSwitcher()}${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${casesOverview()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
+    return `<div class="cockpit">${caseSwitcher()}${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${caseReadiness()}${casesOverview()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
   }
   function clientsView() {
     const rows = state.cases.map(item => `<li class="queue-item"><span class="queue-icon">${icon('folder')}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · votre accès : ${esc(roleLabel(item.role))}</small></span><button type="button" class="button secondary small" data-action="open-case" data-id="${esc(item.id)}">Ouvrir</button></li>`).join('');
@@ -1152,9 +1160,62 @@
   function formFooter(submitLabel) {
     return `<p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button secondary" type="button" data-action="close-dialog">Annuler</button><button class="button" type="submit">${esc(submitLabel)}</button></div>`;
   }
+  // Domaines de droit du catalogue (D-036), annoncés par /api/capabilities; le champ n'apparaît pas sans eux.
+  function caseDomains() { return Array.isArray(state.capabilities?.caseMatching?.domains) ? state.capabilities.caseMatching.domains : []; }
+  function domainField(selected = null, { prefix = 'case' } = {}) {
+    const domains = caseDomains();
+    if (!domains.length) return '';
+    return `<div class="field"><label for="${prefix}-domain">Domaine de droit</label><select id="${prefix}-domain" name="domain"><option value=""${selected ? '' : ' selected'}>Je ne sais pas encore</option>${domains.map(d => `<option value="${esc(d.id)}"${d.id === selected ? ' selected' : ''}>${esc(d.label)}</option>`).join('')}</select><small>Le domaine dit à quels avocats votre dossier sera proposé quand il sera prêt.</small></div>`;
+  }
+  function summaryField(value = '', { prefix = 'case' } = {}) {
+    return `<div class="field"><label for="${prefix}-summary">Votre situation, en quelques phrases <span class="table-subtext">facultatif</span></label><textarea id="${prefix}-summary" name="summary" maxlength="1500" placeholder="Ce qui s’est passé, ce que vous cherchez à obtenir, les dates importantes…">${esc(value)}</textarea><small>Ce résumé est la première chose que l’avocat lit. Pas de numéro d’assurance sociale ni de mot de passe.</small></div>`;
+  }
   function openNewCase() {
     if (!canMutate()) return;
-    showDialog('Nouveau dossier', 'Un titre clair et une référence suffisent pour commencer.', `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div><div class="field"><label for="case-reference">Référence</label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter('Créer le dossier')}</form>`);
+    showDialog('Nouveau dossier', 'Un titre clair, le domaine et quelques phrases suffisent pour commencer.', `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div>${domainField()}${summaryField()}<div class="field"><label for="case-reference">Référence <span class="table-subtext">facultatif</span></label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter('Créer le dossier')}</form>`);
+  }
+  function openCaseProfile() {
+    if (!canMutate() || !state.detail) return;
+    const profile = state.detail.case?.profile || {};
+    showDialog('Domaine et résumé du dossier', 'Ce que l’avocat lit avant d’accepter votre dossier.', `<form id="case-profile-form">${domainField(profile.domain, { prefix: 'profile' }) || '<p class="callout">Les domaines de droit ne sont pas disponibles pour l’instant.</p>'}${summaryField(profile.summary || '', { prefix: 'profile' })}${formFooter('Enregistrer')}</form>`);
+  }
+  // Du dossier en préparation au dossier accepté (D-036) : l'état se lit dans le dossier, avec le geste suivant.
+  function caseReadiness() {
+    if (state.demo || !state.detail?.case) return '';
+    const profile = state.detail.case.profile || { status: 'preparation', domain: null, summary: '' };
+    const client = isClientSide();
+    const domain = profile.domainLabel ? `<span class="badge outline">${esc(profile.domainLabel)}</span>` : '<span class="badge warning">Domaine à préciser</span>';
+    const mutate = canMutate() ? '' : ' disabled';
+    const edit = client ? `<button type="button" class="button secondary small" data-action="case-profile"${mutate}>${profile.domain ? 'Modifier le domaine ou le résumé' : 'Préciser le domaine'}</button>` : '';
+    const summary = profile.summary ? `<p class="ready-summary">${esc(profile.summary)}</p>` : (client ? '<p class="ready-summary muted">Aucun résumé pour l’instant : quelques phrases aident l’avocat à comprendre votre situation.</p>' : '');
+    let tone = 'prep', title, text, actions;
+    if (profile.status === 'accepte') {
+      tone = 'ok'; title = 'Dossier accepté par un avocat';
+      text = `Accepté le ${esc(date(profile.acceptedAt, true))}. ${client ? 'Les conditions du mandat se conviennent maintenant entre vous, dans les messages du dossier.' : 'Convenez des conditions du mandat avec la personne cliente dans les messages du dossier.'}`;
+      actions = `<button type="button" class="button small" data-view="messages">${icon('message')}Ouvrir les messages</button>`;
+    } else if (profile.status === 'pret') {
+      tone = 'wait'; title = client ? 'Votre dossier est offert aux avocats' : 'Dossier offert aux avocats';
+      text = `Prêt depuis le ${esc(date(profile.readyAt, true))}. Les avocats du domaine voient le titre, le résumé et le nombre de pièces, jamais les pièces. Aucune garantie d’acceptation ni de délai.`;
+      actions = client ? `<button type="button" class="button secondary small" data-action="case-reopen"${mutate}>Reprendre la préparation</button>${edit}` : '';
+    } else {
+      title = client ? 'Préparez votre dossier, puis offrez-le à un avocat' : 'Dossier en préparation';
+      text = client ? 'Rassemblez vos pièces et décrivez votre situation. Quand c’est prêt, déclarez-le : un avocat du domaine pourra l’accepter.' : 'La personne cliente rassemble ses pièces; le dossier n’est pas encore offert aux avocats.';
+      actions = client ? `<button type="button" class="button small" data-action="case-ready"${mutate || (profile.domain ? '' : ' disabled')} title="${profile.domain ? '' : 'Précisez d’abord le domaine de droit'}">${icon('check')}Mon dossier est prêt pour un avocat</button>${edit}` : '';
+    }
+    return `<section class="panel ready-card" data-tone="${tone}" aria-labelledby="ready-title"><div class="ready-head"><div><span class="eyebrow">VERS VOTRE AVOCAT</span><h2 id="ready-title">${esc(title)}</h2></div>${domain}</div><p>${text}</p>${summary}${actions ? `<div class="ready-actions">${actions}</div>` : ''}</section>`;
+  }
+  async function setCaseReadiness(step, button) {
+    if (!canMutate() || !state.selectedId || state.busy) return;
+    state.busy = true; if (button) button.disabled = true;
+    const caseId = state.selectedId;
+    try {
+      const result = await api(`/api/cases/${encodeURIComponent(caseId)}/${step}`, { method: 'POST', body: '{}' });
+      await refreshDetail(caseId);
+      state.cases = (await api('/api/cases')).cases || state.cases;
+      notify(result.profile?.status === 'pret' ? 'Votre dossier est maintenant offert aux avocats de ce domaine.' : 'Le dossier est de retour en préparation; les avocats ne le voient plus.');
+    } catch (error) {
+      notify(error.message, true);
+    } finally { state.busy = false; render(true); }
   }
   function openUpload() {
     if (!canMutate() || !state.selectedId) return;
@@ -1557,9 +1618,17 @@
       const casePath = `/api/cases/${encodeURIComponent(caseId)}`;
       let message = '';
       if (form.id === 'case-form') {
-        const result = await api('/api/cases', { method: 'POST', body: JSON.stringify({ title: String(data.get('title')).trim(), reference: String(data.get('reference')).trim() }) });
+        const payload = { title: String(data.get('title')).trim(), reference: String(data.get('reference') || '').trim() };
+        if (data.get('domain')) payload.domain = String(data.get('domain'));
+        if (String(data.get('summary') || '').trim()) payload.summary = String(data.get('summary')).trim();
+        const result = await api('/api/cases', { method: 'POST', body: JSON.stringify(payload) });
         state.cases = (await api('/api/cases')).cases || [];
-        state.selectedId = result.case.id; await refreshDetail(); state.view = 'documents'; message = 'Le dossier a été créé.';
+        state.selectedId = result.case.id; await refreshDetail(); state.view = 'documents'; message = 'Le dossier a été créé. Ajoutez vos pièces, puis déclarez-le prêt pour un avocat.';
+      } else if (form.id === 'case-profile-form') {
+        const payload = { summary: String(data.get('summary') || '').trim() };
+        if (data.has('domain')) payload.domain = data.get('domain') ? String(data.get('domain')) : null;
+        await api(`${casePath}/profile`, { method: 'POST', body: JSON.stringify(payload) });
+        await refreshDetail(caseId); state.cases = (await api('/api/cases')).cases || state.cases; message = 'Domaine et résumé enregistrés.';
       } else if (form.id === 'upload-form') {
         const file = data.get('file');
         if (!(file instanceof File) || !file.size) throw new Error('Sélectionnez un fichier non vide.');
@@ -1788,7 +1857,7 @@
       if (query) { openSearch('all'); state.searchQuery = query; void runSearch(query); }
     }
     if (action === 'login-mode' && !state.busy && !state.demo) {
-      state.loginStep = button.dataset.mode === 'password' ? 'password' : 'email';
+      state.loginStep = button.dataset.mode === 'password' ? 'password' : button.dataset.mode === 'signup' && state.health?.clientSignup === true ? 'signup' : 'email';
       state.loginNotice = ''; render();
     }
     if (action === 'go-cases') navigate('cases');
@@ -1800,6 +1869,8 @@
     if (action === 'search-download') void openSearchSource(Number(button.dataset.resultIndex), true, button);
     if (action === 'open-case') void loadCase(button.dataset.id, 'documents', true);
     if (action === 'new-case') openNewCase();
+    else if (action === 'case-profile') openCaseProfile();
+    else if (action === 'case-ready' || action === 'case-reopen') void setCaseReadiness(action === 'case-ready' ? 'ready' : 'reopen', button);
     if (action === 'upload') openUpload();
     if (action === 'new-time') openTime();
     if (action === 'new-communication') openCommunication();
@@ -1843,10 +1914,12 @@
     if (form.id === 'login-form') void login(form);
     else if (form.id === 'email-code-request-form') void requestEmailCode(form);
     else if (form.id === 'email-code-verify-form') void verifyEmailCode(form);
+    else if (form.id === 'client-signup-form') void requestClientSignup(form);
+    else if (form.id === 'client-signup-verify-form') void verifyClientSignup(form);
     else if (['search-form', 'dashboard-search-form', 'case-search-form'].includes(form.id)) void submitSearch(form);
     else if (form.id === 'page-jump-form') void jumpPage(form);
     else if (['communication-form', 'communication-cancel-form'].includes(form.id)) void submitCommunication(form);
-    else if (['case-form', 'upload-form', 'message-form', 'time-form'].includes(form.id)) void submitMutation(form);
+    else if (['case-form', 'upload-form', 'message-form', 'time-form', 'case-profile-form'].includes(form.id)) void submitMutation(form);
     else if (form.id === 'call-form') void submitCall(form);
     else if (form.id === 'cockpit-search-form') document.querySelector?.('#cockpit-search-results .search-hit, #cockpit-search-results .search-fulltext')?.focus();
   });
@@ -1969,6 +2042,56 @@
       notify('Vous êtes connecté à votre espace.');
     } catch (error) {
       if (generation === state.sessionVersion) { clearSession(); state.loginNotice = error.message; notify(error.message, true); render(); }
+    } finally {
+      code = ''; state.busy = false;
+      render(true);
+    }
+  }
+  // Création du tableau de bord (D-036) : nom + courriel + consentement, puis le code; la session s'ouvre et le premier
+  // dossier est proposé tout de suite.
+  async function requestClientSignup(form) {
+    if (state.demo || state.health?.clientSignup !== true || state.busy) return;
+    const email = form.elements.email.value.trim(), name = form.elements.name.value.trim();
+    if (!name) { notify('Indiquez votre nom.', true); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) || email.length > 320) { notify('Vérifiez votre adresse courriel.', true); return; }
+    if (!form.elements.consent?.checked) { notify('Cochez la case de consentement pour continuer.', true); return; }
+    state.busy = true; clearSession();
+    const generation = state.sessionVersion;
+    state.loginEmail = email; state.signupName = name; state.loginNotice = ''; state.loginStep = 'signup';
+    const button = form.querySelector('button[type="submit"]'); if (button) button.disabled = true;
+    try {
+      const result = await api('/api/auth/client/signup', { method: 'POST', body: JSON.stringify({ email, name, consent: true }) });
+      if (generation !== state.sessionVersion) return;
+      state.loginStep = 'signup-code';
+      state.loginNotice = result.message || 'Un code vous a été envoyé par courriel. Consultez votre courriel et vos indésirables.';
+    } catch (error) {
+      if (generation === state.sessionVersion) { state.loginNotice = error.message; notify(error.message, true); }
+    } finally {
+      if (generation === state.sessionVersion) { state.busy = false; render(); if (state.loginStep === 'signup-code') document.getElementById('signup-code')?.focus(); }
+    }
+  }
+  async function verifyClientSignup(form) {
+    if (state.demo || state.health?.clientSignup !== true || state.busy || state.loginStep !== 'signup-code') return;
+    let code = form.elements.code.value;
+    form.elements.code.value = '';
+    if (!/^[0-9]{6,10}$/u.test(code)) { code = ''; notify('Saisissez le code de 6 à 10 chiffres reçu par courriel.', true); return; }
+    const email = state.loginEmail;
+    state.busy = true; clearSession();
+    const generation = state.sessionVersion;
+    const button = form.querySelector('button[type="submit"]'); if (button) button.disabled = true;
+    try {
+      const pending = api('/api/auth/client/verify', { method: 'POST', body: JSON.stringify({ email, code }) });
+      code = ''; await pending;
+      if (generation !== state.sessionVersion) return;
+      await loadSession();
+      if (generation !== state.sessionVersion) return;
+      state.loginEmail = ''; state.signupName = ''; state.loginNotice = ''; state.loginStep = 'email';
+      notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Ouvrez votre premier dossier.');
+      state.busy = false; render(true);
+      if (!state.cases.length) openNewCase();
+      return;
+    } catch (error) {
+      if (generation === state.sessionVersion) { clearSession(); state.loginEmail = email; state.loginStep = 'signup-code'; state.loginNotice = error.status === 401 ? 'Code non valide ou expiré. Demandez un nouveau code si besoin.' : error.message; notify(state.loginNotice, true); }
     } finally {
       code = ''; state.busy = false;
       render(true);

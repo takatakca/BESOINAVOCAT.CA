@@ -1,7 +1,9 @@
 // Espace avocat (/avocat). Same-origin API only; every value is escaped before display. No framework.
 (function () {
   'use strict';
-  var state = { health: null, me: null, step: 'choose', email: '', notice: null, busy: false, invitations: {} };
+  var state = { health: null, me: null, ready: null, step: 'choose', email: '', notice: null, busy: false, invitations: {} };
+  // États d'un dossier (D-036) : la personne prépare, puis l'offre aux avocats de son domaine, puis un avocat l'accepte.
+  var STATUS = { preparation: ['En préparation', 'neutral'], pret: ['Prêt pour un avocat', 'warning'], accepte: ['Accepté par un avocat', 'teal'] };
   var $ = function (id) { return document.getElementById(id); };
 
   function esc(value) {
@@ -51,7 +53,7 @@
   function signedOut() {
     var emailCode = state.health && state.health.emailCodeConfigured === true;
     var disabled = state.busy ? ' disabled' : '';
-    var hero = '<div class="lawyer-hero"><span class="lawyer-trial-pill">14 jours gratuits · 0 $ · aucune carte</span><h1>Votre espace avocat sur BesoinAvocat.</h1><p>Retrouvez le dossier de votre client, ses pièces et vos échanges au même endroit. Essayez la plateforme pendant 14 jours sans rien payer; nous vous proposerons un abonnement seulement à la fin de l’essai.</p></div>';
+    var hero = '<div class="lawyer-hero"><span class="lawyer-trial-pill">14 jours gratuits · 0 $ · aucune carte</span><h1>Votre espace avocat sur BesoinAvocat.</h1><p>Les personnes préparent leur dossier sur la plateforme : domaine de droit, résumé, pièces. Vous voyez les dossiers prêts dans vos domaines de pratique, vous acceptez ceux qui vous conviennent, puis les conditions du mandat se conviennent entre vous et votre client, dans le dossier. Essayez la plateforme pendant 14 jours sans rien payer; nous vous proposerons un abonnement seulement à la fin de l’essai.</p></div>';
     if (!emailCode) {
       return hero + '<section class="panel lawyer-split"><div><h2>Inscription bientôt disponible</h2><p>' + esc(state.health === null ? 'Le service du portail n’est pas joignable depuis cette page.' : 'La connexion par code courriel n’est pas encore activée sur ce portail. L’inscription des avocats s’ouvre dès qu’elle le sera.') + '</p><p class="lawyer-help">Vous avez déjà un compte ? <a href="./">Connectez-vous depuis l’espace de travail</a>.</p></div></section>';
     }
@@ -67,7 +69,7 @@
       login = (state.step === 'login' ? noticeHtml() : '') + '<form id="lawyer-login" class="auth-form"><label for="login-email">Adresse courriel du compte</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" required' + disabled + '><button class="button secondary" type="submit"' + disabled + '>' + (state.busy && state.step === 'login' ? 'Envoi du code…' : 'Recevoir un code de connexion') + '</button></form><small>Même code que pour l’espace de travail. Le portail complet reste accessible depuis <a href="./">la page d’accueil</a>.</small>';
     }
     var cardA = state.step === 'login-code' ? login : signup, cardB = state.step === 'login-code' ? '' : login;
-    return hero + '<div class="lawyer-split"><section class="panel" aria-labelledby="signup-title"><span class="eyebrow">NOUVEAU SUR BESOINAVOCAT</span><h2 id="signup-title">' + (state.step === 'login-code' ? 'Connexion' : 'Créer mon compte avocat') + '</h2><ul class="lawyer-points"><li>14 jours gratuits, à 0 $, sans carte de crédit</li><li>Accès au dossier de votre client par un code qu’il vous remet</li><li>Pièces, échéances, rendez-vous, appels et visioconférence</li><li>Vos honoraires restent entre vous et votre client</li></ul>' + cardA + '</section>' + (cardB ? '<section class="panel" aria-labelledby="login-title"><span class="eyebrow">DÉJÀ INSCRIT</span><h2 id="login-title">Me connecter</h2><p>Vous avez déjà un compte BesoinAvocat ou TAKATAK ? Recevez un code et retrouvez votre espace.</p>' + cardB + '</section>' : '') + '</div>';
+    return hero + '<div class="lawyer-split"><section class="panel" aria-labelledby="signup-title"><span class="eyebrow">NOUVEAU SUR BESOINAVOCAT</span><h2 id="signup-title">' + (state.step === 'login-code' ? 'Connexion' : 'Créer mon compte avocat') + '</h2><ul class="lawyer-points"><li>14 jours gratuits, à 0 $, sans carte de crédit</li><li>Des dossiers déjà préparés, dans vos domaines de pratique, à accepter d’un clic</li><li>Accès au dossier d’un client existant par un code qu’il vous remet</li><li>Pièces, échéances, rendez-vous, appels et visioconférence</li><li>Vos honoraires restent entre vous et votre client</li></ul>' + cardA + '</section>' + (cardB ? '<section class="panel" aria-labelledby="login-title"><span class="eyebrow">DÉJÀ INSCRIT</span><h2 id="login-title">Me connecter</h2><p>Vous avez déjà un compte BesoinAvocat ou TAKATAK ? Recevez un code et retrouvez votre espace.</p>' + cardB + '</section>' : '') + '</div>';
   }
 
   // ---------- Signed in ----------
@@ -98,11 +100,40 @@
     }
     return '<section class="panel trial-card">' + head + '<h2>Essai gratuit en cours</h2><div class="trial-days">' + esc(days) + '<small>' + (days === 1 ? 'jour restant' : 'jours restants') + ' sur ' + esc(total) + '</small></div><div class="trial-bar"><span style="width:' + pct + '%"></span></div><p>Gratuit jusqu’au ' + esc(when(trial && trial.endsAt)) + ', à 0 $, sans carte. Aucun prélèvement automatique à la fin : nous vous demanderons alors de choisir.</p>' + plans + '</section>';
   }
+  function domainBoxes(selected, prefix) {
+    var domains = (state.me && state.me.domains) || [];
+    if (!domains.length) return '';
+    selected = selected || [];
+    return '<fieldset class="domain-grid full"><legend>Mes domaines de pratique</legend>' + domains.map(function (d) {
+      return '<label><input type="checkbox" name="domains" value="' + esc(d.id) + '" id="' + esc(prefix) + '-domain-' + esc(d.id) + '"' + (selected.indexOf(d.id) >= 0 ? ' checked' : '') + '><span>' + esc(d.label) + '</span></label>';
+    }).join('') + '</fieldset><p class="lawyer-help">Vous ne voyez que les dossiers prêts de ces domaines. Aucun domaine coché : vous les voyez tous.</p>';
+  }
+  function checkedDomains(form) {
+    var boxes = form.querySelectorAll('input[name="domains"]:checked'), out = [];
+    for (var i = 0; i < boxes.length; i += 1) out.push(boxes[i].value);
+    return out;
+  }
+  function statusBadge(profile) {
+    var st = STATUS[(profile && profile.status) || 'preparation'] || STATUS.preparation;
+    return '<span class="badge ' + st[1] + '">' + esc(st[0]) + '</span>' + (profile && profile.domainLabel ? '<span class="badge neutral">' + esc(profile.domainLabel) + '</span>' : '');
+  }
+  // Les dossiers prêts de l'organisation, dans les domaines de l'avocat : titre, domaine, résumé, nombre de pièces. Jamais les pièces.
+  function readyPanel() {
+    var m = state.me.membership && state.me.membership.membership, blocked = m && !m.active, r = state.ready;
+    var body;
+    if (blocked) body = '<div class="callout warning"><p><strong>Essai terminé</strong>Choisissez un abonnement pour voir et accepter de nouveaux dossiers.</p></div>';
+    else if (!r) body = '<p class="lawyer-help">Les dossiers prêts n’ont pas pu être chargés. Rechargez la page.</p>';
+    else if (!r.cases.length) body = '<div class="empty-state"><h2>Aucun dossier prêt pour l’instant</h2><p>' + (r.domains.length ? 'Aucun dossier prêt dans vos domaines de pratique. Élargissez vos domaines dans « Mon profil » ou revenez plus tard.' : 'Dès qu’une personne déclare son dossier prêt, il apparaît ici.') + (r.total > r.cases.length ? ' ' + esc(r.total - r.cases.length) + ' dossier(s) prêt(s) dans d’autres domaines.' : '') + '</p></div>';
+    else body = '<div class="ready-list">' + r.cases.map(function (c) {
+      return '<article class="ready-case" data-case="' + esc(c.id) + '"><div class="ready-case-head"><strong>' + esc(c.title) + '</strong><span class="badge neutral">' + esc(c.domainLabel || 'Domaine à préciser') + '</span></div><p class="ready-case-summary">' + (c.summary ? esc(c.summary) : '<em>Aucun résumé fourni.</em>') + '</p><small>' + esc(c.documents) + ' ' + (c.documents === 1 ? 'pièce' : 'pièces') + ' · prêt depuis le ' + esc(when(c.readyAt)) + (c.reference ? ' · ' + esc(c.reference) : '') + '</small><div class="lawyer-case-actions"><button type="button" class="button small" data-action="accept" data-case="' + esc(c.id) + '" data-title="' + esc(c.title) + '"' + (state.busy ? ' disabled' : '') + '>Accepter ce dossier</button></div></article>';
+    }).join('') + '</div>' + (r.total > r.cases.length ? '<p class="lawyer-help">' + esc(r.total - r.cases.length) + ' autre(s) dossier(s) prêt(s) dans des domaines que vous n’avez pas cochés.</p>' : '');
+    return '<section class="panel" id="ready-panel"><div class="panel-heading"><div><h2>Dossiers prêts à accepter</h2><p>Préparés par les personnes sur la plateforme, dans vos domaines. Vous voyez le titre, le domaine, le résumé et le nombre de pièces; les pièces s’ouvrent après l’acceptation. Les conditions du mandat se conviennent ensuite entre vous, dans le dossier.</p></div><span class="badge neutral">' + esc(r ? r.cases.length : 0) + '</span></div><div class="panel-body">' + body + '</div></section>';
+  }
   function casesPanel() {
     var me = state.me, cases = me.cases || [];
     var rows = cases.length ? '<div class="lawyer-cases">' + cases.map(function (c) {
-      return '<article class="lawyer-case" data-case="' + esc(c.id) + '"><span class="case-symbol" aria-hidden="true">§</span><div><strong>' + esc(c.title) + '</strong><small><span class="role-badge" data-role="' + esc(c.role) + '">' + esc(ROLE[c.role] || c.role) + '</span>' + esc(c.reference || '') + (c.reference ? ' · ' : '') + 'ouvert le ' + esc(when(c.createdAt)) + '</small></div><div class="lawyer-case-actions"><a class="button small" href="./#case/' + encodeURIComponent(c.id) + '">Ouvrir le dossier</a><button type="button" class="button secondary small" data-action="invite" data-case="' + esc(c.id) + '" data-title="' + esc(c.title) + '">Inviter un avocat</button></div></article>';
-    }).join('') + '</div>' : '<div class="empty-state"><h2>Aucun dossier pour l’instant</h2><p>Demandez à votre client le code d’invitation de son dossier, puis saisissez-le ci-dessous. Vous pouvez aussi ouvrir un dossier vous-même depuis le centre de commandement.</p></div>';
+      return '<article class="lawyer-case" data-case="' + esc(c.id) + '"><span class="case-symbol" aria-hidden="true">§</span><div><strong>' + esc(c.title) + '</strong><small><span class="role-badge" data-role="' + esc(c.role) + '">' + esc(ROLE[c.role] || c.role) + '</span>' + esc(c.reference || '') + (c.reference ? ' · ' : '') + 'ouvert le ' + esc(when(c.createdAt)) + '</small><div class="case-status">' + statusBadge(c.profile) + '</div></div><div class="lawyer-case-actions"><a class="button small" href="./#case/' + encodeURIComponent(c.id) + '">Ouvrir le dossier</a><button type="button" class="button secondary small" data-action="invite" data-case="' + esc(c.id) + '" data-title="' + esc(c.title) + '">Inviter un avocat</button></div></article>';
+    }).join('') + '</div>' : '<div class="empty-state"><h2>Aucun dossier pour l’instant</h2><p>Acceptez un dossier prêt ci-dessus, ou saisissez le code d’invitation qu’un client vous remet. Vous pouvez aussi ouvrir un dossier vous-même depuis le centre de commandement.</p></div>';
     return '<section class="panel"><div class="panel-heading"><div><h2>Mes dossiers</h2><p>Les dossiers où vous êtes avocat, responsable ou client. Ils s’ouvrent dans le centre de commandement.</p></div><span class="badge neutral">' + esc(cases.length) + '</span></div><div class="panel-body">' + rows + '</div></section>';
   }
   function joinPanel() {
@@ -111,14 +142,14 @@
   }
   function profilePanel() {
     var a = state.me.account;
-    return '<section class="panel"><div class="panel-heading"><div><h2>Mon profil</h2><p>Ce que vos clients voient dans leur dossier.</p></div></div><div class="panel-body"><form id="lawyer-profile" class="profile-grid"><div class="full"><label for="profile-name">Nom</label><input id="profile-name" name="name" type="text" maxlength="160" value="' + esc(a.name) + '" required></div><div><label for="profile-bar">N° du Barreau</label><input id="profile-bar" name="barNumber" type="text" maxlength="40" value="' + esc(a.barNumber) + '"></div><div><label for="profile-firm">Cabinet</label><input id="profile-firm" name="firm" type="text" maxlength="160" value="' + esc(a.firm) + '"></div><div class="full form-actions"><button class="button secondary small" type="submit">Enregistrer</button></div></form>' + (a.email ? '<p class="lawyer-help">Courriel du compte : ' + esc(a.email) + '</p>' : '') + '</div></section>';
+    return '<section class="panel"><div class="panel-heading"><div><h2>Mon profil</h2><p>Ce que vos clients voient dans leur dossier, et les domaines dont vous acceptez les dossiers.</p></div></div><div class="panel-body"><form id="lawyer-profile" class="profile-grid"><div class="full"><label for="profile-name">Nom</label><input id="profile-name" name="name" type="text" maxlength="160" value="' + esc(a.name) + '" required></div><div><label for="profile-bar">N° du Barreau</label><input id="profile-bar" name="barNumber" type="text" maxlength="40" value="' + esc(a.barNumber) + '"></div><div><label for="profile-firm">Cabinet</label><input id="profile-firm" name="firm" type="text" maxlength="160" value="' + esc(a.firm) + '"></div>' + domainBoxes(a.domains, 'profile') + '<div class="full form-actions"><button class="button secondary small" type="submit">Enregistrer</button></div></form>' + (a.email ? '<p class="lawyer-help">Courriel du compte : ' + esc(a.email) + '</p>' : '') + '</div></section>';
   }
   function activatePanel() {
     return '<div class="lawyer-hero"><span class="lawyer-trial-pill">14 jours gratuits · 0 $ · aucune carte</span><h1>Ouvrir votre espace avocat</h1><p>Vous êtes connecté. Indiquez votre nom pour ouvrir votre espace avocat et démarrer l’essai gratuit; vos dossiers actuels restent inchangés.</p></div><section class="panel lawyer-split"><div>' + noticeHtml() + '<form id="lawyer-activate" class="auth-form"><label for="activate-name">Votre nom</label><input id="activate-name" name="name" type="text" autocomplete="name" maxlength="160" required><div class="profile-grid"><div><label for="activate-bar">N° de membre du Barreau <span class="table-subtext">facultatif</span></label><input id="activate-bar" name="barNumber" type="text" maxlength="40"></div><div><label for="activate-firm">Cabinet <span class="table-subtext">facultatif</span></label><input id="activate-firm" name="firm" type="text" maxlength="160"></div></div><button class="button" type="submit"' + (state.busy ? ' disabled' : '') + '>Ouvrir mon espace avocat</button></form><small>Si vous êtes la personne cliente d’un dossier, vous n’avez pas besoin de cet espace : utilisez le centre de commandement et le bouton « Inviter un avocat » de votre dossier.</small></div><div><h2>Partager un dossier avec votre avocat</h2><p>Sans ouvrir d’espace avocat, vous pouvez déjà inviter l’avocat d’un de vos dossiers : il recevra un code à saisir ici.</p>' + (state.me.cases && state.me.cases.length ? '<div class="lawyer-cases" style="margin-top:12px">' + state.me.cases.map(function (c) { return '<article class="lawyer-case"><span class="case-symbol" aria-hidden="true">§</span><div><strong>' + esc(c.title) + '</strong><small><span class="role-badge" data-role="' + esc(c.role) + '">' + esc(ROLE[c.role] || c.role) + '</span>' + esc(c.reference || '') + '</small></div><div class="lawyer-case-actions"><button type="button" class="button secondary small" data-action="invite" data-case="' + esc(c.id) + '" data-title="' + esc(c.title) + '">Inviter un avocat</button></div></article>'; }).join('') + '</div>' : '<p class="lawyer-help">Aucun dossier n’est rattaché à votre compte pour l’instant.</p>') + '</div></section>';
   }
   function signedIn() {
     if (!state.me.account) return activatePanel();
-    return '<div class="lawyer-hero"><span class="eyebrow">ESPACE AVOCAT</span><h1>Bonjour, ' + esc(state.me.account.name) + '.</h1><p>Vos dossiers, votre essai et les codes pour rejoindre le dossier d’un client.</p></div><div class="lawyer-grid"><div class="lawyer-stack">' + casesPanel() + joinPanel() + profilePanel() + '</div><div class="lawyer-stack">' + trialCard() + '<section class="panel trial-card"><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h2>Travailler dans un dossier</h2><p>Pièces, recherche, échanges, échéances, rendez-vous, appels et visioconférence : tout se passe dans l’espace de travail, dossier par dossier.</p><a class="button" href="./">Ouvrir le centre de commandement</a></section></div></div>';
+    return '<div class="lawyer-hero"><span class="eyebrow">ESPACE AVOCAT</span><h1>Bonjour, ' + esc(state.me.account.name) + '.</h1><p>Les dossiers prêts dans vos domaines, vos dossiers, votre essai et vos domaines de pratique.</p></div><div class="lawyer-grid"><div class="lawyer-stack">' + readyPanel() + casesPanel() + joinPanel() + profilePanel() + '</div><div class="lawyer-stack">' + trialCard() + '<section class="panel trial-card"><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h2>Travailler dans un dossier</h2><p>Pièces, recherche, échanges, échéances, rendez-vous, appels et visioconférence : tout se passe dans l’espace de travail, dossier par dossier.</p><a class="button" href="./">Ouvrir le centre de commandement</a></section></div></div>';
   }
 
   function render() {
@@ -153,6 +184,11 @@
     catch (error) {
       if (error.status === 401 || error.status === 403) state.me = null;
       else throw error;
+    }
+    state.ready = null;
+    if (state.me && state.me.account) {
+      try { state.ready = await api('/api/lawyer/ready-cases'); }
+      catch (error) { state.ready = null; /* 402 : essai terminé, le panneau le dit; autre erreur : message de rechargement */ }
     }
   }
   async function start() {
@@ -196,7 +232,7 @@
         await api('/api/lawyer/activate', { method: 'POST', body: { name: v('name'), barNumber: v('barNumber'), firm: v('firm') } });
         state.busy = false; await loadMe(); render(); toast('Votre espace avocat est ouvert. L’essai gratuit commence aujourd’hui.'); return;
       } else if (form.id === 'lawyer-profile') {
-        await api('/api/lawyer/profile', { method: 'POST', body: { name: v('name'), barNumber: v('barNumber'), firm: v('firm') } });
+        await api('/api/lawyer/profile', { method: 'POST', body: { name: v('name'), barNumber: v('barNumber'), firm: v('firm'), domains: checkedDomains(form) } });
         state.busy = false; await loadMe(); render(); toast('Profil enregistré.'); return;
       } else if (form.id === 'lawyer-join') {
         var joined = await api('/api/lawyer/join', { method: 'POST', body: { code: v('code') } });
@@ -218,6 +254,15 @@
     try {
       if (action === 'restart') { state.step = 'choose'; state.notice = null; render(); }
       else if (action === 'invite') await openInvite(button.dataset.case, button.dataset.title);
+      else if (action === 'accept') {
+        if (state.busy) return;
+        state.busy = true; render();
+        try {
+          var accepted = await api('/api/lawyer/accept', { method: 'POST', body: { caseId: button.dataset.case } });
+          state.busy = false; await loadMe(); render();
+          toast('Vous êtes maintenant l’avocat du dossier « ' + accepted.case.title + ' ». La personne en est avisée dans le dossier.');
+        } catch (error) { state.busy = false; await loadMe(); render(); throw error; }
+      }
       else if (action === 'create-invite') {
         var created = await api('/api/cases/' + encodeURIComponent(button.dataset.case) + '/invitations', { method: 'POST', body: {} });
         var list = await api('/api/cases/' + encodeURIComponent(button.dataset.case) + '/invitations');

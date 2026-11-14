@@ -113,3 +113,27 @@ Tests : 318/318.
 - Tous les envois passent par la même file : un à la fois, nouvel essai si le serveur est occupé.
 
 Tests : 340/340.
+
+## Lot 7 — accueil relié : choisir le dossier sans cliquer partout (13 novembre 2026)
+
+Demande du propriétaire : « ça me dit ce dossier, mais ça me donne pas le choix de quel dossier ; ça devrait relier tout ».
+
+- **Sélecteur de dossier** en tête de l'accueil (téléphone et bureau) : une pastille par dossier accessible, la pastille du dossier affiché est marquée, les autres portent le nombre d'éléments en attente (pièces à vérifier, chronomètre en cours, rendez-vous dans les 7 jours, temps à valider pour les avocats). Un tap change de dossier.
+- **Vue d'ensemble** (dès 2 dossiers) : une ligne par dossier avec ses chiffres réels — pièces à vérifier, messages, temps soumis, prochain rendez-vous. Chaque chiffre est un bouton qui ouvre directement la bonne section du bon dossier (`data-action="open-case-view"`, `data-section`). Tant qu'un dossier n'est pas chargé, la ligne dit « chargement… » ; s'il est injoignable, « résumé indisponible ». Rien n'est inventé.
+- **File de travail reliée** : les éléments des autres dossiers (chronomètre, rendez-vous proche, temps à valider, pièces à vérifier) s'ajoutent à ceux du dossier affiché, chacun avec son bouton vers la bonne section. Le titre dit « Dossier X et N autres dossiers ».
+- **Chargement en arrière-plan** : après l'ouverture (`start`) et à chaque retour à l'accueil, un `GET /api/cases/:id` par autre dossier (24 au plus), résumé gardé 60 s dans `state.overview`, jamais dans l'aperçu fictif, jamais pendant le rendu. Une erreur sur un dossier n'affecte pas les autres.
+- Bureau : la liste de dossiers du poste de travail montre aussi le compteur d'attente à côté des dossiers non affichés.
+
+Tests : 375/375 (3 nouveaux dans `platform/test/cockpit.test.mjs`). Aucun style en ligne, aucun `localStorage`.
+
+**Mise en ligne** : l'autodéploiement est désactivé ; après la fusion dans `main`, un redéploiement manuel du portail dans Coolify est nécessaire pour voir ce lot sur portail.besoinavocat.ca.
+
+## Lot 8 — liens profonds et passerelle vers l'espace avocat (13 novembre 2026)
+
+Demandes du fil « Ouvrir l'inscription avocat avec essai gratuit » (PR 56) :
+
+- **Lien profond** `portail/#case/<id>` ou `#case/<id>/<section>` : à l'ouverture, le portail affiche directement ce dossier et cette section (sections = celles de la barre : `documents`, `messages`, `time`, `communications`, `live`, `journal`, …). Un dossier que le compte ne voit pas, ou une section inconnue, retombe sur le comportement habituel (premier dossier, accueil). Aucune requête n'est faite pour un identifiant inconnu.
+- **Écran de connexion** : « Vous êtes avocat ? Créer mon compte (14 jours gratuits, sans carte) » vers l'espace avocat, affiché seulement quand `/api/health` annonce `lawyerSpace: { url, trialDays }` (chemin local uniquement). Tant que le serveur ne l'annonce pas, aucun lien vers une page absente.
+- **Abonnement** (`live.js`) : statut `trial_expired` libellé « Essai terminé » (ton d'alerte), forfait `trial` libellé « d'essai », jours d'essai restants affichés quand `membership.trial` est présent, invitation à choisir un forfait quand l'essai est terminé.
+
+Tests : 377/377 (+2 dans `cockpit.test.mjs`).

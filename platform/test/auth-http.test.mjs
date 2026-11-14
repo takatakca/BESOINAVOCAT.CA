@@ -120,7 +120,7 @@ test('createApp reads both authentication configurations from its injected envir
   await once(app, 'listening');
   try {
     const response = await fetch(`http://127.0.0.1:${app.address().port}/api/health`);
-    assert.deepEqual(await response.json(), { status: 'ok', mode: 'pilot', identityConfigured: true, loginConfigured: true, emailCodeConfigured: false, intakeConfigured: false, apiKeysConfigured: false });
+    assert.deepEqual(await response.json(), { status: 'ok', mode: 'pilot', identityConfigured: true, loginConfigured: true, emailCodeConfigured: false, intakeConfigured: false, apiKeysConfigured: false, lawyerSpace: { url: '/avocat', trialDays: 14 } });
   } finally { await new Promise((resolve, reject) => app.close(error => error ? reject(error) : resolve())); }
 });
 

@@ -10,10 +10,10 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 const index = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-const exported = ['state', 'start', 'render', 'navigate', 'statusLights', 'workItems', 'activityEntries', 'openIntegrationModal', 'startTour', 'endTour', 'showTourStep', 'tutorialMemory', 'localResults', 'TOUR_STEPS', 'ACADEMY_URL', 'MIMT_STEPS', 'mimtMemory', 'instruments', 'guideMemory', 'helpMemory', 'GUIDE_TEXT', 'GUIDE_DISCLAIMER', 'workspaceView', 'wsMemory'];
+const exported = ['state', 'start', 'render', 'navigate', 'statusLights', 'workItems', 'activityEntries', 'openIntegrationModal', 'startTour', 'endTour', 'showTourStep', 'tutorialMemory', 'localResults', 'TOUR_STEPS', 'ACADEMY_URL', 'MIMT_STEPS', 'mimtMemory', 'instruments', 'guideMemory', 'helpMemory', 'GUIDE_TEXT', 'GUIDE_DISCLAIMER', 'workspaceView', 'wsMemory', 'caseSwitcher', 'casesOverview', 'loadOverview', 'loadCase'];
 assert.equal(source.split('  void start();').length, 2, 'The harness must replace exactly one bootstrap call.');
 
-function harness(demo = false) {
+function harness(demo = false, { hash = '' } = {}) {
   const nodes = new Map(), requests = [], assigned = [], listeners = {};
   const makeNode = id => ({
     id, innerHTML: '', textContent: '', hidden: false, disabled: false, dataset: {}, open: false, isConnected: true, focused: 0, value: '',
@@ -35,7 +35,7 @@ function harness(demo = false) {
   const h = { node, nodes, requests, assigned, listeners, zones, handler: null, focused: [], lists: {} };
   const context = vm.createContext({
     URL, URLSearchParams, Intl, Date, console, AbortSignal, crypto: { randomUUID },
-    window: { location: { search: demo ? '?demo=1' : '', hash: '', assign: url => assigned.push(url) }, setTimeout: () => 1, clearTimeout() {}, innerHeight: 900, innerWidth: 1440 },
+    window: { location: { search: demo ? '?demo=1' : '', hash, assign: url => assigned.push(url) }, setTimeout: () => 1, clearTimeout() {}, innerHeight: 900, innerWidth: 1440 },
     document: { getElementById: node, querySelectorAll: selector => h.lists[selector] || [], querySelector: selector => selector === 'dialog[open]' ? null : zone(selector), addEventListener(type, fn) { (listeners[type] ||= []).push(fn); }, body: { classList: { add() {}, remove() {} } }, activeElement: null },
     fetch: async (path, options) => {
       requests.push({ path, options });
@@ -546,4 +546,126 @@ test('a real client account sees one next step, four large actions and the reque
   signedIn(demo, { role: 'client' }); demo.ui.state.demo = true;
   assert.doesNotMatch(demo.ui.workspaceView(), /data-live="client-home"/u, 'the preview keeps the full tour');
   assert.equal(client.requests.length + lawyer.requests.length, 0);
+});
+
+// Accueil relié (13 nov 2026) : le dossier se choisit en tête, la vue d’ensemble relie tous les dossiers, la file ouvre la bonne section.
+function otherDetail(cases) {
+  const soon = new Date(Date.now() + 86400000).toISOString();
+  return { case: cases[1],
+    documents: [{ id: 'doc-b1', name: 'piece-b.pdf', mimeType: 'application/pdf', sourceType: 'original', reviewStatus: 'a_verifier', versionNumber: 1, createdAt: '2026-11-01T10:00:00Z' }],
+    messages: [{ id: 'mb1', authorSubject: 'client-fictif', body: 'B', createdAt: '2026-11-02T09:00:00Z' }, { id: 'mb2', authorSubject: 'client-fictif', body: 'B2', createdAt: '2026-11-02T10:00:00Z' }],
+    timeEntries: [{ id: 'tb1', description: 'Appel', minutes: 30, authorSubject: 'client-fictif', status: 'submitted', createdAt: '2026-11-02T08:00:00Z' }],
+    communications: { sessions: [{ id: 'sb1', kind: 'phone', title: 'Appel B', scheduledAt: soon, status: 'scheduled', ownTimer: { status: 'running' } }], hasMore: false },
+    usage: { entries: [], hasMore: false, billingEnabled: false }, integrationLinks: [] };
+}
+
+test('the home opens with a dossier switcher: one pill per dossier, the shown one marked, no request', () => {
+  const h = harness();
+  signedIn(h); h.ui.render();
+  const html = h.main();
+  assert.match(html, /<nav class="case-switcher" id="case-switcher"/u);
+  const pills = html.match(/<button type="button" class="case-pill[^>]*>/gu);
+  assert.equal(pills.length, 2, 'one pill per accessible dossier');
+  assert.match(pills[0], /is-active/u); assert.match(pills[0], /aria-current="true"/u); assert.match(pills[0], /data-id="case-a"/u);
+  assert.doesNotMatch(pills[1], /is-active/u); assert.match(pills[1], /data-action="cockpit-select-case" data-id="case-b"/u);
+  assert.match(html, /id="cases-overview"/u, 'two dossiers: the overview panel is there');
+  assert.match(html, /chargement…/u, 'the other dossier is not loaded yet, and nothing is invented');
+  assert.match(html, /class="overview-row is-active"/u);
+  assert.doesNotMatch(html, /style="/u);
+  assert.equal(h.requests.length, 0, 'rendering never fetches');
+  const one = harness(); signedIn(one); one.ui.state.cases = one.ui.state.cases.slice(0, 1); one.ui.render();
+  assert.doesNotMatch(one.main(), /id="cases-overview"/u, 'a single dossier needs no overview');
+  assert.match(one.main(), /case-pill is-active/u, 'but still says which dossier is shown');
+});
+
+test('loadOverview fetches the other dossiers only, once per minute, and the overview, pills and queue link to them', async () => {
+  const h = harness();
+  const { cases } = signedIn(h);
+  h.handler = async path => { assert.equal(path, '/api/cases/case-b', 'the shown dossier is never reloaded'); return response(otherDetail(cases)); };
+  await h.ui.loadOverview();
+  assert.equal(h.requests.length, 1);
+  await h.ui.loadOverview();
+  assert.equal(h.requests.length, 1, 'fresh summaries are reused');
+  h.ui.render();
+  const html = h.main();
+  const pillB = html.match(/<button type="button" class="case-pill" data-action="cockpit-select-case" data-id="case-b".*?<\/button>/su)[0];
+  assert.match(pillB, /class="case-pill-count mono"[^>]*>4</u, '1 piece + 1 running timer + 1 meeting within 7 days + 1 time to approve');
+  const rowB = html.match(/<li class="overview-row">.*?<\/li>/su)[0];
+  assert.match(rowB, /data-action="open-case-view" data-id="case-b" data-section="documents"><strong class="mono">1<\/strong> à vérifier/u);
+  assert.match(rowB, /data-section="messages"><strong class="mono">2<\/strong> messages/u);
+  assert.match(rowB, /data-section="time"><strong class="mono">30 min<\/strong> temps soumis/u);
+  assert.match(rowB, /data-section="communications">/u, 'the next meeting is a link too');
+  assert.match(html, /File de travail<\/h2><p>Dossier fictif A et 1 autre dossier<\/p>/u);
+  const titles = h.ui.workItems().map(item => item.title);
+  assert.ok(titles.some(title => title.startsWith('Chronomètre en cours · FICTIF-B')), titles.join(' | '));
+  assert.ok(titles.some(title => title.startsWith('1 pièce à vérifier · FICTIF-B')));
+  assert.ok(titles.some(title => title.startsWith('1 temps à valider · FICTIF-B')), 'lawyers see time to validate in other dossiers');
+  const client = harness(); signedIn(client, { role: 'client' }); client.ui.state.overview = { 'case-b': { summary: h.ui.state.overview['case-b'].summary, at: Date.now() } };
+  assert.ok(!client.ui.workItems().some(item => item.title.includes('temps à valider')), 'clients never approve time');
+  const demo = harness(true); demo.ui.state.demo = true; signedIn(demo); demo.ui.state.demo = true;
+  await demo.ui.loadOverview();
+  assert.equal(demo.requests.length, 0, 'the preview never calls the API');
+});
+
+test('a figure of another dossier opens that dossier directly in the right section; the shown pill only closes the drawer', async () => {
+  const h = harness();
+  const { cases } = signedIn(h);
+  h.handler = async path => response(path.endsWith('case-b') ? otherDetail(cases) : null);
+  h.ui.render();
+  h.click({ action: 'open-case-view', id: 'case-b', section: 'documents' });
+  await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 1); assert.equal(h.requests[0].path, '/api/cases/case-b');
+  assert.equal(h.ui.state.selectedId, 'case-b'); assert.equal(h.ui.state.view, 'documents');
+  assert.ok(h.ui.state.overview['case-b']?.summary, 'the loaded dossier feeds the overview');
+  h.click({ action: 'open-case-view', id: 'case-a', section: 'nope' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 1, 'an unknown section is ignored');
+  h.click({ action: 'cockpit-select-case', id: 'case-b' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 1, 'tapping the shown dossier reloads nothing');
+});
+
+// Deep links (13 nov 2026) : /#case/<id>/<section> opens one dossier directly, so the lawyer space can link to it.
+test('a deep link #case/<id>/<section> opens that dossier and section at start; unknown ids or sections fall back', async () => {
+  const cases = [{ id: 'case-a', title: 'A', reference: 'FICTIF-A', role: 'lawyer' }, { id: 'case-b', title: 'B', reference: 'FICTIF-B', role: 'lawyer' }];
+  const detail = id => ({ case: cases.find(c => c.id === id), documents: [], messages: [], timeEntries: [], communications: { sessions: [], hasMore: false }, usage: { entries: [], hasMore: false, billingEnabled: false }, integrationLinks: [] });
+  const boot = async hash => {
+    const h = harness(false, { hash });
+    h.handler = async path => {
+      if (path === '/api/health') return response({ status: 'ok', loginConfigured: true, lawyerSpace: { url: './avocat', trialDays: 14 } });
+      if (path === '/api/me') return response({ user: { active: true, subject: 'avocate-fictive' } });
+      if (path === '/api/capabilities') return response({});
+      if (path === '/api/integrations') return response({ engine: { ready: false }, providers: [] });
+      if (path === '/api/cases') return response({ cases });
+      const m = /^\/api\/cases\/(case-[ab])$/u.exec(path); if (m) return response(detail(m[1]));
+      throw new Error(`unexpected ${path}`);
+    };
+    await h.ui.start();
+    await new Promise(resolve => setImmediate(resolve));
+    return h;
+  };
+  const deep = await boot('#case/case-b/documents');
+  assert.equal(deep.ui.state.selectedId, 'case-b'); assert.equal(deep.ui.state.view, 'documents');
+  const home = await boot('#case/case-a/time');
+  assert.equal(home.ui.state.selectedId, 'case-a'); assert.equal(home.ui.state.view, 'time');
+  const unknown = await boot('#case/case-z/documents');
+  assert.equal(unknown.ui.state.selectedId, 'case-a'); assert.equal(unknown.ui.state.view, 'home', 'an unknown dossier changes nothing');
+  const badSection = await boot('#case/case-b/nope');
+  assert.equal(badSection.ui.state.selectedId, 'case-b'); assert.equal(badSection.ui.state.view, 'home', 'an unknown section opens the dossier home');
+  assert.ok(!deep.requests.some(r => r.path.includes('case-z')), 'no request for an id the account cannot see');
+});
+
+test('the sign-in screen offers the lawyer sign-up only once the server announces the lawyer space', () => {
+  const h = harness();
+  h.ui.state.mode = 'signedout';
+  h.ui.state.health = { status: 'ok', loginConfigured: true, lawyerSpace: { url: './avocat', trialDays: 14 } };
+  h.ui.render();
+  assert.match(h.main(), /<p class="login-lawyer">Vous êtes avocat \? <a href="\.\/avocat">Créer mon compte \(14 jours gratuits, sans carte\)<\/a><\/p>/u);
+  h.ui.state.health = { status: 'ok', loginConfigured: true };
+  h.ui.render();
+  assert.doesNotMatch(h.main(), /login-lawyer/u, 'no link to a page that does not exist yet');
+  h.ui.state.health = { status: 'ok', loginConfigured: true, lawyerSpace: { url: 'https://ailleurs.example/x' } };
+  h.ui.render();
+  assert.doesNotMatch(h.main(), /login-lawyer/u, 'only a local path is linked');
+  assert.equal(h.requests.length, 0);
 });

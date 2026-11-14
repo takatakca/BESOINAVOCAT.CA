@@ -75,6 +75,8 @@
     searchScope: 'all', searchMode: 'terms', searchMeta: null, searchRequest: 0, searchPending: false,
     dictationLanguage: 'fr-CA', dictationAutoSearch: true, dictationStatus: 'idle', dictationMessage: '',
     docLayout: 'grid', uploads: [],
+    // Summary of every accessible dossier (not only the selected one), loaded after the list: id → { summary, at }.
+    overview: {}, overviewLoading: false,
   };
   const main = document.getElementById('main-content');
   const dialog = document.getElementById('workspace-dialog');
@@ -119,7 +121,7 @@
     state.pageRequest += 1;
     state.caseLoading = false;
     state.mode = 'signedout'; state.user = null; state.cases = []; state.detail = null;
-    state.selectedId = null; state.capabilities = null; state.integrations = null; state.searchResults = null; state.searchQuery = ''; state.searchMeta = null;
+    state.selectedId = null; state.capabilities = null; state.integrations = null; state.searchResults = null; state.searchQuery = ''; state.searchMeta = null; state.overview = {}; state.overviewLoading = false;
     state.uploads = [];
     if (dialog.open) dialog.close();
     window.BAWorkspace?.reset();
@@ -241,6 +243,9 @@
   }
   function signedOut() {
     const login = state.health?.loginConfigured === true;
+    // Lawyer sign-up (14-day trial, no card) is a separate space; the link appears only once the server announces it.
+    const space = state.health?.lawyerSpace, trialDays = Number(space?.trialDays) || 0;
+    const lawyer = space?.url && /^(\.\/|\/)[A-Za-z0-9/_-]*$/u.test(space.url) ? `<p class="login-lawyer">Vous êtes avocat ? <a href="${esc(space.url)}">Créer mon compte${trialDays ? ` (${trialDays} jours gratuits, sans carte)` : ''}</a></p>` : '';
     const emailCode = login && state.health?.emailCodeConfigured === true;
     const unavailable = state.health === null;
     const disabled = state.busy ? ' disabled' : '';
@@ -255,7 +260,7 @@
     } else {
       loginForm = `${notice}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}`;
     }
-    return `${intro('VOTRE ESPACE, EN CLAIR', 'Chaque dossier mérite de la clarté.', 'Rassemblez vos pièces. Préparez vos échanges. Gardez le fil.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU SUIVI</span><h2>Tout retrouver.<br>Mieux se préparer.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot"><p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
+    return `${intro('PRÉPAREZ VOTRE DOSSIER', 'Préparez votre dossier. Trouvez votre avocat.', 'Créez votre tableau de bord, rassemblez vos pièces : un avocat du domaine concerné voit un dossier déjà prêt et peut l’accepter.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU MANDAT</span><h2>Un dossier prêt.<br>Un avocat qui l’accepte.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat. Les conditions du mandat se conviennent ensuite directement entre vous.</p><div class="welcome-rule"></div><a class="button light" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a><small>Données entièrement fictives · lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon('lock')}</span><span class="badge neutral">${login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>Votre accès<br>à l’espace de travail.</h2><p>${unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot">${lawyer}<p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
   }
   function noCase() {
     return `${intro('VOTRE ESPACE DE TRAVAIL', VIEW_LABELS[state.view], 'Chaque pièce et chaque échange sont rattachés à un dossier.')}<section class="panel empty-state">${icon('folder')}<h2>Commencez par un dossier.</h2><p>Ouvrez un dossier existant ou créez-en un depuis la page Dossiers.</p><button class="button" data-action="go-cases">Voir mes dossiers ${icon('arrow')}</button></section>`;
@@ -510,6 +515,91 @@
     const now = Date.now();
     return communicationSessions().filter(item => item.status !== 'cancelled' && new Date(item.scheduledAt).getTime() >= now).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))[0] || null;
   }
+  // ---------- Linked home: one summary per dossier, so the person chooses a dossier and sees everything without hunting ----------
+  const OVERVIEW_FRESH_MS = 60 * 1000, OVERVIEW_MAX = 24;
+  function summarize(detail) {
+    const docs = detail?.documents || [], sessions = detail?.communications?.sessions || [], now = Date.now();
+    const live = sessions.filter(item => item.status !== 'cancelled' && new Date(item.scheduledAt).getTime() >= now).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+    const me = state.user?.subject;
+    return {
+      documents: docs.length, toVerify: docs.filter(doc => doc.reviewStatus !== 'controle_visuel').length,
+      messages: (detail?.messages || []).length,
+      submitted: (detail?.timeEntries || []).filter(entry => entry.status === 'submitted').reduce((sum, entry) => sum + (Number(entry.minutes) || 0), 0),
+      toApprove: (detail?.timeEntries || []).filter(entry => entry.status === 'submitted' && entry.authorSubject !== me).length,
+      next: live[0] || null, running: sessions.filter(item => item.ownTimer?.status === 'running').length,
+      lastActivity: [...docs.map(doc => doc.createdAt), ...(detail?.messages || []).map(m => m.createdAt), ...sessions.map(item => item.createdAt)].filter(Boolean).sort().pop() || null,
+    };
+  }
+  function caseSummary(id) {
+    if (id === state.selectedId && state.detail) return summarize(state.detail);
+    return state.overview[id]?.summary || null;
+  }
+  // Items that need attention in one dossier, from its summary (lawyers see time to validate; everyone sees pieces and meetings).
+  function attention(item, summary) {
+    if (!summary) return 0;
+    const approver = ['owner', 'lawyer'].includes(item.role);
+    return summary.toVerify + summary.running + (summary.next && new Date(summary.next.scheduledAt).getTime() <= Date.now() + 7 * DAY ? 1 : 0) + (approver ? summary.toApprove : 0);
+  }
+  // Loads the other dossiers once (then every minute at most), one request each, never in the preview. Silent on failure.
+  async function loadOverview() {
+    if (state.demo || state.mode !== 'authenticated' || state.overviewLoading) return;
+    const now = Date.now(), sessionVersion = state.sessionVersion;
+    const stale = state.cases.filter(item => item.id !== state.selectedId && !(state.overview[item.id]?.at > now - OVERVIEW_FRESH_MS)).slice(0, OVERVIEW_MAX);
+    if (!stale.length) return;
+    state.overviewLoading = true;
+    try {
+      for (const item of stale) {
+        if (sessionVersion !== state.sessionVersion) return;
+        try {
+          const detail = await api(`/api/cases/${encodeURIComponent(item.id)}`);
+          if (sessionVersion !== state.sessionVersion) return;
+          if (detail) state.overview[item.id] = { summary: summarize(detail), at: Date.now() };
+        } catch { /* one dossier unreachable: its row says « résumé indisponible » */ }
+      }
+    } finally {
+      state.overviewLoading = false;
+      if (sessionVersion === state.sessionVersion && state.view === 'home' && state.mode === 'authenticated') render();
+    }
+  }
+  // The selected dossier is chosen here, in one tap, on the phone cockpit as on the desktop stage.
+  function caseSwitcher() {
+    if (!state.cases.length) return '';
+    const pills = state.cases.map(item => {
+      const on = item.id === state.selectedId, count = on ? 0 : attention(item, caseSummary(item.id));
+      return `<button type="button" class="case-pill${on ? ' is-active' : ''}" data-action="cockpit-select-case" data-id="${esc(item.id)}"${on ? ' aria-current="true"' : ''} title="${esc(item.title)}"><span class="case-pill-ref mono">${esc(item.reference || 'Dossier')}</span><span class="case-pill-title">${esc(item.title)}</span>${count ? `<span class="case-pill-count mono" aria-label="${count} élément${count > 1 ? 's' : ''} en attente">${count}</span>` : ''}</button>`;
+    }).join('');
+    return `<nav class="case-switcher" id="case-switcher" aria-label="Choisir le dossier affiché"><span class="case-switcher-label">${icon('folder')}Dossier affiché${state.demo ? ' · fictif' : ''}</span><div class="case-pills" role="group">${pills}</div></nav>`;
+  }
+  // One line per dossier with its figures; the selected one is marked, the others load in the background.
+  function casesOverview() {
+    if (state.cases.length < 2 && !state.demo) return '';
+    const rows = state.cases.map(item => {
+      const on = item.id === state.selectedId, summary = caseSummary(item.id);
+      const figures = !summary ? `<span class="overview-pending">${state.demo ? 'aperçu' : state.overview[item.id] ? 'résumé indisponible' : 'chargement…'}</span>`
+        : [[summary.toVerify, 'à vérifier', 'documents'], [summary.messages, 'message', 'messages'], [summary.submitted ? duration(summary.submitted) : 0, 'temps soumis', 'time']]
+          .filter(([value]) => value).map(([value, label, view]) => `<button type="button" class="overview-figure" data-action="open-case-view" data-id="${esc(item.id)}" data-section="${view}"><strong class="mono">${esc(String(value))}</strong> ${esc(typeof value === 'number' && value > 1 && label === 'message' ? 'messages' : label)}</button>`).join('')
+          + (summary.next ? `<button type="button" class="overview-figure" data-action="open-case-view" data-id="${esc(item.id)}" data-section="communications">${icon(summary.next.kind === 'video' ? 'video' : 'phone')} ${esc(date(summary.next.scheduledAt, true))}</button>` : '')
+          || '<span class="overview-pending">rien en attente</span>';
+      return `<li class="overview-row${on ? ' is-active' : ''}"><button type="button" class="overview-case" data-action="cockpit-select-case" data-id="${esc(item.id)}"${on ? ' aria-current="true"' : ''}><span class="case-symbol">${icon('folder')}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · ${esc(roleLabel(item.role))}${on ? ' · affiché' : ''}</small></span></button><div class="overview-figures">${figures}</div></li>`;
+    }).join('');
+    return `<section class="panel cockpit-panel" id="cases-overview" aria-labelledby="cases-overview-title"><div class="panel-heading"><div><h2 id="cases-overview-title">Vue d’ensemble</h2><p>${state.demo ? 'Dossiers fictifs de l’aperçu.' : 'Tous vos dossiers, leurs chiffres, et un clic pour y aller.'}</p></div><span class="badge outline mono">${state.cases.length}</span></div><ul class="overview-list">${rows}</ul></section>`;
+  }
+  // Lines for the other dossiers, each one opening the right section of the right dossier.
+  function linkedItems() {
+    const items = [];
+    for (const item of state.cases) {
+      if (item.id === state.selectedId) continue;
+      const summary = caseSummary(item.id);
+      if (!summary) continue;
+      const ref = item.reference || item.title;
+      const go = (view, label) => `<button type="button" class="button secondary small" data-action="open-case-view" data-id="${esc(item.id)}" data-section="${view}">${label}</button>`;
+      if (summary.running) items.push({ glyph: 'clock', title: `Chronomètre en cours · ${ref}`, sub: 'Pensez à l’arrêter à la fin de l’échange.', button: go('communications', 'Ouvrir') });
+      if (summary.next && new Date(summary.next.scheduledAt).getTime() <= Date.now() + 7 * DAY) items.push({ glyph: summary.next.kind === 'video' ? 'video' : 'phone', title: `Rendez-vous : ${summary.next.title} · ${ref}`, sub: date(summary.next.scheduledAt, true), button: go('communications', 'Voir') });
+      if (['owner', 'lawyer'].includes(item.role) && summary.toApprove) items.push({ glyph: 'check', title: `${summary.toApprove} temps à valider · ${ref}`, sub: 'Soumis par une autre personne', button: go('time', 'Valider') });
+      if (summary.toVerify) items.push({ glyph: 'document', title: `${summary.toVerify} pièce${summary.toVerify > 1 ? 's' : ''} à vérifier · ${ref}`, sub: 'Provenance et lisibilité', button: go('documents', 'Vérifier') });
+    }
+    return items;
+  }
   // Every value is computed from data already loaded; null means « bientôt » (not connected yet).
   function instruments() {
     const docs = state.detail?.documents || [];
@@ -605,13 +695,16 @@
       for (const entry of (state.detail?.usage?.entries || []).filter(entry => entry.status === 'submitted' && !entry.needsReview && entry.authorSubject !== me)) items.push({ glyph: 'check', title: 'Usage à valider en interne', sub: elapsed(entry.seconds), button: '<button type="button" class="button secondary small" data-view="usage">Valider</button>' });
     }
     for (const doc of (state.detail?.documents || []).filter(doc => doc.reviewStatus !== 'controle_visuel')) items.push({ glyph: KIND_ICONS[docKind(doc)], title: `Pièce à vérifier : ${doc.name}`, sub: SOURCE_LABELS[doc.sourceType] || 'Provenance à préciser', button: `<button type="button" class="button secondary small" data-action="preview" data-id="${esc(doc.id)}">Vérifier</button>` });
+    // Then the other dossiers, once their summary is loaded: the queue covers everything the person has access to.
+    items.push(...linkedItems());
     return items;
   }
   function workQueue() {
     const items = workItems(), shown = items.slice(0, 8);
     const rows = shown.map(item => `<li class="queue-item"><span class="queue-icon">${icon(item.glyph)}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.sub)}</small></span>${item.button}</li>`).join('');
-    const where = state.detail ? `Dossier sélectionné : ${currentCase()?.title || ''}${state.demo ? ' · fictif' : ''}` : 'Aucun dossier sélectionné';
-    return `<section class="panel cockpit-panel" id="work-queue" aria-labelledby="work-queue-title"><div class="panel-heading"><div><h2 id="work-queue-title">File de travail</h2><p>${esc(where)}</p></div><span class="badge outline mono">${items.length}</span></div>${rows ? `<ol class="queue-list">${rows}</ol>` : '<p class="table-empty">Rien en attente dans ce dossier.</p>'}${items.length > shown.length ? `<p class="queue-more">${items.length - shown.length} autre${items.length - shown.length > 1 ? 's' : ''} élément${items.length - shown.length > 1 ? 's' : ''} : ouvrez le dossier pour tout voir.</p>` : ''}</section>`;
+    const linked = state.cases.filter(item => item.id !== state.selectedId && caseSummary(item.id)).length;
+    const where = state.detail ? `${currentCase()?.title || ''}${linked ? ` et ${linked} autre${linked > 1 ? 's' : ''} dossier${linked > 1 ? 's' : ''}` : ''}${state.demo ? ' · fictif' : ''}` : 'Aucun dossier sélectionné';
+    return `<section class="panel cockpit-panel" id="work-queue" aria-labelledby="work-queue-title"><div class="panel-heading"><div><h2 id="work-queue-title">File de travail</h2><p>${esc(where)}</p></div><span class="badge outline mono">${items.length}</span></div>${rows ? `<ol class="queue-list">${rows}</ol>` : '<p class="table-empty">Rien en attente dans vos dossiers.</p>'}${items.length > shown.length ? `<p class="queue-more">${items.length - shown.length} autre${items.length - shown.length > 1 ? 's' : ''} élément${items.length - shown.length > 1 ? 's' : ''} : ouvrez le dossier pour tout voir.</p>` : ''}</section>`;
   }
   function activityEntries() {
     const entries = [];
@@ -667,7 +760,7 @@
     if (!cases.length) return '<p class="ws-empty">Aucun dossier ne correspond au filtre.</p>';
     return `<ul class="ws-cases">${cases.map((item, i) => {
       const on = item.id === state.selectedId;
-      return `<li><button type="button" class="ws-case${on ? ' is-active' : ''}" data-action="ws-select" data-id="${esc(item.id)}"${on ? ' aria-current="true"' : ''} data-i="${i}"><span class="ws-case-mark" data-hue="${i % 5}" aria-hidden="true">${esc(initials(item.title))}</span><span class="ws-case-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · ${esc(roleLabel(item.role))}</small></span>${on ? '<span class="ws-live" aria-hidden="true"></span>' : ''}</button></li>`;
+      return `<li><button type="button" class="ws-case${on ? ' is-active' : ''}" data-action="ws-select" data-id="${esc(item.id)}"${on ? ' aria-current="true"' : ''} data-i="${i}"><span class="ws-case-mark" data-hue="${i % 5}" aria-hidden="true">${esc(initials(item.title))}</span><span class="ws-case-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · ${esc(roleLabel(item.role))}</small></span>${on ? '<span class="ws-live" aria-hidden="true"></span>' : (count => count ? `<span class="ws-case-count mono" aria-label="${count} élément${count > 1 ? 's' : ''} en attente">${count}</span>` : '')(attention(item, caseSummary(item.id)))}</button></li>`;
     }).join('')}</ul>`;
   }
   function wsList() {
@@ -693,7 +786,7 @@
     // Client side: one clear next step, four large actions and the pieces the lawyer is waiting for. Nothing else.
     if (item && state.detail && !state.demo && isClientSide()) return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}<section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</section>`;
     const requestsPanel = item && state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section><section class="panel cockpit-panel live-panel" data-live="case-clio" aria-label="Clio Manage" hidden></section>' : '';
-    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${tabbar}${cockpitRail()}${banner}${wsProgress()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
+    return `<section class="ws-pane ws-stage" aria-label="Dossier sélectionné">${head}${caseSwitcher()}${tabbar}${cockpitRail()}${banner}${wsProgress()}${casesOverview()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${readOnlyNote()}</section>`;
   }
   function wsContext() {
     const next = upcoming(30).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).slice(0, 3);
@@ -716,7 +809,7 @@
       return `<div class="cockpit client-cockpit"><div class="intro cockpit-intro"><div><span class="eyebrow">VOTRE DOSSIER</span><h1>${esc(item?.title || 'Votre dossier')}</h1><p>Tout ce que votre avocat attend de vous, au même endroit.</p></div></div><section class="client-home" data-live="client-home" aria-label="Votre dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section>${readOnlyNote()}</div>`;
     }
     const requestsPanel = state.detail ? '<section class="panel cockpit-panel live-panel" data-live="case-requests" aria-label="Pièces demandées"></section><section class="panel cockpit-panel live-panel" data-live="case-deadlines" aria-label="Échéances du dossier"></section><section class="panel cockpit-panel live-panel" data-live="case-signatures" aria-label="Signature électronique" hidden></section><section class="panel cockpit-panel live-panel" data-live="case-clio" aria-label="Clio Manage" hidden></section>' : '';
-    return `<div class="cockpit">${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
+    return `<div class="cockpit">${caseSwitcher()}${cockpitRail()}<div class="intro cockpit-intro"><div><span class="eyebrow">CENTRE DE COMMANDEMENT</span><h1>Bonjour.</h1><p>${esc(greeting)}</p></div><div class="intro-actions"><button class="button secondary small" data-action="tutorial-start">${icon('compass')}Visite guidée</button><button class="button small" data-action="new-case"${canMutate() ? '' : ' disabled'}>${icon('plus')}Nouveau dossier</button></div></div>${banner}${casesOverview()}${requestsPanel}<div class="cockpit-grid">${workQueue()}${activityFeed()}</div>${cockpitIntegrations()}${soonTiles()}${quickSearch()}${readOnlyNote()}</div>`;
   }
   function clientsView() {
     const rows = state.cases.map(item => `<li class="queue-item"><span class="queue-icon">${icon('folder')}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · votre accès : ${esc(roleLabel(item.role))}</small></span><button type="button" class="button secondary small" data-action="open-case" data-id="${esc(item.id)}">Ouvrir</button></li>`).join('');
@@ -1294,6 +1387,8 @@
       if (version !== state.requestVersion || sessionVersion !== state.sessionVersion || !detail) return false;
       state.selectedId = id; state.detail = detail; state.view = newView; state.documentCategory = ''; state.onlyUnresolved = false;
       if (!preserveSearch) { state.searchResults = null; state.searchQuery = ''; state.searchMeta = null; }
+      if (!state.demo) state.overview[id] = { summary: summarize(detail), at: Date.now() };
+      if (newView === 'home') void loadOverview();
       return true;
     } catch (error) { if (sessionVersion === state.sessionVersion) notify(error.message, true); }
     finally {
@@ -1671,7 +1766,8 @@
     if (action === 'cockpit-modal-close') closeCockpitModal();
     if (action === 'cockpit-drawer') toggleDrawer(button.dataset.panel);
     if (action === 'cockpit-drawer-close') closeDrawer();
-    if (action === 'cockpit-select-case' && state.cases.some(item => item.id === button.dataset.id)) void loadCase(button.dataset.id, 'home');
+    if (action === 'cockpit-select-case' && state.cases.some(item => item.id === button.dataset.id)) { if (button.dataset.id !== state.selectedId) void loadCase(button.dataset.id, 'home'); else closeDrawer(false); }
+    if (action === 'open-case-view' && state.cases.some(item => item.id === button.dataset.id) && VIEW_LABELS[button.dataset.section]) void loadCase(button.dataset.id, button.dataset.section, true);
     if (action === 'rail-prev') scrollRail(-1);
     if (action === 'rail-next') scrollRail(1);
     if (action === 'guide-open') showGuide(true);
@@ -1832,7 +1928,7 @@
     state.integrations = await api('/api/integrations').catch(error => { if (error.status === 401) throw error; return null; });
     state.cases = (await api('/api/cases')).cases || [];
     state.mode = 'authenticated';
-    if (state.cases.length) { state.selectedId = state.cases[0].id; await refreshDetail(); }
+    if (state.cases.length) { state.selectedId = state.cases[0].id; await refreshDetail(); void loadOverview(); }
   }
   async function requestEmailCode(form) {
     if (state.demo || state.health?.emailCodeConfigured !== true || state.busy) return;
@@ -1922,8 +2018,13 @@
     state.health = await publicHealth();
     try {
       await loadSession();
-      // The connector return page links back to /#integrations.
-      if (window.location.hash === '#integrations') state.view = 'integrations';
+      // Deep links: /#case/<id>[/<section>] opens one dossier directly (used by the lawyer space); /#integrations is the connector return page.
+      const deep = /^#case\/([A-Za-z0-9_.:-]{1,80})(?:\/([a-z]+))?$/u.exec(window.location.hash || '');
+      if (deep && state.cases.some(item => item.id === deep[1])) {
+        const section = VIEW_LABELS[deep[2]] ? deep[2] : 'home';
+        if (deep[1] !== state.selectedId) { await loadCase(deep[1], section); return; }
+        state.view = section;
+      } else if (window.location.hash === '#integrations') state.view = 'integrations';
       render();
     }
     catch (error) {

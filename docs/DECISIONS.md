@@ -1,5 +1,10 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## PR #52 — conflit de fusion résolu, en attente de la revue du 14 novembre 2026 20:00
+
+La PR #52 (cockpit : carte « Votre avocat », téléphone (514) 949-0887 + « Par chat / Par courriel », coordonnées aussi côté responsable) ne pouvait plus fusionner : `main` (c603a550, PR #60) avait avancé. Conflit limité à `docs/JOURNAL-AGENTS.md` (ajout-ajout) : les 4 entrées SOCIO du 2026-11-11 sont conservées avant les 20 entrées `main` du 2026-11-13, verbatim (133 entrées). `platform/public/app.js` et `platform/test/cockpit.test.mjs` ont fusionné sans conflit. Contrôles : `node --check` OK, suite plateforme 384/384 (Node 24.22). Branche `socio/cockpit-avocat-2026-11-11` mise à jour par fusion de `main` (commit `a2e8131`). **La PR n'est pas fusionnée** : fusion décidée à la revue de ce soir 20:00 avec Matt. Reste ensuite : redéploiement manuel Coolify (`besoinavocat-portail`) et provisionnement du compte avocat 6280.ca@gmail.com (accès Supabase + Coolify à confirmer : propriétaire ou Matt). — SOCIO, Agent Lévesque, 2026-11-14.
+
+
 ## Réception du portail — 2026-11-07 08:02 UTC
 
 Signé **Codex**. Le propriétaire a demandé de fusionner, pousser et vérifier les dépôts **un par un**, en commençant par BESOINAVOCAT.
@@ -12,6 +17,46 @@ La PR documentaire 6 est fusionnée après quatre contrôles verts et identifica
 
 Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
 
+
+## D-035 — Le message est « préparer son dossier pour trouver son avocat », plus « trouver un avocat » (13 novembre 2026)
+
+Demande du propriétaire (13 novembre 2026, 07:04 et 07:05 UTC) : le but de BesoinAvocat est de préparer un dossier sur la plateforme pour que les avocats derrière BesoinAvocat (domaine connexe : jeunesse, civil, etc.) voient un dossier déjà prêt et l'acceptent; les conditions du mandat se conviennent ensuite entre l'avocat et la personne. « Le petit piton rose qui dit trouver un avocat, c'est fini » : il signifie désormais créer son tableau de bord et préparer son dossier pour trouver son avocat. « Ne changez pas les informations sur le site » à part cela.
+
+Mise en œuvre (texte seulement, aucune couleur, mise en page, destination ni autre contenu touché) :
+- Portail, page `/demande` : titre « Préparer mon dossier pour trouver mon avocat — demande gratuite », en-tête « Préparez votre dossier. Trouvez votre avocat. », phrase d'introduction qui explique le parcours (dossier préparé → avocat du domaine qui l'accepte → conditions du mandat convenues ensuite), les phrases de réserve existantes conservées (aucune garantie de disponibilité ni d'attribution).
+- Portail, écran de connexion : même message (« Préparez votre dossier. Trouvez votre avocat. », « Un dossier prêt. Un avocat qui l'accepte. »).
+- Vitrine (copie exacte D-032 et style D-026) : seuls les libellés « TROUVER MON AVOCAT », « Trouver un avocat » et « FIND MY LAWYER » deviennent « PRÉPARER MON DOSSIER », « Préparer mon dossier » et « PREPARE MY FILE » (`repositionCta` dans `www/build.mjs`). Le contrôle mot à mot de `check-site` relit ces libellés comme ceux de WordPress; tout le reste reste identique. Exception explicite à D-032, demandée par le propriétaire.
+- Le WordPress en ligne (`besoinavocat.ca`, MochaHost) n'est pas modifiable depuis le dépôt : le bouton du popup Elementor 1839 (« TROUVER MON AVOCAT ») et le lien d'en-tête (« Trouver un avocat ») y sont à renommer par le propriétaire ou Mike.
+
+## D-034 — Un avocat s'inscrit seul, avec un essai gratuit de 14 jours sans carte (13 novembre 2026)
+
+Demande du propriétaire (13 novembre 2026, 04:31 UTC) : un avocat doit pouvoir s'inscrire, obtenir « 14 jours gratuits, sans carte de crédit, sans paiement », puis rejoindre le dossier de son client; après 14 jours, on lui demande un paiement. Mise en œuvre : page `/avocat`, inscription par code courriel qui crée le compte à la volée, essai local `plan: trial` géré par `membership.mjs` sans Stripe, codes d'invitation `AV-XXXX-XXXX` pour rejoindre un dossier avec le rôle avocat. Après l'essai : lecture conservée des dossiers rejoints, aucun nouveau dossier (402), forfaits Stripe affichés seulement quand les clés existent. Locataire par défaut des avocats inscrits : `takatak`. Détails : [ESPACE-AVOCAT](ESPACE-AVOCAT.md).
+
+## D-033 — Les deux images mortes et le lien mort sont réparés dans la copie exacte (13 novembre 2026)
+
+Demande du propriétaire : réparer sur `preview.besoinavocat.ca` les liens et images morts de WordPress. Dans la construction exacte (D-032), `repairKnownReferences` s'applique de nouveau, sans les liens `wp-login.php` : les deux images de `jurigo.ca` (404) de `/regroupement-familial-quebec/` utilisent les fichiers locaux déjà prévus, et le lien `/contact/` (404) de `/terms-and-conditions/` mène à `https://portail.besoinavocat.ca/demande`. Tout le reste de D-032 est inchangé.
+
+## D-032 — La copie de prévisualisation est strictement identique au WordPress (13 novembre 2026)
+
+Instruction du propriétaire du 13 novembre : `preview.besoinavocat.ca` doit être identique à `besoinavocat.ca` en tout : liens, contenu, mise en page, boutons et effets, « rien de différent ». Comparaison des 352 adresses en ligne (statut, texte visible, liens, structure du corps, scripts) puis de rendus Chromium (bureau 1440 px et mobile 390 px, 17 types de pages, survols, menu, bannière de témoins, accordéons, clic sur « Trouver mon avocat ») : les rendus étaient déjà identiques au pixel; les écarts restants étaient des ajouts de la copie, retirés par cette décision.
+
+Avec `BA_STYLE=wordpress` (défaut), la construction **ne change plus** :
+
+- la destination des boutons : « Trouver mon avocat » mène à `/demande` comme sur WordPress (et non au portail); les boutons sans lien sur WordPress restent sans lien; les liens morts de WordPress (`/contact/`, `wp-login.php?action=…`, deux images de jurigo.ca) restent tels quels;
+- l'en-tête : `lang="en-US"`, titres `<h2>`, aucune balise description / Open Graph / JSON-LD ajoutée, liens `feed`, `wp-json`, `EditURI`, `shortlink` conservés;
+- les formulaires : plus d'avis ni d'attribut `inert`; champs utilisables comme sur WordPress. Seul l'envoi, qui exige WordPress, ouvre le portail (`/demande?role=professional` pour MetForm, le portail pour la connexion) **sans aucune valeur du formulaire**;
+- `robots.txt`, `wp-sitemap*.xml`, `feed/` et `comments/feed/` sont les fichiers mêmes de WordPress (`www/parity/`, rafraîchis par `www/tools/mirror-parity.mjs`); `/sitemap.xml`, `/index.php`, `/favicon.ico` et `/avocat-aide-juridique/` redirigent comme sur WordPress; un dossier sans page répond 404.
+
+Pages ajoutées à la copie (servies par WordPress, absentes du plan de site des pages) : `/author/admin/`, `/category/uncategorized/`, `/metform-form/become-a-partner/`, `/metform-form/find-a-lawyer/`, `/metform-form/new-form-1759089507/`, avec les feuilles de style `post-430` et `post-461`. Le CSP autorise `secure.gravatar.com` (image de l'auteur) et l'évaluation de scripts sous `/metform-form/`.
+
+Écarts volontairement conservés (invisibles ou impossibles sans WordPress) :
+
+- les polices Google restent servies depuis `vendor/` (même rendu, aucune requête tierce);
+- le choix de la bannière de témoins est gardé dans le témoin du visiteur (`consent-local.js`) : sur WordPress, `admin-ajax.php` répond « Error saving consent data » (contrôle du 13 novembre) et la bannière revient à chaque page;
+- adresses relatives au lieu de `https://besoinavocat.ca/…` dans les liens du site (la copie reste sur son propre hôte);
+- WordPress seul : `wp-login.php`, `wp-admin`, `wp-json`, `wp-cron.php`, recherche `/?s=`, redirection `/?p=ID`, réception des formulaires.
+
+`BA_STYLE=legal` (D-026) reste disponible et inchangé. `www/tools/check-site.mjs` vérifie désormais, page par page, que la liste des liens (adresse, cible, rel), la langue, le nombre de titres et les balises meta sont ceux du WordPress.
 
 ## D-031 — La copie de prévisualisation reprend les couleurs du WordPress (9 novembre 2026)
 

@@ -161,3 +161,47 @@ test('search metadata: French language, one h1, description, Open Graph and JSON
   assert.match(home, /Besoin d’un avocat au Québec\?/);
   assert.ok(JSON.parse(home.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])['@graph'].some(item => item['@type'] === 'Organization'));
 });
+
+// Exact copy (D-032): the forms are as on WordPress; only the submission, which needs WordPress, opens the portal with no value from the form.
+function exactSubmit(selectorsMatched) {
+  let handler, opened = null, prevented = false, stopped = false;
+  const tag = { getAttribute: (name) => ({ 'data-mode': 'exact', 'data-professional': 'https://portail.besoinavocat.ca/demande?role=professional', 'data-portal': 'https://portail.besoinavocat.ca/' })[name] };
+  const document = { currentScript: tag, addEventListener(type, callback) { handler = callback; } };
+  runInNewContext(read('overrides/assets/static-bridge.js'), {
+    document,
+    window: { location: { set href(value) { opened = value; } } },
+    fetch() { throw new Error('The bridge must not transmit data'); },
+    FormData() { throw new Error('The bridge must not read form fields'); },
+  });
+  handler({
+    target: { closest: (selector) => (selectorsMatched(selector) ? {} : null), get elements() { throw new Error('Do not read form fields'); } },
+    preventDefault() { prevented = true; }, stopImmediatePropagation() { stopped = true; },
+  });
+  return { opened, prevented, stopped };
+}
+
+test('exact copy: a MetForm submission opens the professional portal page and a login submission opens the portal, with no form value', () => {
+  assert.deepEqual(exactSubmit((s) => /mf-form-wrapper/.test(s)), { opened: 'https://portail.besoinavocat.ca/demande?role=professional', prevented: true, stopped: true });
+  assert.deepEqual(exactSubmit((s) => /elementor-login/.test(s) && !/mf-form-wrapper/.test(s)), { opened: 'https://portail.besoinavocat.ca/', prevented: true, stopped: true });
+  assert.deepEqual(exactSubmit(() => false), { opened: null, prevented: false, stopped: false });
+});
+
+test('exact copy is the default style: no destination added, no heading, language or head change, no form notice', () => {
+  assert.match(source, /const EXACT = !LEGAL;/);
+  assert.match(source, /EXACT \? html : wireButtons\(/);
+  assert.match(source, /repairKnownReferences\(html, \{ loginLinks: false \}\)/);
+  assert.match(source, /if \(!EXACT && pagePath\.endsWith/);
+  assert.match(source, /\(EXACT \? html : prepareLegacyForms\(html\)\)/);
+});
+
+test('D-035: the call to action reads « Préparer mon dossier » in both styles, nothing else is reworded', () => {
+  assert.match(source, /repositionCta\(EXACT \? html : wireButtons\(/);
+  assert.match(source, /\['TROUVER MON AVOCAT', 'PRÉPARER MON DOSSIER'\]/);
+  assert.match(source, /\['Trouver un avocat', 'Préparer mon dossier'\]/);
+  assert.match(source, /\['FIND MY LAWYER', 'PREPARE MY FILE'\]/);
+  const fn = source.match(/function repositionCta\(html\) \{[\s\S]*?\n\}/)[0];
+  const CTA_LABELS = eval(source.match(/const CTA_LABELS = (\[[\s\S]*?\]);\n/)[1]);
+  const repositionCta = new Function('CTA_LABELS', `${fn}; return repositionCta;`)(CTA_LABELS);
+  const html = '<a class="x" href="https://besoinavocat.ca/demande/">Trouver un avocat</a><span class="elementor-button-text">TROUVER MON AVOCAT</span><p>Besoinavocat vous aide à trouver un avocat rapidement.</p>';
+  assert.equal(repositionCta(html), '<a class="x" href="https://besoinavocat.ca/demande/">Préparer mon dossier</a><span class="elementor-button-text">PRÉPARER MON DOSSIER</span><p>Besoinavocat vous aide à trouver un avocat rapidement.</p>');
+});

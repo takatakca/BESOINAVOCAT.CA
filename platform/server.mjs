@@ -24,6 +24,7 @@ import { createNotifications, notificationConfiguration } from './lib/notificati
 import { createCanlii } from './lib/canlii.mjs';
 import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
+import { createLawyerAccounts, lawyerAccountsConfiguration } from './lib/lawyer-accounts.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, documentHeaderInput, readJson, readRawBody, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
@@ -66,6 +67,11 @@ const assets = new Map([
   // Return address registered with each OAuth provider; the page posts the code to /api/integrations/complete.
   ['/integrations/callback', ['integrations-callback.html', 'text/html; charset=utf-8']],
   ['/integrations-callback.js', ['integrations-callback.js', 'text/javascript; charset=utf-8']],
+  // Espace avocat : inscription libre, essai gratuit, dossiers rejoints par code d'invitation (lib/lawyer-accounts.mjs).
+  ['/avocat', ['avocat.html', 'text/html; charset=utf-8']],
+  ['/avocat/', ['avocat.html', 'text/html; charset=utf-8']],
+  ['/avocat.js', ['avocat.js', 'text/javascript; charset=utf-8']],
+  ['/avocat.css', ['avocat.css', 'text/css; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -127,7 +133,8 @@ export function createApp({
   blobDir = join(HERE, '.data', 'blobs'),
   authenticate,
   env = process.env,
-  browserSessions = createBrowserSessions({ config: browserSessionConfiguration(env) }),
+  browserSessions,
+  identityFetch = globalThis.fetch,
   integrationFetch = globalThis.fetch,
   telephonyFetch = globalThis.fetch,
   paymentsFetch = globalThis.fetch,
@@ -140,19 +147,27 @@ export function createApp({
   const trustProxy = env.BESOINAVOCAT_TRUST_PROXY === '1';
   const verifyIdentity = authenticate ?? createIntrospection(config);
   if (typeof verifyIdentity !== 'function') throw new TypeError('authenticate must be a function');
-  if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
-  const loginConfigured = browserSessions.configured === true;
-  const emailCodeConfigured = loginConfigured && browserSessions.emailCodeConfigured === true;
   // Neither configuration path may be placed within the public asset directory.
   const insidePublic = path => { const rel = relative(PUBLIC, resolve(path)); return !rel || (!rel.startsWith('..') && !isAbsolute(rel)); };
   if ((dbPath !== ':memory:' && insidePublic(dbPath)) || insidePublic(blobDir)) throw new Error('Private storage cannot be inside public/');
   // Optional encryption at rest of case documents; a configured but unusable key stops the start.
   const store = createStore({ dbPath, blobDir, blobKey: loadBlobKey(env.BESOINAVOCAT_BLOB_KEY_FILE) });
+  // Comptes avocats inscrits eux-mêmes : leur habilitation est lue à chaque connexion, en plus du fichier de grants.
+  const accounts = createLawyerAccounts({ db: store.db, store, audit: store.audit, config: lawyerAccountsConfiguration(env), clock });
+  browserSessions ??= createBrowserSessions({ config: browserSessionConfiguration(env), fetchImpl: identityFetch, now: clock, extraGrants: subject => accounts.grantFor(subject) });
+  if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
+  const loginConfigured = browserSessions.configured === true;
+  const emailCodeConfigured = loginConfigured && browserSessions.emailCodeConfigured === true;
   const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
-  const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS) });
+  const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS), isLawyer: accounts.has, trialDays: accounts.config.trialDays });
+  // Essai ou abonnement en cours : exigé pour rejoindre un dossier. Le paiement n'est demandé qu'après l'essai.
+  const requireLawyerAccess = user => {
+    if (!accounts.has(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'Ouvrez d’abord votre espace avocat.');
+    if (!membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+  };
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
   const notifications = createNotifications({ db: store.db, audit: store.audit, config: notificationConfiguration(env), fetch: notificationFetch, clock, log: message => console.warn(message) });
@@ -178,7 +193,7 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays } });
     // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
     if (path === '/api/openapi.json') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -316,12 +331,31 @@ export function createApp({
     const hasSessionCookie = typeof cookieHeader === 'string' && cookieHeader.split(';').some(part => part.trim().split('=', 1)[0].trim() === BROWSER_SESSION_COOKIE);
     const hasAuthorization = Object.hasOwn(req.headers, 'authorization');
     if (hasSessionCookie && hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Utilisez une seule méthode de connexion.');
-    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify'].includes(path)) {
+    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify'].includes(path)) {
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Cette connexion utilise une session de navigateur.');
       browserSessions.assertMutation(req);
-      if (path.startsWith('/api/auth/email/') && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
+      if ((path.startsWith('/api/auth/email/') || path.startsWith('/api/auth/lawyer/')) && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
+      // Inscription d'un avocat : profil gardé en attente, code envoyé par le fournisseur TAKATAK (le compte y est créé
+      // au premier code), puis vérification qui enregistre l'habilitation et ouvre l'essai gratuit avant la session.
+      if (path === '/api/auth/lawyer/signup') {
+        const email = accounts.beginSignup(await readJson(req, 2048));
+        return json(res, 200, await browserSessions.requestEmailCode(email, { clientKey: clientAddress(req, trustProxy), createUser: true }));
+      }
+      if (path === '/api/auth/lawyer/verify') {
+        const body = fields(await readJson(req, 1024), ['email', 'code'], ['email', 'code']);
+        const email = text(body.email, 'Adresse courriel', 320).trim();
+        let opened = null;
+        const session = await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy), onVerified: (subject, confirmedEmail) => {
+          const result = accounts.completeSignup(subject, confirmedEmail);
+          opened = membership.startTrial({ subject, tenantId: result.tenantId, product: 'besoinavocat', active: true });
+        } });
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (hasSessionCookie) browserSessions.logout(cookieHeader);
+        res.setHeader('Set-Cookie', session.setCookie);
+        return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), membership: opened });
+      }
       if (path === '/api/auth/email/request') {
         const body = fields(await readJson(req, 1024), ['email'], ['email']);
         if (typeof browserSessions.requestEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
@@ -431,6 +465,22 @@ export function createApp({
       if (path === '/api/calendar-feed/revoke' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, calendarFeed.revoke(user)); }
       throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
     }
+    // Espace avocat (lib/lawyer-accounts.mjs) : profil, essai, dossiers et codes d'invitation.
+    if (path === '/api/lawyer' || path.startsWith('/api/lawyer/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (path === '/api/lawyer/me' && method === 'GET') {
+        const account = accounts.get(user);
+        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? await membership.overview(user) : null, cases: store.listCases(user), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured });
+      }
+      if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (path === '/api/lawyer/activate') {
+        const account = accounts.activate(user, await readJson(req, 2048));
+        return json(res, 201, { account, membership: membership.startTrial(user) });
+      }
+      if (path === '/api/lawyer/profile') return json(res, 200, { account: accounts.update(user, await readJson(req, 2048)) });
+      if (path === '/api/lawyer/join') { requireLawyerAccess(user); return json(res, 200, accounts.join(user, await readJson(req, 256))); }
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
@@ -475,7 +525,7 @@ export function createApp({
       fields(await readJson(req, 128, { allowEmpty: true }), []);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: store.listCases(user) });
       if (method === 'POST') return json(res, 201, { case: store.createCase(user, caseInput(await readJson(req, 4096))) });
@@ -514,6 +564,11 @@ export function createApp({
       return json(res, 200, { [action === 'cancel' ? 'session' : 'timer']: result });
     }
     if (suffix === '/usage' && method === 'GET') return json(res, 200, communications.listUsage(user, caseId, pageQuery()));
+    // Codes d'invitation remis à l'avocat du dossier (lib/lawyer-accounts.mjs). Le code n'est renvoyé qu'à la création.
+    if (suffix === '/invitations' && method === 'GET') return json(res, 200, accounts.listInvitations(user, caseId));
+    if (suffix === '/invitations' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, accounts.createInvitation(user, caseId)); }
+    const invitationRevoke = /^\/invitations\/([^/]+)\/revoke$/u.exec(suffix);
+    if (invitationRevoke && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, accounts.revokeInvitation(user, caseId, invitationRevoke[1])); }
     const usageApproval = /^\/usage\/([^/]+)\/approve$/u.exec(suffix);
     if (usageApproval && method === 'POST') {
       fields(await readJson(req, 128, { allowEmpty: true }), []);
@@ -678,7 +733,7 @@ export function createApp({
   });
   app.keepAliveTimeout = 5000;
   app.maxRequestsPerSocket = 100;
-  const dispose = () => { intake.clear(); browserSessions.clear(); store.close(); };
+  const dispose = () => { intake.clear(); accounts.clear(); browserSessions.clear(); store.close(); };
   app.on('close', dispose);
   app.store = store;
   app.dispose = dispose;

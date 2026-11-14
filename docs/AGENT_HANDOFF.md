@@ -1,5 +1,10 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
+## Textes légaux en projet — 14 novembre 2026 (branche `claude/project-thread-x6dyq7`)
+
+Sur réponse du propriétaire (20:57 UTC) : numéro public **(855) 3-AVOCAT**, appels facturés à la minute, textes légaux à rédiger par nous. Livrés dans [`docs/legal/`](legal/README.md) : politique de confidentialité, conditions de l'espace avocat, entente Loi 25 avec MIMT, relecture du consentement de la demande guidée avec reformulations (D-037). **Projets à faire valider par un avocat avant publication**; crochets à compléter par le propriétaire (identité légale, responsable PRP, durées de conservation D-030, tarifs). Reste ensuite : publication de la politique sur le WordPress (propriétaire/Mike), lien des conditions dans `/avocat`, signature de l'entente avant d'activer les appels, nouvelle version du consentement si les reformulations sont retenues.
+
+
 ## Parcours complet « préparer son dossier → un avocat l'accepte » — 14 novembre 2026 (branche `claude/project-thread-x6dyq7`)
 
 Inscription libre d'une personne cliente par code courriel (« Créer mon tableau de bord »), domaine de droit + résumé + état *préparation / prêt / accepté* sur chaque dossier, liste « Dossiers prêts à accepter » et bouton « Accepter ce dossier » dans l'espace avocat, domaines de pratique dans le profil de l'avocat, message automatique à la personne à l'acceptation (D-036, [ESPACE-AVOCAT](ESPACE-AVOCAT.md)). 388/388 tests Node, 17/17 Python, 3/3 archive. Aucun paiement (consigne du 13 novembre). Reste au technicien : redéploiement manuel du portail depuis `main` (autodéploiement éteint), `BESOINAVOCAT_EMAIL_OTP_ENABLED=true` avec livraison réelle du courriel, « Enable email signups » chez le fournisseur TAKATAK; au propriétaire : rien de nouveau pour ce lot.

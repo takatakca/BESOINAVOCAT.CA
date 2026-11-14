@@ -18,6 +18,17 @@ La PR documentaire 6 est fusionnée après quatre contrôles verts et identifica
 Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
 
 
+## D-037 — Réponses du propriétaire du 14 novembre 2026 : numéro public, appels à la minute, textes légaux rédigés en projet (14 novembre 2026)
+
+Réponses du propriétaire (14 novembre 2026, 20:57 UTC) à la liste des points qui restaient à sa décision :
+- **Numéro public pour les appels : (855) 3-AVOCAT** (855 328-6228). Clos; l'autre option, (450) 999-3999, est abandonnée.
+- **Appels facturés à la minute** (MIMT Connect, toute minute commencée due; `creditPerMinute` du partenaire, 2 crédits par minute selon la documentation du 7 novembre, à confirmer avec MIMT). Le tarif affiché aux utilisateurs reste à fixer.
+- **Entente Loi 25, politique de confidentialité et conditions des avocats** : le propriétaire demande que nous les rédigions, à partir des textes que TAKATAK a déjà (`takatak.ca/privacy`). Projets livrés dans [`docs/legal/`](legal/README.md). **Ce sont des projets rédigés par un agent logiciel, à faire valider par un avocat avant publication ou signature**; les passages entre crochets sont à compléter par le propriétaire (identité légale, responsable de la protection des renseignements personnels, durées de conservation, tarifs).
+- **Relecture du consentement de la demande guidée** : le propriétaire demande que nous la fassions nous-mêmes. Faite dans [RELECTURE-CONSENTEMENT-DEMANDE](legal/RELECTURE-CONSENTEMENT-DEMANDE.md) : les textes actuels sont conformes dans l'ensemble; neuf précisions et trois reformulations proposées, qui deviendraient de nouvelles versions de consentement si le propriétaire les retient. Ce n'est pas une relecture par un avocat; l'activation de la demande guidée reste soumise à la décision du propriétaire en connaissance de cause.
+- **WordPress en ligne** : renommage « Trouver un avocat » → « Préparer mon dossier » (popup Elementor 1839 et lien d'en-tête) confirmé (« oui exactement »); à faire par le propriétaire ou Mike (D-023, D-026).
+- **Durée de conservation des demandes (D-030)** : toujours ouverte; la politique de confidentialité prévoit l'espace à compléter.
+- CanLII (nom, titre, téléphone pour la demande de clé) : toujours ouvert.
+
 ## D-036 — La personne crée son tableau de bord et prépare son dossier; un avocat du domaine l'accepte (14 novembre 2026)
 
 Demande du propriétaire (14 novembre 2026, 19:44 UTC) : « terminer la plateforme complète à 100 % ». Constat au départ : le message D-035 était écrit sur les écrans, mais le parcours n'existait pas de bout en bout. Une personne du public ne pouvait pas entrer (habilitation par fichier privé ou compte avocat seulement), un dossier n'avait ni domaine de droit ni état « prêt », et un avocat ne voyait ni n'acceptait les dossiers prêts de son domaine (rattachement par code d'invitation seulement). Ce lot livre le parcours complet, sans paiement (voir la consigne Stripe du 13 novembre : gratuit pour l'instant).

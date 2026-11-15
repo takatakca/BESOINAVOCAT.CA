@@ -13,12 +13,12 @@ avec nom, cabinet, courriel — téléphone et adresse à enrichir — pour trav
   (liste + enrichissement), aucun envoi marketing n'est parti.
 
 ## Contenu de la liste (master-list-avocats-2026-11-14.csv)
-- **449 adresses contactées** le 2026-11-14 (vagues 1, 2 et 3 de la campagne).
+- **456 adresses contactées** (449 le 2026-11-14 + 7 relève 20 le 2026-11-15 01:52–01:53 EST — vague 3 TERMINÉE 56/56).
 - **13 échecs de livraison** (adresses invalides/refusées — ne jamais réessayer pour le mandat Harmony).
-- **436 courriels livrés**, dont :
+- **443 courriels livrés**, dont :
   - **25 déclins** du mandat Harmony (24 rattachés à un courriel dans la liste ; 1 compté au journal sans courriel rattaché) ;
   - **9 réponses automatiques** rattachées (absences ; ~14 reçues au total) ;
-  - **403 sans réponse** ;
+  - **410 sans réponse** ;
   - **0 acceptation**.
 - Couverture : nom pour 295/449, cabinet pour 321/449 (le reste : envois du matin retracés par la boîte,
   nom/cabinet à enrichir avec le téléphone et l'adresse).
@@ -44,3 +44,16 @@ avec nom, cabinet, courriel — téléphone et adresse à enrichir — pour trav
 Sources : ~/workspace/recherche-avocat-harmony/ (journal-envois.md, envois_log.json, envois_campagne.json,
 recus_campagne.json, contactes.md, fichiers candidats des vagues 1–3).
 Signé : Taktak — 2026-11-14 23:2x EST.
+
+## Mise à jour 2026-11-15 02:05 EST — relève 20 (vague 3 TERMINÉE 56/56) — signée Taktak
+- 7 envois ajoutés (relève 20, 2026-11-15 01:52–01:53 EST, ids Gmail vérifiés dans lot_releve_20.log et
+  envois_log.json) : Me Lianne Armstrong (Lerners, 1a1ddfad68d954e6), Me Natalie Carrothers (Lerners,
+  1a1ddfaf691d3050), Me Joseph Hentz (Lerners, 1a1ddfb123724295), Me Kevin Ross (Lerners,
+  1a1ddfb2fe70cb83), Me John De Vellis (Shibley Righton, 1a1ddfb48ecde8c9), Me Vern DaRe (Fogler,
+  Rubinoff, 1a1ddfb63ac155a2), Me David Joanisse (LCM Avocats, 1a1ddfb7e47441b5).
+- Compteurs : 449 → **456 adresses** ; livrés 436 → **443** ; sans réponse 403 → **410** ; déclins 25,
+  échecs 13, réponses automatiques 9, acceptations 0 — inchangés.
+- Vérification : base distante GitHub main 48e9a718 (blob SHA 5f3778b3…) re-vérifiée avant dépôt —
+  le fichier poussé est byte-identique à la base + 7 lignes ajoutées (md5 ancien cd1f3ddf…).
+- Prochaine étape : vague 4 — nouvelle liste (Barreau Montréal/Québec, litige), hors exclusion (460),
+  hors déclins/échecs ; liste en constitution dans ~/workspace/recherche-avocat-harmony/.

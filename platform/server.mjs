@@ -25,6 +25,7 @@ import { createCanlii } from './lib/canlii.mjs';
 import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { createLawyerAccounts, lawyerAccountsConfiguration } from './lib/lawyer-accounts.mjs';
+import { createFirmsDirectory, firmsDirectoryConfiguration } from './lib/firms-directory.mjs';
 import { createClientAccounts } from './lib/client-accounts.mjs';
 import { createCaseMatching } from './lib/case-matching.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
@@ -74,6 +75,11 @@ const assets = new Map([
   ['/avocat/', ['avocat.html', 'text/html; charset=utf-8']],
   ['/avocat.js', ['avocat.js', 'text/javascript; charset=utf-8']],
   ['/avocat.css', ['avocat.css', 'text/css; charset=utf-8']],
+  // Annuaire public des cabinets : la page ne reçoit que la projection de lib/firms-directory.mjs (nom + ville + palier).
+  ['/avocats', ['avocats.html', 'text/html; charset=utf-8']],
+  ['/avocats/', ['avocats.html', 'text/html; charset=utf-8']],
+  ['/avocats.js', ['avocats.js', 'text/javascript; charset=utf-8']],
+  ['/avocats.css', ['avocats.css', 'text/css; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -156,6 +162,8 @@ export function createApp({
   const store = createStore({ dbPath, blobDir, blobKey: loadBlobKey(env.BESOINAVOCAT_BLOB_KEY_FILE) });
   // Comptes avocats inscrits eux-mêmes : leur habilitation est lue à chaque connexion, en plus du fichier de grants.
   const accounts = createLawyerAccounts({ db: store.db, store, audit: store.audit, config: lawyerAccountsConfiguration(env), clock });
+  // Annuaire des cabinets : dataset arrière-plan lu une fois au démarrage; seule sa projection publique est servie.
+  const firmsDirectory = createFirmsDirectory(firmsDirectoryConfiguration(env));
   // Trois sources d'habilitation, relues à chaque requête : le fichier privé de grants, les comptes avocats, les comptes clients (D-036).
   const clients = createClientAccounts({ db: store.db, audit: store.audit, tenantId: accounts.config.tenantId, clock });
   const matching = createCaseMatching({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -199,6 +207,8 @@ export function createApp({
     const path = url.pathname;
     const method = req.method;
     if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured });
+    // Annuaire public : nom du cabinet, ville et palier seulement — jamais une coordonnée (lib/firms-directory.mjs).
+    if (path === '/api/firms' && method === 'GET') return json(res, 200, firmsDirectory.publicDirectory());
     // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
     if (path === '/api/openapi.json') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');

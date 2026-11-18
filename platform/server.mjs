@@ -75,6 +75,11 @@ const assets = new Map([
   ['/avocat/', ['avocat.html', 'text/html; charset=utf-8']],
   ['/avocat.js', ['avocat.js', 'text/javascript; charset=utf-8']],
   ['/avocat.css', ['avocat.css', 'text/css; charset=utf-8']],
+  // Public help pages (support and Zoom app guide), linked from the Zoom App Marketplace listing.
+  ['/aide', ['aide.html', 'text/html; charset=utf-8']],
+  ['/aide/', ['aide.html', 'text/html; charset=utf-8']],
+  ['/aide/zoom', ['aide-zoom.html', 'text/html; charset=utf-8']],
+  ['/aide.css', ['aide.css', 'text/css; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],

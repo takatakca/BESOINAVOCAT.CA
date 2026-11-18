@@ -47,6 +47,24 @@ Vérifié en direct sur `portail.besoinavocat.ca` (adresse `/api/integrations` e
 4. **Barreau du Québec** : vérification automatique du statut de membre des avocats inscrits.
 5. **Notarius** : entente de partenariat ConsignO Cloud.
 
+## 5. Mise à jour 18 novembre, 09 h : ce qui bloque encore, vérifié en direct
+
+**Demandes d'accès.** Les cinq courriels sont rédigés (CanLII, ministère/Lexius, SOQUIJ, Barreau, Notarius). Copie dans le dossier du projet : `integrations/demandes-acces-2026-11-18.md`. Rien n'est envoyé ; il manque le nom, le titre et le téléphone du signataire.
+
+**DocuSign.** La session DocuSign n'est pas ouverte dans Chrome (page de connexion account-d.docusign.com). Pour que les documents signés reviennent dans le dossier :
+1. Le propriétaire se connecte sur https://admindemo.docusign.com.
+2. Réglages → Connect → « Add Configuration » → Custom. URL : `https://portail.besoinavocat.ca/api/webhooks/docusign`. Événements : Envelope Completed, Declined, Voided. Cocher « Include HMAC signature » et créer une clé HMAC.
+3. La clé HMAC va dans `CLES-INTEGRATIONS-BESOINAVOCAT.txt` sur le PC, jamais dans le clavardage. Colombo la copie dans Coolify sous `BESOINAVOCAT_DOCUSIGN_CONNECT_HMAC_KEY`, puis redéploie.
+4. Plus tard, avant les vrais clients : demande « Go-Live » de l'app DocuSign (environnement de production).
+
+**Zoom.** L'app « BesoinAvocat Portail » (General app, User Managed) est encore en **Draft** sur marketplace.zoom.us. En Draft, seuls les utilisateurs du compte Zoom du développeur peuvent cliquer « Connecter ». Pour qu'un avocat externe connecte son propre Zoom, il faut soumettre l'app à Zoom pour publication. Zoom exige une adresse publique pour la politique de confidentialité, les conditions d'utilisation, une page d'aide et une page de documentation, puis fait une revue (souvent 2 à 4 semaines).
+
+**Google Agenda.** Le compte Google ouvert dans Chrome ne voit aucun projet Google Cloud. Le projet « BesoinAvocat Portail » appartient donc à un autre compte Google du propriétaire. Tant que l'écran de consentement est en mode « Test », seules les adresses ajoutées comme « utilisateurs test » (100 au maximum) peuvent se connecter, et la connexion expire après 7 jours. Pour publier : Google Auth Platform → Audience → « Publish app ». L'accès à l'agenda est une portée « sensible », donc Google demande une vérification avec la même adresse publique de politique de confidentialité et un domaine vérifié.
+
+**Le point commun à Zoom et Google : une politique de confidentialité publiée.** Le texte existe (`docs/legal/POLITIQUE-DE-CONFIDENTIALITE.md`) mais n'est pas encore en ligne, car il attend la relecture d'un avocat. Dès qu'il est relu, on le publie, par exemple à `https://besoinavocat.ca/confidentialite`, et les deux demandes de publication peuvent partir.
+
+**En attendant (aucun coût).** Pour les essais avec les premiers avocats, il suffit d'ajouter leur adresse Google comme « utilisateur test ». Pour Zoom, ils peuvent utiliser la vidéo intégrée du portail, qui fonctionne déjà sans Zoom.
+
 ## Sources
 
 - Guide Lexius du Barreau : https://www.barreau.qc.ca/media/bkgfu4lr/guide-lexius-depot-matiere-civile.pdf

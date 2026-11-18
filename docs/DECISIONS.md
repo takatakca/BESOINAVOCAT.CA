@@ -29,6 +29,9 @@ Demande du propriétaire (18 novembre 2026, 05:00 et 05:08 UTC) : « simplifier 
 - Rien d'inventé : aucun chiffre, aucun avocat, aucun appel; les états « bientôt » et « à raccorder » restent.
 
 Lot 9 de `docs/COCKPIT-PREMIUM-2026-11-04.md`; tests 388/388.
+## D-039 — Le client pilote est Costa / Chambly; la demande guidée débouche sur le tableau de bord (18 novembre 2026)
+
+Le propriétaire (18 novembre 2026, 05:00 UTC) précise que Quadro Holding est son propre compte, déjà créé, et que le premier vrai client à embarquer par le navigateur est Costa / Chambly (sinistre du local commercial, R2NETTE), avec son courriel d'inscription (hors dépôt). Les pièces du client restent sur le Drive et son dépôt séparé; rien n'entre dans ce dépôt public. Côté plateforme : la demande guidée se termine par « Créer mon tableau de bord », qui emporte le domaine et le résumé (PR #67). Les boutons du site WordPress doivent pointer vers `https://portail.besoinavocat.ca/demande`, `/?signup=1` et `/avocat` (voir RACCORDEMENT-SITE-PUBLIC-2026-11-18). Le propriétaire demande aussi une inscription plus courte et une touche plus « premium » sans changer le design (lot suivant).
 
 ## D-037 — Réponses du propriétaire du 14 novembre 2026 : numéro public, appels à la minute, textes légaux rédigés en projet (14 novembre 2026)
 

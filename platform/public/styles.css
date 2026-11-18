@@ -1315,6 +1315,12 @@ dialog::backdrop { background: rgb(15 23 42 / 32%); backdrop-filter: blur(3px); 
 .welcome-card .welcome-actions .button { margin-top: 0; }
 .welcome-card .button.subtle { color: #e8edf5; border: 1px solid rgb(255 255 255 / 25%); background: transparent; }
 .welcome-card .button.subtle:hover { background: rgb(255 255 255 / 8%); }
+.auth-steps { display: flex; gap: 6px; list-style: none; margin: 4px 0 10px; padding: 0; font-size: 12px; font-weight: 600; color: var(--ink-3, var(--ink-2)); }
+.auth-steps li { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; padding-top: 8px; border-top: 2px solid var(--line, rgba(0,0,0,.12)); }
+.auth-steps li span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; border: 1px solid currentColor; flex-shrink: 0; }
+.auth-steps li[aria-current="step"] { color: var(--ink, inherit); border-top-color: var(--gold, var(--accent, currentColor)); }
+.auth-steps li.done { color: var(--ink-2); border-top-color: var(--gold, var(--accent, currentColor)); }
+.auth-steps li.done span { background: var(--gold, var(--accent, currentColor)); border-color: transparent; color: #fff; }
 .auth-consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-size: 13px; font-weight: 500; color: var(--ink-2); line-height: 1.5; }
 .auth-consent input { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; }
 .ready-card { display: grid; gap: 10px; padding: 20px 22px; border-left: 4px solid var(--amber); }

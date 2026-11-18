@@ -202,6 +202,21 @@ export function createStore({ dbPath, blobDir, blobKey = null }) {
       audit(user, caseId, 'document.downloaded', documentId, { sha256: row.sha256 });
       return { document: publicDocument(row), content };
     },
+    // Dernière version de chaque pièce, dans l'ordre de dépôt de la première version (paquet prêt à déposer, lib/court-package.mjs).
+    packageDocuments(user, caseId) {
+      const item = access(user, caseId);
+      const rows = sql(`SELECT d.* FROM documents d
+        JOIN (SELECT rootDocumentId, MAX(versionNumber) AS n FROM documents WHERE tenantId=? AND caseId=? GROUP BY rootDocumentId) l
+          ON d.rootDocumentId=l.rootDocumentId AND d.versionNumber=l.n
+        JOIN documents r ON r.id=d.rootDocumentId AND r.tenantId=d.tenantId AND r.caseId=d.caseId
+        WHERE d.tenantId=? AND d.caseId=? ORDER BY r.createdAt, r.id`).all(user.tenantId, caseId, user.tenantId, caseId);
+      audit(user, caseId, 'case.court_package', caseId, { documents: rows.length, sha256: rows.map(row => row.sha256) });
+      return {
+        case: publicCase(item),
+        documents: rows.map(row => ({ id: row.id, name: row.name, versionNumber: row.versionNumber, createdAt: row.createdAt, bytes: row.bytes, sha256: row.sha256 })),
+        read: id => { const row = rows.find(candidate => candidate.id === id); if (!row) throw missing(); return readBlob(user.tenantId, row.sha256, row.bytes); },
+      };
+    },
     search(user, caseId, query) { return corpus.searchPages(user, caseId, query); },
     addMessage(user, caseId, body) {
       access(user, caseId);

@@ -65,6 +65,8 @@ Vérifié en direct sur `portail.besoinavocat.ca` (adresse `/api/integrations` e
 
 **En attendant (aucun coût).** Pour les essais avec les premiers avocats, il suffit d'ajouter leur adresse Google comme « utilisateur test ». Pour Zoom, ils peuvent utiliser la vidéo intégrée du portail, qui fonctionne déjà sans Zoom.
 
+**Lexius, le pont maintenant disponible (18 novembre, 09 h 45).** Dans « Pièces », la carte « Déposer au tribunal » télécharge un seul fichier ZIP. Il contient un bordereau PDF (cote P-1, P-2…, date, version, taille, SHA-256), la dernière version de chaque pièce renommée « P-1 - … » et un LISEZ-MOI qui explique les étapes Lexius. L'avocat a aussi un bouton « Ouvrir Lexius ». Le dépôt reste fait par l'avocat avec son propre compte, puisque Lexius n'a pas d'API. Le code est dans `platform/lib/court-package.mjs`, la route est `GET /api/cases/:id/court-package`, et le test dans `test/court-package.test.mjs`.
+
 ## Sources
 
 - Guide Lexius du Barreau : https://www.barreau.qc.ca/media/bkgfu4lr/guide-lexius-depot-matiere-civile.pdf

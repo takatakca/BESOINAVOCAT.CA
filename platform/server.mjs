@@ -29,6 +29,7 @@ import { createClientAccounts } from './lib/client-accounts.mjs';
 import { createCaseMatching } from './lib/case-matching.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
+import { bordereau, exhibitName, readme, safeFileName, writeZip } from './lib/court-package.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, documentHeaderInput, readJson, readRawBody, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -706,6 +707,25 @@ export function createApp({
       res.setHeader('Content-Length', content.length);
       res.setHeader('X-Content-SHA256', document.sha256);
       return res.end(content);
+    }
+    // Paquet prêt à déposer dans Lexius : bordereau PDF + pièces cotées P-1, P-2… dans une archive ZIP (lib/court-package.mjs).
+    if (suffix === '/court-package' && method === 'GET') {
+      const pack = store.packageDocuments(user, caseId);
+      if (!pack.documents.length) throw new HttpError(409, 'NO_DOCUMENTS', 'Le dossier ne contient encore aucune pièce.');
+      if (pack.documents.reduce((sum, d) => sum + d.bytes, 0) > 3.5 * 1024 ** 3) throw new HttpError(413, 'PACKAGE_TOO_LARGE', 'Le paquet dépasse 3,5 Go. Téléchargez les pièces séparément.');
+      const generatedAt = new Date().toISOString();
+      const entries = [
+        { name: '00 - Bordereau des pieces.pdf', date: generatedAt, read: () => bordereau(pack.case, pack.documents, generatedAt) },
+        ...pack.documents.map((d, i) => ({ name: exhibitName(i, d.name), date: d.createdAt, read: () => pack.read(d.id) })),
+        { name: 'LISEZ-MOI.txt', date: generatedAt, read: () => Buffer.from(readme(pack.case, pack.documents), 'utf8') },
+      ];
+      const label = safeFileName(`Paquet depot - ${pack.case.reference || pack.case.title}`, 'Paquet depot').replace(/[^\x20-\x7e]/gu, '_');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${label.replace(/"/gu, '_')}.zip"`);
+      res.setHeader('Cache-Control', 'no-store');
+      try { await writeZip(res, entries); } catch (error) { res.destroy(error); return; }
+      return res.end();
     }
     if (suffix === '/search' && method === 'GET') {
       const query = text(url.searchParams.get('q'), 'Recherche', 200).trim();

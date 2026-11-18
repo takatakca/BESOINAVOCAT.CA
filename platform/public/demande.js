@@ -8,6 +8,10 @@
   const REQUEST_CONSENT_VERSION = '2026-10-27.1';
   const QUESTIONNAIRE_VERSION = '2026-11-04.1';
   const ENDPOINT = '/api/intake', CATALOG = '/api/catalog';
+  // Passage vers le tableau de bord (D-035/D-036) : la demande guidée se poursuit par « Créer mon tableau de bord ». Le domaine
+  // voyage dans la requête (?domaine=), le résumé dans le fragment (#resume=), que le navigateur ne transmet jamais au serveur;
+  // le tableau de bord le lit une fois puis l'efface de l'adresse. Aucun stockage navigateur, aucun cookie.
+  const DASHBOARD_URL = '/?signup=1';
   const SUMMARY_MIN = 20, SUMMARY_MAX = 1500, NAMES_MAX = 300, MAX_SLOTS = 10, SLOT_DAYS = 14;
   // One day below the server bound so a visitor east of UTC is never refused.
   const DEADLINE_MAX_DAYS = 1829;
@@ -132,6 +136,9 @@
       receivedHint: 'Conservez cette référence. La réception ne confirme ni rendez-vous, ni acceptation d’un mandat, ni création de compte ou d’abonnement. Aucun délai de réponse n’est garanti.',
       noDocuments: 'Ne transmettez aucun document pour l’instant. Cette demande ne crée pas de compte.',
       restart: 'Préparer une autre demande', call: 'Appeler le 514 825-2825', errorTitle: 'Un point à vérifier',
+      dashboardTitle: 'Prochaine étape : votre tableau de bord', dashboardButton: 'Créer mon tableau de bord',
+      dashboardText: 'Créez gratuitement votre tableau de bord BesoinAvocat : votre domaine et votre résumé y sont repris, vous y rassemblez vos pièces, et un avocat du domaine peut accepter votre dossier quand vous le déclarez prêt. Un code reçu par courriel suffit, sans mot de passe.',
+      dashboardClosed: 'Vous pouvez tout de même créer votre tableau de bord et y préparer votre dossier dès maintenant.',
       loading: 'Vérification de la réception en ligne…',
       closedTitle: 'Réception en ligne pas encore ouverte',
       closed: 'Vous pouvez parcourir les questions, mais rien ne sera envoyé pour l’instant. Pour une demande aujourd’hui, appelez BesoinAvocat au 514 825-2825.',
@@ -211,6 +218,9 @@
       receivedHint: 'Keep this reference. Receipt does not confirm an appointment, acceptance of a legal mandate, or creation of an account or subscription. No response time is guaranteed.',
       noDocuments: 'Do not send any document for now. This request does not create an account.',
       restart: 'Prepare another request', call: 'Call 514 825-2825', errorTitle: 'Please check',
+      dashboardTitle: 'Next step: your dashboard', dashboardButton: 'Create my dashboard',
+      dashboardText: 'Create your free BesoinAvocat dashboard: your domain and summary are carried over, you gather your documents there, and a lawyer in that field can accept your file once you mark it ready. A code received by email is enough, no password.',
+      dashboardClosed: 'You can still create your dashboard and start preparing your file right now.',
       loading: 'Checking online intake…',
       closedTitle: 'Online intake is not open yet',
       closed: 'You may explore the questions, but nothing will be sent for now. To make a request today, call BesoinAvocat at 514 825-2825.',
@@ -257,7 +267,7 @@
       stage: '', objective: '', summary: '', otherPartiesStatus: '', otherPartiesNames: '', urgency: '', hasDeadline: '', deadline: '',
       legalAidInterest: '', household: '', income: '', availabilityMode: '', slots: [],
       contactPreference: 'email', name: '', email: '', phone: '', acceptRemote: false, contactTimes: [], consent: false, website: '',
-      pending: false, error: '', errorField: '', receipt: '', requestLanguage: '', uncertainBody: '', returnToReview: false,
+      pending: false, error: '', errorField: '', receipt: '', dashboardUrl: '', requestLanguage: '', uncertainBody: '', returnToReview: false,
       questionnaireSchema: null, answers: {}, reviewed: false };
   }
   // The guided client request: sent when the server opens it, or shown as a preview while intake is closed.
@@ -337,6 +347,20 @@
   }
   function normalizeSummary(value) { return String(value || '').replace(/\r\n?/g, '\n').trim(); }
   function normalizeNames(value) { return String(value || '').replace(/\s+/g, ' ').trim(); }
+  // Ce que le tableau de bord reprend de la demande : seulement le domaine et le résumé (jamais les coordonnées ni les autres parties).
+  function handoffFrom(state) {
+    if (!state || state.role === 'professional') return null;
+    const domain = has(DOMAINS, state.domain) ? state.domain : null;
+    const summary = normalizeSummary(state.summary).slice(0, SUMMARY_MAX);
+    if (!domain && !summary) return null;
+    return { domain, summary };
+  }
+  function dashboardUrl(state) {
+    const handoff = handoffFrom(state);
+    if (!handoff) return DASHBOARD_URL;
+    const query = handoff.domain ? `${DASHBOARD_URL}&domaine=${encodeURIComponent(handoff.domain)}` : DASHBOARD_URL;
+    return handoff.summary ? `${query}#resume=${encodeURIComponent(handoff.summary)}` : query;
+  }
   function dayNumber(date) { return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000); }
   function isoDay(day) { return new Date(day * 86400000).toISOString().slice(0, 10); }
   // Local calendar day of the visitor; the server accepts one more day on each side.
@@ -668,17 +692,22 @@
       document.querySelectorAll('[data-ba-aria-fr][data-ba-aria-en]').forEach((element) => { element.setAttribute('aria-label', state.language === 'en' ? element.dataset.baAriaEn : element.dataset.baAriaFr); });
       document.querySelectorAll('[data-ba-language]').forEach((element) => { element.setAttribute('aria-pressed', String(element.dataset.baLanguage === state.language)); element.disabled = state.pending; });
     }
+    // Le bouton vers le tableau de bord : après la réception, ou dès maintenant quand la réception en ligne est fermée.
+    function dashboardBlock(closed) {
+      if (state.role === 'professional') return '';
+      return `<div class="ba-next" role="note"><strong>${escaped('dashboardTitle')}</strong><p>${escaped(closed ? 'dashboardClosed' : 'dashboardText')}</p><a class="ba-button" href="${escapeHtml(state.receipt ? state.dashboardUrl || DASHBOARD_URL : dashboardUrl(state))}">${escaped('dashboardButton')} <span aria-hidden="true">→</span></a></div>`;
+    }
     function render(focus) {
       translatePage();
       if (state.receipt) {
-        view.innerHTML = `<section class="ba-received" role="status"><span class="ba-received__mark" aria-hidden="true">✓</span><h2 tabindex="-1" data-ba-step-heading>${escaped('received')}</h2><p>${escaped('reference')}</p><strong class="ba-reference">${escapeHtml(state.receipt)}</strong><p>${escaped('receivedHint')}</p><p>${escaped('noDocuments')}</p><button type="button" class="ba-button" data-ba-action="restart">${escaped('restart')}</button></section>`;
+        view.innerHTML = `<section class="ba-received" role="status"><span class="ba-received__mark" aria-hidden="true">✓</span><h2 tabindex="-1" data-ba-step-heading>${escaped('received')}</h2><p>${escaped('reference')}</p><strong class="ba-reference">${escapeHtml(state.receipt)}</strong><p>${escaped('receivedHint')}</p><p>${escaped('noDocuments')}</p>${dashboardBlock(false)}<button type="button" class="ba-button ba-button--quiet" data-ba-action="restart">${escaped('restart')}</button></section>`;
       } else {
         const steps = stepsFor(state);
         if (!steps.includes(state.step)) state.step = 'domain';
         const index = steps.indexOf(state.step);
         const label = text('steps')[STEP_ORDER.indexOf(state.step)];
         const progress = `<div class="ba-progress" aria-label="${escaped('progress')}"><p class="ba-step-label">${escaped('step')} ${index + 1} ${escaped('of')} ${steps.length} · ${escapeHtml(label)}</p><progress max="${steps.length}" value="${index + 1}" aria-hidden="true"></progress></div>`;
-        const status = service === 'loading' ? `<p class="ba-fine" role="status">${escaped('loading')}</p>` : !ready() ? `<div class="ba-notice"><strong>${escaped('closedTitle')}</strong><p>${escaped('closed')}</p><a href="tel:+15148252825">${escaped('call')}</a></div>` : '';
+        const status = service === 'loading' ? `<p class="ba-fine" role="status">${escaped('loading')}</p>` : !ready() ? `<div class="ba-notice"><strong>${escaped('closedTitle')}</strong><p>${escaped('closed')}</p><a href="tel:+15148252825">${escaped('call')}</a></div>${dashboardBlock(true)}` : '';
         const error = state.error ? `<div class="ba-error" id="ba-request-error" role="alert" tabindex="-1"><strong>${escaped('errorTitle')}</strong><p>${escapeHtml(text(state.error) || text('uncertain'))}</p></div>` : '';
         const sections = { domain: domainSection, details: detailsSection, situation: situationSection, parties: partiesSection, timing: timingSection,
           legalAid: legalAidSection, availability: availabilitySection, preferences: preferencesSection, contact: contactSection, review: reviewSection };
@@ -842,9 +871,10 @@
       state.pending = false;
       if (result.reference) {
         state.receipt = result.reference;
-        // Nothing entered is kept after a confirmed receipt.
+        // Nothing entered is kept after a confirmed receipt, except the dashboard link (domain and summary) shown with it.
+        const dashboard = dashboardUrl(state);
         const fresh = initialState('client', state.language, state.requestMode);
-        Object.assign(state, fresh, { receipt: result.reference, preview: state.preview, questionnaireSchema: state.questionnaireSchema, step: 'domain' });
+        Object.assign(state, fresh, { receipt: result.reference, dashboardUrl: dashboard, preview: state.preview, questionnaireSchema: state.questionnaireSchema, step: 'domain' });
         attempt.clear();
       } else { state.error = result.error; if (result.error === 'uncertain') state.uncertainBody = request.body; }
       render(true);
@@ -871,7 +901,8 @@
     OTHER_PARTY_STATUSES, LEGAL_AID_INTEREST, HOUSEHOLDS, INCOMES, PERIODS, AVAILABILITY_MODES, CONTACT_TIMES, SKIP_PARTIES, SKIP_LEGAL_AID,
     STEP_ORDER, COPY, ERROR_KEYS, escapeHtml, initialState, guided, detailed, stepsFor, consentVersionFor, normalizeSummary, deadlineBounds, validDeadline,
     availabilityDays, validSlots, branched, branchQuestions, pruneBranchAnswers, setDomain, setBranchAnswer, branchFailure, questionnaireFrom,
-    validate, payloadFrom, serviceFrom, preselection, createAttempt, changedUncertainAttempt, receiptFrom, sendRequest, loadService };
+    validate, payloadFrom, serviceFrom, preselection, createAttempt, changedUncertainAttempt, receiptFrom, sendRequest, loadService,
+    handoffFrom, dashboardUrl, DASHBOARD_URL };
   // Pure contract functions are exported for deterministic tests, without a DOM.
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (global.document) {

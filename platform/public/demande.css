@@ -191,3 +191,12 @@ p { margin: 0 0 1rem; }
 .ba-footer__links a { color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+
+/* Passage vers le tableau de bord (D-035/D-036) : après la réception, ou quand la réception en ligne est fermée. */
+.ba-next { margin: 18px 0; padding: 16px 18px; border: 1px solid var(--line-strong); border-left: 4px solid var(--navy); border-radius: var(--r); background: var(--navy-soft); text-align: left; }
+.ba-next strong { display: block; color: var(--ink); }
+.ba-next p { margin: 4px 0 12px; }
+.ba-next .ba-button { display: inline-flex; align-items: center; gap: 6px; }
+.ba-received .ba-next { margin-top: 22px; }
+.ba-button--quiet { background: transparent; color: var(--navy); border-color: var(--navy); }
+.ba-button--quiet:hover:not(:disabled) { background: var(--navy-soft); }

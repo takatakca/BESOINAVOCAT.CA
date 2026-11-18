@@ -137,7 +137,10 @@ export function createStore({ dbPath, blobDir, blobKey = null }) {
   corpus = createCorpusSupport({ db, access, audit, putBlob, publicDocument });
   const structuredSearch = createStructuredSearch({ db, access, audit, publicDocument });
   let closed = false;
+  let uploadGuard = null;
   return {
+    // Crochet posé par le serveur (lib/billing.mjs); appelé dans la transaction, avant l'écriture d'une pièce.
+    setUploadGuard(fn) { uploadGuard = typeof fn === 'function' ? fn : null; },
     db, access, audit, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus, searchStructured: structuredSearch.searchStructured,
     close() { if (!closed) { db.close(); closed = true; } },
     // Trusted deployment/test operation only. It is deliberately NOT an HTTP route.
@@ -183,7 +186,9 @@ export function createStore({ dbPath, blobDir, blobKey = null }) {
           if (latest.n !== previous.versionNumber) throw new HttpError(409, 'VERSION_CONFLICT', 'Une version plus récente existe déjà.');
         }
         const id = randomUUID(), hash = digest(value.bytes), createdAt = now();
-        corpus.checkQuota(user, caseId, value.bytes.length, hash);
+        // Forfait du compte qui paie le dossier (lib/billing.mjs) : vidéos, espace du compte. Lève une erreur 402.
+        const guard = uploadGuard ? uploadGuard(user, caseId, { bytes: value.bytes.length, hash, mimeType: value.mimeType }) : null;
+        corpus.checkQuota(user, caseId, value.bytes.length, hash, guard?.accountQuota === true);
         putBlob(user.tenantId, value.bytes, hash);
         sql('INSERT INTO documents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
           id, user.tenantId, caseId, previous?.rootDocumentId || id, value.versionOf,

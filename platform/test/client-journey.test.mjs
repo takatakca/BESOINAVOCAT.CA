@@ -43,7 +43,7 @@ async function fixture(t) {
     }
     throw new Error(`Unexpected provider call ${url}`);
   };
-  const env = { TAKATAK_SUPABASE_URL: 'https://auth.example.test', TAKATAK_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_SYNTHETIC_NOT_A_REAL_KEY', BESOINAVOCAT_GRANTS_FILE: grantsFile,
+  const env = { TAKATAK_SUPABASE_URL: 'https://auth.example.test', TAKATAK_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_SYNTHETIC_NOT_A_REAL_KEY', BESOINAVOCAT_GRANTS_FILE: grantsFile, BESOINAVOCAT_LAWYER_ACCESS: 'paid',
     APP_ORIGIN: ORIGIN, BESOINAVOCAT_EMAIL_OTP_ENABLED: 'true', BESOINAVOCAT_LAWYER_TENANT: TENANT };
   const app = createApp({ dbPath: path.join(directory, 'db.sqlite'), blobDir: path.join(directory, 'blobs'), env, identityFetch, paymentsFetch: async () => { throw new Error('Stripe must not be called'); },
     authenticate: async () => null, clock: () => time });

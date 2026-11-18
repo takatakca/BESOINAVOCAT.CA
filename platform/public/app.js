@@ -361,7 +361,28 @@
     const dropzone = canMutate() ? `<div class="dropzone" id="dropzone">${icon('upload')}<span><strong>Déposez vos fichiers ici</strong> ou <button type="button" class="text-button" data-action="pick-files">choisissez-les</button> · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} au plus par fichier, 20 à la fois</span><input id="drop-input" class="dropzone-input" type="file" multiple accept="${accept}" tabindex="-1" aria-hidden="true"></div>` : '';
     const images = allDocuments.some(doc => docKind(doc) === 'image');
     const body = documents.length ? grid ? `<div class="file-grid">${documents.map(fileTile).join('')}</div>` : `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>';
-    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Ouvrez, annotez et complétez vos pièces. Chacune garde sa provenance.', `<button class="button secondary" data-action="new-presentation"${workspaceReady() && images ? '' : ' disabled'}>${icon('slides')}Présentation</button><button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter avec provenance</button>`)}${context()}${workbar()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel workspace-files" data-dropzone aria-labelledby="files-title"><div class="panel-heading"><div><h2 id="files-title">Pièces du dossier</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''}${state.demo ? ' fictive' + (documents.length > 1 ? 's' : '') : ''} · cliquez pour ouvrir.</p></div>${toggle}</div>${filters}${dropzone}<div class="upload-queue" id="upload-queue" aria-live="polite">${uploadsHtml()}</div>${body}</section>${quickSearch('case')}</div><aside class="section-stack" aria-label="Contact et repères">${contactCard()}${principles()}</aside></div>${readOnlyNote()}`;
+    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Ouvrez, annotez et complétez vos pièces. Chacune garde sa provenance.', `<button class="button secondary" data-action="new-presentation"${workspaceReady() && images ? '' : ' disabled'}>${icon('slides')}Présentation</button><button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter avec provenance</button>`)}${context()}${workbar()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel workspace-files" data-dropzone aria-labelledby="files-title"><div class="panel-heading"><div><h2 id="files-title">Pièces du dossier</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''}${state.demo ? ' fictive' + (documents.length > 1 ? 's' : '') : ''} · cliquez pour ouvrir.</p></div>${toggle}</div>${filters}${dropzone}<div class="upload-queue" id="upload-queue" aria-live="polite">${uploadsHtml()}</div>${body}</section>${courtPackagePanel(allDocuments)}${quickSearch('case')}</div><aside class="section-stack" aria-label="Contact et repères">${contactCard()}${principles()}</aside></div>${readOnlyNote()}`;
+  }
+  // Paquet prêt à déposer : bordereau + pièces cotées P-1, P-2…, que l'avocat dépose lui-même dans Lexius (aucune API du Ministère).
+  function courtPackagePanel(allDocuments) {
+    const roots = new Set(allDocuments.map(doc => doc.rootDocumentId || doc.id)).size;
+    const ready = canMutate() && !state.demo && roots > 0;
+    const lawyer = currentCase()?.role === 'lawyer';
+    return `<section class="panel court-package" aria-labelledby="court-package-title"><div class="panel-heading"><div><h2 id="court-package-title">Déposer au tribunal</h2><p>${lawyer ? 'Téléchargez les pièces prêtes pour Lexius : un bordereau et chaque pièce cotée P-1, P-2…, dans un seul fichier.' : 'Votre avocat pourra télécharger vos pièces prêtes pour le tribunal, avec leur bordereau.'}</p></div><span class="badge outline">${roots} pièce${roots > 1 ? 's' : ''}</span></div><div class="tile-actions"><button type="button" class="button small" data-action="court-package"${ready ? '' : ' disabled'}>${icon('download')}Paquet prêt à déposer</button>${lawyer ? `<a class="button secondary small" href="https://lexius.justice.gouv.qc.ca/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Ouvrir Lexius ${icon('arrow')}<span class="sr-only"> (nouvel onglet)</span></a>` : ''}</div><p class="table-subtext">La cote est une proposition à confirmer. Le dépôt se fait par l’avocat, avec son propre compte Lexius.</p></section>`;
+  }
+  async function courtPackage(trigger) {
+    if (!canMutate() || state.demo || !state.selectedId) return;
+    trigger.disabled = true;
+    try {
+      const blob = await api(`/api/cases/${encodeURIComponent(state.selectedId)}/court-package`, { asBlob: true });
+      const c = currentCase();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `Paquet depot - ${(c?.reference || c?.title || 'dossier').replace(/[\\/:*?"<>|]+/gu, ' ')}.zip`; anchor.rel = 'noopener';
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      notify('Le paquet prêt à déposer a été téléchargé.');
+    } catch (error) { notify(error.message, true); }
+    finally { trigger.disabled = false; }
   }
   function searchResults() {
     if (state.searchResults === null) return '<p class="table-subtext">Saisissez des mots ou une question : la recherche extrait des termes et retrouve les passages correspondants. Elle ne rédige pas de réponse juridique.</p>';
@@ -1922,6 +1943,7 @@
     if (action === 'page') void loadPage(button.dataset.id, Number(button.dataset.offset));
     if (action === 'close-dialog') dialog.close();
     if (action === 'download') void download(button.dataset.id, button);
+    if (action === 'court-package') void courtPackage(button);
     if (action === 'approve-time') void approveTime(button.dataset.id, button);
     if (action === 'open-file') workspaceTool('openFile', button.dataset.id);
     if (action === 'annotate') workspaceTool('openStudio', button.dataset.id);

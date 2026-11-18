@@ -397,7 +397,7 @@ export function createApp({
           const result = accounts.completeSignup(subject, confirmedEmail);
           opened = membership.startTrial({ subject, tenantId: result.tenantId, product: 'besoinavocat', active: true });
         } });
-        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), membership: opened });
@@ -413,14 +413,14 @@ export function createApp({
         const email = text(body.email, 'Adresse courriel', 320).trim();
         let account = null;
         const session = await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy), onVerified: (subject, confirmedEmail) => { account = clients.completeSignup(subject, confirmedEmail); } });
-        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), created: Boolean(account?.created) });
       }
       if (path === '/api/auth/email/request') {
         const body = fields(await readJson(req, 1024), ['email'], ['email']);
-        if (typeof browserSessions.requestEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (typeof browserSessions.requestEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         return json(res, 200, await browserSessions.requestEmailCode(text(body.email, 'Adresse courriel', 320), { clientKey: clientAddress(req, trustProxy) }));
       }
       if (path === '/api/auth/login' || path === '/api/auth/email/verify') {
@@ -430,11 +430,11 @@ export function createApp({
         const email = text(body.email, 'Adresse courriel', 320).trim();
         // Only the socket address is trusted for rate limiting; forwarded client
         // headers are arbitrary unless a separate proxy policy is configured.
-        if (otp && typeof browserSessions.verifyEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (otp && typeof browserSessions.verifyEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         const session = otp
           ? await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy) })
           : await browserSessions.login(email, text(body.password, 'Mot de passe', 4096), { clientKey: clientAddress(req, trustProxy) });
-        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString() });

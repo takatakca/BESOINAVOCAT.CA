@@ -137,3 +137,15 @@ Demandes du fil « Ouvrir l'inscription avocat avec essai gratuit » (PR 56) :
 - **Abonnement** (`live.js`) : statut `trial_expired` libellé « Essai terminé » (ton d'alerte), forfait `trial` libellé « d'essai », jours d'essai restants affichés quand `membership.trial` est présent, invitation à choisir un forfait quand l'essai est terminé.
 
 Tests : 377/377 (+2 dans `cockpit.test.mjs`).
+
+## Lot 9 — accueil épuré et touche premium (18 novembre 2026)
+
+Demande du propriétaire : simplifier le visuel sans changer le design, puis « un peu plus de premium, de VIP, de diplomatie ; un peu trop sombre ». Décision D-038.
+
+- **Instruments** : 8 au lieu de 12 (`instruments()`). Retirés : heure, dossier affiché, nombre de dossiers, voyant courriel (déjà dans l'en-tête, le sélecteur, le panneau « État »). Le drawer `etat` montre toujours les trois voyants.
+- **Poste de travail (≥ 1180 px)** : `wsStage()` sans `caseSwitcher()` (la liste de gauche choisit); ordre : en-tête, onglets, bannière de visite, héros (prochaine étape), carte « Vers votre avocat », instruments, panneaux vivants, file de travail + activité, vue d'ensemble, intégrations. `wsProgress()` sans la liste de chiffres ni le troisième bouton.
+- **Cockpit (téléphone)** : `cockpitView()` : accueil (« TABLEAU DE BORD »), bannière, sélecteur, carte « Vers votre avocat », instruments, vue d'ensemble, panneaux vivants, file + activité, intégrations, recherche. `soonTiles()` supprimé (ses actions sont dans le menu d'aide). « Revoir la visite » dans l'en-tête après la première visite.
+- **Intégrations** (`cockpitIntegrations()`) : tuiles pour MIMT (badge honnête `mimtBadge()`) et les fournisseurs `connected`, `reconnect_required`, `active_on_server`, `available`; les autres en une ligne `.integration-more`. Aperçu : tout le catalogue.
+- **CSS** : bloc « Lot 9 — touche premium » en fin de `styles.css` (jetons `--gold*`, toile plus claire, serif sur les titres d'accueil, filets d'or). Règles `.soon-tile*` et `.ws-stats` retirées.
+- Tests : `cockpit.test.mjs` adapté (8 instruments, aucune tuile de texte, tuile seulement pour un fournisseur prêt à connecter) ; 388/388.
+

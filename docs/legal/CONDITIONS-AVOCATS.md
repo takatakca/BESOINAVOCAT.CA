@@ -1,12 +1,12 @@
 # Conditions d'utilisation de l'espace avocat — BesoinAvocat
 
-*Projet du 14 novembre 2026. Version à publier : `[date d'entrée en vigueur]`. À faire valider par un avocat avant publication (voir [README](README.md)). Ces conditions s'ajoutent à la [politique de confidentialité](POLITIQUE-DE-CONFIDENTIALITE.md).*
+*En vigueur le 18 novembre 2026. Ces conditions s'ajoutent à la [politique de confidentialité](/confidentialite).*
 
 ## 1. Objet
 
 Les présentes conditions encadrent l'utilisation de l'espace avocat de BesoinAvocat (`portail.besoinavocat.ca/avocat`) par un avocat (« vous »). En créant un compte avocat ou en activant l'espace avocat, vous les acceptez.
 
-BesoinAvocat est exploité par `[nom légal de l'entreprise]` (« BesoinAvocat »). BesoinAvocat **n'est pas un cabinet d'avocats**, n'exerce pas le droit et ne fournit pas de conseils juridiques. Il met à votre disposition un espace de travail partagé avec des personnes qui ont préparé leur dossier.
+BesoinAvocat est exploité par Groupe Takatak, à Montréal (Québec) (« BesoinAvocat »). BesoinAvocat **n'est pas un cabinet d'avocats**, n'exerce pas le droit et ne fournit pas de conseils juridiques. Il met à votre disposition un espace de travail partagé avec des personnes qui ont préparé leur dossier.
 
 ## 2. Qui peut s'inscrire
 
@@ -22,7 +22,7 @@ Votre compte est identifié par votre adresse courriel professionnelle. La conne
 - À la fin de l'essai, un abonnement vous est proposé dans l'espace avocat. Le prix, la périodicité (hebdomadaire ou mensuelle) et les taxes applicables sont affichés avant tout paiement. Le paiement est traité par un prestataire de paiement (Stripe); BesoinAvocat ne voit jamais votre carte.
 - Sans abonnement après l'essai, vous conservez la lecture des dossiers déjà acceptés ou rejoints, mais vous ne pouvez plus accepter ni rejoindre de nouveaux dossiers.
 - Vous pouvez annuler l'abonnement à tout moment; il prend fin à l'échéance de la période payée. Aucun remboursement proportionnel n'est dû sauf disposition légale contraire.
-- `[Tarifs à insérer lorsqu'ils seront fixés par le propriétaire.]`
+- Les tarifs de l'abonnement sont affichés dans l'espace avocat avant tout paiement. Tant qu'aucun tarif n'y est affiché, l'accès reste gratuit.
 
 ## 5. Dossiers prêts et acceptation
 
@@ -67,7 +67,7 @@ Vous conservez vos propres copies des pièces nécessaires à votre dossier prof
 
 ## 11. Suspension et fermeture
 
-BesoinAvocat peut suspendre ou fermer un compte en cas de manquement aux présentes conditions, de perte de la qualité d'avocat, de fraude ou d'exigence légale, en vous en avisant lorsque c'est possible. Vous pouvez fermer votre compte à tout moment en écrivant à `[adresse courriel]`. Les dossiers acceptés restent accessibles aux autres membres; la politique de confidentialité s'applique à la conservation.
+BesoinAvocat peut suspendre ou fermer un compte en cas de manquement aux présentes conditions, de perte de la qualité d'avocat, de fraude ou d'exigence légale, en vous en avisant lorsque c'est possible. Vous pouvez fermer votre compte à tout moment en écrivant à support@takatak.ca. Les dossiers acceptés restent accessibles aux autres membres; la politique de confidentialité s'applique à la conservation.
 
 ## 12. Modifications
 
@@ -75,12 +75,9 @@ BesoinAvocat peut modifier ces conditions en vous en avisant dans l'espace avoca
 
 ## 13. Droit applicable
 
-Les présentes conditions sont régies par les lois du Québec et les lois du Canada qui s'y appliquent. Tout différend relève des tribunaux du district judiciaire de `[Montréal]`, sous réserve des recours devant la Commission d'accès à l'information ou l'Office de la protection du consommateur lorsque la loi le prévoit.
+Les présentes conditions sont régies par les lois du Québec et les lois du Canada qui s'y appliquent. Tout différend relève des tribunaux du district judiciaire de Montréal, sous réserve des recours devant la Commission d'accès à l'information ou l'Office de la protection du consommateur lorsque la loi le prévoit.
 
 ## 14. Nous joindre
 
-`[nom légal de l'entreprise]` — `[adresse]` — `[adresse courriel]` — (855) 3-AVOCAT.
+Groupe Takatak — Montréal (Québec) — support@takatak.ca — 514 825-2825.
 
----
-
-*Texte court proposé pour la case de consentement de l'inscription `/avocat` (remplace la phrase actuelle une fois les conditions publiées) :* « Je suis avocat membre en règle d'un barreau canadien. Je comprends que l'essai de 14 jours est gratuit, sans carte ni paiement, qu'aucun abonnement ne démarre sans mon choix explicite, que BesoinAvocat n'est pas un cabinet d'avocats et ne perçoit aucune commission sur mes honoraires, et j'accepte les [conditions de l'espace avocat] et la [politique de confidentialité]. »

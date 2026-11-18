@@ -1,5 +1,9 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-041 — Monétisation : forfaits client, espace par compte, essai Premium, modules d'intégration payants (18 novembre 2026)
+
+Demande du propriétaire (18 novembre 2026) : « une solution de monétisation complète à 100 % ». Grille (`platform/lib/pricing.mjs`, détails et calcul pour 1 000 et 10 000 clients dans [MONETISATION](MONETISATION.md)) : Essentiel gratuit (1 dossier, 1 Go, sans vidéo), Premium 15 $/mois ou 150 $/an (dossiers illimités, 50 Go, vidéos), essai Premium de 14 jours sans carte pour chaque nouveau compte client, espace supplémentaire 5 $/mois par 100 Go, modules d'intégration 30 $ une fois chacun + abonnement Intégrations 9 $/mois. Accès avocat gratuit pour le moment (`BESOINAVOCAT_LAWYER_ACCESS=paid` rétablit le paiement après l'essai). Paiement par Stripe Checkout sur le compte ALKAO.CA, taux TPS/TVQ plutôt que Stripe Tax. Les limites ne s'appliquent que lorsque le paiement est raccordé; l'équipe BesoinAvocat n'est jamais facturée. Cette décision remplace, pour les services du dossier, la « gratuité client » de D-014/D-017 : la demande et le forfait Essentiel restent gratuits; les honoraires ne passent jamais par BesoinAvocat (D-025).
+
 ## D-040 — Les inscriptions appartiennent à TAKATAK (2026-11-18)
 
 Le propriétaire précise à 08:03 UTC que toute inscription passe par la base de données de TAKATAK, c'est-à-dire le projet Supabase « TAKATAK User Official Dashboard V1 ». TAKATAK détient le client. BesoinAvocat reçoit une copie de l'information et gère les opérations quotidiennes du client sur sa plateforme. Si un partenaire quitte TAKATAK ou si son service est coupé, il doit bâtir son propre système, et TAKATAK conserve les clients.

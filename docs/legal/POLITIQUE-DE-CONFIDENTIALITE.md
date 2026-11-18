@@ -1,10 +1,10 @@
 # Politique de confidentialité — BesoinAvocat
 
-*Projet du 14 novembre 2026. Version à publier : `[date d'entrée en vigueur]`. À faire valider par un avocat avant publication (voir [README](README.md)).*
+*En vigueur le 18 novembre 2026.*
 
 ## 1. Qui nous sommes et à quoi s'applique cette politique
 
-BesoinAvocat (`besoinavocat.ca` et `portail.besoinavocat.ca`) est exploité par `[nom légal de l'entreprise]`, `[NEQ]`, `[adresse]`, au Québec (ci-après « BesoinAvocat », « nous »). BesoinAvocat fait partie de l'écosystème TAKATAK; l'identification des comptes est assurée par le service TAKATAK.
+BesoinAvocat (`besoinavocat.ca` et `portail.besoinavocat.ca`) est exploité par Groupe Takatak, à Montréal (Québec) (ci-après « BesoinAvocat », « nous »). BesoinAvocat fait partie de l'écosystème TAKATAK; l'identification des comptes est assurée par le service TAKATAK.
 
 BesoinAvocat **n'est pas un cabinet d'avocats** et ne fournit pas de conseils juridiques. Nous offrons :
 
@@ -18,7 +18,7 @@ Cette politique explique quels renseignements personnels nous recueillons, pourq
 
 ## 2. Responsable de la protection des renseignements personnels
 
-La personne responsable de la protection des renseignements personnels chez BesoinAvocat est `[nom, titre]`. Vous pouvez la joindre à `[adresse courriel dédiée, par exemple confidentialite@besoinavocat.ca]` ou par la poste à l'adresse ci-dessus. Son titre et ses coordonnées sont publiés sur cette page.
+La personne responsable de la protection des renseignements personnels chez BesoinAvocat est la direction de Groupe Takatak. Vous pouvez la joindre à support@takatak.ca, en indiquant « Confidentialité — BesoinAvocat » dans l'objet. Son titre et ses coordonnées sont publiés sur cette page.
 
 ## 3. Les renseignements que nous recueillons
 
@@ -68,8 +68,8 @@ Nous ne vendons jamais de renseignements personnels. Nous les communiquons seule
 - **à l'équipe de BesoinAvocat** chargée de traiter les demandes guidées, selon des habilitations nominatives; chaque accès est journalisé;
 - **à nos fournisseurs de services**, qui ne reçoivent que ce qui est nécessaire et sont tenus par contrat à la confidentialité et à la sécurité :
   - TAKATAK (identification des comptes et envoi des codes de connexion; service d'authentification Supabase);
-  - `[fournisseur d'envoi de courriels transactionnels : Maileroo ou Resend, selon la configuration]` (courriels de connexion et avis);
-  - `[hébergeur du portail, lieu des serveurs]` (hébergement et sauvegardes);
+  - nos fournisseurs d'envoi de courriels transactionnels (Resend et Maileroo) (courriels de connexion et avis);
+  - notre fournisseur d'hébergement de serveurs privés (hébergement et sauvegardes); ces serveurs peuvent être situés à l'extérieur du Québec;
   - MIMT (acheminement et facturation à la minute des appels téléphoniques; voir la section 7 et l'entente de traitement conclue avec MIMT);
   - les services que **vous** choisissez de connecter depuis votre tableau de bord (par exemple un agenda, un outil de signature, un logiciel de gestion de cabinet) : la connexion est facultative, elle est faite avec votre propre compte chez ce fournisseur et vous pouvez la retirer à tout moment;
 - **aux autorités** lorsque la loi l'exige ou pour protéger nos droits, nos utilisateurs ou le public.
@@ -92,14 +92,14 @@ Aucun système n'est parfaitement sûr. Protégez l'accès à votre boîte courr
 
 ## 9. Témoins (cookies)
 
-Le portail utilise des témoins **strictement nécessaires** : maintien de votre session et protection contre les requêtes frauduleuses. Ils ne servent pas à vous suivre d'un site à l'autre. Le site d'information affiche une bannière de témoins; `[préciser : aucun témoin de mesure d'audience, ou nommer l'outil et sa finalité]`.
+Le portail utilise des témoins **strictement nécessaires** : maintien de votre session et protection contre les requêtes frauduleuses. Ils ne servent pas à vous suivre d'un site à l'autre. Le site d'information affiche une bannière de témoins; le portail n'utilise aucun témoin de mesure d'audience ni de publicité.
 
 ## 10. Combien de temps nous gardons vos renseignements
 
-- **Demandes guidées** : `[durée à fixer par le propriétaire, décision D-030 — par exemple 12 mois après la fermeture de la demande]`, puis suppression par l'outil de purge; les demandes marquées indésirables sont supprimées plus tôt.
-- **Dossiers et pièces** : tant que votre compte est actif et que le dossier existe; vous pouvez supprimer des pièces ou fermer un dossier. Après la fermeture ou la demande de suppression, `[durée]` pour permettre le retour des pièces aux parties, puis suppression ou anonymisation.
-- **Enregistrements d'appels** : `[durée, par exemple 90 jours]` après l'appel, sauf demande de suppression plus tôt par un membre du dossier.
-- **Journaux de connexion et d'accès** : `[durée, par exemple 24 mois]`, pour la sécurité et la preuve en cas d'incident.
+- **Demandes guidées** : 12 mois après la fermeture de la demande, puis suppression par l'outil de purge; les demandes marquées indésirables sont supprimées plus tôt.
+- **Dossiers et pièces** : tant que votre compte est actif et que le dossier existe; vous pouvez supprimer des pièces ou fermer un dossier. Après la fermeture ou la demande de suppression, 90 jours pour permettre le retour des pièces aux parties, puis suppression ou anonymisation.
+- **Enregistrements d'appels** : 90 jours après l'appel, sauf demande de suppression plus tôt par un membre du dossier.
+- **Journaux de connexion et d'accès** : 24 mois, pour la sécurité et la preuve en cas d'incident.
 - **Comptes avocats** : tant que le compte est actif; les données de facturation sont conservées le temps exigé par les lois fiscales.
 
 Les renseignements qui ne sont plus nécessaires sont supprimés ou anonymisés de façon sécuritaire.
@@ -131,8 +131,5 @@ Nous pouvons mettre à jour cette politique lorsque nos services, nos fournisseu
 
 ## 15. Nous joindre
 
-`[nom légal de l'entreprise]` — `[adresse]` — `[adresse courriel dédiée]` — (855) 3-AVOCAT.
+Groupe Takatak — Montréal (Québec) — support@takatak.ca — 514 825-2825.
 
----
-
-*Note de rédaction (à retirer avant publication) : structure reprise de la politique de TAKATAK (`takatak.ca/privacy`, 16 sections) et adaptée au Québec (Loi 25 : responsable désigné, finalités, communication hors Québec, incidents, droits dont la portabilité) et aux services réels de BesoinAvocat au 14 novembre 2026 (D-036). Les durées de conservation sont à fixer par le propriétaire (D-030).*

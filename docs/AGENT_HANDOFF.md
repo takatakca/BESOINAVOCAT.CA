@@ -1,5 +1,9 @@
 # AGENT_HANDOFF — BESOINAVOCAT.CA
 
+## Monétisation complète (D-041) — 18 novembre 2026 (branche `claude/project-thread-ygkgpu`)
+
+Forfaits client Essentiel (gratuit) / Premium (15 $/mois, 150 $/an), essai Premium 14 jours sans carte, espace compté par compte (1 Go / 50 Go + tranches de 100 Go à 5 $/mois), vidéos réservées à Premium, modules d'intégration 30 $ chacun + abonnement Intégrations 9 $/mois, accès avocat gratuit. Routes `/api/pricing` (publique), `/api/billing`, `/api/billing/checkout`, `/api/billing/portal`; page `/forfaits`; panneau « Mon forfait » dans Réglages; notifications Stripe signées. Rien n'est limité tant que Stripe n'est pas raccordé. À faire : créer les cinq prix, les taux TPS/TVQ et le webhook dans Stripe ALKAO.CA, poser les variables dans Coolify et redéployer (liste dans [MONETISATION](MONETISATION.md) §4).
+
 ## Demande guidée → tableau de bord, client pilote Costa — 18 novembre 2026 (PR #67 fusionnée, `main` c6ec46a)
 
 La demande guidée `/demande` mène maintenant à « Créer mon tableau de bord » (domaine et résumé repris dans le premier dossier, rien d'autre ne voyage, aucun stockage navigateur); `/?signup=1` ouvre directement l'inscription cliente. 391/391 tests Node. Le site WordPress besoinavocat.ca n'a **aucun lien vers le portail** : liste exacte des boutons à rebrancher dans [RACCORDEMENT-SITE-PUBLIC-2026-11-18](RACCORDEMENT-SITE-PUBLIC-2026-11-18.md) (propriétaire ou Mike, Elementor). Client pilote : **Costa / Chambly** (dossier sinistre R2NETTE, pièces sur le Drive, jamais dans ce dépôt); Quadro Holding = compte du propriétaire. Inscription Costa lancée dans le Chrome du propriétaire le 18 novembre 05:10 UTC (code courriel envoyé). Reste au technicien : **redéployer `main` manuellement** (autodéploiement éteint) pour que `/demande` → tableau de bord soit en ligne.

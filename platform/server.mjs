@@ -48,7 +48,7 @@ let webhooksInFlight = 0;
 const MAX_CONCURRENT_WEBHOOKS = 8;
 // media-src and frame-src blob: let the workspace play a recorded video and preview a PDF from the case's own
 // downloaded bytes (object URLs made by the portal's script); nothing is loaded from another origin.
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src blob:; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
@@ -88,6 +88,16 @@ const assets = new Map([
   // Public legal pages, generated from docs/legal/*.md by scripts/legal-pages.py.
   ['/confidentialite', ['confidentialite.html', 'text/html; charset=utf-8']],
   ['/conditions', ['conditions.html', 'text/html; charset=utf-8']],
+  // Installable app on every device (Android, iOS, Windows, macOS, Linux): manifest, service worker, icons, offline page.
+  ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
+  ['/sw.js', ['sw.js', 'text/javascript; charset=utf-8']],
+  ['/pwa.js', ['pwa.js', 'text/javascript; charset=utf-8']],
+  ['/offline.html', ['offline.html', 'text/html; charset=utf-8']],
+  ['/icons/icon-192.png', ['icons/icon-192.png', 'image/png']],
+  ['/icons/icon-512.png', ['icons/icon-512.png', 'image/png']],
+  ['/icons/icon-maskable-512.png', ['icons/icon-maskable-512.png', 'image/png']],
+  ['/icons/apple-touch-icon.png', ['icons/apple-touch-icon.png', 'image/png']],
+  ['/icons/favicon-32.png', ['icons/favicon-32.png', 'image/png']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],

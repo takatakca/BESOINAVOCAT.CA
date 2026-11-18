@@ -87,13 +87,12 @@ test('the cockpit home shows compact instruments from loaded data; unknown figur
   h.ui.render();
   const html = h.main();
   assert.match(html, /class="widget-rail" id="cockpit-dials" role="group"[^>]*data-no-swipe/u, 'horizontal swipes on the rail never change section');
-  assert.match(chipOf(html, 'Dossiers accessibles'), /<span class="chip-value">2<\/span>/u);
   assert.match(chipOf(html, 'Pièces à vérifier'), /<span class="chip-value">2<\/span>/u, 'two of three documents are « à vérifier »');
   assert.match(chipOf(html, 'Temps soumis'), /<span class="chip-value">45 min<\/span>/u);
   assert.match(chipOf(html, 'Messages'), /<span class="chip-value">1<\/span>/u);
-  assert.match(chipOf(html, '>Dossier<'), /FICTIF-A/u);
   assert.match(chipOf(html, 'Connexion'), /data-tone="ok"/u);
-  assert.match(html, /data-clock>\d{1,2}\s?h\s?\d{2}</u, 'live clock instrument');
+  assert.doesNotMatch(html, /Dossiers accessibles|data-clock|>Courriel</u, 'lot 9: no clock, dossier count or second light in the rail');
+  assert.equal((html.match(/<button type="button" class="chip[^>]*>/gu) || []).length, 8, 'eight instruments');
   for (const label of ['Nouvelles demandes', 'Échéances · 7 jours']) {
     const tile = chipOf(html, label);
     assert.match(tile, /class="chip-soon">bientôt</u);
@@ -196,14 +195,15 @@ test('calling and partner-lawyer tiles say « à raccorder » until MIMT Connect
   const h = harness();
   signedIn(h); h.ui.render();
   const html = h.main();
-  assert.match(html, /Téléphonie MIMT <span class="badge neutral">à raccorder<\/span>/u);
-  assert.match(html, /Équipe · Appel de groupe <span class="badge neutral">à raccorder<\/span>/u);
+  assert.match(html, /Téléphonie MIMT<\/strong><span class="badge neutral">à raccorder<\/span>/u, 'the MIMT tile says « à raccorder »');
+  assert.doesNotMatch(html, /class="soon-tile"/u, 'lot 9: no text tiles on the home');
   assert.doesNotMatch(html, /Appeler un avocat/u, 'the old placeholder tile is replaced by the MIMT card');
   assert.doesNotMatch(html, /href="tel:/u);
   assert.doesNotMatch(html, /Me [A-Z]|disponible maintenant|en ligne maintenant|★/u);
   // No Academy address is documented: the link is a labelled placeholder, never an invented URL.
   assert.equal(h.ui.ACADEMY_URL, '');
-  assert.match(html, /Formation TAKATAK Academy · lien à confirmer/u);
+  assert.doesNotMatch(html, /TAKATAK Academy/u, 'lot 9: the Academy placeholder left the home; it stays in the guided tour');
+  assert.match(source, /Formation TAKATAK Academy · lien à confirmer/u);
   assert.doesNotMatch(html, /academy[^"]*\.(?:ca|com)/iu);
   assert.match(index, /Assistant IA : bientôt/u);
   assert.doesNotMatch(source, /openai|anthropic|\/api\/ai\b|localStorage|sessionStorage/iu, 'no AI call and no browser storage in the portal script');
@@ -327,7 +327,10 @@ test('MIMT telephony: card, six-step board with real MIMT links, honest status, 
   h.ui.render();
   const html = h.main();
   assert.match(html, /class="integration-tile mimt-integration" data-action="mimt-board"/u, 'MIMT is the first integration tile');
-  assert.ok(html.indexOf('mimt-integration') < html.indexOf('data-id="zoom"'));
+  assert.ok(html.indexOf('mimt-integration') < html.indexOf('data-id="zoom"'), 'a provider ready to connect has a tile after MIMT');
+  const planned = harness(); signedIn(planned, { providers: [provider('zoom', 'not_configured')] }); planned.ui.render();
+  assert.doesNotMatch(planned.main(), /data-action="cockpit-integration" data-id="zoom"/u, 'lot 9: a provider without developer access has no tile on the home');
+  assert.match(planned.main(), /class="integration-more">1 service à relier depuis la section Intégrations : Zoom\./u);
   const modal = h.node('cockpit-modal'), content = h.node('cockpit-modal-content');
   h.click({ action: 'mimt-board' });
   assert.equal(modal.open, true);

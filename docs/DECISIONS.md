@@ -18,7 +18,18 @@ La PR documentaire 6 est fusionnée après quatre contrôles verts et identifica
 Les états plus anciens ci-dessous sont conservés comme historique et ne décrivent plus la version du portail après cette réception.
 
 
-## D-038 — Le client pilote est Costa / Chambly; la demande guidée débouche sur le tableau de bord (18 novembre 2026)
+## D-038 — Accueil épuré et touche premium : moins de blocs, un fil d'or, le design conservé (18 novembre 2026)
+
+Demande du propriétaire (18 novembre 2026, 05:00 et 05:08 UTC) : « simplifier les choses… le visuel, surtout la simplicité », puis « un peu plus de luxe, de VIP, de diplomatie, le monde juridique et la cour, sans changer le design du tout ; c'est un peu trop sombre ».
+
+- **Accueil propriétaire/avocat** : huit instruments au lieu de douze (l'heure, le dossier affiché, le nombre de dossiers et le voyant courriel sont déjà dans l'en-tête, le sélecteur et le panneau « État »); sur le poste de travail, la liste de gauche choisit le dossier (plus de pastilles répétées sur la scène); la prochaine étape (héros) vient avant les instruments; les chiffres du héros ne sont plus répétés; la vue d'ensemble et les intégrations ferment la page.
+- **Intégrations sur l'accueil** : une tuile seulement pour MIMT et les comptes reliés, à reconnecter ou prêts à connecter; les services dont l'accès développeur n'existe pas encore tiennent en une ligne de texte. La section Intégrations garde tout le catalogue; l'aperçu public aussi.
+- **Accueil téléphone** : accueil, choix du dossier, instruments, puis ce qui demande une action. Les trois tuiles de texte (MIMT, Équipe, Academy) ont disparu : appels, rappel et Équipe restent dans le menu d'aide et les sections Appels et vidéo / Équipe; « Revoir la visite » remplace la visite guidée dans l'en-tête une fois la visite passée.
+- **Touche premium (CSS seulement)** : jeton `--gold` (filets sous les titres de panneaux, repères avant les surtitres, instrument ouvert, dossier actif, badge du domaine, bordure du héros et anneau de progression), titres d'accueil en serif (Georgia) comme un en-tête de jugement, toile et filets un peu plus clairs. Palette, panneaux, rail, héros, navigation : inchangés. Aucune couleur sombre ajoutée.
+- Rien d'inventé : aucun chiffre, aucun avocat, aucun appel; les états « bientôt » et « à raccorder » restent.
+
+Lot 9 de `docs/COCKPIT-PREMIUM-2026-11-04.md`; tests 388/388.
+## D-039 — Le client pilote est Costa / Chambly; la demande guidée débouche sur le tableau de bord (18 novembre 2026)
 
 Le propriétaire (18 novembre 2026, 05:00 UTC) précise que Quadro Holding est son propre compte, déjà créé, et que le premier vrai client à embarquer par le navigateur est Costa / Chambly (sinistre du local commercial, R2NETTE), avec son courriel d'inscription (hors dépôt). Les pièces du client restent sur le Drive et son dépôt séparé; rien n'entre dans ce dépôt public. Côté plateforme : la demande guidée se termine par « Créer mon tableau de bord », qui emporte le domaine et le résumé (PR #67). Les boutons du site WordPress doivent pointer vers `https://portail.besoinavocat.ca/demande`, `/?signup=1` et `/avocat` (voir RACCORDEMENT-SITE-PUBLIC-2026-11-18). Le propriétaire demande aussi une inscription plus courte et une touche plus « premium » sans changer le design (lot suivant).
 

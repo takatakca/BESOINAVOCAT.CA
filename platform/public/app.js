@@ -70,6 +70,7 @@
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
     // /?signup=1 (lien du site public et de la demande guidée) ouvre directement « Créer mon tableau de bord ».
     signupRequested: new URLSearchParams(window.location.search).get('signup') === '1',
+    googleReturn: new URLSearchParams(window.location.search).get('google') || '',
     handoff: null,
     mode: 'loading', view: 'home', cases: [], selectedId: null, detail: null,
     capabilities: null, health: null, user: null, integrations: null, cockpitQuery: '', cockpitPanel: null, signupName: '',
@@ -251,7 +252,10 @@
     const lawyer = space?.url && /^(\.\/|\/)[A-Za-z0-9/_-]*$/u.test(space.url) ? `<p class="login-lawyer">Vous êtes avocat ? <a href="${esc(space.url)}">Créer mon compte${trialDays ? ` (${trialDays} jours gratuits, sans carte)` : ''}</a></p>` : '';
     const emailCode = login && state.health?.emailCodeConfigured === true;
     // Création du tableau de bord d'une personne (D-036) : annoncée par le serveur seulement quand le code courriel marche.
-    const signupOpen = emailCode && state.health?.clientSignup === true;
+    // « Continuer avec Google » : annoncé par le serveur (googleSignIn); même consentement que l'inscription par code.
+    const google = login && state.health?.googleSignIn === true;
+    const signupOpen = (emailCode || google) && state.health?.clientSignup === true;
+    const googleButton = (mode, label) => `<button class="button google" type="button" data-action="google-signin" data-mode="${mode}"${disabled}><span class="google-mark" aria-hidden="true">G</span>${state.busy ? 'Ouverture de Google…' : label}</button>`;
     const unavailable = state.health === null;
     const disabled = state.busy ? ' disabled' : '';
     const emailField = `<label for="login-email">Adresse courriel de votre compte TAKATAK</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}>`;
@@ -262,13 +266,13 @@
     if (signupOpen && state.loginStep === 'signup-code') {
       loginForm = `${signupSteps(1)}${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="client-signup-verify-form" class="auth-form"><label for="signup-code">Code reçu par courriel</label><input id="signup-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="signup-code-help" required${disabled}><small id="signup-code-help">Collez ou tapez le code tel quel, les espaces sont retirés. Il arrive en général en moins d’une minute.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Ouvrir mon tableau de bord'} ${icon('arrow')}</button></form>${switchButton('signup', 'Pas reçu ? Renvoyer le code ou changer d’adresse')}`;
     } else if (signupOpen && state.loginStep === 'signup') {
-      loginForm = `${signupSteps(0)}${notice}<form id="client-signup-form" class="auth-form"><label for="signup-name">Votre nom</label><input id="signup-name" name="name" type="text" autocomplete="name" maxlength="160" value="${esc(state.signupName)}" required${disabled}><label for="login-email">Votre adresse courriel</label><input id="login-email" name="email" type="email" autocomplete="email" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}><label class="auth-consent"><input type="checkbox" name="consent" required${disabled}><span>J’ai compris : BesoinAvocat m’aide à préparer mon dossier, ce n’est pas un cabinet d’avocats. Aucun avocat ne le voit avant que je le déclare prêt.</span></label><button class="button" type="submit"${disabled}>${state.busy ? 'Envoi du code…' : 'Créer mon tableau de bord'} ${icon('arrow')}</button></form><small>Aucun mot de passe : un code à usage unique vous est envoyé par courriel à chaque connexion.</small>${switchButton('email', 'J’ai déjà un compte')}`;
+      loginForm = `${signupSteps(0)}${notice}<form id="client-signup-form" class="auth-form"><label for="signup-name">Votre nom</label><input id="signup-name" name="name" type="text" autocomplete="name" maxlength="160" value="${esc(state.signupName)}" required${disabled}><label for="login-email">Votre adresse courriel</label><input id="login-email" name="email" type="email" autocomplete="email" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}><label class="auth-consent"><input type="checkbox" name="consent" required${disabled}><span>J’ai compris : BesoinAvocat m’aide à préparer mon dossier, ce n’est pas un cabinet d’avocats. Aucun avocat ne le voit avant que je le déclare prêt.</span></label>${google ? `${googleButton('signup', 'Continuer avec Google')}${emailCode ? '<p class="auth-or"><span>ou recevez un code par courriel</span></p>' : ''}` : ''}${emailCode ? `<button class="button${google ? ' secondary' : ''}" type="submit"${disabled}>${state.busy ? 'Envoi du code…' : 'Créer mon tableau de bord'} ${icon('arrow')}</button>` : ''}</form><small>Aucun mot de passe${google ? ' : Google confirme votre adresse, ou' : ' :'} un code à usage unique vous est envoyé par courriel.</small>${switchButton('email', 'J’ai déjà un compte')}`;
     } else if (emailCode && state.loginStep === 'code') {
       loginForm = `${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="email-code-verify-form" class="auth-form"><label for="login-code">Code reçu par courriel pour ce portail</label><input id="login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="login-code-help" required${disabled}><small id="login-code-help">Saisissez les 6 à 10 chiffres, y compris les zéros au début. Utilisez le code demandé sur cette page.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Vérifier le code'} ${icon('arrow')}</button></form>${switchButton('email', 'Modifier l’adresse ou demander un autre code')}`;
     } else if (!emailCode || state.loginStep === 'password') {
       loginForm = `${notice}<form id="login-form" class="auth-form">${emailField}<label for="login-password">Mot de passe existant, si vous en avez un</label><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="2048" required${disabled}><button class="button" type="submit"${disabled}>${state.busy ? 'Connexion en cours…' : 'Se connecter avec le mot de passe'} ${icon('arrow')}</button></form>${emailCode ? switchButton('email', 'Recevoir plutôt un code par courriel') : '<p>La connexion par code courriel est en préparation.</p>'}`;
     } else {
-      loginForm = `${notice}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}${signupOpen ? switchButton('signup', 'Pas encore de compte ? Créer mon tableau de bord') : ''}`;
+      loginForm = `${notice}${google ? `${googleButton('login', 'Se connecter avec Google')}<p class="auth-or"><span>ou</span></p>` : ''}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}${signupOpen ? switchButton('signup', 'Pas encore de compte ? Créer mon tableau de bord') : ''}`;
     }
     const signingUp = signupOpen && ['signup', 'signup-code'].includes(state.loginStep);
     const welcomeAction = signupOpen && !signingUp ? `<button class="button light" type="button" data-action="login-mode" data-mode="signup"${disabled}>Créer mon tableau de bord ${icon('arrow')}</button>` : '';
@@ -1883,6 +1887,7 @@
       const query = state.cockpitQuery.trim(); closeLocalSearch(true);
       if (query) { openSearch('all'); state.searchQuery = query; void runSearch(query); }
     }
+    if (action === 'google-signin' && !state.busy && !state.demo) void startGoogle(button);
     if (action === 'login-mode' && !state.busy && !state.demo) {
       state.loginStep = button.dataset.mode === 'password' ? 'password' : button.dataset.mode === 'signup' && state.health?.clientSignup === true ? 'signup' : 'email';
       state.loginNotice = ''; render();
@@ -2129,6 +2134,35 @@
       render(true);
     }
   }
+  // Départ vers Google : le serveur garde le vérificateur PKCE et renvoie seulement l'adresse de Google.
+  async function startGoogle(button) {
+    if (state.demo || state.health?.googleSignIn !== true || state.busy) return;
+    const signup = button.dataset.mode === 'signup';
+    const form = button.closest('form');
+    const body = { mode: signup ? 'signup' : 'login' };
+    if (signup) {
+      if (!form?.elements.consent?.checked) { notify('Cochez la case de consentement pour continuer.', true); form?.elements.consent?.focus(); return; }
+      body.consent = true;
+      const name = form.elements.name?.value.trim() || '';
+      if (name) { body.name = name; state.signupName = name; }
+    }
+    state.busy = true; render();
+    try {
+      const result = await api('/api/auth/google/start', { method: 'POST', body: JSON.stringify(body) });
+      const target = new URL(result.location);
+      if (target.protocol !== 'https:') throw new Error('Adresse de connexion Google invalide.');
+      window.location.assign(target.href);
+    } catch (error) {
+      state.busy = false; state.loginNotice = error.message; notify(error.message, true); render();
+    }
+  }
+  function googleReturnNotice(code) {
+    return { nouveau: 'Aucun tableau de bord n’est encore lié à ce compte Google. Cochez la case puis « Continuer avec Google » pour le créer.',
+      annule: 'Connexion avec Google annulée. Vous pouvez réessayer ou recevoir un code par courriel.',
+      erreur: 'La connexion avec Google n’a pas abouti. Réessayez ou recevez un code par courriel.',
+      attendre: 'Trop de tentatives. Réessayez dans quelques minutes.',
+      indisponible: 'La connexion avec Google n’est pas encore activée.' }[code] || '';
+  }
   async function login(form) {
     if (state.demo || state.health?.loginConfigured !== true || state.busy) return;
     state.busy = true;
@@ -2173,8 +2207,17 @@
     state.handoff = readHandoffFromLocation();
     state.health = await publicHealth();
     if (state.signupRequested && state.health?.clientSignup === true) state.loginStep = 'signup';
+    if (state.googleReturn) {
+      state.loginNotice = googleReturnNotice(state.googleReturn);
+      try { const params = new URLSearchParams(window.location.search); params.delete('google'); const rest = params.toString(); window.history?.replaceState?.(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash); } catch { /* adresse laissée telle quelle */ }
+    }
     try {
       await loadSession();
+      if (state.googleReturn === 'connecte' && state.mode === 'authenticated') {
+        state.googleReturn = '';
+        notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Ouvrez votre premier dossier.');
+        if (!state.cases.length) { render(); openNewCase(); return; }
+      }
       // Deep links: /#case/<id>[/<section>] opens one dossier directly (used by the lawyer space); /#integrations is the connector return page.
       const deep = /^#case\/([A-Za-z0-9_.:-]{1,80})(?:\/([a-z]+))?$/u.exec(window.location.hash || '');
       if (deep && state.cases.some(item => item.id === deep[1])) {

@@ -50,6 +50,7 @@ Le serveur charge uniquement ces variables, sans afficher leur contenu :
 | `TAKATAK_SUPABASE_PUBLISHABLE_KEY` | Clé publique `sb_publishable_…`, ou ancienne clé publique `anon`; jamais `service_role` ou `sb_secret_…` |
 | `BESOINAVOCAT_GRANTS_FILE` | Chemin absolu du fichier JSON privé, hors dépôt, racine de l'application et toutes racines web |
 | `BESOINAVOCAT_EMAIL_OTP_ENABLED` | `true` seulement après vérification du modèle contenant `.Token` et de la livraison; absent/false par défaut |
+| `BESOINAVOCAT_GOOGLE_SIGNIN_ENABLED` | `true` pour « Continuer avec Google » (PKCE côté serveur, retour `/auth/callback`), après ajout de `https://portail.besoinavocat.ca/**` aux Redirect URLs Supabase; absent/false par défaut |
 | `APP_ORIGIN` | Origine HTTPS exacte du portail déployé, sans chemin ni query |
 | `BESOINAVOCAT_SESSION_DB_PATH` | Chemin absolu d'une base SQLite privée distincte pour les sessions et limites partagées |
 | `BESOINAVOCAT_SESSION_KEY_FILE` | Chemin absolu d'un fichier privé contenant exactement 32 octets binaires aléatoires; jamais une clé en variable d'environnement |
@@ -126,3 +127,8 @@ Les tests dédiés `email-code.test.mjs`, `workspace-email-code.test.mjs` et les
 Résultat du contrôle local du 29 octobre : **60/60** tests ciblés auth/OTP/session/UI, **233/233** tests du pilote et **12/12** tests du site historique réussis. Le test intégrations portant sur le mode Unix `0644` a été conditionné aux systèmes POSIX; les contrôles de rotation de clé et de reconnexion restent exécutés sur toutes les plateformes. La revue indépendante de l’authentification et de la reprise UI après erreur n’a relevé aucun blocage. Cette validation reste synthétique et ne remplace pas le test de livraison réelle à effectuer après configuration.
 
 La première CI a aussi révélé une attente Passenger à actualiser pour le nouveau champ public `emailCodeConfigured:false`. Après correction de cette seule attente, la commande CI complète (`node --test platform/test/*.test.mjs platform/deploy/passenger.test.cjs wordpress/besoinavocat-experience/checks/funnel.test.mjs`) réussit **257/257 tests** sous Node 24.19.0.
+
+
+## Continuer avec Google (18 novembre 2026)
+
+Gratuit, sans service d'envoi de courriel. `POST /api/auth/google/start` (garde d'origine, `mode` = `login` ou `signup`; `signup` exige `consent:true`, `name` facultatif) garde le vérificateur PKCE sur le serveur, pose un cookie `__Host-ba_oauth` (identifiant opaque, usage unique, 10 min, SameSite=Lax) et renvoie l'adresse `/auth/v1/authorize?provider=google` du fournisseur TAKATAK. Le retour `GET /auth/callback?code=…` échange le code (`grant_type=pkce`), vérifie l'utilisateur (`/auth/v1/user`, courriel confirmé), crée le compte client si l'inscription a été demandée avec consentement, puis ouvre la même session `__Host-ba_session` que le code courriel et redirige vers `/?google=connecte`. Une connexion Google sans tableau de bord ni habilitation revient sur `/?signup=1&google=nouveau`; toute autre erreur sur `/?google=erreur`, sans détail du fournisseur. Tests : `platform/test/google-signin.test.mjs`.

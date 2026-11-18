@@ -163,6 +163,7 @@ export function createApp({
   if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
   const loginConfigured = browserSessions.configured === true;
   const emailCodeConfigured = loginConfigured && browserSessions.emailCodeConfigured === true;
+  const googleConfigured = loginConfigured && browserSessions.googleConfigured === true && typeof browserSessions.googleStart === 'function';
   const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
@@ -198,7 +199,7 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured });
     // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
     if (path === '/api/openapi.json') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -209,6 +210,31 @@ export function createApp({
       res.setHeader('Content-Length', body.length);
       res.setHeader('Cache-Control', 'public, max-age=300');
       return res.end(method === 'HEAD' ? undefined : body);
+    }
+    // Retour de Google (via le fournisseur TAKATAK) : échange du code PKCE côté serveur, puis retour au portail.
+    // Toute erreur ramène au portail avec un motif court; aucun détail du fournisseur n'est montré.
+    if (path === '/auth/callback') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      const back = (target, cookies) => { res.statusCode = 303; res.setHeader('Set-Cookie', cookies); res.setHeader('Location', target); return res.end(); };
+      const clearFlow = browserSessions.clearFlowCookie ?? '__Host-ba_oauth=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
+      if (!googleConfigured) return back('/?google=indisponible', [clearFlow]);
+      if (url.searchParams.has('error') || !url.searchParams.has('code')) return back('/?google=annule', [clearFlow]);
+      const cookieHeader = req.headers.cookie;
+      try {
+        const session = await browserSessions.googleCallback(cookieHeader, url.searchParams.get('code'), { clientKey: clientAddress(req, trustProxy),
+          onVerified: (subject, email, profile) => {
+            const signup = profile?.intent?.signup;
+            if (signup && email && !accounts.grantFor(subject)) clients.completeOAuthSignup(subject, email, signup.name || profile.name || '');
+          } });
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) return back('/?google=erreur', [clearFlow]);
+        browserSessions.logout(cookieHeader);
+        return back('/?google=connecte', [session.setCookie, clearFlow]);
+      } catch (error) {
+        const reason = error instanceof HttpError && error.status === 403 ? '/?signup=1&google=nouveau' : error instanceof HttpError && error.status === 429 ? '/?google=attendre' : '/?google=erreur';
+        return back(reason, [clearFlow]);
+      }
     }
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -336,12 +362,27 @@ export function createApp({
     const hasSessionCookie = typeof cookieHeader === 'string' && cookieHeader.split(';').some(part => part.trim().split('=', 1)[0].trim() === BROWSER_SESSION_COOKIE);
     const hasAuthorization = Object.hasOwn(req.headers, 'authorization');
     if (hasSessionCookie && hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Utilisez une seule méthode de connexion.');
-    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify', '/api/auth/client/signup', '/api/auth/client/verify'].includes(path)) {
+    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify', '/api/auth/client/signup', '/api/auth/client/verify', '/api/auth/google/start'].includes(path)) {
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Cette connexion utilise une session de navigateur.');
       browserSessions.assertMutation(req);
       if ((path.startsWith('/api/auth/email/') || path.startsWith('/api/auth/lawyer/') || path.startsWith('/api/auth/client/')) && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
+      // « Continuer avec Google » : inscription (nom facultatif + consentement obligatoire) ou connexion d'un compte existant.
+      if (path === '/api/auth/google/start') {
+        if (!googleConfigured) throw new HttpError(503, 'GOOGLE_UNAVAILABLE', 'La connexion avec Google n’est pas activée.');
+        const body = fields(await readJson(req, 1024, { allowEmpty: true }), ['mode', 'name', 'consent']);
+        const mode = body.mode === undefined ? 'login' : body.mode;
+        if (!['login', 'signup'].includes(mode)) throw invalid('Mode invalide.');
+        let intent = null;
+        if (mode === 'signup') {
+          if (body.consent !== true) throw invalid('Le consentement aux conditions d’utilisation est requis.');
+          intent = { signup: { name: body.name === undefined || body.name === '' ? '' : text(body.name, 'Nom', 160).trim() } };
+        }
+        const started = browserSessions.googleStart({ intent });
+        res.setHeader('Set-Cookie', started.setCookie);
+        return json(res, 200, { location: started.location });
+      }
       // Inscription d'un avocat : profil gardé en attente, code envoyé par le fournisseur TAKATAK (le compte y est créé
       // au premier code), puis vérification qui enregistre l'habilitation et ouvre l'essai gratuit avant la session.
       if (path === '/api/auth/lawyer/signup') {

@@ -7,6 +7,11 @@ import { HttpError, externalIdentifier } from './validation.mjs';
 import { createSessionStore } from './browser-session-store.mjs';
 
 export const BROWSER_SESSION_COOKIE = '__Host-ba_session';
+// Connexion « Continuer avec Google » (PKCE côté serveur) : ce cookie ne porte qu'un identifiant de parcours à usage
+// unique, valable 10 minutes. SameSite=Lax parce que le retour de Google est une navigation venant d'un autre site.
+export const OAUTH_FLOW_COOKIE = '__Host-ba_oauth';
+const OAUTH_FLOW_TTL_MS = 10 * 60_000;
+const MAX_OAUTH_FLOWS = 512;
 const APP_ROOT = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const REPO_PARENT = path.dirname(APP_ROOT);
 const PRIVATE_EXCLUSIONS = [APP_ROOT, ...(existsSync(path.join(REPO_PARENT, '.git')) ? [REPO_PARENT] : [])];
@@ -55,6 +60,7 @@ function normalizeConfiguration(config) {
   if (persistent && (typeof config.sessionDbPath !== 'string' || !path.isAbsolute(config.sessionDbPath) ||
       typeof config.sessionKeyFile !== 'string' || !path.isAbsolute(config.sessionKeyFile))) return null;
   return Object.freeze({ supabaseUrl, appOrigin, publishableKey: config.publishableKey, grantsFile, emailCodeEnabled: config.emailCodeEnabled === true,
+    googleEnabled: config.googleEnabled === true,
     ...(persistent ? { sessionDbPath: path.resolve(config.sessionDbPath), sessionKeyFile: path.resolve(config.sessionKeyFile) } : {}),
     requirePersistent: Boolean(config.requirePersistent) });
 }
@@ -64,7 +70,8 @@ export function browserSessionConfiguration(env = process.env) {
     publishableKey: env.TAKATAK_SUPABASE_PUBLISHABLE_KEY,
     grantsFile: env.BESOINAVOCAT_GRANTS_FILE, appOrigin: env.APP_ORIGIN,
     sessionDbPath: env.BESOINAVOCAT_SESSION_DB_PATH, sessionKeyFile: env.BESOINAVOCAT_SESSION_KEY_FILE,
-    requirePersistent: env.NODE_ENV === 'production', emailCodeEnabled: env.BESOINAVOCAT_EMAIL_OTP_ENABLED === 'true' });
+    requirePersistent: env.NODE_ENV === 'production', emailCodeEnabled: env.BESOINAVOCAT_EMAIL_OTP_ENABLED === 'true',
+    googleEnabled: env.BESOINAVOCAT_GOOGLE_SIGNIN_ENABLED === 'true' });
 }
 
 function cookieToken(header) {
@@ -74,6 +81,14 @@ function cookieToken(header) {
   const match = matches[0].match(/^__Host-ba_session=([A-Za-z0-9_-]{43})$/u);
   if (!match || Buffer.from(match[1], 'base64url').toString('base64url') !== match[1]) return null;
   return match[1];
+}
+
+function flowCookie(header) {
+  if (typeof header !== 'string' || header.length > 16384) return null;
+  const matches = header.split(';').map(part => part.trim()).filter(part => part.split('=', 1)[0].trim() === OAUTH_FLOW_COOKIE);
+  if (matches.length !== 1) return null;
+  const match = matches[0].match(/^__Host-ba_oauth=([A-Za-z0-9_-]{43})$/u);
+  return match ? match[1] : null;
 }
 
 function headerValue(req, name) {
@@ -163,13 +178,19 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     }
   }
 
-  async function verifiedSubject(accessToken, expectedEmail) {
+  async function verifiedSubject(accessToken, expectedEmail) { return (await verifiedUser(accessToken, expectedEmail)).id; }
+
+  async function verifiedUser(accessToken, expectedEmail) {
     const user = await provider('/auth/v1/user', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } });
     if (typeof user.id !== 'string' || !UUID.test(user.id) || user.is_anonymous === true ||
         typeof user.email_confirmed_at !== 'string' || !Number.isFinite(Date.parse(user.email_confirmed_at)) ||
         (user.banned_until && (!Number.isFinite(Date.parse(user.banned_until)) || Date.parse(user.banned_until) > now())) ||
         (expectedEmail !== undefined && (typeof user.email !== 'string' || user.email.trim().toLowerCase() !== expectedEmail))) throw unauthenticated();
-    return user.id;
+    const email = typeof user.email === 'string' && user.email.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(user.email.trim()) ? user.email.trim().toLowerCase() : null;
+    const meta = user.user_metadata && typeof user.user_metadata === 'object' ? user.user_metadata : {};
+    const rawName = [meta.full_name, meta.name].find(value => typeof value === 'string' && value.trim());
+    const name = rawName ? rawName.replace(/[\u0000-\u001f\u007f]/gu, '').trim().slice(0, 160) || null : null;
+    return { id: user.id, email, name };
   }
 
   function loginEmail(email, clientKey) {
@@ -188,10 +209,11 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
         (result.expires_at !== undefined && (!Number.isSafeInteger(result.expires_at) || result.expires_at <= 0))) throw unavailable();
     const expiresAt = Math.min(startedAt + SESSION_TTL_MS, startedAt + result.expires_in * 1000,
       result.expires_at === undefined ? Infinity : result.expires_at * 1000);
-    const subject = await verifiedSubject(accessToken, expectedEmail);
+    const verified = await verifiedUser(accessToken, expectedEmail);
+    const subject = verified.id;
     if (result.user?.id !== subject || expiresAt <= now()) throw unauthenticated();
     // Inscription : le serveur enregistre l'habilitation du compte confirmé juste avant qu'elle soit relue.
-    if (typeof onVerified === 'function') await onVerified(subject, expectedEmail);
+    if (typeof onVerified === 'function') await onVerified(subject, expectedEmail ?? verified.email, { name: verified.name });
     const identity = await readGrant(settings, subject, extraGrants);
     if (expiresAt <= now()) throw unauthenticated();
     const token = randomBytes(32).toString('base64url');
@@ -247,6 +269,42 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     } finally { sessions.release(reservation); }
   }
 
+  // Parcours Google : le vérificateur PKCE reste sur le serveur; le navigateur ne voit que l'adresse de Google et un
+  // identifiant de parcours opaque. intent = { signup: { name } } pour une inscription (consentement déjà donné).
+  const oauthFlows = new Map();
+  const pruneFlows = time => { for (const [id, flow] of oauthFlows) if (flow.expires <= time) oauthFlows.delete(id); };
+  function googleStart({ intent = null } = {}) {
+    if (settings?.googleEnabled !== true || !sessions) throw unavailable();
+    const time = now(); pruneFlows(time);
+    if (oauthFlows.size >= MAX_OAUTH_FLOWS) throw limited();
+    const flowId = randomBytes(32).toString('base64url');
+    const verifier = randomBytes(48).toString('base64url');
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    oauthFlows.set(hash(flowId), { verifier, intent, expires: time + OAUTH_FLOW_TTL_MS });
+    const location = `${settings.supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(settings.appOrigin + '/auth/callback')}` +
+      `&code_challenge=${challenge}&code_challenge_method=s256`;
+    return Object.freeze({ location, setCookie: `${OAUTH_FLOW_COOKIE}=${flowId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${OAUTH_FLOW_TTL_MS / 1000}` });
+  }
+  const clearFlowCookie = `${OAUTH_FLOW_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+  async function googleCallback(cookieHeader, code, { clientKey = 'unknown', onVerified = null } = {}) {
+    if (settings?.googleEnabled !== true || !sessions) throw unavailable();
+    const flowId = flowCookie(cookieHeader);
+    const key = flowId ? hash(flowId) : null;
+    const flow = key ? oauthFlows.get(key) : null;
+    if (key) oauthFlows.delete(key); // usage unique, réussite ou échec
+    if (!flow || flow.expires <= now() || typeof code !== 'string' || !/^[A-Za-z0-9._~-]{8,512}$/u.test(code) ||
+        typeof clientKey !== 'string' || clientKey.length > 256) throw unauthenticated();
+    const reservation = sessions.reserveLogin(`oauth-${key.slice(0, 32)}@oauth.invalid`, clientKey, now());
+    try {
+      const startedAt = now();
+      const result = await provider('/auth/v1/token?grant_type=pkce', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth_code: code, code_verifier: flow.verifier }) });
+      const session = await establishSession(result, startedAt, reservation, undefined,
+        typeof onVerified === 'function' ? (subject, email, profile) => onVerified(subject, email, { ...profile, intent: flow.intent }) : null);
+      return Object.freeze({ ...session, clearFlowCookie });
+    } finally { sessions.release(reservation); }
+  }
+
   async function resolve(cookieHeader) {
     if (!settings || !sessions) throw unavailable();
     const token = cookieToken(cookieHeader);
@@ -274,7 +332,9 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
     return { setCookie: `${BROWSER_SESSION_COOKIE}=; ${COOKIE_ATTRIBUTES}; Max-Age=0` };
   }
 
-  return Object.freeze({ configured: Boolean(settings && sessions), emailCodeConfigured: Boolean(settings && sessions && settings.emailCodeEnabled), login, requestEmailCode, verifyEmailCode, resolve, logout,
+  return Object.freeze({ configured: Boolean(settings && sessions), emailCodeConfigured: Boolean(settings && sessions && settings.emailCodeEnabled),
+    googleConfigured: Boolean(settings && sessions && settings.googleEnabled), clearFlowCookie,
+    login, requestEmailCode, verifyEmailCode, googleStart, googleCallback, resolve, logout,
     assertMutation: req => assertBrowserMutation(req, settings?.appOrigin),
     clear: () => sessions?.close() });
 }

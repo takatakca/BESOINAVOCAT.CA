@@ -139,3 +139,8 @@ Demande du propriétaire, 18 novembre 2026 : « partout » (téléphones, tablet
 - **Pays :** les fiches peuvent viser tous les pays.
 - **Langues :** le portail est en français ; les textes des fiches sont en français et en anglais (section 5). Une interface anglaise complète du portail serait un chantier à part.
 - **Avertissement :** il reste vrai partout. BesoinAvocat prépare des dossiers pour des avocats **du Québec** et n'est pas un cabinet d'avocats.
+
+## 7. Images et mode télé (2026-11-18)
+
+Toutes les images demandées par les magasins sont prêtes dans [`docs/store-assets/`](store-assets/README.md) : icônes, bannières, affiches Microsoft, bannières télé et captures téléphone, tablette, ordinateur et télé.
+Le portail se pilote maintenant à la télécommande sur les télés (flèches, OK, Retour) : c'est la condition pour Google TV, Fire TV, Samsung TV, LG webOS et Xbox.

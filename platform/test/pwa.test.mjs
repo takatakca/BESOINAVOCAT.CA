@@ -85,3 +85,13 @@ test('store screenshots listed in the manifest are served with their declared si
     assert.equal(`${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`, shot.sizes);
   }
 });
+
+test('pwa.js offers TV remote navigation only on TVs or with ?tv=1', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../public/pwa.js', import.meta.url), 'utf8');
+  assert.match(source, /Tizen/u); assert.match(source, /Web0S/u); assert.match(source, /AFT/u);
+  assert.match(source, /10009/u); assert.match(source, /461/u);
+  assert.match(source, /classList\.add\('tv-mode'\)/u);
+  const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /\.tv-mode/u);
+});

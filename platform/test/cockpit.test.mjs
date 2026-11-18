@@ -690,6 +690,13 @@ test('/?signup=1 opens the client signup form directly when the server allows it
   const open = await boot(true);
   assert.equal(open.ui.state.loginStep, 'signup');
   assert.match(open.main(), /id="client-signup-form"/u, 'the signup form is the first thing shown');
+  assert.match(open.main(), /class="auth-steps"/u, 'the three signup steps are shown so the person knows what comes next');
+  assert.match(open.main(), /aria-current="step"><span>1<\/span>Vos coordonnées/u, 'step 1 is the current step on the form');
+  assert.equal((open.main().match(/<input /gu) || []).length, 3, 'signup asks only for a name, an email and one checkbox');
+  open.ui.state.loginStep = 'signup-code'; open.ui.state.loginEmail = 'personne@example.test'; open.ui.render();
+  assert.match(open.main(), /aria-current="step"><span>2<\/span>Le code reçu/u, 'the code screen is step 2');
+  assert.match(open.main(), /class="done"><span>1<\/span>/u, 'step 1 is marked done on the code screen');
+  assert.match(open.main(), /Pas reçu \? Renvoyer le code/u);
   const closed = await boot(false);
   assert.equal(closed.ui.state.loginStep, 'email');
   assert.doesNotMatch(closed.main(), /client-signup-form/u);

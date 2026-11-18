@@ -26,3 +26,5 @@
 2. Relier la case de consentement de `/avocat` aux conditions publiées (lien dans `platform/public/avocat.js`).
 3. Signer l'entente Loi 25 avec MIMT, puis seulement activer les appels.
 4. Si le propriétaire retient les reformulations du consentement, créer une nouvelle version (`CONSENT_VERSION`, `REQUEST_CONSENT_VERSION`, `QUESTIONNAIRE_CONSENT_VERSION`) : le portail refuse un consentement d'une version périmée, et les tests le vérifient.
+
+**Publication (2026-11-18, décision du propriétaire « publier tout de suite », TAKATAK accepté)** : la politique de confidentialité et les conditions de l'espace avocat sont publiées sur `portail.besoinavocat.ca/confidentialite` et `/conditions`. Les pages HTML sont générées par `python3 scripts/legal-pages.py` : modifier le `.md`, relancer le script, committer les deux. Une relecture par un avocat reste recommandée.

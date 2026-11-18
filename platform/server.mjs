@@ -80,6 +80,9 @@ const assets = new Map([
   ['/aide/', ['aide.html', 'text/html; charset=utf-8']],
   ['/aide/zoom', ['aide-zoom.html', 'text/html; charset=utf-8']],
   ['/aide.css', ['aide.css', 'text/css; charset=utf-8']],
+  // Public legal pages, generated from docs/legal/*.md by scripts/legal-pages.py.
+  ['/confidentialite', ['confidentialite.html', 'text/html; charset=utf-8']],
+  ['/conditions', ['conditions.html', 'text/html; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],

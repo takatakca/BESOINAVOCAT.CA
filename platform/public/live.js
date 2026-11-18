@@ -457,6 +457,7 @@
     if (!o.eligible) { node.hidden = true; node.innerHTML = ''; return; }
     node.hidden = false;
     const head = `<div class="panel-heading"><div><h2>Abonnement à la plateforme</h2><p>Pour les avocats. Payé chez Stripe; BesoinAvocat ne voit jamais votre carte.</p></div></div>`;
+    if (o.accessFree) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Accès avocat gratuit pour le moment</strong>Aucun abonnement n’est demandé, même après l’essai. Vous serez avisé avant tout changement.</p></div></div>`; return; }
     if (!o.configured) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Abonnement par Stripe à raccorder</strong>Aucun paiement n’est possible pour l’instant. Variables à renseigner dans Coolify : ${esc(o.missing.join(', '))}.</p></div></div>`; return; }
     const m = o.membership, [tone, label] = MEMBERSHIP_STATUS[m.status] || ['off', m.status];
     const status = `<p>${pill(tone, label)}${m.plan ? ` Forfait ${{ weekly: 'hebdomadaire', monthly: 'mensuel', trial: 'd’essai' }[m.plan] || esc(m.plan)}` : ''}${m.trial && !m.trial.expired && Number.isFinite(m.trial.daysLeft) ? ` · ${m.trial.daysLeft} jour${m.trial.daysLeft > 1 ? 's' : ''} d’essai restant${m.trial.daysLeft > 1 ? 's' : ''}` : ''}${m.trial?.expired ? ' · essai terminé, choisissez un forfait pour continuer' : ''}${m.currentPeriodEnd ? ` · ${m.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(m.currentPeriodEnd))}` : ''}</p>`;
@@ -464,6 +465,41 @@
     const plans = m.active ? '' : `<div class="live-grid">${o.plans.map(p => `<div class="live-card"><h4>${p.plan === 'weekly' ? 'Hebdomadaire' : 'Mensuel'}</h4><p class="live-big mono">${esc(money(p.amountCents, p.currency))}</p><p class="table-subtext">par ${p.intervalCount > 1 ? `${p.intervalCount} ` : ''}${esc(INTERVAL[p.interval] || p.interval)}, taxes calculées par Stripe</p><div class="tile-actions"><button type="button" class="button small" data-live-action="membership-checkout" data-plan="${esc(p.plan)}">S’abonner</button></div></div>`).join('') || empty('Les forfaits n’ont pas pu être lus chez Stripe.')}</div>`;
     node.innerHTML = `${head}<div class="panel-body">${o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : ''}${status}${plans}<div class="tile-actions">${manage}</div>
       <p class="table-subtext">L’abonnement couvre l’accès des avocats à la plateforme. Aucun paiement de client, aucune avance d’honoraires et aucune commission sur vos honoraires ne passent par BesoinAvocat.</p></div>`;
+  }
+
+  // ---------- Mon forfait : forfait client, espace, modules d'intégration (D-041, lib/billing.mjs) ----------
+  const gb = bytes => `${new Intl.NumberFormat('fr-CA', { maximumFractionDigits: bytes < 10 * 1024 ** 3 ? 1 : 0 }).format(bytes / 1024 ** 3)} Go`;
+  const cad = cents => new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
+  async function paintBilling(node) {
+    if (bridge.isDemo()) { node.innerHTML = demo('Mon forfait'); return; }
+    const o = await api('/api/billing');
+    if (!o.billed) { node.hidden = true; node.innerHTML = ''; return; }
+    node.hidden = false;
+    const p = o.pricing, premium = p.client.plans.find(x => x.id === 'premium'), canPay = o.configured;
+    const head = `<div class="panel-heading"><div><h2>Mon forfait</h2><p>Payé chez Stripe; BesoinAvocat ne voit jamais votre carte. Prix en dollars canadiens, taxes en sus. <a href="/forfaits" target="_blank" rel="noopener">Voir les forfaits</a></p></div></div>`;
+    const soon = canPay ? '' : `<div class="callout">${icon('info')}<p><strong>Paiement en ligne bientôt ouvert</strong>Rien n’est limité pour l’instant : profitez de toutes les fonctions.</p></div>`;
+    const test = o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : '';
+    let plan = '';
+    if (o.kind === 'client') {
+      const u = o.usage, sub = o.subscriptions.premium;
+      const trial = o.plan.source === 'trial' ? ` · essai gratuit, ${o.trial.daysLeft} jour${o.trial.daysLeft > 1 ? 's' : ''} restant${o.trial.daysLeft > 1 ? 's' : ''}` : '';
+      const renew = sub?.live && sub.currentPeriodEnd ? ` · ${sub.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(sub.currentPeriodEnd))}` : '';
+      const offers = o.plan.source === 'subscription' ? '' : `<div class="live-grid">
+        <div class="live-card"><h4>Premium mensuel</h4><p class="live-big mono">${esc(cad(premium.prices.month))}</p><p class="table-subtext">par mois · ${esc(gb(premium.storageBytes))}, vidéos, dossiers illimités${o.plan.source === 'trial' ? ' · vos jours d’essai sont conservés' : ''}</p><div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="premium" data-interval="month"${canPay ? '' : ' disabled'}>Choisir</button></div></div>
+        <div class="live-card"><h4>Premium annuel</h4><p class="live-big mono">${esc(cad(premium.prices.year))}</p><p class="table-subtext">par année · deux mois offerts</p><div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="premium" data-interval="year"${canPay && o.available.premiumYear ? '' : ' disabled'}>Choisir</button></div></div></div>`;
+      const pack = p.client.storagePack;
+      const storage = o.subscriptions.storage?.live ? `<p class="table-subtext">Espace supplémentaire : ${esc(String(o.subscriptions.storage.quantity))} × ${esc(gb(pack.bytes))}.</p>`
+        : `<p class="table-subtext">Besoin de plus d’espace ? ${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois. <button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="storage"${canPay && o.available.storage ? '' : ' disabled'}>Ajouter ${esc(gb(pack.bytes))}</button></p>`;
+      plan = `<p>${pill(o.plan.id === 'premium' ? 'ok' : 'off', o.plan.label)}${trial}${renew}</p>
+        <p class="table-subtext">Espace utilisé : ${esc(gb(u.bytes))} sur ${esc(gb(u.quotaBytes))} · ${esc(String(u.cases))} dossier${u.cases > 1 ? 's' : ''}${u.maxCases ? ` sur ${esc(String(u.maxCases))}` : ''}${o.features.video ? ' · vidéos comprises' : ' · vidéos avec Premium'}</p>
+        <meter class="billing-meter" min="0" max="100" low="70" high="90" optimum="10" value="${esc(String(u.percent))}" aria-label="Espace utilisé">${esc(String(u.percent))} %</meter>${offers}${storage}`;
+    }
+    const subI = o.subscriptions.integrations;
+    const modules = `<h3>Modules d’intégration</h3><p class="table-subtext">${esc(cad(p.plugins.activation.once))} par module, une seule fois, puis ${esc(cad(p.plugins.subscription.month))} par mois pour l’abonnement Intégrations${subI?.live ? ' (actif)' : ''}. Vous reliez ensuite votre propre compte dans Intégrations.</p>
+      <ul class="drawer-list">${o.plugins.map(m => `<li><span class="queue-text"><strong>${esc(m.label)}</strong> ${m.active ? pill('ok', 'Actif') : m.activated ? pill('warn', 'Abonnement à réactiver') : ''}</span>${m.activated ? '' : `<button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="plugin" data-plugin="${esc(m.id)}"${canPay && o.available.plugin ? '' : ' disabled'}>Activer</button>`}</li>`).join('')}</ul>
+      ${o.plugins.some(m => m.activated) && !subI?.live ? `<div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="integrations"${canPay ? '' : ' disabled'}>Réactiver l’abonnement Intégrations</button></div>` : ''}`;
+    const manage = o.canManage ? `<div class="tile-actions"><button type="button" class="button secondary small" data-live-action="billing-portal">Gérer mes paiements et factures</button></div>` : '';
+    node.innerHTML = `${head}<div class="panel-body">${soon}${test}${plan}${modules}${manage}</div>`;
   }
 
   // ---------- Signature électronique (DocuSign, compte de l'avocat) ----------
@@ -571,7 +607,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, canlii: paintCanlii, 'case-clio': paintClio };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, canlii: paintCanlii, 'case-clio': paintClio, billing: paintBilling };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -616,6 +652,8 @@
     else if (action === 'member-refresh') { cache.overview = await post('/api/telephony/member/refresh'); if (cache.overview.member?.linked) cache.link = null; repaint('phone'); }
     else if (action === 'membership-checkout') { const { url } = await post('/api/membership/checkout', { plan: button.dataset.plan }); window.location.assign(url); }
     else if (action === 'membership-portal') { const { url } = await post('/api/membership/portal'); window.location.assign(url); }
+    else if (action === 'billing-checkout') { const { url } = await post('/api/billing/checkout', { item: button.dataset.item, ...(button.dataset.interval ? { interval: button.dataset.interval } : {}), ...(button.dataset.plugin ? { plugin: button.dataset.plugin } : {}) }); window.location.assign(url); }
+    else if (action === 'billing-portal') { const { url } = await post('/api/billing/portal'); window.location.assign(url); }
     else if (action === 'request-focus') { const card = document.getElementById(`request-${id}`); card?.scrollIntoView({ behavior: 'smooth', block: 'center' }); card?.querySelector('select, input, button')?.focus({ preventScroll: true }); }
     else if (['request-accept', 'request-reopen', 'request-cancel'].includes(action)) {
       await post(`${caseBase()}/requests/${encodeURIComponent(id)}/decide`, { decision: action.slice(8) });

@@ -24,6 +24,7 @@ import { createNotifications, notificationConfiguration } from './lib/notificati
 import { createCanlii } from './lib/canlii.mjs';
 import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
+import { billingConfiguration, createBilling } from './lib/billing.mjs';
 import { createLawyerAccounts, lawyerAccountsConfiguration } from './lib/lawyer-accounts.mjs';
 import { createClientAccounts } from './lib/client-accounts.mjs';
 import { createCaseMatching } from './lib/case-matching.mjs';
@@ -80,6 +81,10 @@ const assets = new Map([
   ['/aide/', ['aide.html', 'text/html; charset=utf-8']],
   ['/aide/zoom', ['aide-zoom.html', 'text/html; charset=utf-8']],
   ['/aide.css', ['aide.css', 'text/css; charset=utf-8']],
+  // Grille publique des forfaits (lib/pricing.mjs, docs/MONETISATION.md).
+  ['/forfaits', ['forfaits.html', 'text/html; charset=utf-8']],
+  ['/forfaits/', ['forfaits.html', 'text/html; charset=utf-8']],
+  ['/forfaits.css', ['forfaits.css', 'text/css; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -175,10 +180,17 @@ export function createApp({
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
   const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS), isLawyer: accounts.has, trialDays: accounts.config.trialDays });
-  // Essai ou abonnement en cours : exigé pour rejoindre un dossier. Le paiement n'est demandé qu'après l'essai.
+  // Forfaits des clients, espace et modules d'intégration (lib/billing.mjs, D-041). Limites actives seulement quand
+  // le paiement est raccordé; la garde des pièces s'exécute dans la transaction d'ajout.
+  const billing = createBilling({ db: store.db, config: billingConfiguration(env), fetch: paymentsFetch, clock, isClient: clients.has, isLawyer: accounts.has });
+  store.setUploadGuard((actor, caseId, info) => billing.checkUpload(actor, caseId, info));
+  // Accès avocat gratuit pour le moment (propriétaire, 13 novembre 2026); BESOINAVOCAT_LAWYER_ACCESS=paid rétablit
+  // le paiement après l'essai de 14 jours.
+  const lawyerAccessFree = env.BESOINAVOCAT_LAWYER_ACCESS !== 'paid';
+  // Essai ou abonnement en cours : exigé pour rejoindre un dossier quand l'accès avocat est payant.
   const requireLawyerAccess = user => {
     if (!accounts.has(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'Ouvrez d’abord votre espace avocat.');
-    if (!membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+    if (!lawyerAccessFree && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
   };
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -206,6 +218,12 @@ export function createApp({
     const path = url.pathname;
     const method = req.method;
     if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured });
+    // Public price grid (lib/pricing.mjs): no account state, readable before sign-in.
+    if (path === '/api/pricing') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      return json(res, 200, billing.pricing());
+    }
     // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
     if (path === '/api/openapi.json') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -269,7 +287,7 @@ export function createApp({
       webhooksInFlight++;
       try {
         const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
-        if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) membership.stripeEvent(result.event);
+        if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) { membership.stripeEvent(result.event); billing.stripeEvent(result.event); }
         if (webhook[1] === 'docusign' && result.event && !result.body.duplicate) {
           const changed = signatures.connectEvent(result.event);
           if (changed?.changed && changed.status === 'completed') notify({ tenantId: changed.tenantId, subject: 'docusign' }, changed.caseId, 'signature_completed', { sender: changed.sender });
@@ -538,7 +556,7 @@ export function createApp({
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (path === '/api/lawyer/me' && method === 'GET') {
         const account = accounts.get(user);
-        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? await membership.overview(user) : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
+        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
       }
       // Dossiers prêts du domaine de l'avocat (D-036) : titre, domaine, résumé, nombre de pièces; jamais les pièces.
       if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user))); }
@@ -559,9 +577,17 @@ export function createApp({
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
-        if (path === '/api/membership' && method === 'GET') return json(res, 200, await membership.overview(user));
+        if (path === '/api/membership' && method === 'GET') return json(res, 200, { ...await membership.overview(user), accessFree: lawyerAccessFree });
         if (path === '/api/membership/checkout' && method === 'POST') return json(res, 201, await membership.checkout(user, await readJson(req, 256)));
         if (path === '/api/membership/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await membership.portal(user)); }
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
+    // Forfait du compte : plan, essai, espace utilisé, modules d'intégration; paiement par Stripe Checkout (D-041).
+    if (path === '/api/billing' || path.startsWith('/api/billing/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (path === '/api/billing' && method === 'GET') return json(res, 200, billing.overview(user));
+      if (path === '/api/billing/checkout' && method === 'POST') return json(res, 201, await billing.checkout(user, await readJson(req, 256)));
+      if (path === '/api/billing/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await billing.portal(user)); }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     }
     // Phone on file, the lawyer's MIMT Connect profile (link, line, availability) and the Équipe console.
@@ -598,9 +624,10 @@ export function createApp({
     const integration = /^\/api\/integrations\/([a-z0-9]+)\/(connect|disconnect)$/u.exec(path);
     if (integration && method === 'POST') {
       fields(await readJson(req, 128, { allowEmpty: true }), []);
+      if (integration[2] === 'connect') billing.checkPlugin(user, integration[1]);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, lawyerAccessFree, billing: { configured: billing.configured(), enforced: billing.enforced() }, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: matching.decorate(user.tenantId, store.listCases(user)) });
       if (method === 'POST') {
@@ -608,7 +635,9 @@ export function createApp({
         const body = await readJson(req, 8192);
         if (!body || typeof body !== 'object' || Array.isArray(body)) throw invalid();
         const { domain, summary, ...rest } = body;
-        const created = store.createCase(user, caseInput(rest));
+        const input = caseInput(rest);
+        billing.checkCaseCreate(user);
+        const created = store.createCase(user, input);
         const profile = domain !== undefined || summary !== undefined ? matching.setProfile(user, created.id, { ...(domain !== undefined ? { domain } : {}), ...(summary !== undefined ? { summary } : {}) }) : matching.profile(user, created.id);
         return json(res, 201, { case: { ...created, profile } });
       }

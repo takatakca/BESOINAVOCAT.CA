@@ -150,8 +150,21 @@ test('an existing TAKATAK account does not become a lawyer without a pending sig
   assert.equal((await f.request('/api/auth/lawyer/verify', { method: 'POST', headers: csrf, body: { email: 'avocate@example.test', code: '00123456' } })).status, 403);
 });
 
-test('after 14 days the trial expires: payment is asked, new cases cannot be joined, existing cases stay readable', async t => {
+test('lawyer access is free by default (owner, 13 November 2026): an expired trial still joins cases', async t => {
   const f = await fixture(t);
+  const { cookie } = await f.signup();
+  const created = await f.request('/api/cases', { method: 'POST', token: 'client', body: { title: 'Dossier', reference: 'CL-3' } });
+  f.advance(15 * 86_400_000);
+  const later = await f.login('avocate@example.test');
+  const me = await f.request('/api/lawyer/me', { cookie: later });
+  assert.equal(me.json.membership.accessFree, true);
+  const code = (await f.request(`/api/cases/${created.json.case.id}/invitations`, { method: 'POST', token: 'client', body: {} })).json.code;
+  assert.equal((await f.request('/api/lawyer/join', { method: 'POST', cookie: later, body: { code } })).status, 200);
+  assert.ok(cookie);
+});
+
+test('after 14 days the trial expires: payment is asked, new cases cannot be joined, existing cases stay readable', async t => {
+  const f = await fixture(t, { env: { BESOINAVOCAT_LAWYER_ACCESS: 'paid' } });
   const { cookie } = await f.signup();
   const created = await f.request('/api/cases', { method: 'POST', token: 'client', body: { title: 'Dossier', reference: 'CL-2' } });
   const caseId = created.json.case.id;

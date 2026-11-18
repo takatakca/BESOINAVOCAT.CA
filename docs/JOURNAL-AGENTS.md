@@ -247,3 +247,9 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
 - Dossier Costa : Drive « 04 — COSTA CHAMBLY — R2NETTE — DOSSIER SINISTRE » (fiche BesoinAvocat V10, rapport V9, photos, vidéos). Le dépôt GitHub du dossier (COSTA-CHAMBLY) est séparé et confidentiel : aucune pièce client n'entre dans ce dépôt public.
 - PR #67 ouverte (demande guidée → tableau de bord). Fusion dès vérifications vertes ; Colombo doit ensuite redéployer `main` (autodeploy off).
 - Prochain : parcours complet dans le Chrome du propriétaire (inscription Costa, dossier, résumé, pièces, « prêt », vue avocat), résultats notés ici en FIN.
+
+### 2026-11-18 05:20 UTC — Fil « Embarquer le client pilote de bout en bout » — ÉTAPE (PR #67 fusionnée)
+- PR #67 fusionnée dans `main` (squash `c6ec46a`), 4 vérifications vertes (validate, platform, storefront, chromium). Branche `claude/project-thread-omm6q5` repartie de `main`.
+- Documents d'état mis à jour (PROJECT_STATUS, TASK_QUEUE, AGENT_HANDOFF, DEPLOYMENT, DECISIONS D-038).
+- **À faire par Colombo** : redéployer `main` sur le portail (autodéploiement éteint).
+- Parcours pilote en cours dans le Chrome du propriétaire : inscription de Costa envoyée (code courriel en attente de lecture par le propriétaire). Lot suivant : inscription plus courte + touche premium (sans changer le design).

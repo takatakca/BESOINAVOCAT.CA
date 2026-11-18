@@ -1,0 +1,24 @@
+/* Pages d'aide publiques (/aide, /aide/zoom). Même charte que /demande : crème, encre marine, titres Georgia, liens bordeaux. */
+:root { --canvas: #f8f6ef; --paper: #fffdf8; --line: #e4e0d4; --ink: #192436; --text: #273142; --muted: #5f6878; --wine: #792936; --wine-dark: #5e1f2a; --serif: Georgia, "Times New Roman", serif; --sans: Arial, Helvetica, system-ui, sans-serif; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; background: var(--canvas); }
+body { margin: 0; background: var(--canvas); color: var(--text); font: 400 16px/1.65 var(--sans); }
+a { color: var(--wine); text-underline-offset: .18em; }
+a:hover { color: var(--wine-dark); }
+:where(a):focus-visible { outline: 2px solid var(--wine); outline-offset: 3px; }
+.wrap { width: min(820px, 100% - 32px); margin-inline: auto; }
+.top { background: var(--paper); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 76px; flex-wrap: wrap; }
+.top img { display: block; width: 190px; height: auto; }
+.top nav { display: flex; gap: 18px; font-weight: 700; font-size: .95rem; }
+main { padding: 40px 0 64px; }
+h1, h2 { font-family: var(--serif); font-weight: 400; color: var(--ink); line-height: 1.2; letter-spacing: -.01em; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0 0 12px; }
+h2 { font-size: 1.45rem; margin: 40px 0 10px; padding-top: 24px; border-top: 1px solid var(--line); }
+h3 { font: 700 1.02rem/1.35 var(--sans); color: var(--ink); margin: 24px 0 6px; }
+.lead { font-size: 1.1rem; color: var(--muted); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; margin: 20px 0; }
+ol, ul { padding-left: 1.3rem; }
+li { margin: 4px 0; }
+.lang { font-size: .85rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+footer { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font-size: .9rem; }

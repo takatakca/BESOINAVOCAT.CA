@@ -544,7 +544,16 @@ export function createIntegrations({ db, access, audit, config = integrationConf
       .all(user.tenantId, caseId, user.subject).map(row => publicLink(row, user));
   }
 
-  // Provider notifications: signature first, then a durable, deduplicated record. No business action yet.
+  // Zoom app_deauthorized: delete every connection (sealed tokens included) held for that Zoom user.
+  function forgetZoomAccount(zoomUserId) {
+    if (typeof zoomUserId !== 'string' || zoomUserId.length < 1 || zoomUserId.length > 128 || !PRINTABLE.test(zoomUserId)) return 0;
+    const rows = sql("SELECT tenantId, subject FROM integration_connections WHERE provider='zoom' AND accountId=?").all(zoomUserId);
+    sql("DELETE FROM integration_connections WHERE provider='zoom' AND accountId=?").run(zoomUserId);
+    for (const row of rows) audit({ tenantId: row.tenantId, subject: row.subject }, null, 'integration.deauthorized', null, { provider: 'zoom' });
+    return rows.length;
+  }
+
+  // Provider notifications: signature first, then a durable, deduplicated record. Zoom deauthorization deletes the connection.
   function record(provider, eventId, type, raw) {
     const result = sql('INSERT OR IGNORE INTO integration_events VALUES (?,?,?,?,?)').run(provider, eventId, type, sha256(raw), iso());
     return { status: 200, body: { received: true, duplicate: result.changes === 0 } };
@@ -571,7 +580,10 @@ export function createIntegrations({ db, access, audit, config = integrationConf
         if (typeof plain !== 'string' || plain.length < 1 || plain.length > 256 || !PRINTABLE.test(plain)) throw invalid('Notification illisible.');
         return { status: 200, body: { plainToken: plain, encryptedToken: createHmac('sha256', secret).update(plain).digest('hex') } };
       }
-      return record(id, sha256(Buffer.concat([Buffer.from(`${timestamp}:`), raw])), eventType(event.event), raw);
+      const result = record(id, sha256(Buffer.concat([Buffer.from(`${timestamp}:`), raw])), eventType(event.event), raw);
+      // The person removed the app in the Zoom Marketplace: Zoom has already revoked the tokens, we delete the connection.
+      if (event.event === 'app_deauthorized') forgetZoomAccount(event.payload?.user_id);
+      return result;
     }
     if (id === 'stripe') {
       const parts = (header(headers, 'stripe-signature') ?? '').split(',').map(part => part.split('='));

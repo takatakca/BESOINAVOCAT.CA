@@ -1,5 +1,11 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-040 — Les inscriptions appartiennent à TAKATAK (2026-11-18)
+
+Le propriétaire précise à 08:03 UTC que toute inscription passe par la base de données de TAKATAK, c'est-à-dire le projet Supabase « TAKATAK User Official Dashboard V1 ». TAKATAK détient le client. BesoinAvocat reçoit une copie de l'information et gère les opérations quotidiennes du client sur sa plateforme. Si un partenaire quitte TAKATAK ou si son service est coupé, il doit bâtir son propre système, et TAKATAK conserve les clients.
+
+Le portail fonctionne déjà ainsi : il n'a pas de système de connexion séparé, le compte est créé chez TAKATAK et le portail ne conserve que les habilitations et les dossiers. Cacher le nom TAKATAK à l'écran ou dans les courriels (règle du 18 novembre, 07:07 UTC) est seulement une question de présentation. Cela ne doit jamais faire sortir l'inscription de TAKATAK.
+
 ## PR #52 — conflit de fusion résolu, en attente de la revue du 14 novembre 2026 20:00
 
 La PR #52 (cockpit : carte « Votre avocat », téléphone (514) 949-0887 + « Par chat / Par courriel », coordonnées aussi côté responsable) ne pouvait plus fusionner : `main` (c603a550, PR #60) avait avancé. Conflit limité à `docs/JOURNAL-AGENTS.md` (ajout-ajout) : les 4 entrées SOCIO du 2026-11-11 sont conservées avant les 20 entrées `main` du 2026-11-13, verbatim (133 entrées). `platform/public/app.js` et `platform/test/cockpit.test.mjs` ont fusionné sans conflit. Contrôles : `node --check` OK, suite plateforme 384/384 (Node 24.22). Branche `socio/cockpit-avocat-2026-11-11` mise à jour par fusion de `main` (commit `a2e8131`). **La PR n'est pas fusionnée** : fusion décidée à la revue de ce soir 20:00 avec Matt. Reste ensuite : redéploiement manuel Coolify (`besoinavocat-portail`) et provisionnement du compte avocat 6280.ca@gmail.com (accès Supabase + Coolify à confirmer : propriétaire ou Matt). — SOCIO, Agent Lévesque, 2026-11-14.

@@ -20,7 +20,7 @@ const SESSION_TTL_MS = 60 * 60_000;
 const COOKIE_ATTRIBUTES = 'Path=/; HttpOnly; Secure; SameSite=Strict';
 const MAX_PROVIDER_BYTES = 65536;
 const MAX_GRANTS_BYTES = 1024 * 1024;
-const unavailable = () => new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+const unavailable = () => new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
 const unauthenticated = () => new HttpError(401, 'UNAUTHENTICATED', 'Connexion ou session non valide.');
 const denied = () => new HttpError(403, 'PRODUCT_ACCESS_DENIED', 'Cet accès au portail n’est pas autorisé.');
 const limited = () => new HttpError(429, 'LOGIN_RATE_LIMIT', 'Trop de tentatives. Réessayez plus tard.');
@@ -251,7 +251,7 @@ export function createBrowserSessions({ config = browserSessionConfiguration(), 
       }
       return Object.freeze({ accepted: true,
         message: createUser === true ? 'Un code vous a été envoyé par courriel pour confirmer votre adresse. Consultez votre courriel et vos indésirables.'
-          : 'Si cette adresse correspond à un compte TAKATAK existant, un code pourra être envoyé. Consultez votre courriel et vos indésirables.' });
+          : 'Si cette adresse correspond à un compte existant, un code pourra être envoyé. Consultez votre courriel et vos indésirables.' });
     } finally { sessions.release(reservation); }
   }
 

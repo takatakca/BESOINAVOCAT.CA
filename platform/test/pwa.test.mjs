@@ -70,3 +70,18 @@ test('Google Play app: /.well-known/assetlinks.json is served only once a valid 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('store screenshots listed in the manifest are served with their declared size', async t => {
+  const manifest = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+  assert.ok(manifest.screenshots.some(s => s.form_factor === 'wide') && manifest.screenshots.some(s => s.form_factor === 'narrow'));
+  const directory = await mkdtemp(join(tmpdir(), 'besoinavocat-pwa-'));
+  const app = createApp({ dbPath: join(directory, 'test.sqlite'), blobDir: join(directory, 'blobs'), env: {}, authenticate: async () => null });
+  app.listen(0, '127.0.0.1'); await once(app, 'listening');
+  t.after(async () => { await new Promise((done, fail) => app.close(error => error ? fail(error) : done())); await rm(directory, { recursive: true, force: true }); });
+  for (const shot of manifest.screenshots) {
+    const response = await fetch(`http://127.0.0.1:${app.address().port}${shot.src}`);
+    assert.equal(response.status, 200, shot.src);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(`${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`, shot.sizes);
+  }
+});

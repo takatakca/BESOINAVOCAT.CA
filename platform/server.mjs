@@ -98,6 +98,9 @@ const assets = new Map([
   ['/icons/icon-maskable-512.png', ['icons/icon-maskable-512.png', 'image/png']],
   ['/icons/apple-touch-icon.png', ['icons/apple-touch-icon.png', 'image/png']],
   ['/icons/favicon-32.png', ['icons/favicon-32.png', 'image/png']],
+  ['/screenshots/narrow-accueil.png', ['screenshots/narrow-accueil.png', 'image/png']],
+  ['/screenshots/narrow-demande.png', ['screenshots/narrow-demande.png', 'image/png']],
+  ['/screenshots/wide-accueil.png', ['screenshots/wide-accueil.png', 'image/png']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],

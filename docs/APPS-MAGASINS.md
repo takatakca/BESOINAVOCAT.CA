@@ -99,3 +99,43 @@ Le propriétaire saisit lui-même ses mots de passe, ses codes et son paiement. 
 > BesoinAvocat is not a law firm and does not provide legal advice.
 
 **Catégorie :** Professionnel / Productivité (Business / Productivity).
+
+## 6. Tous les magasins et tous les écrans : liens d'inscription et de dépôt
+
+Demande du propriétaire, 18 novembre 2026 : « partout » (téléphones, tablettes, ordinateurs, télés, consoles), version internationale.
+
+**Règle :** une seule app, le portail. Ce qui est fait dans une version est fait dans toutes.
+
+**État :**
+- **Déjà en ligne :** l'app installable (PWA) avec manifeste, icônes et captures d'écran.
+- **Validation :** PWABuilder la valide sans erreur.
+- **Paquet Android unique :** il sert à Google Play, Amazon, Samsung Galaxy Store et Huawei.
+
+| # | Plateforme | Appareils | Paquet | Inscription (entreprise) | Dépôt de l'app | Coût | Faisabilité |
+|---|---|---|---|---|---|---|---|
+| 1 | Google Play | téléphones, tablettes, Chromebook | `.aab` (PWABuilder) | https://play.google.com/console/signup | https://play.google.com/console | 25 $ US une fois | Oui |
+| 2 | Google TV / Android TV | télés Android, Sony, TCL, Hisense, etc. | même `.aab`, déclaré « TV » | même compte Google Play | Play Console › Facteurs de forme › TV | inclus | Possible, mais Google exige une navigation à la télécommande. Le portail se tape au clavier : version télé à adapter (lecture du dossier, rendez-vous, visio). |
+| 3 | Apple App Store | iPhone, iPad, Mac | projet Xcode (PWABuilder iOS) | https://developer.apple.com/programs/enroll/ | https://appstoreconnect.apple.com | 99 $ US par an | Oui. Mac requis (ou exécuteur macOS de GitHub Actions). Règle 4.2 : voir section 4. |
+| 4 | Apple TV (tvOS) | Apple TV | — | même compte Apple | — | — | Non sans réécriture : tvOS n'a pas de navigateur intégré pour afficher le portail. |
+| 5 | Microsoft Store | PC Windows 10 et 11 | `.msix` (PWABuilder) | https://storedeveloper.microsoft.com | https://partner.microsoft.com/dashboard | gratuit | Oui |
+| 6 | Xbox | consoles Xbox | `.msix` | même compte Microsoft | Partner Center | gratuit | À vérifier : Microsoft ne garantit pas les PWA sur Xbox. On le teste après le dépôt Windows. |
+| 7 | Amazon Appstore | tablettes Fire, Fire TV | même `.aab` ou `.apk` | https://developer.amazon.com/apps-and-games/console | https://developer.amazon.com/apps-and-games/console | gratuit | Oui pour les tablettes Fire. Pour Fire TV, même réserve sur la télécommande que la ligne 2. |
+| 8 | Samsung Galaxy Store | téléphones et tablettes Samsung | même `.apk` | https://seller.samsungapps.com | https://seller.samsungapps.com | gratuit | Oui |
+| 9 | Samsung Smart TV (Tizen) | télés Samsung | app Web Tizen (`.wgt`) | https://seller.samsungapps.com/tv/ | TV Seller Office | gratuit, mais partenariat à faire approuver | Possible. Samsung choisit ses partenaires TV ; même réserve télécommande. |
+| 10 | LG webOS TV | télés LG | app Web webOS (`.ipk`) | http://seller.lgappstv.com/seller/member/register/memberMain.lge | http://seller.lgappstv.com | gratuit | Possible ; même réserve télécommande. |
+| 11 | Huawei AppGallery | téléphones Huawei | même `.apk` | https://developer.huawei.com/consumer/en/appgallery | AppGallery Connect | gratuit | Oui ; utile surtout hors Amérique du Nord. |
+| 12 | Linux | tout PC Linux | bouton « Installer » du navigateur (déjà actif) ; plus tard Snap ou Flathub | https://snapcraft.io/account | https://snapcraft.io | gratuit | Déjà possible par le navigateur |
+| 13 | PlayStation | PS4, PS5 | — | https://partners.playstation.net | — | — | Non : Sony ne publie que des jeux et de grands services de streaming approuvés. Pas d'accès pour une app de ce type. |
+| 14 | Roku | télés Roku | — | https://developer.roku.com | — | — | Non sans réécriture complète dans le langage de Roku (BrightScript). |
+
+### Ordre recommandé
+
+1. **Inscriptions de l'entreprise :** D-U-N-S, Google Play, Apple, Microsoft, Amazon, Samsung (comptes mobiles).
+2. **Paquets :** Android (lignes 1, 7, 8, 11) et Windows (ligne 5), puis iPhone, iPad et Mac (ligne 3).
+3. **Version télé « télécommande » :** à prévoir pour les lignes 2, 7, 9 et 10, une fois les apps mobiles et ordinateur publiées.
+
+### International
+
+- **Pays :** les fiches peuvent viser tous les pays.
+- **Langues :** le portail est en français ; les textes des fiches sont en français et en anglais (section 5). Une interface anglaise complète du portail serait un chantier à part.
+- **Avertissement :** il reste vrai partout. BesoinAvocat prépare des dossiers pour des avocats **du Québec** et n'est pas un cabinet d'avocats.

@@ -68,6 +68,9 @@
   };
   const state = {
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
+    // /?signup=1 (lien du site public et de la demande guidée) ouvre directement « Créer mon tableau de bord ».
+    signupRequested: new URLSearchParams(window.location.search).get('signup') === '1',
+    handoff: null,
     mode: 'loading', view: 'home', cases: [], selectedId: null, detail: null,
     capabilities: null, health: null, user: null, integrations: null, cockpitQuery: '', cockpitPanel: null, signupName: '',
     loginStep: 'email', loginEmail: '', loginNotice: '',
@@ -1159,6 +1162,27 @@
   function formFooter(submitLabel) {
     return `<p class="form-error" role="alert" hidden></p><div class="form-actions"><button class="button secondary" type="button" data-action="close-dialog">Annuler</button><button class="button" type="submit">${esc(submitLabel)}</button></div>`;
   }
+  // Ce que la demande guidée (/demande) laisse pour le premier dossier : le domaine dans la requête (?domaine=) et le résumé
+  // dans le fragment (#resume=), que le navigateur ne transmet jamais au serveur. Lu une fois au démarrage, puis effacé de
+  // l'adresse; aucun stockage navigateur, aucun cookie.
+  function readHandoffFromLocation() {
+    try {
+      const domain = new URLSearchParams(window.location.search).get('domaine') || '';
+      const fragment = /^#resume=(.*)$/u.exec(window.location.hash || '');
+      let summary = '';
+      if (fragment) { try { summary = decodeURIComponent(fragment[1]); } catch { summary = ''; } }
+      summary = summary.trim().slice(0, 1500);
+      if (fragment) window.history?.replaceState?.(null, '', window.location.pathname + window.location.search);
+      return /^[a-z-]{1,40}$/u.test(domain) || summary ? { domain: /^[a-z-]{1,40}$/u.test(domain) ? domain : null, summary } : null;
+    } catch { return null; }
+  }
+  function readHandoff() {
+    const value = state.handoff;
+    if (!value) return null;
+    const domain = value.domain && caseDomains().some(d => d.id === value.domain) ? value.domain : null;
+    return domain || value.summary ? { domain, summary: value.summary } : null;
+  }
+  function clearHandoff() { state.handoff = null; }
   // Domaines de droit du catalogue (D-036), annoncés par /api/capabilities; le champ n'apparaît pas sans eux.
   function caseDomains() { return Array.isArray(state.capabilities?.caseMatching?.domains) ? state.capabilities.caseMatching.domains : []; }
   function domainField(selected = null, { prefix = 'case' } = {}) {
@@ -1171,7 +1195,9 @@
   }
   function openNewCase() {
     if (!canMutate()) return;
-    showDialog('Nouveau dossier', 'Un titre clair, le domaine et quelques phrases suffisent pour commencer.', `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div>${domainField()}${summaryField()}<div class="field"><label for="case-reference">Référence <span class="table-subtext">facultatif</span></label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter('Créer le dossier')}</form>`);
+    const handoff = readHandoff();
+    const subtitle = handoff ? 'Le domaine et le résumé de votre demande sont repris : vérifiez-les, donnez un titre, et le dossier est créé.' : 'Un titre clair, le domaine et quelques phrases suffisent pour commencer.';
+    showDialog('Nouveau dossier', subtitle, `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div>${domainField(handoff?.domain || null)}${summaryField(handoff?.summary || '')}<div class="field"><label for="case-reference">Référence <span class="table-subtext">facultatif</span></label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter('Créer le dossier')}</form>`);
   }
   function openCaseProfile() {
     if (!canMutate() || !state.detail) return;
@@ -1622,6 +1648,7 @@
         if (String(data.get('summary') || '').trim()) payload.summary = String(data.get('summary')).trim();
         const result = await api('/api/cases', { method: 'POST', body: JSON.stringify(payload) });
         state.cases = (await api('/api/cases')).cases || [];
+        clearHandoff();
         state.selectedId = result.case.id; await refreshDetail(); state.view = 'documents'; message = 'Le dossier a été créé. Ajoutez vos pièces, puis déclarez-le prêt pour un avocat.';
       } else if (form.id === 'case-profile-form') {
         const payload = { summary: String(data.get('summary') || '').trim() };
@@ -2031,6 +2058,7 @@
     state.busy = true; clearSession();
     const generation = state.sessionVersion;
     const button = form.querySelector('button[type="submit"]'); if (button) button.disabled = true;
+    let proposeFirstCase = false;
     try {
       const pending = api('/api/auth/email/verify', { method: 'POST', body: JSON.stringify({ email, code }) });
       code = ''; await pending;
@@ -2038,12 +2066,15 @@
       await loadSession();
       if (generation !== state.sessionVersion) return;
       state.loginEmail = ''; state.loginNotice = ''; state.loginStep = 'email';
-      notify('Vous êtes connecté à votre espace.');
+      // Une demande guidée laissée en attente (domaine, résumé) devient le premier dossier d'un compte encore vide.
+      proposeFirstCase = !state.cases.length && Boolean(readHandoff());
+      notify(proposeFirstCase ? 'Vous êtes connecté. Votre demande devient votre premier dossier.' : 'Vous êtes connecté à votre espace.');
     } catch (error) {
       if (generation === state.sessionVersion) { clearSession(); state.loginNotice = error.message; notify(error.message, true); render(); }
     } finally {
       code = ''; state.busy = false;
       render(true);
+      if (proposeFirstCase && generation === state.sessionVersion) openNewCase();
     }
   }
   // Création du tableau de bord (D-036) : nom + courriel + consentement, puis le code; la session s'ouvre et le premier
@@ -2137,7 +2168,9 @@
     window.BALive?.init({ api, esc, icon, notify, navigate, isDemo: () => state.demo, canMutate, caseId: () => state.selectedId, role: () => currentCase()?.role || null, documents: () => state.detail?.documents || [], nextMeeting: () => nextMeeting(), intakeReviewer: () => intakeReviewer(), capabilities: () => state.capabilities || null,
       refresh: () => render(), reloadCase: async () => { if (state.selectedId) { await refreshDetail(state.selectedId).catch(() => false); render(); } } });
     if (state.demo) { examples = demoData(); state.detail = examples[state.selectedId]; state.mode = 'demo'; render(); return; }
+    state.handoff = readHandoffFromLocation();
     state.health = await publicHealth();
+    if (state.signupRequested && state.health?.clientSignup === true) state.loginStep = 'signup';
     try {
       await loadSession();
       // Deep links: /#case/<id>[/<section>] opens one dossier directly (used by the lawyer space); /#integrations is the connector return page.

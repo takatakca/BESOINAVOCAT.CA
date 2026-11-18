@@ -254,3 +254,22 @@ test('a same-origin page submission is received without any cookie or credential
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Idempotency-Key': randomUUID(), Origin: PORTAL, Cookie: '__Host-ba_session=synthetic' } });
   assert.equal(withCookie.status, 403);
 });
+
+// Passage vers le tableau de bord (18 nov 2026) : la page ne garde que le domaine (?domaine=) et le résumé (#resume=, jamais envoyé
+// au serveur) dans le lien « Créer mon tableau de bord », qui mène à /?signup=1 (ouverture directe de l'inscription dans app.js).
+test('handoffFrom and dashboardUrl keep only the domain and the summary of a client request, never contact details or other parties', () => {
+  const full = detailedState({ domain: 'civil', summary: '  Résumé fictif de la situation.\r\n ', name: 'Personne Fictive', email: 'fictif@example.test', otherPartiesNames: 'Partie adverse fictive' });
+  assert.deepEqual(plain(api.handoffFrom(full)), { domain: 'civil', summary: 'Résumé fictif de la situation.' });
+  assert.equal(api.handoffFrom({ ...full, role: 'professional' }), null, 'a professional interest leaves nothing');
+  assert.equal(api.handoffFrom({ ...full, domain: '', summary: '' }), null, 'nothing to carry');
+  assert.equal(api.handoffFrom(null), null);
+  const url = api.dashboardUrl(full);
+  assert.equal(url, `/?signup=1&domaine=civil#resume=${encodeURIComponent('Résumé fictif de la situation.')}`);
+  assert.ok(!url.includes('Fictive') && !url.includes('example.test') && !url.includes('adverse'), 'no contact detail or other party in the link');
+  assert.equal(api.dashboardUrl({ ...full, domain: 'pas-un-domaine', summary: 'x'.repeat(2000) }), `/?signup=1#resume=${'x'.repeat(1500)}`);
+  assert.equal(api.dashboardUrl({ ...full, domain: 'family', summary: '' }), '/?signup=1&domaine=family');
+  assert.equal(api.dashboardUrl({ ...full, role: 'professional' }), '/?signup=1');
+  assert.equal(api.DASHBOARD_URL, '/?signup=1');
+  assert.ok(script.includes("escaped('dashboardButton')") && script.includes('dashboardBlock('), 'the page renders the dashboard button on receipt and while intake is closed');
+  for (const lang of ['fr', 'en']) for (const key of ['dashboardTitle', 'dashboardButton', 'dashboardText', 'dashboardClosed']) assert.equal(typeof api.COPY[lang][key], 'string');
+});

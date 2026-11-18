@@ -13,7 +13,7 @@ const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'u
 const exported = ['state', 'start', 'render', 'navigate', 'statusLights', 'workItems', 'activityEntries', 'openIntegrationModal', 'startTour', 'endTour', 'showTourStep', 'tutorialMemory', 'localResults', 'TOUR_STEPS', 'ACADEMY_URL', 'MIMT_STEPS', 'mimtMemory', 'instruments', 'guideMemory', 'helpMemory', 'GUIDE_TEXT', 'GUIDE_DISCLAIMER', 'workspaceView', 'wsMemory', 'caseSwitcher', 'casesOverview', 'loadOverview', 'loadCase'];
 assert.equal(source.split('  void start();').length, 2, 'The harness must replace exactly one bootstrap call.');
 
-function harness(demo = false, { hash = '' } = {}) {
+function harness(demo = false, { hash = '', search = '' } = {}) {
   const nodes = new Map(), requests = [], assigned = [], listeners = {};
   const makeNode = id => ({
     id, innerHTML: '', textContent: '', hidden: false, disabled: false, dataset: {}, open: false, isConnected: true, focused: 0, value: '',
@@ -32,10 +32,10 @@ function harness(demo = false, { hash = '' } = {}) {
       classList: { add(c) { this.owner.classes.add(c); }, remove(c) { this.owner.classes.delete(c); } } });
     const z = zones.get(selector); z.classList.owner = z; return z;
   };
-  const h = { node, nodes, requests, assigned, listeners, zones, handler: null, focused: [], lists: {} };
+  const h = { node, nodes, requests, assigned, listeners, zones, handler: null, focused: [], lists: {}, replaced: [] };
   const context = vm.createContext({
     URL, URLSearchParams, Intl, Date, console, AbortSignal, crypto: { randomUUID },
-    window: { location: { search: demo ? '?demo=1' : '', hash, assign: url => assigned.push(url) }, setTimeout: () => 1, clearTimeout() {}, innerHeight: 900, innerWidth: 1440 },
+    window: { location: { pathname: '/', search: demo ? '?demo=1' : search, hash, assign: url => assigned.push(url) }, history: { replaceState: (_state, _title, url) => h.replaced.push(url) }, setTimeout: () => 1, clearTimeout() {}, innerHeight: 900, innerWidth: 1440 },
     document: { getElementById: node, querySelectorAll: selector => h.lists[selector] || [], querySelector: selector => selector === 'dialog[open]' ? null : zone(selector), addEventListener(type, fn) { (listeners[type] ||= []).push(fn); }, body: { classList: { add() {}, remove() {} } }, activeElement: null },
     fetch: async (path, options) => {
       requests.push({ path, options });
@@ -671,4 +671,56 @@ test('the sign-in screen offers the lawyer sign-up only once the server announce
   h.ui.render();
   assert.doesNotMatch(h.main(), /login-lawyer/u, 'only a local path is linked');
   assert.equal(h.requests.length, 0);
+});
+
+// Passage depuis le site public et la demande guidée (18 nov 2026) : /?signup=1 ouvre « Créer mon tableau de bord »
+// tout de suite, et le domaine + résumé laissés par /demande (stockage de session) pré-remplissent le premier dossier.
+test('/?signup=1 opens the client signup form directly when the server allows it, and stays on the code form otherwise', async () => {
+  const boot = async (clientSignup) => {
+    const h = harness(false, { search: '?signup=1' });
+    h.handler = async path => {
+      if (path === '/api/health') return response({ status: 'ok', loginConfigured: true, emailCodeConfigured: true, clientSignup, lawyerSpace: { url: './avocat', trialDays: 14 } });
+      if (path === '/api/me') return { status: 401, ok: false, json: async () => ({ code: 'UNAUTHENTICATED', message: 'Session requise.' }) };
+      throw new Error(`unexpected ${path}`);
+    };
+    await h.ui.start();
+    await new Promise(resolve => setImmediate(resolve));
+    return h;
+  };
+  const open = await boot(true);
+  assert.equal(open.ui.state.loginStep, 'signup');
+  assert.match(open.main(), /id="client-signup-form"/u, 'the signup form is the first thing shown');
+  const closed = await boot(false);
+  assert.equal(closed.ui.state.loginStep, 'email');
+  assert.doesNotMatch(closed.main(), /client-signup-form/u);
+});
+
+test('the first dossier is prefilled with the domain (?domaine=) and summary (#resume=) left by the guided request; the fragment is wiped from the address', async () => {
+  const h = harness(false, { search: '?signup=1&domaine=civil', hash: `#resume=${encodeURIComponent('Résumé fictif laissé par la demande guidée.')}` });
+  h.handler = async path => {
+    if (path === '/api/health') return response({ status: 'ok', loginConfigured: true, emailCodeConfigured: true, clientSignup: true, lawyerSpace: { url: './avocat', trialDays: 14 } });
+    if (path === '/api/me') return { status: 401, ok: false, json: async () => ({ code: 'UNAUTHENTICATED', message: 'Session requise.' }) };
+    throw new Error(`unexpected ${path}`);
+  };
+  await h.ui.start();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.replaced, ['/?signup=1&domaine=civil'], 'the summary never stays in the address bar');
+  assert.deepEqual(JSON.parse(JSON.stringify(h.ui.state.handoff)), { domain: 'civil', summary: 'Résumé fictif laissé par la demande guidée.' });
+  // Once signed in with an empty account, « Nouveau dossier » comes prefilled.
+  signedIn(h, { role: 'client' });
+  Object.assign(h.ui.state, { cases: [], detail: null, selectedId: null, capabilities: { caseMatching: { domains: [{ id: 'civil', label: 'Civil et contrats' }, { id: 'family', label: 'Famille et jeunesse' }] } } });
+  h.ui.render();
+  h.click({ action: 'new-case' });
+  const dialog = h.node('dialog-content').innerHTML;
+  assert.match(dialog, /<option value="civil" selected>/u, 'the domain of the request is preselected');
+  assert.match(dialog, /Résumé fictif laissé par la demande guidée\./u, 'the summary of the request is carried over');
+  assert.match(dialog, /sont repris/u, 'the dialog says the request was carried over');
+  // A domain outside the catalogue is dropped; an empty hand-off leaves the usual dialog.
+  h.ui.state.handoff = { domain: 'inconnu', summary: '' };
+  h.click({ action: 'new-case' });
+  assert.doesNotMatch(h.node('dialog-content').innerHTML, /sont repris|value="[a-z-]+" selected>/u);
+  // Without any hand-off in the address, nothing is read and nothing is rewritten.
+  const plain = harness(false, { search: '?signup=1' });
+  plain.handler = h.handler; await plain.ui.start(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(plain.ui.state.handoff, null); assert.deepEqual(plain.replaced, []);
 });

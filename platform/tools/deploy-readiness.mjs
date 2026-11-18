@@ -62,6 +62,8 @@ export function readiness(env = process.env) {
   if (!env.TAKATAK_SUPABASE_PUBLISHABLE_KEY) add('fail', 'login', 'TAKATAK_SUPABASE_PUBLISHABLE_KEY is missing (publishable key only, never service_role).');
   if (env.BESOINAVOCAT_EMAIL_OTP_ENABLED === 'true') add('ok', 'login', 'Email login code is enabled. Delivery still depends on the Supabase SMTP sender (domain verified, recipient allowed).');
   else add('warn', 'login', 'BESOINAVOCAT_EMAIL_OTP_ENABLED is not true: only the password form is offered.');
+  if (env.BESOINAVOCAT_GOOGLE_SIGNIN_ENABLED === 'true') add('ok', 'login', 'Google sign-in is enabled. The Supabase Redirect URLs must include APP_ORIGIN/** or users land on the Site URL.');
+  else add('warn', 'login', 'BESOINAVOCAT_GOOGLE_SIGNIN_ENABLED is not true: the free « Continuer avec Google » button is not offered.');
 
   const grantsFile = env.BESOINAVOCAT_GRANTS_FILE;
   if (!grantsFile || !existsSync(grantsFile)) add('fail', 'login', `Access grants not found at BESOINAVOCAT_GRANTS_FILE (${grantsFile || 'unset'}): a signed-in person sees no case.`);

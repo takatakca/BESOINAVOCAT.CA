@@ -125,6 +125,17 @@ function audio(res, { bytes, type }) {
   return res.end(bytes);
 }
 
+// Digital Asset Links for the Google Play app (Trusted Web Activity) that opens this portal full screen.
+// BESOINAVOCAT_ANDROID_CERT_SHA256: one or more SHA-256 signing-certificate fingerprints (AA:BB:…, comma separated),
+// copied from Play Console › App integrity. BESOINAVOCAT_ANDROID_PACKAGE: the app id (default ca.besoinavocat.portail).
+export function androidAssetLinks(env = {}) {
+  const fingerprints = String(env.BESOINAVOCAT_ANDROID_CERT_SHA256 ?? '').split(',').map(value => value.trim().toUpperCase()).filter(Boolean);
+  const packageName = String(env.BESOINAVOCAT_ANDROID_PACKAGE ?? 'ca.besoinavocat.portail').trim();
+  if (!fingerprints.length || fingerprints.length > 4 || !fingerprints.every(value => /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/u.test(value))) return null;
+  if (!/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(packageName) || packageName.length > 150) return null;
+  return [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: packageName, sha256_cert_fingerprints: fingerprints } }];
+}
+
 function json(res, status, value) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -223,6 +234,8 @@ export function createApp({
   const apiKeys = createApiKeys({ config: apiKeyConfiguration(env), now: clock });
   const openApi = JSON.stringify(openApiDocument({ origin: /^https:\/\/[a-z0-9.-]+$/u.test(env.APP_ORIGIN ?? '') ? env.APP_ORIGIN : 'https://portail.besoinavocat.ca' }));
 
+  // Store apps (Google Play wrapper of this portal): Android verifies the domain through this file.
+  const assetLinks = androidAssetLinks(env);
   async function route(req, res) {
     if (!req.url || req.url.length > 4096 || !req.url.startsWith('/') || req.url.startsWith('//')) throw invalid('URL invalide.');
     const rawPath = req.url.split('?')[0];
@@ -230,6 +243,11 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
+    if (path === '/.well-known/assetlinks.json' && method === 'GET') {
+      if (!assetLinks) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return json(res, 200, assetLinks);
+    }
     if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured });
     // Public price grid (lib/pricing.mjs): no account state, readable before sign-in.
     if (path === '/api/pricing') {

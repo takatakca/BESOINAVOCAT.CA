@@ -50,3 +50,23 @@ test('the service worker never stores private data: no /api/, no OAuth return, n
   assert.match(source, /request\.mode === 'navigate'[\s\S]*fetch\(request\)\.catch/u);
   assert.doesNotMatch(source, /cache\.put\(request[^)]*\)\s*;?\s*\}\s*\)\s*;?\s*\n\s*if \(request\.mode/u);
 });
+
+test('Google Play app: /.well-known/assetlinks.json is served only once a valid signing fingerprint is configured', async t => {
+  const { androidAssetLinks } = await import('../server.mjs');
+  const fingerprint = Array.from({ length: 32 }, (_, i) => i.toString(16).padStart(2, '0').toUpperCase()).join(':');
+  assert.equal(androidAssetLinks({}), null);
+  assert.equal(androidAssetLinks({ BESOINAVOCAT_ANDROID_CERT_SHA256: 'not-a-fingerprint' }), null);
+  assert.equal(androidAssetLinks({ BESOINAVOCAT_ANDROID_CERT_SHA256: fingerprint, BESOINAVOCAT_ANDROID_PACKAGE: 'Bad Package' }), null);
+  const links = androidAssetLinks({ BESOINAVOCAT_ANDROID_CERT_SHA256: fingerprint.toLowerCase() });
+  assert.deepEqual(links[0].target, { namespace: 'android_app', package_name: 'ca.besoinavocat.portail', sha256_cert_fingerprints: [fingerprint] });
+  for (const [env, status] of [[{}, 404], [{ BESOINAVOCAT_ANDROID_CERT_SHA256: fingerprint }, 200]]) {
+    const directory = await mkdtemp(join(tmpdir(), 'besoinavocat-pwa-'));
+    const app = createApp({ dbPath: join(directory, 'test.sqlite'), blobDir: join(directory, 'blobs'), env, authenticate: async () => null });
+    app.listen(0, '127.0.0.1'); await once(app, 'listening');
+    const response = await fetch(`http://127.0.0.1:${app.address().port}/.well-known/assetlinks.json`);
+    assert.equal(response.status, status);
+    if (status === 200) assert.equal((await response.json())[0].target.sha256_cert_fingerprints[0], fingerprint);
+    await new Promise((done, fail) => app.close(error => error ? fail(error) : done()));
+    await rm(directory, { recursive: true, force: true });
+  }
+});

@@ -758,3 +758,36 @@ test('the Google button appears only when the server announces it, needs the con
   assert.match(refused.main(), /Aucun tableau de bord n’est encore lié à ce compte Google/u);
   assert.deepEqual(refused.replaced, ['/?signup=1'], 'the google return code is wiped from the address');
 });
+
+// Lot 10 (19 November 2026): end-to-end check — nothing covers the phone menu, nothing follows the person from page to page,
+// and a client-only account sees a shorter menu.
+test('lot 10: the guide closes when the person changes section, and never covers the phone menu', () => {
+  const h = harness();
+  signedIn(h, { role: 'client' }); h.ui.render();
+  const guide = h.node('cockpit-guide');
+  assert.equal(guide.hidden, false, 'opens by itself once on the cockpit');
+  h.ui.navigate('cases');
+  assert.equal(guide.hidden, true, 'closed on navigation: it does not follow the person');
+  assert.equal(h.node('guide-avatar').hidden, false, 'still reachable from the robot button');
+  h.ui.navigate('home');
+  assert.equal(guide.hidden, true, 'once per session');
+  assert.match(styles, /@media \(max-width: 860px\) \{\s*\.sidebar \{ z-index: 45; \}\s*body\.drawer-open \.help-dock \{ visibility: hidden; \}\s*\.guide-panel \{ max-height: 60vh; \}/u);
+  assert.match(styles, /body\.signed-out \.tabbar, body\.signed-out \.help-dock \{ display: none !important; \}/u);
+  assert.match(styles, /body\.signed-out \.secondary-nav, body\.signed-out \.nav-label-tools \{ display: none; \}/u, 'case tools hidden before sign-in');
+  assert.match(index, /class="nav-label nav-label-tools"/u);
+  assert.match(styles, /\.welcome-card \.button\.subtle \{ color: var\(--ink\); border: 1px solid var\(--line-strong\)/u, '« Découvrir l’aperçu » readable on the light card');
+});
+
+test('lot 10: a client-only account does not see Clients, Usages and Suivi du temps in the menu; a lawyer does', () => {
+  const nav = () => ['home', 'cases', 'clients', 'usage', 'time', 'settings'].map(view => ({ dataset: { view }, hidden: false, setAttribute() {}, removeAttribute() {}, closest: selector => selector === '.primary-nav' ? {} : null }));
+  const client = harness(); client.lists['[data-view]'] = nav();
+  signedIn(client, { role: 'client' }); client.ui.render();
+  assert.deepEqual(client.lists['[data-view]'].filter(b => b.hidden).map(b => b.dataset.view), ['clients', 'usage', 'time']);
+  assert.equal(client.ui.TOUR_STEPS.find(step => step.title === 'La navigation').text, 'Accueil, Dossiers, Pièces, Intégrations et Réglages. Sur téléphone, la barre du bas.');
+  const lawyer = harness(); lawyer.lists['[data-view]'] = nav();
+  signedIn(lawyer, { role: 'lawyer' }); lawyer.ui.render();
+  assert.deepEqual(lawyer.lists['[data-view]'].filter(b => b.hidden), []);
+  const signedOut = harness(); signedOut.lists['[data-view]'] = nav();
+  signedOut.ui.state.mode = 'signed-out'; signedOut.ui.render();
+  assert.deepEqual(signedOut.lists['[data-view]'].filter(b => b.hidden), [], 'nothing hidden before sign-in');
+});

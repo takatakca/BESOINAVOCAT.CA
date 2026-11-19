@@ -149,3 +149,15 @@ Demande du propriétaire : simplifier le visuel sans changer le design, puis « 
 - **CSS** : bloc « Lot 9 — touche premium » en fin de `styles.css` (jetons `--gold*`, toile plus claire, serif sur les titres d'accueil, filets d'or). Règles `.soon-tile*` et `.ws-stats` retirées.
 - Tests : `cockpit.test.mjs` adapté (8 instruments, aucune tuile de texte, tuile seulement pour un fournisseur prêt à connecter) ; 388/388.
 
+
+## Lot 10 — vérification de bout en bout (19 novembre 2026)
+
+Parcours vérifié par captures (1440×900 et 390×844) : écran de connexion, inscription `/?signup=1`, accueil, Dossiers, Pièces, Clients, Intégrations, Équipe, Réglages, Recherche, Appels, Journal, Échanges, Rendez-vous, Usages, Temps, tiroirs du téléphone, `avocat.html`, `demande.html`, `forfaits.html`, `aide.html`, `offline.html`, pages légales. Aucune erreur de script, aucune ressource manquante, aucun débordement horizontal. 414 tests.
+
+Corrigé (D-042) :
+- Téléphone : le guide (`#cockpit-guide`, z-index 35) passait au-dessus du menu ouvert (`.sidebar`, z-index 30) et bloquait les clics; il suivait aussi la personne de page en page. Désormais `.sidebar` z-index 45 sous 860 px, `.help-dock` masqué quand le tiroir est ouvert, `navigate()` referme le guide (`hideGuide(false)`), hauteur maximale 60 vh.
+- Avant connexion : classe `signed-out` sur `body` (`render()`), qui masque `.tabbar`, `.help-dock`, `.secondary-nav` et le libellé « Outils du dossier ».
+- `« Découvrir l'aperçu »` : `.welcome-card .button.subtle` était stylé pour une carte sombre (texte blanc); couleur encre et bordure sur la carte claire.
+- Menu client : `clientOnlyAccount()` (mode aperçu ou connecté, tous les dossiers sans rôle avocat/propriétaire) masque `clients`, `usage`, `time` dans `.primary-nav`; l'étape « La navigation » de la visite ne cite plus « Clients ».
+
+Non modifié, à décider : tarif avocat affiché dans `demande.html` (zone réservée), vide des sections « L'aperçu n'appelle aucun service » dans Réglages/Appels/Journal en mode aperçu (choix antérieur : rien d'inventé).

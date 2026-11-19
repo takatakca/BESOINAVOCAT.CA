@@ -1315,6 +1315,12 @@ dialog::backdrop { background: rgb(15 23 42 / 32%); backdrop-filter: blur(3px); 
 .welcome-card .welcome-actions .button { margin-top: 0; }
 .welcome-card .button.subtle { color: #e8edf5; border: 1px solid rgb(255 255 255 / 25%); background: transparent; }
 .welcome-card .button.subtle:hover { background: rgb(255 255 255 / 8%); }
+.auth-steps { display: flex; gap: 6px; list-style: none; margin: 4px 0 10px; padding: 0; font-size: 12px; font-weight: 600; color: var(--ink-3, var(--ink-2)); }
+.auth-steps li { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; padding-top: 8px; border-top: 2px solid var(--line, rgba(0,0,0,.12)); }
+.auth-steps li span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; border: 1px solid currentColor; flex-shrink: 0; }
+.auth-steps li[aria-current="step"] { color: var(--ink, inherit); border-top-color: var(--gold, var(--accent, currentColor)); }
+.auth-steps li.done { color: var(--ink-2); border-top-color: var(--gold, var(--accent, currentColor)); }
+.auth-steps li.done span { background: var(--gold, var(--accent, currentColor)); border-color: transparent; color: #fff; }
 .auth-consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-size: 13px; font-weight: 500; color: var(--ink-2); line-height: 1.5; }
 .auth-consent input { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; }
 .ready-card { display: grid; gap: 10px; padding: 20px 22px; border-left: 4px solid var(--amber); }
@@ -1373,3 +1379,22 @@ body { background: radial-gradient(1100px 520px at 100% -8%, #f6ebe6 0%, rgb(246
   .integration-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .integration-more { padding: 0 14px 12px; }
 }
+
+/* « Continuer avec Google » : bouton clair, sobre, même gabarit que les autres boutons du parcours. */
+.button.google { width: 100%; justify-content: center; gap: 10px; margin-top: 14px; background: var(--surface, #fff); color: var(--ink); border: 1px solid var(--line-strong, var(--line)); box-shadow: var(--shadow-1, none); }
+.button.google:hover:not(:disabled) { border-color: var(--gold, var(--accent)); }
+.google-mark { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font: 700 13px/1 Arial, sans-serif; color: #fff; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); }
+.auth-or { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; font-size: 12px; color: var(--ink-3, var(--ink-2)); }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+/* Mon forfait (D-041) : jauge de l'espace utilisé. */
+.billing-meter { display: block; width: 100%; height: 10px; margin: 4px 0 12px; }
+
+/* Page hors connexion de l'application installée (public/offline.html). */
+.offline-page { max-width: 440px; margin: 18vh auto 0; padding: 0 24px; text-align: center; display: grid; gap: 14px; justify-items: center; }
+.offline-page img { border-radius: 16px; }
+
+/* Smart TV / remote control: readable from the couch, focus always obvious. */
+.tv-mode { font-size: 125%; }
+.tv-mode :focus-visible, .tv-mode :focus { outline: 4px solid var(--accent, #792936) !important; outline-offset: 4px !important; box-shadow: 0 0 0 8px rgb(121 41 54 / 22%) !important; border-radius: 8px; }
+.tv-mode a, .tv-mode button, .tv-mode summary { scroll-margin: 96px; }
+@media (prefers-reduced-motion: reduce) { .tv-mode * { scroll-behavior: auto !important; } }

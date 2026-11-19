@@ -77,6 +77,22 @@ export function createClientAccounts({ db, audit, tenantId, clock = Date.now }) 
         return { subject, tenantId: owner, created: !existing };
       });
     },
+    // Inscription par Google : le consentement et le nom ont été donnés sur le portail avant de partir chez Google
+    // (POST /api/auth/google/start); le courriel vient du fournisseur, déjà confirmé. Un compte actif reste tel quel.
+    completeOAuthSignup(subject, email, name) {
+      if (!externalIdentifier(subject) || typeof email !== 'string' || !validEmail(email)) throw invalid();
+      const existing = sql('SELECT * FROM client_accounts WHERE subject=?').get(subject);
+      if (existing?.active) return { subject, tenantId: existing.tenantId, created: false };
+      const cleanName = typeof name === 'string' && name.trim() ? text(name.trim(), 'Nom', 160) : email.split('@')[0].slice(0, 160);
+      return transaction(() => {
+        const at = now();
+        if (existing) sql('UPDATE client_accounts SET active=1,email=?,name=?,updatedAt=? WHERE subject=?').run(email, cleanName, at, subject);
+        else sql('INSERT INTO client_accounts (subject,tenantId,email,name,active,createdAt,updatedAt) VALUES (?,?,?,?,1,?,?)').run(subject, tenantId, email, cleanName, at, at);
+        const owner = existing?.tenantId ?? tenantId;
+        audit({ tenantId: owner, subject }, null, 'client.signed_up', subject, { method: 'google' });
+        return { subject, tenantId: owner, created: !existing };
+      });
+    },
     update(user, body) {
       fields(body, ['name'], ['name']);
       if (!accountOf(user)) throw new HttpError(404, 'NOT_A_CLIENT', 'Aucun compte client pour cette session.');

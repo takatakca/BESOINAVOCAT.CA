@@ -24,11 +24,13 @@ import { createNotifications, notificationConfiguration } from './lib/notificati
 import { createCanlii } from './lib/canlii.mjs';
 import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
+import { billingConfiguration, createBilling } from './lib/billing.mjs';
 import { createLawyerAccounts, lawyerAccountsConfiguration } from './lib/lawyer-accounts.mjs';
 import { createClientAccounts } from './lib/client-accounts.mjs';
 import { createCaseMatching } from './lib/case-matching.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
 import { createDocumentGenerator } from './lib/document-generator.mjs';
+import { bordereau, exhibitName, readme, safeFileName, writeZip } from './lib/court-package.mjs';
 import { HttpError, fields, text, invalid, identifier, caseInput, documentInput, documentHeaderInput, readJson, readRawBody, MAX_DOCUMENT_JSON_BYTES, MAX_DOCUMENT_BYTES, CASE_STORAGE_QUOTA_BYTES } from './lib/validation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -46,7 +48,7 @@ let webhooksInFlight = 0;
 const MAX_CONCURRENT_WEBHOOKS = 8;
 // media-src and frame-src blob: let the workspace play a recorded video and preview a PDF from the case's own
 // downloaded bytes (object URLs made by the portal's script); nothing is loaded from another origin.
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src blob:; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
@@ -74,6 +76,31 @@ const assets = new Map([
   ['/avocat/', ['avocat.html', 'text/html; charset=utf-8']],
   ['/avocat.js', ['avocat.js', 'text/javascript; charset=utf-8']],
   ['/avocat.css', ['avocat.css', 'text/css; charset=utf-8']],
+  // Public help pages (support and Zoom app guide), linked from the Zoom App Marketplace listing.
+  ['/aide', ['aide.html', 'text/html; charset=utf-8']],
+  ['/aide/', ['aide.html', 'text/html; charset=utf-8']],
+  ['/aide/zoom', ['aide-zoom.html', 'text/html; charset=utf-8']],
+  ['/aide.css', ['aide.css', 'text/css; charset=utf-8']],
+  // Grille publique des forfaits (lib/pricing.mjs, docs/MONETISATION.md).
+  ['/forfaits', ['forfaits.html', 'text/html; charset=utf-8']],
+  ['/forfaits/', ['forfaits.html', 'text/html; charset=utf-8']],
+  ['/forfaits.css', ['forfaits.css', 'text/css; charset=utf-8']],
+  // Public legal pages, generated from docs/legal/*.md by scripts/legal-pages.py.
+  ['/confidentialite', ['confidentialite.html', 'text/html; charset=utf-8']],
+  ['/conditions', ['conditions.html', 'text/html; charset=utf-8']],
+  // Installable app on every device (Android, iOS, Windows, macOS, Linux): manifest, service worker, icons, offline page.
+  ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
+  ['/sw.js', ['sw.js', 'text/javascript; charset=utf-8']],
+  ['/pwa.js', ['pwa.js', 'text/javascript; charset=utf-8']],
+  ['/offline.html', ['offline.html', 'text/html; charset=utf-8']],
+  ['/icons/icon-192.png', ['icons/icon-192.png', 'image/png']],
+  ['/icons/icon-512.png', ['icons/icon-512.png', 'image/png']],
+  ['/icons/icon-maskable-512.png', ['icons/icon-maskable-512.png', 'image/png']],
+  ['/icons/apple-touch-icon.png', ['icons/apple-touch-icon.png', 'image/png']],
+  ['/icons/favicon-32.png', ['icons/favicon-32.png', 'image/png']],
+  ['/screenshots/narrow-accueil.png', ['screenshots/narrow-accueil.png', 'image/png']],
+  ['/screenshots/narrow-demande.png', ['screenshots/narrow-demande.png', 'image/png']],
+  ['/screenshots/wide-accueil.png', ['screenshots/wide-accueil.png', 'image/png']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -99,6 +126,17 @@ function audio(res, { bytes, type }) {
   res.setHeader('Content-Disposition', 'inline; filename="enregistrement"');
   res.setHeader('Cache-Control', 'no-store');
   return res.end(bytes);
+}
+
+// Digital Asset Links for the Google Play app (Trusted Web Activity) that opens this portal full screen.
+// BESOINAVOCAT_ANDROID_CERT_SHA256: one or more SHA-256 signing-certificate fingerprints (AA:BB:…, comma separated),
+// copied from Play Console › App integrity. BESOINAVOCAT_ANDROID_PACKAGE: the app id (default ca.besoinavocat.portail).
+export function androidAssetLinks(env = {}) {
+  const fingerprints = String(env.BESOINAVOCAT_ANDROID_CERT_SHA256 ?? '').split(',').map(value => value.trim().toUpperCase()).filter(Boolean);
+  const packageName = String(env.BESOINAVOCAT_ANDROID_PACKAGE ?? 'ca.besoinavocat.portail').trim();
+  if (!fingerprints.length || fingerprints.length > 4 || !fingerprints.every(value => /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/u.test(value))) return null;
+  if (!/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(packageName) || packageName.length > 150) return null;
+  return [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: packageName, sha256_cert_fingerprints: fingerprints } }];
 }
 
 function json(res, status, value) {
@@ -163,15 +201,23 @@ export function createApp({
   if (!browserSessions || ['login', 'resolve', 'logout', 'assertMutation', 'clear'].some(name => typeof browserSessions[name] !== 'function')) throw new TypeError('Invalid browser session adapter');
   const loginConfigured = browserSessions.configured === true;
   const emailCodeConfigured = loginConfigured && browserSessions.emailCodeConfigured === true;
+  const googleConfigured = loginConfigured && browserSessions.googleConfigured === true && typeof browserSessions.googleStart === 'function';
   const communications = createCommunications({ db: store.db, access: store.access, audit: store.audit });
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
   const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS), isLawyer: accounts.has, trialDays: accounts.config.trialDays });
-  // Essai ou abonnement en cours : exigé pour rejoindre un dossier. Le paiement n'est demandé qu'après l'essai.
+  // Forfaits des clients, espace et modules d'intégration (lib/billing.mjs, D-041). Limites actives seulement quand
+  // le paiement est raccordé; la garde des pièces s'exécute dans la transaction d'ajout.
+  const billing = createBilling({ db: store.db, config: billingConfiguration(env), fetch: paymentsFetch, clock, isClient: clients.has, isLawyer: accounts.has });
+  store.setUploadGuard((actor, caseId, info) => billing.checkUpload(actor, caseId, info));
+  // Accès avocat gratuit pour le moment (propriétaire, 13 novembre 2026); BESOINAVOCAT_LAWYER_ACCESS=paid rétablit
+  // le paiement après l'essai de 14 jours.
+  const lawyerAccessFree = env.BESOINAVOCAT_LAWYER_ACCESS !== 'paid';
+  // Essai ou abonnement en cours : exigé pour rejoindre un dossier quand l'accès avocat est payant.
   const requireLawyerAccess = user => {
     if (!accounts.has(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'Ouvrez d’abord votre espace avocat.');
-    if (!membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+    if (!lawyerAccessFree && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
   };
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -191,6 +237,8 @@ export function createApp({
   const apiKeys = createApiKeys({ config: apiKeyConfiguration(env), now: clock });
   const openApi = JSON.stringify(openApiDocument({ origin: /^https:\/\/[a-z0-9.-]+$/u.test(env.APP_ORIGIN ?? '') ? env.APP_ORIGIN : 'https://portail.besoinavocat.ca' }));
 
+  // Store apps (Google Play wrapper of this portal): Android verifies the domain through this file.
+  const assetLinks = androidAssetLinks(env);
   async function route(req, res) {
     if (!req.url || req.url.length > 4096 || !req.url.startsWith('/') || req.url.startsWith('//')) throw invalid('URL invalide.');
     const rawPath = req.url.split('?')[0];
@@ -198,7 +246,18 @@ export function createApp({
     const url = new URL(req.url, 'http://local.invalid');
     const path = url.pathname;
     const method = req.method;
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured });
+    if (path === '/.well-known/assetlinks.json' && method === 'GET') {
+      if (!assetLinks) throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return json(res, 200, assetLinks);
+    }
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured });
+    // Public price grid (lib/pricing.mjs): no account state, readable before sign-in.
+    if (path === '/api/pricing') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      return json(res, 200, billing.pricing());
+    }
     // Public description of the API (OpenAPI 3.1); no data, no secret, readable by any client.
     if (path === '/api/openapi.json') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -209,6 +268,31 @@ export function createApp({
       res.setHeader('Content-Length', body.length);
       res.setHeader('Cache-Control', 'public, max-age=300');
       return res.end(method === 'HEAD' ? undefined : body);
+    }
+    // Retour de Google (via le fournisseur TAKATAK) : échange du code PKCE côté serveur, puis retour au portail.
+    // Toute erreur ramène au portail avec un motif court; aucun détail du fournisseur n'est montré.
+    if (path === '/auth/callback') {
+      if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      const back = (target, cookies) => { res.statusCode = 303; res.setHeader('Set-Cookie', cookies); res.setHeader('Location', target); return res.end(); };
+      const clearFlow = browserSessions.clearFlowCookie ?? '__Host-ba_oauth=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
+      if (!googleConfigured) return back('/?google=indisponible', [clearFlow]);
+      if (url.searchParams.has('error') || !url.searchParams.has('code')) return back('/?google=annule', [clearFlow]);
+      const cookieHeader = req.headers.cookie;
+      try {
+        const session = await browserSessions.googleCallback(cookieHeader, url.searchParams.get('code'), { clientKey: clientAddress(req, trustProxy),
+          onVerified: (subject, email, profile) => {
+            const signup = profile?.intent?.signup;
+            if (signup && email && !accounts.grantFor(subject)) clients.completeOAuthSignup(subject, email, signup.name || profile.name || '');
+          } });
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) return back('/?google=erreur', [clearFlow]);
+        browserSessions.logout(cookieHeader);
+        return back('/?google=connecte', [session.setCookie, clearFlow]);
+      } catch (error) {
+        const reason = error instanceof HttpError && error.status === 403 ? '/?signup=1&google=nouveau' : error instanceof HttpError && error.status === 429 ? '/?google=attendre' : '/?google=erreur';
+        return back(reason, [clearFlow]);
+      }
     }
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -237,7 +321,7 @@ export function createApp({
       webhooksInFlight++;
       try {
         const result = integrations.webhook(webhook[1], { headers: req.headers, raw: await readWebhookBody(req), url: req.url });
-        if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) membership.stripeEvent(result.event);
+        if (webhook[1] === 'stripe' && result.event && !result.body.duplicate) { membership.stripeEvent(result.event); billing.stripeEvent(result.event); }
         if (webhook[1] === 'docusign' && result.event && !result.body.duplicate) {
           const changed = signatures.connectEvent(result.event);
           if (changed?.changed && changed.status === 'completed') notify({ tenantId: changed.tenantId, subject: 'docusign' }, changed.caseId, 'signature_completed', { sender: changed.sender });
@@ -336,12 +420,27 @@ export function createApp({
     const hasSessionCookie = typeof cookieHeader === 'string' && cookieHeader.split(';').some(part => part.trim().split('=', 1)[0].trim() === BROWSER_SESSION_COOKIE);
     const hasAuthorization = Object.hasOwn(req.headers, 'authorization');
     if (hasSessionCookie && hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Utilisez une seule méthode de connexion.');
-    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify', '/api/auth/client/signup', '/api/auth/client/verify'].includes(path)) {
+    if (['/api/auth/login', '/api/auth/logout', '/api/auth/email/request', '/api/auth/email/verify', '/api/auth/lawyer/signup', '/api/auth/lawyer/verify', '/api/auth/client/signup', '/api/auth/client/verify', '/api/auth/google/start'].includes(path)) {
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (hasAuthorization) throw new HttpError(400, 'AMBIGUOUS_AUTHENTICATION', 'Cette connexion utilise une session de navigateur.');
       browserSessions.assertMutation(req);
       if ((path.startsWith('/api/auth/email/') || path.startsWith('/api/auth/lawyer/') || path.startsWith('/api/auth/client/')) && !emailCodeConfigured) throw new HttpError(503, 'EMAIL_CODE_UNAVAILABLE', 'La connexion par code courriel n’est pas activée.');
+      // « Continuer avec Google » : inscription (nom facultatif + consentement obligatoire) ou connexion d'un compte existant.
+      if (path === '/api/auth/google/start') {
+        if (!googleConfigured) throw new HttpError(503, 'GOOGLE_UNAVAILABLE', 'La connexion avec Google n’est pas activée.');
+        const body = fields(await readJson(req, 1024, { allowEmpty: true }), ['mode', 'name', 'consent']);
+        const mode = body.mode === undefined ? 'login' : body.mode;
+        if (!['login', 'signup'].includes(mode)) throw invalid('Mode invalide.');
+        let intent = null;
+        if (mode === 'signup') {
+          if (body.consent !== true) throw invalid('Le consentement aux conditions d’utilisation est requis.');
+          intent = { signup: { name: body.name === undefined || body.name === '' ? '' : text(body.name, 'Nom', 160).trim() } };
+        }
+        const started = browserSessions.googleStart({ intent });
+        res.setHeader('Set-Cookie', started.setCookie);
+        return json(res, 200, { location: started.location });
+      }
       // Inscription d'un avocat : profil gardé en attente, code envoyé par le fournisseur TAKATAK (le compte y est créé
       // au premier code), puis vérification qui enregistre l'habilitation et ouvre l'essai gratuit avant la session.
       if (path === '/api/auth/lawyer/signup') {
@@ -356,7 +455,7 @@ export function createApp({
           const result = accounts.completeSignup(subject, confirmedEmail);
           opened = membership.startTrial({ subject, tenantId: result.tenantId, product: 'besoinavocat', active: true });
         } });
-        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), membership: opened });
@@ -372,14 +471,14 @@ export function createApp({
         const email = text(body.email, 'Adresse courriel', 320).trim();
         let account = null;
         const session = await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy), onVerified: (subject, confirmedEmail) => { account = clients.completeSignup(subject, confirmedEmail); } });
-        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString(), created: Boolean(account?.created) });
       }
       if (path === '/api/auth/email/request') {
         const body = fields(await readJson(req, 1024), ['email'], ['email']);
-        if (typeof browserSessions.requestEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (typeof browserSessions.requestEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         return json(res, 200, await browserSessions.requestEmailCode(text(body.email, 'Adresse courriel', 320), { clientKey: clientAddress(req, trustProxy) }));
       }
       if (path === '/api/auth/login' || path === '/api/auth/email/verify') {
@@ -389,11 +488,11 @@ export function createApp({
         const email = text(body.email, 'Adresse courriel', 320).trim();
         // Only the socket address is trusted for rate limiting; forwarded client
         // headers are arbitrary unless a separate proxy policy is configured.
-        if (otp && typeof browserSessions.verifyEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (otp && typeof browserSessions.verifyEmailCode !== 'function') throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         const session = otp
           ? await browserSessions.verifyEmailCode(email, text(body.code, 'Code', 10), { clientKey: clientAddress(req, trustProxy) })
           : await browserSessions.login(email, text(body.password, 'Mot de passe', 4096), { clientKey: clientAddress(req, trustProxy) });
-        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK est indisponible.');
+        if (!validIdentity(session.identity) || !Number.isFinite(session.expiresAt)) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion est momentanément indisponible.');
         if (hasSessionCookie) browserSessions.logout(cookieHeader);
         res.setHeader('Set-Cookie', session.setCookie);
         return json(res, 200, { user: session.identity, expiresAt: new Date(session.expiresAt).toISOString() });
@@ -491,7 +590,7 @@ export function createApp({
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (path === '/api/lawyer/me' && method === 'GET') {
         const account = accounts.get(user);
-        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? await membership.overview(user) : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
+        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
       }
       // Dossiers prêts du domaine de l'avocat (D-036) : titre, domaine, résumé, nombre de pièces; jamais les pièces.
       if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user))); }
@@ -512,9 +611,17 @@ export function createApp({
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
-        if (path === '/api/membership' && method === 'GET') return json(res, 200, await membership.overview(user));
+        if (path === '/api/membership' && method === 'GET') return json(res, 200, { ...await membership.overview(user), accessFree: lawyerAccessFree });
         if (path === '/api/membership/checkout' && method === 'POST') return json(res, 201, await membership.checkout(user, await readJson(req, 256)));
         if (path === '/api/membership/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await membership.portal(user)); }
+      throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
+    }
+    // Forfait du compte : plan, essai, espace utilisé, modules d'intégration; paiement par Stripe Checkout (D-041).
+    if (path === '/api/billing' || path.startsWith('/api/billing/')) {
+      if (url.search) throw invalid('Paramètre URL non autorisé.');
+      if (path === '/api/billing' && method === 'GET') return json(res, 200, billing.overview(user));
+      if (path === '/api/billing/checkout' && method === 'POST') return json(res, 201, await billing.checkout(user, await readJson(req, 256)));
+      if (path === '/api/billing/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await billing.portal(user)); }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     }
     // Phone on file, the lawyer's MIMT Connect profile (link, line, availability) and the Équipe console.
@@ -551,9 +658,10 @@ export function createApp({
     const integration = /^\/api\/integrations\/([a-z0-9]+)\/(connect|disconnect)$/u.exec(path);
     if (integration && method === 'POST') {
       fields(await readJson(req, 128, { allowEmpty: true }), []);
+      if (integration[2] === 'connect') billing.checkPlugin(user, integration[1]);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, lawyerAccessFree, billing: { configured: billing.configured(), enforced: billing.enforced() }, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: matching.decorate(user.tenantId, store.listCases(user)) });
       if (method === 'POST') {
@@ -561,7 +669,9 @@ export function createApp({
         const body = await readJson(req, 8192);
         if (!body || typeof body !== 'object' || Array.isArray(body)) throw invalid();
         const { domain, summary, ...rest } = body;
-        const created = store.createCase(user, caseInput(rest));
+        const input = caseInput(rest);
+        billing.checkCaseCreate(user);
+        const created = store.createCase(user, input);
         const profile = domain !== undefined || summary !== undefined ? matching.setProfile(user, created.id, { ...(domain !== undefined ? { domain } : {}), ...(summary !== undefined ? { summary } : {}) }) : matching.profile(user, created.id);
         return json(res, 201, { case: { ...created, profile } });
       }
@@ -665,6 +775,25 @@ export function createApp({
       res.setHeader('Content-Length', content.length);
       res.setHeader('X-Content-SHA256', document.sha256);
       return res.end(content);
+    }
+    // Paquet prêt à déposer dans Lexius : bordereau PDF + pièces cotées P-1, P-2… dans une archive ZIP (lib/court-package.mjs).
+    if (suffix === '/court-package' && method === 'GET') {
+      const pack = store.packageDocuments(user, caseId);
+      if (!pack.documents.length) throw new HttpError(409, 'NO_DOCUMENTS', 'Le dossier ne contient encore aucune pièce.');
+      if (pack.documents.reduce((sum, d) => sum + d.bytes, 0) > 3.5 * 1024 ** 3) throw new HttpError(413, 'PACKAGE_TOO_LARGE', 'Le paquet dépasse 3,5 Go. Téléchargez les pièces séparément.');
+      const generatedAt = new Date().toISOString();
+      const entries = [
+        { name: '00 - Bordereau des pieces.pdf', date: generatedAt, read: () => bordereau(pack.case, pack.documents, generatedAt) },
+        ...pack.documents.map((d, i) => ({ name: exhibitName(i, d.name), date: d.createdAt, read: () => pack.read(d.id) })),
+        { name: 'LISEZ-MOI.txt', date: generatedAt, read: () => Buffer.from(readme(pack.case, pack.documents), 'utf8') },
+      ];
+      const label = safeFileName(`Paquet depot - ${pack.case.reference || pack.case.title}`, 'Paquet depot').replace(/[^\x20-\x7e]/gu, '_');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${label.replace(/"/gu, '_')}.zip"`);
+      res.setHeader('Cache-Control', 'no-store');
+      try { await writeZip(res, entries); } catch (error) { res.destroy(error); return; }
+      return res.end();
     }
     if (suffix === '/search' && method === 'GET') {
       const query = text(url.searchParams.get('q'), 'Recherche', 200).trim();

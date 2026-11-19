@@ -137,7 +137,10 @@ export function createStore({ dbPath, blobDir, blobKey = null }) {
   corpus = createCorpusSupport({ db, access, audit, putBlob, publicDocument });
   const structuredSearch = createStructuredSearch({ db, access, audit, publicDocument });
   let closed = false;
+  let uploadGuard = null;
   return {
+    // Crochet posé par le serveur (lib/billing.mjs); appelé dans la transaction, avant l'écriture d'une pièce.
+    setUploadGuard(fn) { uploadGuard = typeof fn === 'function' ? fn : null; },
     db, access, audit, documentPages: corpus.documentPages, importCorpus: corpus.importCorpus, searchStructured: structuredSearch.searchStructured,
     close() { if (!closed) { db.close(); closed = true; } },
     // Trusted deployment/test operation only. It is deliberately NOT an HTTP route.
@@ -183,7 +186,9 @@ export function createStore({ dbPath, blobDir, blobKey = null }) {
           if (latest.n !== previous.versionNumber) throw new HttpError(409, 'VERSION_CONFLICT', 'Une version plus récente existe déjà.');
         }
         const id = randomUUID(), hash = digest(value.bytes), createdAt = now();
-        corpus.checkQuota(user, caseId, value.bytes.length, hash);
+        // Forfait du compte qui paie le dossier (lib/billing.mjs) : vidéos, espace du compte. Lève une erreur 402.
+        const guard = uploadGuard ? uploadGuard(user, caseId, { bytes: value.bytes.length, hash, mimeType: value.mimeType }) : null;
+        corpus.checkQuota(user, caseId, value.bytes.length, hash, guard?.accountQuota === true);
         putBlob(user.tenantId, value.bytes, hash);
         sql('INSERT INTO documents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
           id, user.tenantId, caseId, previous?.rootDocumentId || id, value.versionOf,
@@ -201,6 +206,21 @@ export function createStore({ dbPath, blobDir, blobKey = null }) {
       const content = readBlob(user.tenantId, row.sha256, row.bytes);
       audit(user, caseId, 'document.downloaded', documentId, { sha256: row.sha256 });
       return { document: publicDocument(row), content };
+    },
+    // Dernière version de chaque pièce, dans l'ordre de dépôt de la première version (paquet prêt à déposer, lib/court-package.mjs).
+    packageDocuments(user, caseId) {
+      const item = access(user, caseId);
+      const rows = sql(`SELECT d.* FROM documents d
+        JOIN (SELECT rootDocumentId, MAX(versionNumber) AS n FROM documents WHERE tenantId=? AND caseId=? GROUP BY rootDocumentId) l
+          ON d.rootDocumentId=l.rootDocumentId AND d.versionNumber=l.n
+        JOIN documents r ON r.id=d.rootDocumentId AND r.tenantId=d.tenantId AND r.caseId=d.caseId
+        WHERE d.tenantId=? AND d.caseId=? ORDER BY r.createdAt, r.id`).all(user.tenantId, caseId, user.tenantId, caseId);
+      audit(user, caseId, 'case.court_package', caseId, { documents: rows.length, sha256: rows.map(row => row.sha256) });
+      return {
+        case: publicCase(item),
+        documents: rows.map(row => ({ id: row.id, name: row.name, versionNumber: row.versionNumber, createdAt: row.createdAt, bytes: row.bytes, sha256: row.sha256 })),
+        read: id => { const row = rows.find(candidate => candidate.id === id); if (!row) throw missing(); return readBlob(user.tenantId, row.sha256, row.bytes); },
+      };
     },
     search(user, caseId, query) { return corpus.searchPages(user, caseId, query); },
     addMessage(user, caseId, body) {

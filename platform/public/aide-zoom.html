@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f8f6ef">
+  <meta name="description" content="Guide de l’application Zoom de BesoinAvocat : l’ajouter, l’utiliser et la retirer. Zoom app guide: add, use and remove.">
+  <title>Guide Zoom — BesoinAvocat Portail | Zoom app guide</title>
+  <link rel="stylesheet" href="/aide.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a href="/" aria-label="Portail BesoinAvocat"><img src="/brand/besoinavocat-logo.png" width="204" height="36" alt="BesoinAvocat"></a>
+      <nav aria-label="Aide"><a href="/aide">Aide</a><a href="#en" lang="en">English</a><a href="/">Portail</a></nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <p class="lang">Français</p>
+    <h1>Guide de l’application Zoom</h1>
+    <p class="lead">L’application « BesoinAvocat Portail » permet à un avocat de créer, en un clic, la réunion Zoom d’un rendez-vous avec son client, directement depuis le dossier dans le portail BesoinAvocat.</p>
+
+    <section class="card">
+      <h3>Ce que fait l’application</h3>
+      <ul>
+        <li>Crée une réunion Zoom dans <strong>votre</strong> compte Zoom quand vous cliquez sur « Créer la réunion Zoom » dans un rendez-vous vidéo : salle d’attente active, participants en sourdine à l’entrée, aucun enregistrement automatique.</li>
+        <li>Supprime cette réunion si vous annulez le rendez-vous.</li>
+        <li>Affiche l’adresse du compte Zoom connecté.</li>
+      </ul>
+      <p>Seuls l’identifiant de la réunion et son lien de participation sont conservés dans le dossier. Le lien d’hôte, les enregistrements, les clavardages et les contacts Zoom ne sont jamais lus ni conservés. Les jetons d’accès sont chiffrés (AES-256-GCM) sur notre serveur.</p>
+      <p>Autorisations demandées : <code>meeting:write:meeting</code>, <code>meeting:delete:meeting</code>, <code>user:read:user</code>.</p>
+    </section>
+
+    <h2>Ajouter l’application</h2>
+    <p>Prérequis : un compte avocat dans le portail BesoinAvocat et un compte Zoom (gratuit ou payant).</p>
+    <ol>
+      <li>Connectez-vous à <a href="/">portail.besoinavocat.ca</a>.</li>
+      <li>Ouvrez la page « Intégrations », puis la carte « Zoom ».</li>
+      <li>Lisez ce qui sera partagé, puis cliquez sur « Connecter ».</li>
+      <li>Zoom vous demande de vous connecter et d’autoriser l’application. Cliquez sur « Allow / Autoriser ».</li>
+      <li>Vous revenez au portail : la carte Zoom indique « Connecté » avec l’adresse de votre compte.</li>
+    </ol>
+
+    <h2>Utiliser l’application</h2>
+    <ol>
+      <li>Dans un dossier, planifiez un rendez-vous de type « Visioconférence ».</li>
+      <li>Dans le rendez-vous, cliquez sur « Créer la réunion Zoom ».</li>
+      <li>La réunion est créée dans votre compte Zoom. Le lien de participation s’affiche dans le rendez-vous pour vous et votre client.</li>
+      <li>Au moment du rendez-vous, cliquez sur « Ouvrir Zoom » ou démarrez la réunion depuis votre application Zoom.</li>
+      <li>Si le rendez-vous est annulé, retirez la réunion depuis le rendez-vous : elle est supprimée de votre compte Zoom.</li>
+    </ol>
+
+    <h2>Retirer l’application</h2>
+    <h3>Depuis le portail</h3>
+    <ol>
+      <li>Page « Intégrations », carte « Zoom », bouton « Déconnecter ».</li>
+      <li>Le portail révoque l’accès chez Zoom et supprime les jetons conservés.</li>
+    </ol>
+    <h3>Depuis Zoom</h3>
+    <ol>
+      <li>Connectez-vous au <a href="https://marketplace.zoom.us/" rel="noopener noreferrer">Zoom App Marketplace</a>.</li>
+      <li>Cliquez sur « Manage », puis « Added Apps ».</li>
+      <li>Trouvez « BesoinAvocat Portail » et cliquez sur « Remove ».</li>
+    </ol>
+    <p>Quand l’application est retirée dans Zoom, Zoom nous en avise et le portail supprime aussitôt la connexion et les jetons de ce compte. Les réunions déjà créées restent dans votre compte Zoom; vous pouvez les supprimer dans Zoom.</p>
+
+    <h2>Besoin d’aide ?</h2>
+    <p>Consultez la page <a href="/aide">Aide et soutien</a> ou appelez-nous au <a href="tel:+15148252825">514 825-2825</a>.</p>
+
+    <section id="en" lang="en">
+      <h2>Zoom app guide (English)</h2>
+      <p class="lead">The “BesoinAvocat Portail” app lets a lawyer create the Zoom meeting for a client appointment in one click, directly from the case file in the BesoinAvocat portal.</p>
+      <div class="card">
+        <h3>What the app does</h3>
+        <ul>
+          <li>Creates a meeting in <strong>your</strong> Zoom account when you click “Create Zoom meeting” on a video appointment: waiting room on, participants muted on entry, no automatic recording.</li>
+          <li>Deletes that meeting if you cancel the appointment.</li>
+          <li>Shows which Zoom account is connected.</li>
+        </ul>
+        <p>Only the meeting ID and participant join link are kept in the case file. The host link, recordings, chats and contacts are never read or stored. Access tokens are encrypted (AES-256-GCM) on our server.</p>
+        <p>Scopes: <code>meeting:write:meeting</code>, <code>meeting:delete:meeting</code>, <code>user:read:user</code>.</p>
+      </div>
+      <h3>Add the app</h3>
+      <ol>
+        <li>Sign in to <a href="/">portail.besoinavocat.ca</a> with your lawyer account.</li>
+        <li>Open “Intégrations” (Integrations), then the “Zoom” card.</li>
+        <li>Review what will be shared, then click “Connecter” (Connect).</li>
+        <li>Sign in to Zoom if asked and click “Allow”.</li>
+        <li>Back in the portal, the Zoom card shows “Connecté” (Connected) with your Zoom account email.</li>
+      </ol>
+      <h3>Use the app</h3>
+      <ol>
+        <li>In a case, schedule a “Visioconférence” (video) appointment.</li>
+        <li>On the appointment, click “Créer la réunion Zoom” (Create Zoom meeting).</li>
+        <li>The meeting is created in your Zoom account and its join link appears on the appointment for you and your client.</li>
+        <li>At the appointment time, click “Ouvrir Zoom” (Open Zoom) or start the meeting from your Zoom app.</li>
+        <li>If the appointment is cancelled, remove the meeting from the appointment; it is deleted from your Zoom account.</li>
+      </ol>
+      <h3>Remove the app</h3>
+      <ul>
+        <li><strong>From the portal:</strong> Integrations → Zoom → “Déconnecter” (Disconnect). The portal revokes access at Zoom and deletes the stored tokens.</li>
+        <li><strong>From Zoom:</strong> sign in to the <a href="https://marketplace.zoom.us/" rel="noopener noreferrer">Zoom App Marketplace</a>, click Manage → Added Apps, find “BesoinAvocat Portail” and click Remove. Zoom notifies us and the portal immediately deletes the connection and tokens for that account. Meetings already created stay in your Zoom account.</li>
+      </ul>
+      <h3>Support</h3>
+      <p>See <a href="/aide">Aide et soutien</a> or call <a href="tel:+15148252825">+1 514 825-2825</a>.</p>
+    </section>
+  </main>
+  <footer><div class="wrap">BesoinAvocat · <a href="/confidentialite">Confidentialité</a> · <a href="/conditions">Conditions</a> · <a href="/aide">Aide</a> · <a href="/">Portail</a></div></footer>
+</body>
+</html>

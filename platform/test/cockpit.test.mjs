@@ -690,6 +690,13 @@ test('/?signup=1 opens the client signup form directly when the server allows it
   const open = await boot(true);
   assert.equal(open.ui.state.loginStep, 'signup');
   assert.match(open.main(), /id="client-signup-form"/u, 'the signup form is the first thing shown');
+  assert.match(open.main(), /class="auth-steps"/u, 'the three signup steps are shown so the person knows what comes next');
+  assert.match(open.main(), /aria-current="step"><span>1<\/span>Vos coordonnées/u, 'step 1 is the current step on the form');
+  assert.equal((open.main().match(/<input /gu) || []).length, 3, 'signup asks only for a name, an email and one checkbox');
+  open.ui.state.loginStep = 'signup-code'; open.ui.state.loginEmail = 'personne@example.test'; open.ui.render();
+  assert.match(open.main(), /aria-current="step"><span>2<\/span>Le code reçu/u, 'the code screen is step 2');
+  assert.match(open.main(), /class="done"><span>1<\/span>/u, 'step 1 is marked done on the code screen');
+  assert.match(open.main(), /Pas reçu \? Renvoyer le code/u);
   const closed = await boot(false);
   assert.equal(closed.ui.state.loginStep, 'email');
   assert.doesNotMatch(closed.main(), /client-signup-form/u);
@@ -723,4 +730,31 @@ test('the first dossier is prefilled with the domain (?domaine=) and summary (#r
   const plain = harness(false, { search: '?signup=1' });
   plain.handler = h.handler; await plain.ui.start(); await new Promise(resolve => setImmediate(resolve));
   assert.equal(plain.ui.state.handoff, null); assert.deepEqual(plain.replaced, []);
+});
+
+// « Continuer avec Google » (18 nov 2026) : bouton annoncé par le serveur, consentement exigé avant de partir,
+// retour ?google=nouveau expliqué puis effacé de l'adresse.
+test('the Google button appears only when the server announces it, needs the consent box and explains a refused return', async () => {
+  const boot = async (googleSignIn, search = '?signup=1') => {
+    const h = harness(false, { search });
+    h.handler = async path => {
+      if (path === '/api/health') return response({ status: 'ok', loginConfigured: true, emailCodeConfigured: true, clientSignup: true, googleSignIn, lawyerSpace: { url: './avocat', trialDays: 14 } });
+      if (path === '/api/me') return { status: 401, ok: false, json: async () => ({ code: 'UNAUTHENTICATED', message: 'Session requise.' }) };
+      throw new Error(`unexpected ${path}`);
+    };
+    await h.ui.start();
+    await new Promise(resolve => setImmediate(resolve));
+    return h;
+  };
+  const off = await boot(false);
+  assert.doesNotMatch(off.main(), /data-action="google-signin"/u);
+  const on = await boot(true);
+  assert.match(on.main(), /data-action="google-signin" data-mode="signup"/u);
+  assert.match(on.main(), /Continuer avec Google/u);
+  assert.equal((on.main().match(/<input /gu) || []).length, 3, 'still only a name, an email and one checkbox');
+  on.ui.state.loginStep = 'email'; on.ui.render();
+  assert.match(on.main(), /data-action="google-signin" data-mode="login"/u, 'the sign-in screen offers Google too');
+  const refused = await boot(true, '?signup=1&google=nouveau');
+  assert.match(refused.main(), /Aucun tableau de bord n’est encore lié à ce compte Google/u);
+  assert.deepEqual(refused.replaced, ['/?signup=1'], 'the google return code is wiped from the address');
 });

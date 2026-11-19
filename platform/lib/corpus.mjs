@@ -28,8 +28,10 @@ export function createCorpusSupport({ db, access, audit, putBlob, publicDocument
   function usedBytes(user, caseId) {
     return sql('SELECT COALESCE(SUM(bytes),0) AS n FROM (SELECT sha256,MAX(bytes) AS bytes FROM documents WHERE tenantId=? AND caseId=? GROUP BY sha256)').get(user.tenantId, caseId).n;
   }
-  function checkQuota(user, caseId, bytes, hash) {
+  // accountQuota : l'espace est compté par compte client (lib/billing.mjs), pas par dossier.
+  function checkQuota(user, caseId, bytes, hash, accountQuota = false) {
     if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > MAX_DOCUMENT_BYTES) throw new HttpError(413, 'FILE_TOO_LARGE', 'Le fichier dépasse la limite configurée.');
+    if (accountQuota) return;
     const duplicate = sql('SELECT id FROM documents WHERE tenantId=? AND caseId=? AND sha256=? LIMIT 1').get(user.tenantId, caseId, hash);
     if (!duplicate && usedBytes(user, caseId) + bytes > CASE_STORAGE_QUOTA_BYTES) throw new HttpError(413, 'CASE_QUOTA_EXCEEDED', 'Le quota de stockage du dossier est dépassé.');
   }

@@ -1,5 +1,15 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-041 — Monétisation : forfaits client, espace par compte, essai Premium, modules d'intégration payants (18 novembre 2026)
+
+Demande du propriétaire (18 novembre 2026) : « une solution de monétisation complète à 100 % ». Grille (`platform/lib/pricing.mjs`, détails et calcul pour 1 000 et 10 000 clients dans [MONETISATION](MONETISATION.md)) : Essentiel gratuit (1 dossier, 1 Go, sans vidéo), Premium 15 $/mois ou 150 $/an (dossiers illimités, 50 Go, vidéos), essai Premium de 14 jours sans carte pour chaque nouveau compte client, espace supplémentaire 5 $/mois par 100 Go, modules d'intégration 30 $ une fois chacun + abonnement Intégrations 9 $/mois. Accès avocat gratuit pour le moment (`BESOINAVOCAT_LAWYER_ACCESS=paid` rétablit le paiement après l'essai). Paiement par Stripe Checkout sur le compte ALKAO.CA, taux TPS/TVQ plutôt que Stripe Tax. Les limites ne s'appliquent que lorsque le paiement est raccordé; l'équipe BesoinAvocat n'est jamais facturée. Cette décision remplace, pour les services du dossier, la « gratuité client » de D-014/D-017 : la demande et le forfait Essentiel restent gratuits; les honoraires ne passent jamais par BesoinAvocat (D-025).
+
+## D-040 — Les inscriptions appartiennent à TAKATAK (2026-11-18)
+
+Le propriétaire précise à 08:03 UTC que toute inscription passe par la base de données de TAKATAK, c'est-à-dire le projet Supabase « TAKATAK User Official Dashboard V1 ». TAKATAK détient le client. BesoinAvocat reçoit une copie de l'information et gère les opérations quotidiennes du client sur sa plateforme. Si un partenaire quitte TAKATAK ou si son service est coupé, il doit bâtir son propre système, et TAKATAK conserve les clients.
+
+Le portail fonctionne déjà ainsi : il n'a pas de système de connexion séparé, le compte est créé chez TAKATAK et le portail ne conserve que les habilitations et les dossiers. Cacher le nom TAKATAK à l'écran ou dans les courriels (règle du 18 novembre, 07:07 UTC) est seulement une question de présentation. Cela ne doit jamais faire sortir l'inscription de TAKATAK.
+
 ## PR #52 — conflit de fusion résolu, en attente de la revue du 14 novembre 2026 20:00
 
 La PR #52 (cockpit : carte « Votre avocat », téléphone (514) 949-0887 + « Par chat / Par courriel », coordonnées aussi côté responsable) ne pouvait plus fusionner : `main` (c603a550, PR #60) avait avancé. Conflit limité à `docs/JOURNAL-AGENTS.md` (ajout-ajout) : les 4 entrées SOCIO du 2026-11-11 sont conservées avant les 20 entrées `main` du 2026-11-13, verbatim (133 entrées). `platform/public/app.js` et `platform/test/cockpit.test.mjs` ont fusionné sans conflit. Contrôles : `node --check` OK, suite plateforme 384/384 (Node 24.22). Branche `socio/cockpit-avocat-2026-11-11` mise à jour par fusion de `main` (commit `a2e8131`). **La PR n'est pas fusionnée** : fusion décidée à la revue de ce soir 20:00 avec Matt. Reste ensuite : redéploiement manuel Coolify (`besoinavocat-portail`) et provisionnement du compte avocat 6280.ca@gmail.com (accès Supabase + Coolify à confirmer : propriétaire ou Matt). — SOCIO, Agent Lévesque, 2026-11-14.
@@ -29,6 +39,9 @@ Demande du propriétaire (18 novembre 2026, 05:00 et 05:08 UTC) : « simplifier 
 - Rien d'inventé : aucun chiffre, aucun avocat, aucun appel; les états « bientôt » et « à raccorder » restent.
 
 Lot 9 de `docs/COCKPIT-PREMIUM-2026-11-04.md`; tests 388/388.
+## D-039 — Le client pilote est Costa / Chambly; la demande guidée débouche sur le tableau de bord (18 novembre 2026)
+
+Le propriétaire (18 novembre 2026, 05:00 UTC) précise que Quadro Holding est son propre compte, déjà créé, et que le premier vrai client à embarquer par le navigateur est Costa / Chambly (sinistre du local commercial, R2NETTE), avec son courriel d'inscription (hors dépôt). Les pièces du client restent sur le Drive et son dépôt séparé; rien n'entre dans ce dépôt public. Côté plateforme : la demande guidée se termine par « Créer mon tableau de bord », qui emporte le domaine et le résumé (PR #67). Les boutons du site WordPress doivent pointer vers `https://portail.besoinavocat.ca/demande`, `/?signup=1` et `/avocat` (voir RACCORDEMENT-SITE-PUBLIC-2026-11-18). Le propriétaire demande aussi une inscription plus courte et une touche plus « premium » sans changer le design (lot suivant).
 
 ## D-037 — Réponses du propriétaire du 14 novembre 2026 : numéro public, appels à la minute, textes légaux rédigés en projet (14 novembre 2026)
 

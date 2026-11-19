@@ -388,6 +388,24 @@ test('provider notifications are accepted once, and only with a valid, recent si
   assert.equal(f.api.list(users.lawyer).providers.find(item => item.id === 'twilio').state, 'active_on_server');
 });
 
+test('removing the app in the Zoom Marketplace deletes that Zoom account connection and its tokens', async t => {
+  const f = fixture(t, { [`${base}ZOOM_WEBHOOK_SECRET`]: 'zoom-webhook-secret' });
+  oauthProviders(f.fake);
+  await connected(f, users.lawyer, 'zoom');
+  await connected(f, users.lawyer, 'google');
+  const seconds = Math.floor(f.now() / 1000);
+  const send = body => f.api.webhook('zoom', { headers: { 'x-zm-request-timestamp': String(seconds), 'x-zm-signature': `v0=${createHmac('sha256', 'zoom-webhook-secret').update(`v0:${seconds}:${body}`).digest('hex')}` }, raw: Buffer.from(body), url: '/api/webhooks/zoom' });
+  const other = JSON.stringify({ event: 'app_deauthorized', payload: { user_id: 'someone-else', account_id: 'acc' } });
+  assert.deepEqual(send(other).body, { received: true, duplicate: false });
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM integration_connections WHERE provider='zoom'").get().n, 1);
+  const removed = JSON.stringify({ event: 'app_deauthorized', payload: { user_id: 'zoom-user', account_id: 'acc', deauthorization_time: '2026-11-18T10:00:00Z' } });
+  assert.deepEqual(send(removed).body, { received: true, duplicate: false });
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM integration_connections WHERE provider='zoom'").get().n, 0);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM integration_connections WHERE provider='google'").get().n, 1);
+  assert.equal(f.api.list(users.lawyer).providers.find(item => item.id === 'zoom').state, 'available');
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM audit_events WHERE action='integration.deauthorized'").get().n, 1);
+});
+
 test('over HTTP: account connectors, appointment actions, signed notifications and the return page', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'ba-integrations-http-'));
   const keyFile = join(dir, 'integrations.key');

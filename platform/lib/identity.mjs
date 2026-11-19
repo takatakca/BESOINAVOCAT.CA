@@ -22,7 +22,7 @@ export function identityConfiguration(env = process.env) {
 
 export function createIntrospection(config = identityConfiguration()) {
   return async function introspect(token) {
-    if (!config) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion TAKATAK dédiée à ce produit n’est pas configurée.');
+    if (!config) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'La connexion dédiée à ce produit n’est pas configurée.');
     try {
       const response = await fetch(config.url, {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000),
@@ -43,7 +43,7 @@ export function createIntrospection(config = identityConfiguration()) {
       return identity;
     } catch (error) {
       if (error instanceof HttpError) throw error;
-      throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'Le service d’identité TAKATAK est indisponible.');
+      throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'Le service de connexion est indisponible.');
     }
   };
 }
@@ -52,7 +52,7 @@ export async function authenticateRequest(req, authenticate) {
   const count = req.rawHeaders.reduce((sum, value, i) => sum + (i % 2 === 0 && value.toLowerCase() === 'authorization' ? 1 : 0), 0);
   const header = req.headers.authorization;
   if (count !== 1 || typeof header !== 'string' || header.length > 8200 || !/^Bearer [A-Za-z0-9._~+\/-]+=*$/u.test(header)) {
-    throw new HttpError(401, 'UNAUTHENTICATED', 'Une session TAKATAK est requise.');
+    throw new HttpError(401, 'UNAUTHENTICATED', 'Une session est requise.');
   }
   let identity;
   try { identity = await authenticate(header.slice(7), req); }

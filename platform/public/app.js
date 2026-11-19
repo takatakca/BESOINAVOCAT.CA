@@ -70,6 +70,7 @@
     demo: new URLSearchParams(window.location.search).get('demo') === '1',
     // /?signup=1 (lien du site public et de la demande guidée) ouvre directement « Créer mon tableau de bord ».
     signupRequested: new URLSearchParams(window.location.search).get('signup') === '1',
+    googleReturn: new URLSearchParams(window.location.search).get('google') || '',
     handoff: null,
     mode: 'loading', view: 'home', cases: [], selectedId: null, detail: null,
     capabilities: null, health: null, user: null, integrations: null, cockpitQuery: '', cockpitPanel: null, signupName: '',
@@ -141,7 +142,7 @@
     if (response.status === 401) {
       const authAttempt = path.startsWith('/api/auth/');
       if (!authAttempt) { clearSession(); render(); }
-      const error = new Error(path === '/api/auth/email/verify' ? 'Code non valide ou expiré. Vérifiez le code reçu pour ce portail.' : authAttempt ? 'Connexion non valide. Vérifiez vos accès TAKATAK.' : 'La session a expiré. Reconnectez-vous avec TAKATAK.');
+      const error = new Error(path === '/api/auth/email/verify' ? 'Code non valide ou expiré. Vérifiez le code reçu pour ce portail.' : authAttempt ? 'Connexion non valide. Vérifiez votre adresse courriel et votre code.' : 'La session a expiré. Reconnectez-vous.');
       error.status = 401;
       throw error;
     }
@@ -213,12 +214,12 @@
     document.getElementById('case-count').textContent = state.cases.length || '';
     document.getElementById('demo-banner').hidden = !state.demo;
     document.getElementById('environment-badge').innerHTML = `<span class="status-dot" aria-hidden="true"></span>${state.demo ? 'Aperçu fictif' : state.mode === 'authenticated' ? 'Session active' : 'Version pilote'}`;
-    document.getElementById('profile-name').textContent = state.demo ? 'Compte de démonstration' : state.mode === 'authenticated' ? 'Session TAKATAK' : 'Espace personnel';
+    document.getElementById('profile-name').textContent = state.demo ? 'Compte de démonstration' : state.mode === 'authenticated' ? 'Session vérifiée' : 'Espace personnel';
     document.getElementById('profile-state').textContent = state.demo ? 'Lecture seule · données fictives' : state.mode === 'authenticated' ? 'Droits par dossier' : state.health?.loginConfigured ? 'Connexion disponible' : 'Connexion non activée';
     document.getElementById('workspace-subtitle').textContent = state.demo ? 'Aperçu en lecture seule' : 'Préparer. Comprendre. Avancer.';
     document.getElementById('logout-button').hidden = state.mode !== 'authenticated';
     const role = state.demo ? 'Lecture seule · données fictives' : state.mode === 'authenticated' ? (currentCase() ? `${roleLabel(currentCase().role)} · dossier sélectionné` : 'Droits par dossier') : 'Non connecté';
-    document.getElementById('user-chip-name').textContent = state.demo ? 'Compte de démonstration' : state.mode === 'authenticated' ? 'Session TAKATAK' : 'Espace personnel';
+    document.getElementById('user-chip-name').textContent = state.demo ? 'Compte de démonstration' : state.mode === 'authenticated' ? 'Session vérifiée' : 'Espace personnel';
     document.getElementById('user-chip-role').textContent = role;
     document.getElementById('status-lights').innerHTML = statusLights().map(light => `<span class="light" data-tone="${esc(light.tone)}" title="${esc(`${light.label} : ${light.state}`)}"><i aria-hidden="true"></i><span class="light-label">${esc(light.label)}</span><span class="light-state">${esc(light.state)}</span></span>`).join('');
     paintHelpDock();
@@ -251,27 +252,31 @@
     const lawyer = space?.url && /^(\.\/|\/)[A-Za-z0-9/_-]*$/u.test(space.url) ? `<p class="login-lawyer">Vous êtes avocat ? <a href="${esc(space.url)}">Créer mon compte${trialDays ? ` (${trialDays} jours gratuits, sans carte)` : ''}</a></p>` : '';
     const emailCode = login && state.health?.emailCodeConfigured === true;
     // Création du tableau de bord d'une personne (D-036) : annoncée par le serveur seulement quand le code courriel marche.
-    const signupOpen = emailCode && state.health?.clientSignup === true;
+    // « Continuer avec Google » : annoncé par le serveur (googleSignIn); même consentement que l'inscription par code.
+    const google = login && state.health?.googleSignIn === true;
+    const signupOpen = (emailCode || google) && state.health?.clientSignup === true;
+    const googleButton = (mode, label) => `<button class="button google" type="button" data-action="google-signin" data-mode="${mode}"${disabled}><span class="google-mark" aria-hidden="true">G</span>${state.busy ? 'Ouverture de Google…' : label}</button>`;
     const unavailable = state.health === null;
     const disabled = state.busy ? ' disabled' : '';
-    const emailField = `<label for="login-email">Adresse courriel de votre compte TAKATAK</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}>`;
+    const emailField = `<label for="login-email">Votre adresse courriel</label><input id="login-email" name="email" type="email" autocomplete="username" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}>`;
     const notice = state.loginNotice ? `<p class="auth-notice" role="status">${esc(state.loginNotice)}</p>` : '';
     const switchButton = (mode, label) => `<button class="button subtle" type="button" data-action="login-mode" data-mode="${mode}"${disabled}>${label}</button>`;
+    const signupSteps = (current) => `<ol class="auth-steps" aria-label="Étapes de l’inscription">${['Vos coordonnées', 'Le code reçu', 'Votre dossier'].map((label, index) => `<li${index === current ? ' aria-current="step"' : ''}${index < current ? ' class="done"' : ''}><span>${index + 1}</span>${label}</li>`).join('')}</ol>`;
     let loginForm;
     if (signupOpen && state.loginStep === 'signup-code') {
-      loginForm = `${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="client-signup-verify-form" class="auth-form"><label for="signup-code">Code reçu par courriel</label><input id="signup-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="signup-code-help" required${disabled}><small id="signup-code-help">Saisissez les 6 à 10 chiffres, y compris les zéros au début.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Ouvrir mon tableau de bord'} ${icon('arrow')}</button></form>${switchButton('signup', 'Modifier l’adresse ou demander un autre code')}`;
+      loginForm = `${signupSteps(1)}${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="client-signup-verify-form" class="auth-form"><label for="signup-code">Code reçu par courriel</label><input id="signup-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="signup-code-help" required${disabled}><small id="signup-code-help">Collez ou tapez le code tel quel, les espaces sont retirés. Il arrive en général en moins d’une minute.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Ouvrir mon tableau de bord'} ${icon('arrow')}</button></form>${switchButton('signup', 'Pas reçu ? Renvoyer le code ou changer d’adresse')}`;
     } else if (signupOpen && state.loginStep === 'signup') {
-      loginForm = `${notice}<form id="client-signup-form" class="auth-form"><label for="signup-name">Votre nom</label><input id="signup-name" name="name" type="text" autocomplete="name" maxlength="160" value="${esc(state.signupName)}" required${disabled}><label for="login-email">Votre adresse courriel</label><input id="login-email" name="email" type="email" autocomplete="email" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}><label class="auth-consent"><input type="checkbox" name="consent" required${disabled}><span>Je comprends que BesoinAvocat est un outil de préparation de dossier, pas un cabinet d’avocats, et que mon dossier ne sera visible d’un avocat que lorsque je le déclarerai prêt.</span></label><button class="button" type="submit"${disabled}>${state.busy ? 'Envoi du code…' : 'Créer mon tableau de bord'} ${icon('arrow')}</button></form><small>Aucun mot de passe : un code à usage unique vous est envoyé par courriel à chaque connexion.</small>${switchButton('email', 'J’ai déjà un compte')}`;
+      loginForm = `${signupSteps(0)}${notice}<form id="client-signup-form" class="auth-form"><label for="signup-name">Votre nom</label><input id="signup-name" name="name" type="text" autocomplete="name" maxlength="160" value="${esc(state.signupName)}" required${disabled}><label for="login-email">Votre adresse courriel</label><input id="login-email" name="email" type="email" autocomplete="email" maxlength="320" value="${esc(state.loginEmail)}" required${disabled}><label class="auth-consent"><input type="checkbox" name="consent" required${disabled}><span>J’ai compris : BesoinAvocat m’aide à préparer mon dossier, ce n’est pas un cabinet d’avocats. Aucun avocat ne le voit avant que je le déclare prêt.</span></label>${google ? `${googleButton('signup', 'Continuer avec Google')}${emailCode ? '<p class="auth-or"><span>ou recevez un code par courriel</span></p>' : ''}` : ''}${emailCode ? `<button class="button${google ? ' secondary' : ''}" type="submit"${disabled}>${state.busy ? 'Envoi du code…' : 'Créer mon tableau de bord'} ${icon('arrow')}</button>` : ''}</form><small>Aucun mot de passe${google ? ' : Google confirme votre adresse, ou' : ' :'} un code à usage unique vous est envoyé par courriel.</small>${switchButton('email', 'J’ai déjà un compte')}`;
     } else if (emailCode && state.loginStep === 'code') {
       loginForm = `${notice}<p>Adresse utilisée : <strong>${esc(state.loginEmail)}</strong></p><form id="email-code-verify-form" class="auth-form"><label for="login-code">Code reçu par courriel pour ce portail</label><input id="login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" aria-describedby="login-code-help" required${disabled}><small id="login-code-help">Saisissez les 6 à 10 chiffres, y compris les zéros au début. Utilisez le code demandé sur cette page.</small><button class="button" type="submit"${disabled}>${state.busy ? 'Vérification en cours…' : 'Vérifier le code'} ${icon('arrow')}</button></form>${switchButton('email', 'Modifier l’adresse ou demander un autre code')}`;
     } else if (!emailCode || state.loginStep === 'password') {
       loginForm = `${notice}<form id="login-form" class="auth-form">${emailField}<label for="login-password">Mot de passe existant, si vous en avez un</label><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="2048" required${disabled}><button class="button" type="submit"${disabled}>${state.busy ? 'Connexion en cours…' : 'Se connecter avec le mot de passe'} ${icon('arrow')}</button></form>${emailCode ? switchButton('email', 'Recevoir plutôt un code par courriel') : '<p>La connexion par code courriel est en préparation.</p>'}`;
     } else {
-      loginForm = `${notice}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}${signupOpen ? switchButton('signup', 'Pas encore de compte ? Créer mon tableau de bord') : ''}`;
+      loginForm = `${notice}${google ? `${googleButton('login', 'Se connecter avec Google')}<p class="auth-or"><span>ou</span></p>` : ''}<form id="email-code-request-form" class="auth-form">${emailField}<button class="button" type="submit"${disabled}>${state.busy ? 'Demande en cours…' : 'Envoyer un code par courriel'} ${icon('arrow')}</button></form>${switchButton('password', 'Utiliser un mot de passe existant')}${signupOpen ? switchButton('signup', 'Pas encore de compte ? Créer mon tableau de bord') : ''}`;
     }
     const signingUp = signupOpen && ['signup', 'signup-code'].includes(state.loginStep);
     const welcomeAction = signupOpen && !signingUp ? `<button class="button light" type="button" data-action="login-mode" data-mode="signup"${disabled}>Créer mon tableau de bord ${icon('arrow')}</button>` : '';
-    return `${intro('PRÉPAREZ VOTRE DOSSIER', 'Préparez votre dossier. Trouvez votre avocat.', 'Créez votre tableau de bord, rassemblez vos pièces : un avocat du domaine concerné voit un dossier déjà prêt et peut l’accepter.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU MANDAT</span><h2>Un dossier prêt.<br>Un avocat qui l’accepte.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat. Les conditions du mandat se conviennent ensuite directement entre vous.</p><div class="welcome-rule"></div><div class="welcome-actions">${welcomeAction}<a class="button ${welcomeAction ? 'subtle' : 'light'}" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a></div><small>${signupOpen ? 'Gratuit pour la personne cliente · ' : ''}Aperçu : données entièrement fictives, lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon(signingUp ? 'folder' : 'lock')}</span><span class="badge ${signingUp ? 'teal' : 'neutral'}">${signingUp ? 'Inscription gratuite' : login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>${signingUp ? 'Créez votre tableau de bord.<br>Préparez votre dossier.' : 'Votre accès<br>à l’espace de travail.'}</h2><p>${signingUp ? 'Votre nom, votre courriel, un code : votre espace est prêt. Vous y rassemblez vos pièces; quand votre dossier est prêt, un avocat du domaine peut l’accepter.' : unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Utilisez votre compte TAKATAK existant. L’accès nécessite aussi une habilitation BesoinAvocat.' : 'L’accès aux dossiers utilisera votre identité TAKATAK et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion TAKATAK à configurer ${icon('lock')}</button>`}<small>${signingUp ? 'Vos pièces ne sont visibles que de vous, puis de l’avocat qui accepte votre dossier. Aucune garantie qu’un avocat accepte ni dans quel délai.' : login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot">${lawyer}<p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
+    return `${intro('PRÉPAREZ VOTRE DOSSIER', 'Préparez votre dossier. Trouvez votre avocat.', 'Créez votre tableau de bord, rassemblez vos pièces : un avocat du domaine concerné voit un dossier déjà prêt et peut l’accepter.')}<div class="signedout-layout"><section class="welcome-card"><span class="eyebrow">DU PREMIER DOCUMENT AU MANDAT</span><h2>Un dossier prêt.<br>Un avocat qui l’accepte.</h2><p>Les documents, leur provenance et les échanges réunis dans un espace de travail commun à la personne cliente et à son avocat. Les conditions du mandat se conviennent ensuite directement entre vous.</p><div class="welcome-rule"></div><div class="welcome-actions">${welcomeAction}<a class="button ${welcomeAction ? 'subtle' : 'light'}" href="?demo=1">Découvrir l’aperçu ${icon('arrow')}</a></div><small>${signupOpen ? 'Gratuit pour la personne cliente · ' : ''}Aperçu : données entièrement fictives, lecture seule</small></section><section class="panel login-card"><span class="login-symbol">${icon(signingUp ? 'folder' : 'lock')}</span><span class="badge ${signingUp ? 'teal' : 'neutral'}">${signingUp ? 'Inscription gratuite' : login ? 'Connexion disponible' : 'Connexion non activée'}</span><h2>${signingUp ? 'Créez votre tableau de bord.<br>Préparez votre dossier.' : 'Votre accès<br>à l’espace de travail.'}</h2><p>${signingUp ? 'Trois étapes, moins d’une minute, gratuit. Vous y rassemblez vos pièces; quand votre dossier est prêt, un avocat du domaine peut l’accepter.' : unavailable ? 'Le service du portail n’est pas joignable depuis cette page. Vous pouvez explorer l’aperçu sans transmettre de document.' : login ? 'Entrez votre adresse courriel : vous recevez un code à 6 chiffres pour ouvrir votre espace BesoinAvocat.' : 'L’accès aux dossiers utilisera votre compte BesoinAvocat et les autorisations propres à chaque dossier.'}</p>${login ? loginForm : `<button class="button" type="button" disabled>Connexion à configurer ${icon('lock')}</button>`}<small>${signingUp ? 'Vos pièces ne sont visibles que de vous, puis de l’avocat qui accepte votre dossier. Aucune garantie qu’un avocat accepte ni dans quel délai.' : login ? 'Ce parcours utilise votre compte existant et ne crée aucune inscription. L’accès aux dossiers reste soumis à vos autorisations.' : 'Aucun mot de passe à transmettre tant que la connexion n’est pas activée.'} Aucun dossier réel n’est accessible dans l’aperçu.</small><div class="login-foot">${lawyer}<p>BesoinAvocat est un outil de préparation. Les analyses et les décisions juridiques restent à valider avec votre avocat.</p></div></section></div><div class="feature-grid"><div class="feature">${icon('folder')}<div><h3>Un dossier bien organisé</h3><p>Des pièces classées, des versions identifiées et un accès par dossier.</p></div></div><div class="feature">${icon('search')}<div><h3>Une recherche qui cite</h3><p>Retrouver un passage et revenir à sa source pour le contrôler.</p></div></div><div class="feature">${icon('clock')}<div><h3>Un suivi compréhensible</h3><p>Des échanges conservés et du temps soumis à validation, sans débit automatique.</p></div></div></div>`;
   }
   function noCase() {
     return `${intro('VOTRE ESPACE DE TRAVAIL', VIEW_LABELS[state.view], 'Chaque pièce et chaque échange sont rattachés à un dossier.')}<section class="panel empty-state">${icon('folder')}<h2>Commencez par un dossier.</h2><p>Ouvrez un dossier existant ou créez-en un depuis la page Dossiers.</p><button class="button" data-action="go-cases">Voir mes dossiers ${icon('arrow')}</button></section>`;
@@ -356,7 +361,28 @@
     const dropzone = canMutate() ? `<div class="dropzone" id="dropzone">${icon('upload')}<span><strong>Déposez vos fichiers ici</strong> ou <button type="button" class="text-button" data-action="pick-files">choisissez-les</button> · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} au plus par fichier, 20 à la fois</span><input id="drop-input" class="dropzone-input" type="file" multiple accept="${accept}" tabindex="-1" aria-hidden="true"></div>` : '';
     const images = allDocuments.some(doc => docKind(doc) === 'image');
     const body = documents.length ? grid ? `<div class="file-grid">${documents.map(fileTile).join('')}</div>` : `<div class="table-wrap"><table><caption class="sr-only">Documents du dossier et états de contrôle</caption><thead><tr><th scope="col">Document</th><th scope="col">Provenance</th><th scope="col">Contrôle</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="table-empty">Aucune pièce ne correspond à ces filtres.</p>';
-    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Ouvrez, annotez et complétez vos pièces. Chacune garde sa provenance.', `<button class="button secondary" data-action="new-presentation"${workspaceReady() && images ? '' : ' disabled'}>${icon('slides')}Présentation</button><button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter avec provenance</button>`)}${context()}${workbar()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel workspace-files" data-dropzone aria-labelledby="files-title"><div class="panel-heading"><div><h2 id="files-title">Pièces du dossier</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''}${state.demo ? ' fictive' + (documents.length > 1 ? 's' : '') : ''} · cliquez pour ouvrir.</p></div>${toggle}</div>${filters}${dropzone}<div class="upload-queue" id="upload-queue" aria-live="polite">${uploadsHtml()}</div>${body}</section>${quickSearch('case')}</div><aside class="section-stack" aria-label="Contact et repères">${contactCard()}${principles()}</aside></div>${readOnlyNote()}`;
+    return `${intro('DOCUMENTS ET TRAÇABILITÉ', 'Les pièces, avec leurs sources.', 'Ouvrez, annotez et complétez vos pièces. Chacune garde sa provenance.', `<button class="button secondary" data-action="new-presentation"${workspaceReady() && images ? '' : ' disabled'}>${icon('slides')}Présentation</button><button class="button" data-action="upload"${canMutate() ? '' : ' disabled'}>${icon('upload')}Ajouter avec provenance</button>`)}${context()}${workbar()}<div class="layout-two"><div class="section-stack main-stack"><section class="panel workspace-files" data-dropzone aria-labelledby="files-title"><div class="panel-heading"><div><h2 id="files-title">Pièces du dossier</h2><p>${documents.length} pièce${documents.length > 1 ? 's' : ''}${state.demo ? ' fictive' + (documents.length > 1 ? 's' : '') : ''} · cliquez pour ouvrir.</p></div>${toggle}</div>${filters}${dropzone}<div class="upload-queue" id="upload-queue" aria-live="polite">${uploadsHtml()}</div>${body}</section>${courtPackagePanel(allDocuments)}${quickSearch('case')}</div><aside class="section-stack" aria-label="Contact et repères">${contactCard()}${principles()}</aside></div>${readOnlyNote()}`;
+  }
+  // Paquet prêt à déposer : bordereau + pièces cotées P-1, P-2…, que l'avocat dépose lui-même dans Lexius (aucune API du Ministère).
+  function courtPackagePanel(allDocuments) {
+    const roots = new Set(allDocuments.map(doc => doc.rootDocumentId || doc.id)).size;
+    const ready = canMutate() && !state.demo && roots > 0;
+    const lawyer = currentCase()?.role === 'lawyer';
+    return `<section class="panel court-package" aria-labelledby="court-package-title"><div class="panel-heading"><div><h2 id="court-package-title">Déposer au tribunal</h2><p>${lawyer ? 'Téléchargez les pièces prêtes pour Lexius : un bordereau et chaque pièce cotée P-1, P-2…, dans un seul fichier.' : 'Votre avocat pourra télécharger vos pièces prêtes pour le tribunal, avec leur bordereau.'}</p></div><span class="badge outline">${roots} pièce${roots > 1 ? 's' : ''}</span></div><div class="tile-actions"><button type="button" class="button small" data-action="court-package"${ready ? '' : ' disabled'}>${icon('download')}Paquet prêt à déposer</button>${lawyer ? `<a class="button secondary small" href="https://lexius.justice.gouv.qc.ca/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Ouvrir Lexius ${icon('arrow')}<span class="sr-only"> (nouvel onglet)</span></a>` : ''}</div><p class="table-subtext">La cote est une proposition à confirmer. Le dépôt se fait par l’avocat, avec son propre compte Lexius.</p></section>`;
+  }
+  async function courtPackage(trigger) {
+    if (!canMutate() || state.demo || !state.selectedId) return;
+    trigger.disabled = true;
+    try {
+      const blob = await api(`/api/cases/${encodeURIComponent(state.selectedId)}/court-package`, { asBlob: true });
+      const c = currentCase();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `Paquet depot - ${(c?.reference || c?.title || 'dossier').replace(/[\\/:*?"<>|]+/gu, ' ')}.zip`; anchor.rel = 'noopener';
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      notify('Le paquet prêt à déposer a été téléchargé.');
+    } catch (error) { notify(error.message, true); }
+    finally { trigger.disabled = false; }
   }
   function searchResults() {
     if (state.searchResults === null) return '<p class="table-subtext">Saisissez des mots ou une question : la recherche extrait des termes et retrouve les passages correspondants. Elle ne rédige pas de réponse juridique.</p>';
@@ -823,11 +849,11 @@
   }
   function clientsView() {
     const rows = state.cases.map(item => `<li class="queue-item"><span class="queue-icon">${icon('folder')}</span><span class="queue-text"><strong>${esc(item.title)}</strong><small>${esc(item.reference || 'Référence à préciser')} · votre accès : ${esc(roleLabel(item.role))}</small></span><button type="button" class="button secondary small" data-action="open-case" data-id="${esc(item.id)}">Ouvrir</button></li>`).join('');
-    return `${intro('PERSONNES ET DOSSIERS', 'Clients', 'Les personnes sont rattachées à chaque dossier par leur identité TAKATAK et leurs habilitations.')}<section class="panel empty-state">${icon('users')}<h2>Annuaire des clients : bientôt</h2><p>Le pilote ne gère pas encore de fiches clients. Aucune fiche n’est inventée : retrouvez les personnes par leurs dossiers ci-dessous.</p></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Dossiers accessibles</h2><p>${state.demo ? 'Exemples fictifs.' : 'Selon vos habilitations.'}</p></div></div>${rows ? `<ul class="queue-list">${rows}</ul>` : '<p class="table-empty">Aucun dossier accessible.</p>'}</section>`;
+    return `${intro('PERSONNES ET DOSSIERS', 'Clients', 'Les personnes sont rattachées à chaque dossier par leur compte et leurs habilitations.')}<section class="panel empty-state">${icon('users')}<h2>Annuaire des clients : bientôt</h2><p>Le pilote ne gère pas encore de fiches clients. Aucune fiche n’est inventée : retrouvez les personnes par leurs dossiers ci-dessous.</p></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Dossiers accessibles</h2><p>${state.demo ? 'Exemples fictifs.' : 'Selon vos habilitations.'}</p></div></div>${rows ? `<ul class="queue-list">${rows}</ul>` : '<p class="table-empty">Aucun dossier accessible.</p>'}</section>`;
   }
   function settingsView() {
     const tour = { unseen: 'pas encore vue', skipped: 'passée', done: 'terminée' }[tutorialMemory.status];
-    return `${intro('VOTRE ESPACE', 'Réglages', 'Ce qui est réglable aujourd’hui, et ce qui ne l’est pas encore.')}<div class="settings-grid"><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Session</h2><p>${esc(state.demo ? 'Aperçu sans session.' : state.mode === 'authenticated' ? 'Session TAKATAK vérifiée par le serveur.' : 'Non connecté.')}</p></div></div><div class="panel-body"><p class="table-subtext">Les droits sont accordés dossier par dossier. Fermez la session avec le bouton de déconnexion du menu.</p></div></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Visite guidée</h2><p>État : ${esc(tour)}.</p></div><button type="button" class="button small" data-action="tutorial-start">Relancer</button></div><div class="panel-body"><p class="table-subtext">Seule la progression de la visite est mémorisée, et seulement tant que la page reste ouverte. Aucune donnée de client ou de dossier n’y est liée.</p></div></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Langue et thème</h2><p><span class="badge neutral">bientôt</span></p></div></div><div class="panel-body"><p class="table-subtext">Français, thème clair. Les animations sont réduites si votre appareil le demande.</p></div></section><section class="panel cockpit-panel live-panel span-all" data-live="notices" aria-label="Courriels d’avis"></section><section class="panel cockpit-panel live-panel span-all" data-live="phone" aria-label="Téléphone et MIMT"></section><section class="panel cockpit-panel live-panel span-all" data-live="calendar-feed" aria-label="Abonnement agenda"></section><section class="panel cockpit-panel live-panel span-all" data-live="membership" aria-label="Abonnement à la plateforme"></section></div>`;
+    return `${intro('VOTRE ESPACE', 'Réglages', 'Ce qui est réglable aujourd’hui, et ce qui ne l’est pas encore.')}<div class="settings-grid"><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Session</h2><p>${esc(state.demo ? 'Aperçu sans session.' : state.mode === 'authenticated' ? 'Session vérifiée par le serveur.' : 'Non connecté.')}</p></div></div><div class="panel-body"><p class="table-subtext">Les droits sont accordés dossier par dossier. Fermez la session avec le bouton de déconnexion du menu.</p></div></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Visite guidée</h2><p>État : ${esc(tour)}.</p></div><button type="button" class="button small" data-action="tutorial-start">Relancer</button></div><div class="panel-body"><p class="table-subtext">Seule la progression de la visite est mémorisée, et seulement tant que la page reste ouverte. Aucune donnée de client ou de dossier n’y est liée.</p></div></section><section class="panel cockpit-panel"><div class="panel-heading"><div><h2>Langue et thème</h2><p><span class="badge neutral">bientôt</span></p></div></div><div class="panel-body"><p class="table-subtext">Français, thème clair. Les animations sont réduites si votre appareil le demande.</p></div></section><section class="panel cockpit-panel live-panel span-all" data-live="notices" aria-label="Courriels d’avis"></section><section class="panel cockpit-panel live-panel span-all" data-live="phone" aria-label="Téléphone et MIMT"></section><section class="panel cockpit-panel live-panel span-all" data-live="calendar-feed" aria-label="Abonnement agenda"></section><section class="panel cockpit-panel live-panel span-all" data-live="billing" aria-label="Mon forfait"></section><section class="panel cockpit-panel live-panel span-all" data-live="membership" aria-label="Abonnement à la plateforme"></section></div>`;
   }
   // Calls, video, sealed journal and generated documents: placeholders filled by public/live.js (window.BALive).
   function liveView() {
@@ -1808,7 +1834,7 @@
     save: saveFromWorkspace, provenance: id => preview(id), download: (id, trigger) => download(id, trigger),
   };
   function help() {
-    showDialog('Un espace pour préparer', 'Le document, sa source et ses limites restent accessibles.', `<p>Les dossiers regroupent les pièces, les échanges et le suivi du temps. Les droits sont contrôlés par le serveur pour chaque dossier.</p><div class="callout">${icon('info')}<p><strong>Une source reste à apprécier</strong>Un original, une déclaration, une analyse et une extraction OCR sont des natures distinctes. Un texte extrait reste à contrôler sur la pièce. Les doublons ne s’additionnent pas.</p></div><p>L’aperçu ne contient que des exemples fictifs et n’envoie aucune information au serveur. La connexion TAKATAK, l’assistant IA, les crédits et les appels ne sont pas présentés comme actifs lorsqu’ils ne sont pas configurés.</p><div class="form-actions"><button class="button" data-action="close-dialog">Compris</button></div>`);
+    showDialog('Un espace pour préparer', 'Le document, sa source et ses limites restent accessibles.', `<p>Les dossiers regroupent les pièces, les échanges et le suivi du temps. Les droits sont contrôlés par le serveur pour chaque dossier.</p><div class="callout">${icon('info')}<p><strong>Une source reste à apprécier</strong>Un original, une déclaration, une analyse et une extraction OCR sont des natures distinctes. Un texte extrait reste à contrôler sur la pièce. Les doublons ne s’additionnent pas.</p></div><p>L’aperçu ne contient que des exemples fictifs et n’envoie aucune information au serveur. La connexion, l’assistant IA, les crédits et les appels ne sont pas présentés comme actifs lorsqu’ils ne sont pas configurés.</p><div class="form-actions"><button class="button" data-action="close-dialog">Compris</button></div>`);
   }
   document.addEventListener('keydown', (event) => {
     if (event.target?.closest?.('#cockpit-dials') && railKey(event)) return;
@@ -1882,6 +1908,7 @@
       const query = state.cockpitQuery.trim(); closeLocalSearch(true);
       if (query) { openSearch('all'); state.searchQuery = query; void runSearch(query); }
     }
+    if (action === 'google-signin' && !state.busy && !state.demo) void startGoogle(button);
     if (action === 'login-mode' && !state.busy && !state.demo) {
       state.loginStep = button.dataset.mode === 'password' ? 'password' : button.dataset.mode === 'signup' && state.health?.clientSignup === true ? 'signup' : 'email';
       state.loginNotice = ''; render();
@@ -1916,6 +1943,7 @@
     if (action === 'page') void loadPage(button.dataset.id, Number(button.dataset.offset));
     if (action === 'close-dialog') dialog.close();
     if (action === 'download') void download(button.dataset.id, button);
+    if (action === 'court-package') void courtPackage(button);
     if (action === 'approve-time') void approveTime(button.dataset.id, button);
     if (action === 'open-file') workspaceTool('openFile', button.dataset.id);
     if (action === 'annotate') workspaceTool('openStudio', button.dataset.id);
@@ -1975,6 +2003,7 @@
     }
   });
   document.addEventListener('input', (event) => {
+    if (event.target.id === 'signup-code' || event.target.id === 'login-code') { const cleaned = String(event.target.value || '').replace(/[\s-]+/gu, ''); if (cleaned !== event.target.value) event.target.value = cleaned; return; }
     if (event.target.id === 'ws-filter') { wsMemory.query = String(event.target.value || '').slice(0, 80); const rows = document.getElementById('ws-case-rows'); if (rows) { rows.innerHTML = wsCaseRows(); paintWorkspace(rows); } return; }
     if (event.target.id === 'cockpit-search') { state.cockpitQuery = String(event.target.value || '').slice(0, 120); paintLocalSearch(); return; }
     if (event.target.id === 'document-query') {
@@ -2127,6 +2156,35 @@
       render(true);
     }
   }
+  // Départ vers Google : le serveur garde le vérificateur PKCE et renvoie seulement l'adresse de Google.
+  async function startGoogle(button) {
+    if (state.demo || state.health?.googleSignIn !== true || state.busy) return;
+    const signup = button.dataset.mode === 'signup';
+    const form = button.closest('form');
+    const body = { mode: signup ? 'signup' : 'login' };
+    if (signup) {
+      if (!form?.elements.consent?.checked) { notify('Cochez la case de consentement pour continuer.', true); form?.elements.consent?.focus(); return; }
+      body.consent = true;
+      const name = form.elements.name?.value.trim() || '';
+      if (name) { body.name = name; state.signupName = name; }
+    }
+    state.busy = true; render();
+    try {
+      const result = await api('/api/auth/google/start', { method: 'POST', body: JSON.stringify(body) });
+      const target = new URL(result.location);
+      if (target.protocol !== 'https:') throw new Error('Adresse de connexion Google invalide.');
+      window.location.assign(target.href);
+    } catch (error) {
+      state.busy = false; state.loginNotice = error.message; notify(error.message, true); render();
+    }
+  }
+  function googleReturnNotice(code) {
+    return { nouveau: 'Aucun tableau de bord n’est encore lié à ce compte Google. Cochez la case puis « Continuer avec Google » pour le créer.',
+      annule: 'Connexion avec Google annulée. Vous pouvez réessayer ou recevoir un code par courriel.',
+      erreur: 'La connexion avec Google n’a pas abouti. Réessayez ou recevez un code par courriel.',
+      attendre: 'Trop de tentatives. Réessayez dans quelques minutes.',
+      indisponible: 'La connexion avec Google n’est pas encore activée.' }[code] || '';
+  }
   async function login(form) {
     if (state.demo || state.health?.loginConfigured !== true || state.busy) return;
     state.busy = true;
@@ -2171,8 +2229,17 @@
     state.handoff = readHandoffFromLocation();
     state.health = await publicHealth();
     if (state.signupRequested && state.health?.clientSignup === true) state.loginStep = 'signup';
+    if (state.googleReturn) {
+      state.loginNotice = googleReturnNotice(state.googleReturn);
+      try { const params = new URLSearchParams(window.location.search); params.delete('google'); const rest = params.toString(); window.history?.replaceState?.(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash); } catch { /* adresse laissée telle quelle */ }
+    }
     try {
       await loadSession();
+      if (state.googleReturn === 'connecte' && state.mode === 'authenticated') {
+        state.googleReturn = '';
+        notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Ouvrez votre premier dossier.');
+        if (!state.cases.length) { render(); openNewCase(); return; }
+      }
       // Deep links: /#case/<id>[/<section>] opens one dossier directly (used by the lawyer space); /#integrations is the connector return page.
       const deep = /^#case\/([A-Za-z0-9_.:-]{1,80})(?:\/([a-z]+))?$/u.exec(window.location.hash || '');
       if (deep && state.cases.some(item => item.id === deep[1])) {

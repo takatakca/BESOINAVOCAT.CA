@@ -208,8 +208,10 @@
 
   function header() {
     document.getElementById('current-section').textContent = VIEW_LABELS[state.view];
+    const clientOnly = clientOnlyAccount();
     document.querySelectorAll('[data-view]').forEach((button) => {
       if (button.dataset.view === state.view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+      if (button.closest?.('.primary-nav')) button.hidden = clientOnly && LAWYER_ONLY_VIEWS.includes(button.dataset.view);
     });
     document.getElementById('case-count').textContent = state.cases.length || '';
     document.getElementById('demo-banner').hidden = !state.demo;
@@ -323,6 +325,9 @@
   }
   function joinUrlFor(item) { return item?.kind === 'video' ? safeZoomUrl(item.joinUrl) || safeZoomUrl(meetingLink(item)?.url) : null; }
   function isClientSide() { return !['owner', 'lawyer'].includes(currentCase()?.role); }
+  // Lot 10 : une personne cliente (aucun dossier où elle est avocate ou propriétaire) ne voit pas les entrées réservées au cabinet.
+  const LAWYER_ONLY_VIEWS = ['clients', 'usage', 'time'];
+  function clientOnlyAccount() { return ['demo', 'authenticated'].includes(state.mode) && state.cases.length > 0 && state.cases.every(item => !['owner', 'lawyer'].includes(item?.role)); }
   function contactCard() {
     if (!state.detail) return '';
     const client = isClientSide(), next = nextMeeting(), join = !state.demo && joinUrlFor(next);
@@ -1076,7 +1081,7 @@
     { target: '#work-queue', title: 'La file de travail', text: 'Ce qui demande votre attention dans le dossier sélectionné, une ligne par élément, avec l’action directe.' },
     { target: '#activity-feed', title: 'L’activité récente', text: 'Les pièces, messages, temps et rendez-vous les plus récents du dossier.' },
     { target: '#cockpit-integrations', title: 'Les intégrations', text: 'Téléphonie MIMT, Zoom, Outlook, Google Agenda et les autres services. Chaque connexion explique d’abord ce qui est partagé.' },
-    { target: '#workspace-nav', mobileTarget: '.tabbar', title: 'La navigation', text: 'Accueil, Dossiers, Pièces, Clients, Intégrations et Réglages. Sur téléphone, la barre du bas.' },
+    { target: '#workspace-nav', mobileTarget: '.tabbar', title: 'La navigation', text: 'Accueil, Dossiers, Pièces, Intégrations et Réglages. Sur téléphone, la barre du bas.' },
   ];
   let tourTarget = null;
   function clearTourTarget() { tourTarget?.classList.remove('tour-target'); tourTarget = null; }
@@ -1160,6 +1165,7 @@
     header();
     const shell = document.body?.classList;
     if (typeof shell?.toggle === 'function') shell.toggle('ws-desktop', state.view === 'home' && ['demo', 'authenticated'].includes(state.mode) && desktop());
+    if (typeof shell?.toggle === 'function') shell.toggle('signed-out', !['demo', 'authenticated', 'loading'].includes(state.mode));
     if (state.mode === 'loading') return;
     const shown = `${state.mode}:${state.view}:${state.selectedId || ''}`;
     main.classList.toggle('enter', main.dataset.shown !== shown);
@@ -1544,7 +1550,7 @@
     if (!Object.hasOwn(VIEW_LABELS, view)) return;
     cancelSearchWork(); state.requestVersion += 1; state.caseLoading = false;
     if (dialog.open) dialog.close(); state.pageRequest += 1;
-    closeLocalSearch(); closeCockpitModal(); closeHelpMenu(false); state.cockpitPanel = null;
+    closeLocalSearch(); closeCockpitModal(); closeHelpMenu(false); hideGuide(false); state.cockpitPanel = null;
     state.view = view; render(true);
   }
   function openSearch(scope = 'all') {

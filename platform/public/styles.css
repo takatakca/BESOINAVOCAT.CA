@@ -1313,8 +1313,8 @@ dialog::backdrop { background: rgb(15 23 42 / 32%); backdrop-filter: blur(3px); 
 /* ---------- Vers votre avocat (D-036) : création du tableau de bord, dossier prêt, dossier accepté ---------- */
 .welcome-actions { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
 .welcome-card .welcome-actions .button { margin-top: 0; }
-.welcome-card .button.subtle { color: #e8edf5; border: 1px solid rgb(255 255 255 / 25%); background: transparent; }
-.welcome-card .button.subtle:hover { background: rgb(255 255 255 / 8%); }
+.welcome-card .button.subtle { color: var(--ink); border: 1px solid var(--line-strong); background: rgb(255 255 255 / 70%); }
+.welcome-card .button.subtle:hover { background: #fff; color: var(--accent-2); }
 .auth-steps { display: flex; gap: 6px; list-style: none; margin: 4px 0 10px; padding: 0; font-size: 12px; font-weight: 600; color: var(--ink-3, var(--ink-2)); }
 .auth-steps li { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; padding-top: 8px; border-top: 2px solid var(--line, rgba(0,0,0,.12)); }
 .auth-steps li span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; border: 1px solid currentColor; flex-shrink: 0; }
@@ -1398,3 +1398,12 @@ body { background: radial-gradient(1100px 520px at 100% -8%, #f6ebe6 0%, rgb(246
 .tv-mode :focus-visible, .tv-mode :focus { outline: 4px solid var(--accent, #792936) !important; outline-offset: 4px !important; box-shadow: 0 0 0 8px rgb(121 41 54 / 22%) !important; border-radius: 8px; }
 .tv-mode a, .tv-mode button, .tv-mode summary { scroll-margin: 96px; }
 @media (prefers-reduced-motion: reduce) { .tv-mode * { scroll-behavior: auto !important; } }
+
+/* Lot 10 — vérification de bout en bout (19 novembre 2026) : rien ne recouvre le menu, rien ne suit la personne de page en page. */
+@media (max-width: 860px) {
+  .sidebar { z-index: 45; }
+  body.drawer-open .help-dock { visibility: hidden; }
+  .guide-panel { max-height: 60vh; }
+}
+body.signed-out .tabbar, body.signed-out .help-dock { display: none !important; }
+body.signed-out .secondary-nav, body.signed-out .nav-label-tools { display: none; }

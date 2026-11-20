@@ -2,8 +2,95 @@
 // Makes the portal installable as an app on phones, tablets and computers,
 // and usable with a TV remote (arrow keys + OK + Back) on smart TVs.
 if ('serviceWorker' in navigator && window.isSecureContext) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(async (registration) => {
+      // Keep the installed app's public shell fresh (Chrome/Edge only; silently skipped elsewhere).
+      try {
+        if ('periodicSync' in registration) {
+          const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+          if (status.state === 'granted') await registration.periodicSync.register('besoinavocat-shell', { minInterval: 24 * 60 * 60 * 1000 });
+        }
+        if ('sync' in registration) window.addEventListener('online', () => { registration.sync.register('besoinavocat-shell').catch(() => {}); });
+      } catch { /* not supported */ }
+    }).catch(() => {});
+  });
 }
+
+// Files opened with the app ("Ouvrir avec BesoinAvocat") or shared to it from another app go to the
+// "Pièces du dossier" drop zone of the open case, where the normal upload (with confirmation) takes over.
+(() => {
+  const notice = (text, copy) => {
+    let box = document.getElementById('pwa-arrivee');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'pwa-arrivee';
+      box.setAttribute('role', 'status');
+      Object.assign(box.style, { position: 'fixed', left: '50%', bottom: '24px', transform: 'translateX(-50%)', zIndex: '60', maxWidth: 'min(560px, calc(100% - 32px))', padding: '14px 16px', borderRadius: '12px', background: '#792936', color: '#fff', boxShadow: '0 12px 32px rgba(0,0,0,.25)', font: '15px/1.4 Inter, system-ui, sans-serif', display: 'flex', gap: '12px', alignItems: 'center' });
+      document.body.appendChild(box);
+    }
+    box.replaceChildren();
+    const span = document.createElement('span'); span.textContent = text; span.style.flex = '1'; box.appendChild(span);
+    if (copy) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Copier le texte';
+      Object.assign(button.style, { background: '#fff', color: '#792936', border: '0', borderRadius: '8px', padding: '8px 12px', font: 'inherit', fontWeight: '600', cursor: 'pointer' });
+      button.addEventListener('click', () => { navigator.clipboard?.writeText(copy).then(() => { button.textContent = 'Copié'; }).catch(() => {}); });
+      box.appendChild(button);
+    }
+    const close = document.createElement('button'); close.type = 'button'; close.textContent = '×'; close.setAttribute('aria-label', 'Fermer');
+    Object.assign(close.style, { background: 'transparent', color: '#fff', border: '0', fontSize: '22px', cursor: 'pointer', lineHeight: '1' });
+    close.addEventListener('click', () => box.remove());
+    box.appendChild(close);
+  };
+
+  const deliver = (files) => {
+    if (!files.length) return;
+    const label = files.length > 1 ? `${files.length} fichiers` : `« ${files[0].name} »`;
+    const drop = () => {
+      const input = document.getElementById('drop-input');
+      if (!input) return false;
+      const transfer = new DataTransfer();
+      files.forEach(file => transfer.items.add(file));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      notice(`${label} ajouté${files.length > 1 ? 's' : ''} aux pièces du dossier ouvert.`);
+      return true;
+    };
+    if (drop()) return;
+    notice(`${label} prêt${files.length > 1 ? 's' : ''} : connectez-vous et ouvrez « Pièces » dans votre dossier pour l’ajouter.`);
+    const observer = new MutationObserver(() => { if (drop()) observer.disconnect(); });
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 30 * 60 * 1000);
+  };
+
+  if ('launchQueue' in window) {
+    window.launchQueue.setConsumer(async (params) => {
+      const handles = params?.files || [];
+      const files = (await Promise.all(handles.map(handle => handle.getFile().catch(() => null)))).filter(Boolean).slice(0, 20);
+      deliver(files);
+    });
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('partage') === '1' && 'caches' in window) {
+    window.addEventListener('load', async () => {
+      try {
+        const cache = await caches.open('besoinavocat-partage');
+        const keys = await cache.keys();
+        const files = []; let text = '';
+        for (const key of keys) {
+          const response = await cache.match(key);
+          if (!response) continue;
+          if (new URL(key.url).pathname === '/partage/texte') text = await response.text();
+          else files.push(new File([await response.blob()], decodeURIComponent(response.headers.get('X-Nom') || 'piece'), { type: response.headers.get('Content-Type') || '' }));
+        }
+        await caches.delete('besoinavocat-partage');
+        window.history.replaceState(null, '', '/');
+        if (files.length) deliver(files);
+        else if (text) notice('Texte reçu. Collez-le dans un message ou une note de votre dossier.', text);
+      } catch { /* nothing to pick up */ }
+    });
+  }
+})();
 
 (() => {
   const TV_AGENT = /\b(?:SMART-TV|SmartTV|Tizen|Web0S|webOS|NetCast|AFT[A-Z0-9]*|BRAVIA|GoogleTV|Android TV|AndroidTV|CrKey|HbbTV|Roku|VIDAA|Xbox)\b/iu;

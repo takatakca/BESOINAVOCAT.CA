@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Génère les pages publiques /confidentialite et /conditions du portail à partir de docs/legal/*.md.
+"""Génère les pages publiques /confidentialite, /conditions et /suppression-compte du portail à partir de docs/legal/*.md.
 Usage : python3 scripts/legal-pages.py   (sans dépendance; Markdown simple : titres, paragraphes, listes, gras, italique, code, liens)."""
 import html, re, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGES = [('POLITIQUE-DE-CONFIDENTIALITE.md', 'confidentialite.html', 'Politique de confidentialité'),
-         ('CONDITIONS-AVOCATS.md', 'conditions.html', 'Conditions d’utilisation de l’espace avocat')]
+         ('CONDITIONS-AVOCATS.md', 'conditions.html', 'Conditions d’utilisation de l’espace avocat'),
+         ('SUPPRESSION-DE-COMPTE.md', 'suppression-compte.html', 'Supprimer votre compte ou vos données')]
 
 def inline(text):
     t = html.escape(text, quote=False)

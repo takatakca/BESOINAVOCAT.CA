@@ -103,6 +103,10 @@ const assets = new Map([
   ['/screenshots/narrow-accueil.png', ['screenshots/narrow-accueil.png', 'image/png']],
   ['/screenshots/narrow-demande.png', ['screenshots/narrow-demande.png', 'image/png']],
   ['/screenshots/wide-accueil.png', ['screenshots/wide-accueil.png', 'image/png']],
+  ['/screenshots/widget-dossier.png', ['screenshots/widget-dossier.png', 'image/png']],
+  // Windows widget board (manifest "widgets"): Adaptive Card template and its public data (no account data).
+  ['/widgets/dossier-template.json', ['widgets/dossier-template.json', 'application/json; charset=utf-8']],
+  ['/widgets/dossier-data.json', ['widgets/dossier-data.json', 'application/json; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -298,6 +302,15 @@ export function createApp({
         const reason = error instanceof HttpError && error.status === 403 ? '/?signup=1&google=nouveau' : error instanceof HttpError && error.status === 429 ? '/?google=attendre' : '/?google=erreur';
         return back(reason, [clearFlow]);
       }
+    }
+    // Share sheet target (manifest "share_target"): the service worker answers it on the device. Without the
+    // service worker (first visit, private window), nothing is stored here: back to the portal.
+    if (path === '/partager') {
+      if (!['GET', 'POST'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      req.resume();
+      res.statusCode = 303;
+      res.setHeader('Location', '/');
+      return res.end();
     }
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');

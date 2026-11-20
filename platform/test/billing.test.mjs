@@ -115,7 +115,8 @@ test('the price grid is public, consistent and matches the /forfaits page', asyn
   assert.equal(pricing.json.client.plans[2].maxCases, null);
   assert.deepEqual(pricing.json.client.storagePack.forPlans, ['member', 'premium']);
   assert.equal(pricing.json.trialDays, 14);
-  assert.equal(pricing.json.lawyer.status, 'free');
+  assert.equal(pricing.json.lawyer.status, 'paid');
+  assert.deepEqual(pricing.json.lawyer.plans.map(p => [p.id, p.amount, p.interval, p.commitmentMonths]), [['weekly', 10000, 'week', 0], ['monthly', 30000, 'month', 12]]);
   assert.equal((await f.request('/api/pricing?x=1')).status, 400);
   assert.equal((await f.request('/api/pricing', { method: 'POST', headers: csrf, body: {} })).status, 405);
   // The page shows exactly the grid's amounts and never the TAKATAK name.
@@ -129,6 +130,7 @@ test('the price grid is public, consistent and matches the /forfaits page', asyn
   }
   for (const bytes of [CLIENT_PLANS.free.storageBytes, CLIENT_PLANS.member.storageBytes, CLIENT_PLANS.premium.storageBytes, STORAGE_PACK.bytes]) assert.ok(html.includes(`${bytes / GB} Go`), `the page shows ${bytes / GB} Go`);
   for (const label of ['Découverte', 'Membre', 'Premium']) assert.ok(html.includes(`<h2>${label}</h2>`), `the page names ${label}`);
+  for (const cents of [10000, 30000]) assert.ok(html.includes(spaces(formatMoney(cents))), `the page shows the lawyer price ${formatMoney(cents)}`);
   assert.doesNotMatch(html, /takatak/iu);
   assert.doesNotMatch(html, /<script/iu);
 });

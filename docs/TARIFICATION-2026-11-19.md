@@ -57,9 +57,9 @@ Un plugin se connecte toujours avec le compte de la personne (OAuth), jamais ave
 Le paiement de l'activation ne connecte rien : il ouvre le droit d'utiliser le connecteur; la connexion reste un
 geste séparé (D-025).
 
-### Avocats (plus tard, à activer par le propriétaire)
+### Avocats
 
-Gratuit pour l'instant. Grille prévue pour la suite, lue chez Stripe quand elle existera :
+**Décision du propriétaire, 20 novembre 2026 (D-044) : 14 jours gratuits, puis 100 $ par semaine sans engagement ou 300 $ par mois avec engagement d'un an (facturé chaque mois d'avance).** Programmée le même jour. La grille Avocat/Cabinet ci-dessous n'est pas retenue; elle reste comme idée pour plus tard :
 
 | | Avocat | Cabinet |
 |---|---|---|

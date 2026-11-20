@@ -164,7 +164,7 @@ Pas d'app développeur à créer : Notarius ouvre son API par entente de partena
 3. Variable : `BESOINAVOCAT_STRIPE_WEBHOOK_SECRET`.
 4. **Règle déontologique** : Stripe sert aux abonnements des avocats à la plateforme. Les avances d'honoraires d'un client appartiennent au compte en fidéicommis de l'avocat; elles ne passent pas par le compte Stripe de BesoinAvocat. Le paiement reste désactivé (D-025) jusqu'aux prix, taxes et conditions approuvés.
 5. **Abonnement des avocats (4 novembre 2026, choix du propriétaire « Lawyer subscription only »)** — `platform/lib/membership.mjs`, panneau « Abonnement à la plateforme » dans Réglages, visible seulement des avocats :
-   - créer dans Stripe un produit « Abonnement BesoinAvocat » avec un prix récurrent hebdomadaire et/ou mensuel (les montants se fixent **dans Stripe**, jamais dans le code);
+   - créer dans Stripe un produit « Abonnement BesoinAvocat » avec deux prix récurrents : **100,00 $ par semaine** et **300,00 $ par mois** (D-044, 20 novembre 2026; `platform/lib/pricing.mjs` affiche ces montants et le panneau signale un écart avec Stripe); 14 jours gratuits d'abord, engagement d'un an sur le mensuel;
    - variables Coolify : `BESOINAVOCAT_STRIPE_SECRET_KEY` (clé secrète ou restreinte `sk_`/`rk_`), `BESOINAVOCAT_STRIPE_PRICE_WEEKLY` et/ou `BESOINAVOCAT_STRIPE_PRICE_MONTHLY` (`price_…`), plus le secret de webhook ci-dessus;
    - événements à cocher sur le webhook : `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`;
    - activer le portail client Stripe (Paramètres › Facturation › Portail client) pour « Gérer mon abonnement »; activer Stripe Tax si les taxes doivent être calculées (le paiement l'exige : `automatic_tax`);

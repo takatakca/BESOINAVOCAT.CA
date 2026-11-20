@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { HttpError, fields, invalid } from './validation.mjs';
-import { CLIENT_PLANS, GB, INTEGRATIONS_SUBSCRIPTION, PLUGINS, PLUGIN_IDS, STORAGE_PACK, TRIAL_DAYS, publicPricing } from './pricing.mjs';
+import { CLIENT_PLANS, GB, INTEGRATIONS_SUBSCRIPTION, PAID_PLAN_IDS, PLUGINS, PLUGIN_IDS, STORAGE_PACK, TRIAL_DAYS, publicPricing } from './pricing.mjs';
 
 // Forfaits des comptes clients, espace de stockage et modules d'intégration payants (D-041, docs/MONETISATION.md).
 //
-// - Un compte client a le forfait Essentiel (gratuit) ou Premium (mensuel ou annuel), plus des tranches d'espace.
-//   Chaque nouveau compte client reçoit 14 jours de Premium, sans carte et sans appel à Stripe.
+// - Un compte client a le forfait Découverte (gratuit), Membre ou Premium (mensuel ou annuel), plus des tranches d'espace
+//   (Membre et Premium). Chaque nouveau compte client reçoit 14 jours de Premium, sans carte et sans appel à Stripe.
+//   Grille A choisie par le propriétaire le 20 novembre 2026 (lib/pricing.mjs, docs/TARIFICATION-2026-11-19.md).
 // - L'espace se compte par compte : la somme des pièces (sans doublon dans un dossier) des dossiers que la personne a
 //   créés. Une pièce versée par l'avocat dans le dossier d'un client compte dans l'espace du client.
 // - Les modules d'intégration (Zoom, DocuSign…) s'activent un par un (frais uniques) et restent branchés tant que
@@ -16,13 +17,16 @@ import { CLIENT_PLANS, GB, INTEGRATIONS_SUBSCRIPTION, PLUGINS, PLUGIN_IDS, STORA
 // - L'état payé vient seulement des notifications signées de Stripe (vérifiées dans lib/integrations.mjs), jamais de
 //   la page de retour du navigateur. Stripe ne reçoit qu'une clé opaque, jamais l'identité TAKATAK.
 const PRICE_ENV = Object.freeze({
+  member_month: 'BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY',
+  member_year: 'BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_YEARLY',
   premium_month: 'BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_MONTHLY',
   premium_year: 'BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_YEARLY',
   storage_month: 'BESOINAVOCAT_STRIPE_PRICE_STORAGE_PACK_MONTHLY',
   plugin_once: 'BESOINAVOCAT_STRIPE_PRICE_PLUGIN_ACTIVATION',
   integrations_month: 'BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_MONTHLY',
+  integrations_year: 'BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_YEARLY',
 });
-const ITEMS = Object.freeze(['premium', 'storage', 'integrations']);
+const ITEMS = Object.freeze(['member', 'premium', 'storage', 'integrations']);
 const LIVE = new Set(['active', 'trialing', 'past_due']);
 const STATUSES = new Set(['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused']);
 const DAY = 86_400_000;
@@ -39,10 +43,12 @@ export function billingConfiguration(env = process.env) {
   // Taxes : des taux Stripe créés une fois (TPS, TVQ; gratuits) ou, sur demande, Stripe Tax (frais par transaction).
   const taxRates = String(env.BESOINAVOCAT_STRIPE_TAX_RATES ?? '').split(',').map(s => s.trim()).filter(s => /^txr_[A-Za-z0-9]{8,100}$/u.test(s)).slice(0, 5);
   const automaticTax = env.BESOINAVOCAT_STRIPE_AUTOMATIC_TAX === 'true';
-  const missing = [!secretKey && 'BESOINAVOCAT_STRIPE_SECRET_KEY', !prices.premium_month && PRICE_ENV.premium_month, !webhook && 'BESOINAVOCAT_STRIPE_WEBHOOK_SECRET', !origin && 'APP_ORIGIN'].filter(Boolean);
+  // Le paiement s'ouvre avec le palier d'entrée (Membre mensuel); chaque autre prix s'affiche dès qu'il est posé.
+  const missing = [!secretKey && 'BESOINAVOCAT_STRIPE_SECRET_KEY', !prices.member_month && PRICE_ENV.member_month, !webhook && 'BESOINAVOCAT_STRIPE_WEBHOOK_SECRET', !origin && 'APP_ORIGIN'].filter(Boolean);
   const configured = missing.length === 0;
   const enforced = configured && env.BESOINAVOCAT_BILLING_ENFORCED !== 'false';
-  const available = { premium: configured, premiumYear: configured && Boolean(prices.premium_year), storage: configured && Boolean(prices.storage_month), plugin: configured && Boolean(prices.plugin_once && prices.integrations_month) };
+  const available = { member: configured, memberYear: configured && Boolean(prices.member_year), premium: configured && Boolean(prices.premium_month), premiumYear: configured && Boolean(prices.premium_year),
+    storage: configured && Boolean(prices.storage_month), plugin: configured && Boolean(prices.plugin_once && prices.integrations_month), integrationsYear: configured && Boolean(prices.integrations_year) };
   return Object.freeze({ secretKey, prices: Object.freeze(prices), origin, taxRates: Object.freeze(taxRates), automaticTax, missing: Object.freeze(missing), configured, enforced,
     available: Object.freeze(available), mode: secretKey?.includes('_live_') ? 'live' : 'test' });
 }
@@ -104,19 +110,21 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
     const kind = kindOf(user);
     if (!kind) return null;
     const r = ensure(user);
-    const premium = subscription(r.accountKey, 'premium'), storage = subscription(r.accountKey, 'storage'), integrations = subscription(r.accountKey, 'integrations');
+    const premium = subscription(r.accountKey, 'premium'), member = subscription(r.accountKey, 'member'), storage = subscription(r.accountKey, 'storage'), integrations = subscription(r.accountKey, 'integrations');
     const trial = trialOf(r);
-    const paidPremium = live(premium);
-    const planId = kind === 'client' && (paidPremium || trial?.active) ? 'premium' : 'free';
+    const paidPremium = live(premium), paidMember = live(member);
+    const planId = kind !== 'client' ? 'free' : paidPremium ? 'premium' : paidMember ? 'member' : trial?.active ? 'premium' : 'free';
     const plan = CLIENT_PLANS[planId];
+    const paid = paidPremium || paidMember;
+    // L'espace additionnel s'ajoute à un forfait payé; il reste compté tant que son abonnement court.
     const packs = live(storage) ? Math.min(Math.max(1, storage.quantity), STORAGE_PACK.maxQuantity) : 0;
     const activated = sql('SELECT plugin, activatedAt FROM billing_plugins WHERE accountKey=? ORDER BY activatedAt').all(r.accountKey);
     return {
-      kind, account: r, planId, plan, source: kind !== 'client' ? null : paidPremium ? 'subscription' : trial?.active ? 'trial' : 'free', trial,
+      kind, account: r, planId, plan, source: kind !== 'client' ? null : paid ? 'subscription' : trial?.active ? 'trial' : 'free', trial, paid,
       storageQuotaBytes: kind === 'client' ? plan.storageBytes + packs * STORAGE_PACK.bytes : null, packs,
       video: kind !== 'client' || plan.video, maxCases: kind === 'client' ? plan.maxCases : null,
       integrationsActive: live(integrations), plugins: new Map(activated.map(p => [p.plugin, p.activatedAt])),
-      subscriptions: { premium, storage, integrations },
+      subscriptions: { member, premium, storage, integrations },
     };
   }
   const payerOfCase = (tenantId, caseId) => {
@@ -160,7 +168,7 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       return { ...base, billed: true, kind: e.kind, plan: { id: e.planId, label: e.plan.label, source: e.source }, trial: e.trial,
         usage: e.kind === 'client' ? { bytes: used, quotaBytes: e.storageQuotaBytes, percent: Math.min(100, Math.round((used / e.storageQuotaBytes) * 100)), cases: casesCreated(user), maxCases: e.maxCases } : null,
         features: { video: e.video, storagePacks: e.packs },
-        subscriptions: { premium: publicSubscription(e.subscriptions.premium), storage: publicSubscription(e.subscriptions.storage), integrations: publicSubscription(e.subscriptions.integrations) },
+        subscriptions: { member: publicSubscription(e.subscriptions.member), premium: publicSubscription(e.subscriptions.premium), storage: publicSubscription(e.subscriptions.storage), integrations: publicSubscription(e.subscriptions.integrations) },
         plugins: PLUGINS.map(p => ({ ...p, activated: e.plugins.has(p.id), active: e.plugins.has(p.id) && e.integrationsActive })),
         canManage: Boolean(e.account.customerId) };
     },
@@ -171,17 +179,17 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       const e = payer && entitlements(payer);
       if (!e || e.kind !== 'client') return;
       const own = payer.subject === user.subject;
-      if (/^video\//u.test(mimeType) && !e.video) throw new HttpError(402, 'PLAN_REQUIRED', own ? 'Les vidéos sont comprises dans le forfait Premium. Passez à Premium dans Réglages, « Mon forfait ».' : 'Ce dossier est au forfait Essentiel : les vidéos y sont réservées au forfait Premium de la personne cliente.');
+      if (/^video\//u.test(mimeType) && !e.video) throw new HttpError(402, 'PLAN_REQUIRED', own ? 'Les vidéos sont comprises dans les forfaits Membre et Premium. Choisissez un forfait dans Réglages, « Mon forfait ».' : 'Ce dossier est au forfait Découverte : les vidéos y sont réservées aux forfaits Membre et Premium de la personne cliente.');
       // L'espace du compte remplace alors le plafond fixe par dossier (BA_CASE_STORAGE_QUOTA_BYTES).
       if (sql('SELECT 1 FROM documents WHERE tenantId=? AND caseId=? AND sha256=? LIMIT 1').get(user.tenantId, caseId, hash)) return { accountQuota: true };
-      if (usedBytes(payer) + bytes > e.storageQuotaBytes) throw new HttpError(402, 'STORAGE_LIMIT', own ? `Votre espace de ${human(e.storageQuotaBytes)} est plein. Ajoutez de l’espace ou passez à Premium dans Réglages, « Mon forfait ».` : 'L’espace du compte de la personne cliente est plein. Elle peut en ajouter depuis son forfait.');
+      if (usedBytes(payer) + bytes > e.storageQuotaBytes) throw new HttpError(402, 'STORAGE_LIMIT', own ? `Votre espace de ${human(e.storageQuotaBytes)} est plein. Choisissez un forfait plus grand ou ajoutez de l’espace dans Réglages, « Mon forfait ».` : 'L’espace du compte de la personne cliente est plein. Elle peut en ajouter depuis son forfait.');
       return { accountQuota: true };
     },
     checkCaseCreate(user) {
       if (!config.enforced) return;
       const e = entitlements(user);
       if (!e || e.kind !== 'client' || e.maxCases === null) return;
-      if (casesCreated(user) >= e.maxCases) throw new HttpError(402, 'PLAN_REQUIRED', `Le forfait Essentiel comprend ${e.maxCases} dossier. Passez à Premium pour en ouvrir d’autres.`);
+      if (casesCreated(user) >= e.maxCases) throw new HttpError(402, 'PLAN_REQUIRED', `Le forfait ${e.plan.label} comprend ${e.maxCases} dossier${e.maxCases > 1 ? 's' : ''}. ${e.planId === 'free' ? 'Membre en permet 5, Premium sans limite' : 'Premium n’a pas de limite'} : choisissez un forfait dans Réglages, « Mon forfait ».`);
     },
     checkPlugin(user, provider) {
       if (!config.enforced || !PLUGIN_IDS.includes(provider)) return;
@@ -199,28 +207,33 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       const metadata = { client_reference_id: key, 'metadata[bc_account]': key, 'metadata[bc_item]': item };
       const subMeta = { 'subscription_data[metadata][bc_account]': key, 'subscription_data[metadata][bc_item]': item };
       let form;
-      if (item === 'premium') {
-        if (e.kind !== 'client') throw new HttpError(403, 'NOT_A_CLIENT', 'Le forfait Premium est offert aux comptes clients.');
+      if (PAID_PLAN_IDS.includes(item)) {
+        if (e.kind !== 'client') throw new HttpError(403, 'NOT_A_CLIENT', `Le forfait ${CLIENT_PLANS[item].label} est offert aux comptes clients.`);
         if (!['month', 'year'].includes(interval)) throw invalid('Choisissez une facturation mensuelle ou annuelle.');
-        const price = config.prices[`premium_${interval}`];
-        if (!price) throw unavailable([PRICE_ENV[`premium_${interval}`]]);
-        if (live(e.subscriptions.premium)) throw new HttpError(409, 'ALREADY_SUBSCRIBED', 'Votre forfait Premium est déjà actif. Gérez-le avec « Gérer mes paiements ».');
+        const price = config.prices[`${item}_${interval}`];
+        if (!price) throw unavailable([PRICE_ENV[`${item}_${interval}`]]);
+        // Un seul forfait payé à la fois : le changement Membre ↔ Premium se fait dans le portail Stripe.
+        if (e.paid) throw new HttpError(409, 'ALREADY_SUBSCRIBED', `Votre forfait ${e.plan.label} est déjà actif. Changez-le ou résiliez-le avec « Gérer mes paiements ».`);
         // Les jours d'essai qui restent sont gardés (Stripe exige au moins 48 h avant la fin d'un essai).
         const keep = e.trial?.active && Date.parse(e.trial.endsAt) - clock() >= 48 * 3600_000 ? { 'subscription_data[trial_end]': String(Math.floor(Date.parse(e.trial.endsAt) / 1000)) } : {};
         form = { mode: 'subscription', ...lineItems([[price, 1]]), ...metadata, ...subMeta, ...keep };
       } else if (item === 'storage') {
-        if (e.kind !== 'client') throw new HttpError(403, 'NOT_A_CLIENT', 'L’espace supplémentaire est offert aux comptes clients.');
+        if (e.kind !== 'client') throw new HttpError(403, 'NOT_A_CLIENT', 'L’espace additionnel est offert aux comptes clients.');
         if (!config.prices.storage_month) throw unavailable([PRICE_ENV.storage_month]);
+        if (!e.paid) throw new HttpError(409, 'PLAN_REQUIRED', 'L’espace additionnel s’ajoute à un forfait Membre ou Premium payé. Choisissez d’abord un forfait.');
         const n = quantity === undefined ? 1 : quantity;
         if (!Number.isSafeInteger(n) || n < 1 || n > STORAGE_PACK.maxQuantity) throw invalid(`Choisissez de 1 à ${STORAGE_PACK.maxQuantity} tranches.`);
-        if (live(e.subscriptions.storage)) throw new HttpError(409, 'ALREADY_SUBSCRIBED', 'Vous avez déjà de l’espace supplémentaire. Changez le nombre de tranches avec « Gérer mes paiements ».');
+        if (live(e.subscriptions.storage)) throw new HttpError(409, 'ALREADY_SUBSCRIBED', 'Vous avez déjà de l’espace additionnel. Changez le nombre de tranches avec « Gérer mes paiements ».');
         form = { mode: 'subscription', ...lineItems([[config.prices.storage_month, n]]), ...metadata, ...subMeta };
       } else if (item === 'plugin' || item === 'integrations') {
         if (!config.available.plugin) throw unavailable(['plugin_once', 'integrations_month'].filter(k => !config.prices[k]).map(k => PRICE_ENV[k]));
         if (item === 'integrations') {
           if (live(e.subscriptions.integrations)) throw new HttpError(409, 'ALREADY_SUBSCRIBED', 'Votre abonnement Intégrations est déjà actif.');
           if (!e.plugins.size) throw invalid('Activez d’abord un module.');
-          form = { mode: 'subscription', ...lineItems([[config.prices.integrations_month, 1]]), ...metadata, ...subMeta };
+          if (interval !== undefined && !['month', 'year'].includes(interval)) throw invalid('Choisissez une facturation mensuelle ou annuelle.');
+          const price = interval === 'year' ? config.prices.integrations_year : config.prices.integrations_month;
+          if (!price) throw unavailable([PRICE_ENV.integrations_year]);
+          form = { mode: 'subscription', ...lineItems([[price, 1]]), ...metadata, ...subMeta };
         } else {
           if (!PLUGIN_IDS.includes(plugin)) throw invalid('Module inconnu.');
           if (e.plugins.has(plugin)) throw new HttpError(409, 'ALREADY_ACTIVATED', 'Ce module est déjà activé.');

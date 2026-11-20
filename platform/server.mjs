@@ -88,6 +88,8 @@ const assets = new Map([
   // Public legal pages, generated from docs/legal/*.md by scripts/legal-pages.py.
   ['/confidentialite', ['confidentialite.html', 'text/html; charset=utf-8']],
   ['/conditions', ['conditions.html', 'text/html; charset=utf-8']],
+  // Account and data deletion steps, linked from the Google Play data safety form.
+  ['/suppression-compte', ['suppression-compte.html', 'text/html; charset=utf-8']],
   // Installable app on every device (Android, iOS, Windows, macOS, Linux): manifest, service worker, icons, offline page.
   ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
   ['/sw.js', ['sw.js', 'text/javascript; charset=utf-8']],

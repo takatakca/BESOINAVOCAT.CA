@@ -475,29 +475,39 @@
     const o = await api('/api/billing');
     if (!o.billed) { node.hidden = true; node.innerHTML = ''; return; }
     node.hidden = false;
-    const p = o.pricing, premium = p.client.plans.find(x => x.id === 'premium'), canPay = o.configured;
+    const p = o.pricing, plans = p.client.plans, byId = id => plans.find(x => x.id === id), canPay = o.configured;
     const head = `<div class="panel-heading"><div><h2>Mon forfait</h2><p>Payé chez Stripe; BesoinAvocat ne voit jamais votre carte. Prix en dollars canadiens, taxes en sus. <a href="/forfaits" target="_blank" rel="noopener">Voir les forfaits</a></p></div></div>`;
     const soon = canPay ? '' : `<div class="callout">${icon('info')}<p><strong>Paiement en ligne bientôt ouvert</strong>Rien n’est limité pour l’instant : profitez de toutes les fonctions.</p></div>`;
     const test = o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : '';
     let plan = '';
     if (o.kind === 'client') {
-      const u = o.usage, sub = o.subscriptions.premium;
+      const u = o.usage, sub = o.subscriptions.premium?.live ? o.subscriptions.premium : o.subscriptions.member;
       const trial = o.plan.source === 'trial' ? ` · essai gratuit, ${o.trial.daysLeft} jour${o.trial.daysLeft > 1 ? 's' : ''} restant${o.trial.daysLeft > 1 ? 's' : ''}` : '';
       const renew = sub?.live && sub.currentPeriodEnd ? ` · ${sub.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(sub.currentPeriodEnd))}` : '';
+      const keep = o.plan.source === 'trial' ? ' · vos jours d’essai sont conservés' : '';
+      const offer = (id, interval, title, note) => {
+        const x = byId(id), ok = canPay && o.available[interval === 'year' ? `${id}Year` : id];
+        return `<div class="live-card"><h4>${esc(title)}</h4><p class="live-big mono">${esc(cad(x.prices[interval]))}</p><p class="table-subtext">${note}</p><div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="${id}" data-interval="${interval}"${ok ? '' : ' disabled'}>Choisir</button></div></div>`;
+      };
+      const member = byId('member'), premium = byId('premium');
       const offers = o.plan.source === 'subscription' ? '' : `<div class="live-grid">
-        <div class="live-card"><h4>Premium mensuel</h4><p class="live-big mono">${esc(cad(premium.prices.month))}</p><p class="table-subtext">par mois · ${esc(gb(premium.storageBytes))}, vidéos, dossiers illimités${o.plan.source === 'trial' ? ' · vos jours d’essai sont conservés' : ''}</p><div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="premium" data-interval="month"${canPay ? '' : ' disabled'}>Choisir</button></div></div>
-        <div class="live-card"><h4>Premium annuel</h4><p class="live-big mono">${esc(cad(premium.prices.year))}</p><p class="table-subtext">par année · deux mois offerts</p><div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="premium" data-interval="year"${canPay && o.available.premiumYear ? '' : ' disabled'}>Choisir</button></div></div></div>`;
+        ${offer('member', 'month', 'Membre mensuel', `par mois · ${esc(String(member.maxCases))} dossiers, ${esc(gb(member.storageBytes))}, vidéos${keep}`)}
+        ${offer('member', 'year', 'Membre annuel', 'par année · deux mois offerts')}
+        ${offer('premium', 'month', 'Premium mensuel', `par mois · dossiers illimités, ${esc(gb(premium.storageBytes))}, vidéos${keep}`)}
+        ${offer('premium', 'year', 'Premium annuel', 'par année · deux mois offerts')}</div>`;
       const pack = p.client.storagePack;
       const storage = o.subscriptions.storage?.live ? `<p class="table-subtext">Espace supplémentaire : ${esc(String(o.subscriptions.storage.quantity))} × ${esc(gb(pack.bytes))}.</p>`
-        : `<p class="table-subtext">Besoin de plus d’espace ? ${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois. <button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="storage"${canPay && o.available.storage ? '' : ' disabled'}>Ajouter ${esc(gb(pack.bytes))}</button></p>`;
-      plan = `<p>${pill(o.plan.id === 'premium' ? 'ok' : 'off', o.plan.label)}${trial}${renew}</p>
-        <p class="table-subtext">Espace utilisé : ${esc(gb(u.bytes))} sur ${esc(gb(u.quotaBytes))} · ${esc(String(u.cases))} dossier${u.cases > 1 ? 's' : ''}${u.maxCases ? ` sur ${esc(String(u.maxCases))}` : ''}${o.features.video ? ' · vidéos comprises' : ' · vidéos avec Premium'}</p>
+        : o.plan.source === 'subscription' ? `<p class="table-subtext">Besoin de plus d’espace ? ${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois, cumulable. <button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="storage"${canPay && o.available.storage ? '' : ' disabled'}>Ajouter ${esc(gb(pack.bytes))}</button></p>`
+        : `<p class="table-subtext">L’espace additionnel (${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois) s’ajoute aux forfaits Membre et Premium.</p>`;
+      plan = `<p>${pill(o.plan.id === 'free' ? 'off' : 'ok', o.plan.label)}${trial}${renew}</p>
+        <p class="table-subtext">Espace utilisé : ${esc(gb(u.bytes))} sur ${esc(gb(u.quotaBytes))} · ${esc(String(u.cases))} dossier${u.cases > 1 ? 's' : ''}${u.maxCases ? ` sur ${esc(String(u.maxCases))}` : ''}${o.features.video ? ' · vidéos comprises' : ' · vidéos avec Membre ou Premium'}</p>
         <meter class="billing-meter" min="0" max="100" low="70" high="90" optimum="10" value="${esc(String(u.percent))}" aria-label="Espace utilisé">${esc(String(u.percent))} %</meter>${offers}${storage}`;
     }
     const subI = o.subscriptions.integrations;
-    const modules = `<h3>Modules d’intégration</h3><p class="table-subtext">${esc(cad(p.plugins.activation.once))} par module, une seule fois, puis ${esc(cad(p.plugins.subscription.month))} par mois pour l’abonnement Intégrations${subI?.live ? ' (actif)' : ''}. Vous reliez ensuite votre propre compte dans Intégrations.</p>
+    const yearly = p.plugins.subscription.year ? ` ou ${esc(cad(p.plugins.subscription.year))} par année` : '';
+    const modules = `<h3>Modules d’intégration</h3><p class="table-subtext">${esc(cad(p.plugins.activation.once))} par module, une seule fois, puis ${esc(cad(p.plugins.subscription.month))} par mois${yearly} pour l’abonnement Intégrations${subI?.live ? ' (actif)' : ''}. Vous reliez ensuite votre propre compte dans Intégrations.</p>
       <ul class="drawer-list">${o.plugins.map(m => `<li><span class="queue-text"><strong>${esc(m.label)}</strong> ${m.active ? pill('ok', 'Actif') : m.activated ? pill('warn', 'Abonnement à réactiver') : ''}</span>${m.activated ? '' : `<button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="plugin" data-plugin="${esc(m.id)}"${canPay && o.available.plugin ? '' : ' disabled'}>Activer</button>`}</li>`).join('')}</ul>
-      ${o.plugins.some(m => m.activated) && !subI?.live ? `<div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="integrations"${canPay ? '' : ' disabled'}>Réactiver l’abonnement Intégrations</button></div>` : ''}`;
+      ${o.plugins.some(m => m.activated) && !subI?.live ? `<div class="tile-actions"><button type="button" class="button small" data-live-action="billing-checkout" data-item="integrations" data-interval="month"${canPay ? '' : ' disabled'}>Réactiver l’abonnement Intégrations (mensuel)</button>${o.available.integrationsYear ? `<button type="button" class="button secondary small" data-live-action="billing-checkout" data-item="integrations" data-interval="year"${canPay ? '' : ' disabled'}>Annuel</button>` : ''}</div>` : ''}`;
     const manage = o.canManage ? `<div class="tile-actions"><button type="button" class="button secondary small" data-live-action="billing-portal">Gérer mes paiements et factures</button></div>` : '';
     node.innerHTML = `${head}<div class="panel-body">${soon}${test}${plan}${modules}${manage}</div>`;
   }

@@ -169,6 +169,7 @@ Pas d'app développeur à créer : Notarius ouvre son API par entente de partena
    - événements à cocher sur le webhook : `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`;
    - activer le portail client Stripe (Paramètres › Facturation › Portail client) pour « Gérer mon abonnement »; activer Stripe Tax si les taxes doivent être calculées (le paiement l'exige : `automatic_tax`);
    - l'abonnement n'est actif qu'après les notifications signées de Stripe, jamais sur la page de retour. Stripe ne reçoit qu'un identifiant opaque `ba_…`, pas l'identité TAKATAK.
+6. **Forfaits des personnes clientes et modules (D-041, grille A de D-043, 20 novembre 2026)** — `platform/lib/pricing.mjs`, `platform/lib/billing.mjs`, panneau « Mon forfait » : huit prix à créer dans Stripe ALKAO.CA (Membre 15 $/150 $, Premium 39 $/390 $, espace 50 Go 5 $, module 30 $, Intégrations 19 $/190 $), taux TPS/TVQ, webhook partagé; variables `BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY` (requise), `…_MEMBER_YEARLY`, `…_CLIENT_PREMIUM_MONTHLY`, `…_CLIENT_PREMIUM_YEARLY`, `…_STORAGE_PACK_MONTHLY`, `…_PLUGIN_ACTIVATION`, `…_INTEGRATIONS_MONTHLY`, `…_INTEGRATIONS_YEARLY`, `BESOINAVOCAT_STRIPE_TAX_RATES`. Liste complète et étapes : [MONETISATION.md §4](MONETISATION.md).
 
 ### Twilio — téléphonie et SMS (réceptions)
 

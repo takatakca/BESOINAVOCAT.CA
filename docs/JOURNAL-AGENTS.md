@@ -315,3 +315,7 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
 - Zones réservées : `platform/lib/pricing.mjs`, `platform/lib/billing.mjs`, `platform/public/forfaits.html`, `paintBilling` dans `platform/public/live.js`, `platform/test/billing.test.mjs`, `docs/MONETISATION.md`, `docs/TARIFICATION-2026-11-19.md`, D-043 dans `docs/DECISIONS.md`, ligne « Monétisation » des docs de statut.
 - Le propriétaire a choisi la grille **A** (carte de décision, 20 novembre 18:51 UTC) : Découverte 0 $ · Membre 15 $/150 $ (5 dossiers, 25 Go, vidéos) · Premium 39 $/390 $ (illimité, 100 Go) · +50 Go 5 $/mois (forfait payé) · module 30 $ · Intégrations 19 $/190 $ · essai Premium 14 jours. Appliquée dans le module de facturation existant (D-041), sans second module. 418/418 tests.
 
+### 2026-11-20 19:06 UTC — Claude (Claude Code, fil « Ajouter le dépôt de dossier et les forfaits payants ») · FIN · PR 94 fusionnée dans `main` (`15f490b`)
+- Grille A (D-043) en place : Découverte 0 $ · Membre 15 $/150 $ · Premium 39 $/390 $ · +50 Go 5 $ · module 30 $ · Intégrations 19 $/190 $. Contrôles verts (validate, platform, chromium, storefront). Zones libérées.
+- Reste à faire (Colombo) : huit prix et taux TPS/TVQ dans Stripe ALKAO.CA, variables Coolify de `docs/MONETISATION.md` §4, redéploiement (autodéploiement éteint). Tant que ce n'est pas fait, rien n'est facturé ni limité.
+

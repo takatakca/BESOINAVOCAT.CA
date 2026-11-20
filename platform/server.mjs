@@ -213,13 +213,16 @@ export function createApp({
   // le paiement est raccordé; la garde des pièces s'exécute dans la transaction d'ajout.
   const billing = createBilling({ db: store.db, config: billingConfiguration(env), fetch: paymentsFetch, clock, isClient: clients.has, isLawyer: accounts.has });
   store.setUploadGuard((actor, caseId, info) => billing.checkUpload(actor, caseId, info));
-  // Accès avocat gratuit pour le moment (propriétaire, 13 novembre 2026); BESOINAVOCAT_LAWYER_ACCESS=paid rétablit
-  // le paiement après l'essai de 14 jours.
-  const lawyerAccessFree = env.BESOINAVOCAT_LAWYER_ACCESS !== 'paid';
-  // Essai ou abonnement en cours : exigé pour rejoindre un dossier quand l'accès avocat est payant.
+  // Accès avocat payant (propriétaire, 20 novembre 2026, D-044) : 14 jours gratuits, puis 100 $ par semaine ou 300 $
+  // par mois avec engagement d'un an (lib/pricing.mjs). Par défaut, l'essai expiré ne bloque que lorsque Stripe est
+  // raccordé (on n'empêche jamais quelqu'un qui ne peut pas payer); BESOINAVOCAT_LAWYER_ACCESS=paid bloque même sans
+  // Stripe, =free rend l'accès gratuit.
+  const lawyerAccessFree = env.BESOINAVOCAT_LAWYER_ACCESS === 'free';
+  const lawyerAccessEnforced = !lawyerAccessFree && (env.BESOINAVOCAT_LAWYER_ACCESS === 'paid' || membershipConfiguration(env).configured);
+  // Essai ou abonnement en cours : exigé pour rejoindre ou accepter un dossier quand l'accès avocat est exigé.
   const requireLawyerAccess = user => {
     if (!accounts.has(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'Ouvrez d’abord votre espace avocat.');
-    if (!lawyerAccessFree && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+    if (lawyerAccessEnforced && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
   };
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -592,7 +595,7 @@ export function createApp({
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (path === '/api/lawyer/me' && method === 'GET') {
         const account = accounts.get(user);
-        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
+        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree, accessEnforced: lawyerAccessEnforced } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
       }
       // Dossiers prêts du domaine de l'avocat (D-036) : titre, domaine, résumé, nombre de pièces; jamais les pièces.
       if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user))); }
@@ -613,7 +616,7 @@ export function createApp({
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
-        if (path === '/api/membership' && method === 'GET') return json(res, 200, { ...await membership.overview(user), accessFree: lawyerAccessFree });
+        if (path === '/api/membership' && method === 'GET') return json(res, 200, { ...await membership.overview(user), accessFree: lawyerAccessFree, accessEnforced: lawyerAccessEnforced });
         if (path === '/api/membership/checkout' && method === 'POST') return json(res, 201, await membership.checkout(user, await readJson(req, 256)));
         if (path === '/api/membership/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await membership.portal(user)); }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
@@ -663,7 +666,7 @@ export function createApp({
       if (integration[2] === 'connect') billing.checkPlugin(user, integration[1]);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, lawyerAccessFree, billing: { configured: billing.configured(), enforced: billing.enforced() }, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, lawyerAccessFree, lawyerAccessEnforced, billing: { configured: billing.configured(), enforced: billing.enforced() }, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: matching.decorate(user.tenantId, store.listCases(user)) });
       if (method === 'POST') {

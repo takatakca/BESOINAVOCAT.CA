@@ -57,9 +57,9 @@ Un plugin se connecte toujours avec le compte de la personne (OAuth), jamais ave
 Le paiement de l'activation ne connecte rien : il ouvre le droit d'utiliser le connecteur; la connexion reste un
 geste séparé (D-025).
 
-### Avocats (plus tard, à activer par le propriétaire)
+### Avocats
 
-Gratuit pour l'instant. Grille prévue pour la suite, lue chez Stripe quand elle existera :
+**Décision du propriétaire, 20 novembre 2026 (D-044) : 14 jours gratuits, puis 100 $ par semaine sans engagement ou 300 $ par mois avec engagement d'un an (facturé chaque mois d'avance).** Programmée le même jour. La grille Avocat/Cabinet ci-dessous n'est pas retenue; elle reste comme idée pour plus tard :
 
 | | Avocat | Cabinet |
 |---|---|---|
@@ -138,5 +138,11 @@ Si la conversion n'est que de 5 % payants (au lieu de 20 %), les revenus de l'an
 Les options soumises le 19 novembre 2026 : (A) la grille à trois paliers de la section 1; (B) deux paliers
 seulement : c'est, à peu de chose près, la grille déjà en place (D-041 : Essentiel 0 $ et Premium 15 $/150 $,
 +100 Go à 5 $, module 30 $ + Intégrations 9 $/mois); (C) la grille A avec Membre 19 $ et Premium 49 $.
-Tant que le propriétaire n'a pas répondu, la grille en place (D-041) reste celle du portail. La réponse sera
-consignée dans `docs/DECISIONS.md` et appliquée dans `platform/lib/pricing.mjs`.
+**Réponse du propriétaire, 20 novembre 2026 : option A** (D-043). Appliquée le même jour dans
+`platform/lib/pricing.mjs` et `platform/lib/billing.mjs`, sur la page `/forfaits` et dans le panneau « Mon forfait » :
+Découverte 0 $ (1 dossier, 1 Go, sans vidéo), Membre 15 $/150 $ (5 dossiers, 25 Go, vidéos), Premium 39 $/390 $
+(illimité, 100 Go), +50 Go à 5 $/mois (Membre et Premium, jusqu'à 20 tranches), module 30 $ une fois,
+Intégrations 19 $/mois ou 190 $/an, essai Premium de 14 jours. Seules les lignes que le portail applique
+(prix, dossiers, espace, vidéo) sont programmées; les résumés par l'IA, la priorité, la conservation et le soutien
+du tableau de la section 1 restent à coder avant d'être affichés. Les huit prix à créer dans Stripe et les
+variables Coolify sont dans [MONETISATION.md §4](MONETISATION.md).

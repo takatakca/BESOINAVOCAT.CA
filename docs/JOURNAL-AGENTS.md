@@ -319,3 +319,7 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
 - Grille A (D-043) en place : Découverte 0 $ · Membre 15 $/150 $ · Premium 39 $/390 $ · +50 Go 5 $ · module 30 $ · Intégrations 19 $/190 $. Contrôles verts (validate, platform, chromium, storefront). Zones libérées.
 - Reste à faire (Colombo) : huit prix et taux TPS/TVQ dans Stripe ALKAO.CA, variables Coolify de `docs/MONETISATION.md` §4, redéploiement (autodéploiement éteint). Tant que ce n'est pas fait, rien n'est facturé ni limité.
 
+### 2026-11-20 19:12 UTC — Claude (Claude Code, fil « Ajouter le dépôt de dossier et les forfaits payants ») · DÉBUT + ÉTAPE · `claude/project-thread-e2cjtb`
+- Zones réservées : `platform/lib/pricing.mjs` (grille avocat), `platform/lib/membership.mjs`, accès avocat dans `platform/server.mjs`, `paintMembership` dans `platform/public/live.js`, section Avocats de `platform/public/forfaits.html`, `platform/public/demande.html` (bloc avocat), tests `lawyer-accounts` et `billing`, docs MONETISATION, TARIFICATION, DECISIONS (D-044), INTEGRATIONS §5.5, statuts.
+- Propriétaire (19:07-19:08 UTC) : deux grilles, membres et avocats. Avocats : 14 jours gratuits, puis 100 $/semaine sans engagement ou 300 $/mois avec engagement d'un an, facturé chaque mois d'avance. Appliqué dans l'abonnement avocat existant (membership.mjs); accès avocat payant par défaut, bloqué seulement une fois Stripe raccordé (`BESOINAVOCAT_LAWYER_ACCESS` : `free` / `paid`).
+

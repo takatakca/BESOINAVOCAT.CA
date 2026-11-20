@@ -1,11 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { HttpError, fields, invalid } from './validation.mjs';
+import { LAWYER_ACCESS, LAWYER_PLANS } from './pricing.mjs';
 
 // Abonnement des avocats à la plateforme, par Stripe Checkout (choix du propriétaire du 4 novembre 2026 :
 // « Lawyer subscription only »). Jamais de paiement de client, d'avance d'honoraires ni de commission : ces sommes
 // appartiennent au compte en fidéicommis de l'avocat (D-025). Les prix ne sont pas écrits ici : ils sont lus chez
 // Stripe à partir des identifiants de prix posés dans Coolify. L'état de l'abonnement vient des notifications signées
-// de Stripe (vérifiées dans lib/integrations.mjs), jamais de la page de retour du navigateur.
+// de Stripe (vérifiées dans lib/integrations.mjs), jamais de la page de retour du navigateur. La grille affichée
+// (14 jours gratuits, 100 $ par semaine, 300 $ par mois avec engagement d'un an; D-044) vient de lib/pricing.mjs : les
+// prix créés dans Stripe doivent avoir les mêmes montants.
 const PLANS = Object.freeze({ weekly: 'BESOINAVOCAT_STRIPE_PRICE_WEEKLY', monthly: 'BESOINAVOCAT_STRIPE_PRICE_MONTHLY' });
 const ACTIVE = new Set(['active', 'trialing']);
 const STATUSES = new Set(['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused', 'none']);
@@ -20,8 +23,10 @@ export function membershipConfiguration(env = process.env) {
   const webhook = typeof env.BESOINAVOCAT_STRIPE_WEBHOOK_SECRET === 'string' && env.BESOINAVOCAT_STRIPE_WEBHOOK_SECRET.length >= 16;
   let origin = null;
   try { const u = new URL(env.APP_ORIGIN || ''); if (u.protocol === 'https:' || u.hostname === '127.0.0.1' || u.hostname === 'localhost') origin = u.origin; } catch { origin = null; }
+  // Taux TPS/TVQ créés dans Stripe (comme lib/billing.mjs); sans eux, Stripe Tax calcule les taxes.
+  const taxRates = String(env.BESOINAVOCAT_STRIPE_TAX_RATES ?? '').split(',').map(s => s.trim()).filter(s => /^txr_[A-Za-z0-9]{8,100}$/u.test(s)).slice(0, 5);
   const missing = [!secretKey && 'BESOINAVOCAT_STRIPE_SECRET_KEY', !Object.keys(prices).length && 'BESOINAVOCAT_STRIPE_PRICE_WEEKLY ou _MONTHLY', !webhook && 'BESOINAVOCAT_STRIPE_WEBHOOK_SECRET', !origin && 'APP_ORIGIN'].filter(Boolean);
-  return Object.freeze({ secretKey, prices: Object.freeze(prices), origin, missing: Object.freeze(missing), configured: missing.length === 0, mode: secretKey?.includes('_live_') ? 'live' : 'test' });
+  return Object.freeze({ secretKey, prices: Object.freeze(prices), origin, taxRates: Object.freeze(taxRates), missing: Object.freeze(missing), configured: missing.length === 0, mode: secretKey?.includes('_live_') ? 'live' : 'test' });
 }
 
 export function createMembership({ db, config = membershipConfiguration(), fetch = globalThis.fetch, clock = Date.now, teamMembers = [], isLawyer = () => false, trialDays = 14 }) {
@@ -96,9 +101,10 @@ export function createMembership({ db, config = membershipConfiguration(), fetch
 
   return {
     async overview(user) {
-      const base = { configured: config.configured, missing: config.missing, mode: config.secretKey ? config.mode : null, eligible: eligible(user), membership: publicState(user), plans: [], trialDays };
+      const base = { configured: config.configured, missing: config.missing, mode: config.secretKey ? config.mode : null, eligible: eligible(user), membership: publicState(user), plans: [], trialDays, grid: LAWYER_ACCESS.plans.map(p => ({ ...p })) };
       if (!config.configured || !base.eligible) return base;
-      base.plans = (await Promise.all(Object.keys(config.prices).map(plan => price(plan).catch(() => null)))).filter(Boolean).filter(p => p.active);
+      base.plans = (await Promise.all(Object.keys(config.prices).map(plan => price(plan).catch(() => null)))).filter(Boolean).filter(p => p.active)
+        .map(p => ({ ...p, commitmentMonths: LAWYER_PLANS[p.plan]?.commitmentMonths ?? 0, label: LAWYER_PLANS[p.plan]?.label ?? p.plan, matchesGrid: LAWYER_PLANS[p.plan] ? LAWYER_PLANS[p.plan].amount === p.amountCents && LAWYER_PLANS[p.plan].interval === p.interval && p.intervalCount === 1 : null }));
       return base;
     },
     async checkout(user, body) {
@@ -116,7 +122,10 @@ export function createMembership({ db, config = membershipConfiguration(), fetch
       const form = {
         mode: 'subscription', 'line_items[0][price]': config.prices[plan], 'line_items[0][quantity]': '1',
         client_reference_id: key, 'subscription_data[metadata][ba_member]': key, 'metadata[ba_member]': key, ...remainingTrial,
-        success_url: `${config.origin}/#settings`, cancel_url: `${config.origin}/#settings`, locale: 'fr-CA', billing_address_collection: 'required', 'automatic_tax[enabled]': 'true',
+        // L'engagement d'un an du forfait mensuel est contractuel (conditions); Stripe le reçoit en métadonnée.
+        ...(LAWYER_PLANS[plan]?.commitmentMonths ? { 'subscription_data[metadata][ba_commitment_months]': String(LAWYER_PLANS[plan].commitmentMonths) } : {}),
+        success_url: `${config.origin}/#settings`, cancel_url: `${config.origin}/#settings`, locale: 'fr-CA', billing_address_collection: 'required',
+        ...(config.taxRates.length ? Object.fromEntries(config.taxRates.map((rate, j) => [`line_items[0][tax_rates][${j}]`, rate])) : { 'automatic_tax[enabled]': 'true' }),
         ...(current?.customerId ? { customer: current.customerId } : {}),
       };
       const session = await stripe('checkout/sessions', { method: 'POST', form });

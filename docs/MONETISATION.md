@@ -17,7 +17,7 @@ Prix en dollars canadiens, taxes en sus.
 | **Espace supplémentaire** | **5 $ / mois** par tranche de 50 Go (max. 20, cumulable) | Membre ou Premium (un forfait payé) |
 | **Module d'intégration** | **30 $ une fois** par module | Zoom, Google Agenda, Outlook, DocuSign, Clio, QuickBooks |
 | **Abonnement Intégrations** | **19 $ / mois** ou **190 $ / an** | garde tous les modules activés branchés au portail |
-| Accès avocat | 0 $ pour le moment | l'abonnement avocat existant reste prêt (`BESOINAVOCAT_LAWYER_ACCESS=paid`) |
+| **Accès avocat** (D-044, 20 novembre 2026) | 14 jours gratuits, puis **100 $ / semaine** sans engagement ou **300 $ / mois** avec engagement d'un an (facturé chaque mois d'avance) | `lib/membership.mjs`, prix lus chez Stripe (`BESOINAVOCAT_STRIPE_PRICE_WEEKLY` / `_MONTHLY`, mêmes montants); rien n'est bloqué tant que Stripe n'est pas raccordé; `BESOINAVOCAT_LAWYER_ACCESS=free` rend l'accès gratuit, `=paid` bloque même sans Stripe |
 
 Historique : la grille D-041 du 18 novembre avait deux paliers (Essentiel 0 $, Premium 15 $/150 $ avec 50 Go, +100 Go à 5 $, Intégrations 9 $). Le 19 novembre, [TARIFICATION-2026-11-19.md](TARIFICATION-2026-11-19.md) a proposé trois options; le propriétaire a choisi l'option **A** le 20 novembre 2026 (D-043). Seules les lignes que le portail sait appliquer (prix, dossiers, espace, vidéo) sont programmées; les autres lignes de l'option A (résumés par l'IA, priorité, conservation, soutien) restent des promesses à ne pas afficher tant qu'elles ne sont pas codées.
 
@@ -50,7 +50,8 @@ Hypothèses prudentes (à revoir avec les vrais chiffres) : 1 $ US = 1,40 $ CA; 
 | Espace supplémentaire | 20 tranches de 50 Go | 100 $ |
 | Abonnement Intégrations | 30 comptes × 18 $ en moyenne (mensuel 19 $, annuel 15,83 $) | 540 $ |
 | Activations de modules | 60 × 30 $ par an, ramené au mois | 150 $ |
-| **Total** | | **≈ 3 325 $ / mois (≈ 39 900 $ / an)** |
+| Accès avocat (D-044) | 40 avocats : 25 % à la semaine (433 $ / mois), 75 % au mois (300 $) | ≈ 13 330 $ |
+| **Total** | | **≈ 16 650 $ / mois (≈ 200 000 $ / an)**, dont ≈ 3 325 $ des clients |
 
 | Coûts par mois | Montant |
 |---|---|
@@ -62,7 +63,7 @@ Hypothèses prudentes (à revoir avec les vrais chiffres) : 1 $ US = 1,40 $ CA; 
 | Divers (domaine, sauvegardes) | ≈ 5 $ |
 | **Total** | **≈ 255 $ / mois** |
 
-**Marge ≈ 3 070 $ / mois, ≈ 36 800 $ la première année.** (Grille D-041 à deux paliers : ≈ 1 735 $ / mois.)
+**Marge clients ≈ 3 070 $ / mois, ≈ 36 800 $ la première année.** (Grille D-041 à deux paliers : ≈ 1 735 $ / mois.) Avec 40 avocats payants, les frais Stripe montent d'environ 400 $ et la marge totale dépasse ≈ 16 000 $ / mois. Le nombre d'avocats qui restent après l'essai est l'hypothèse la plus incertaine : chaque avocat au mois vaut 20 clients Membre.
 
 ### À maturité : 10 000 clients
 
@@ -73,7 +74,8 @@ Hypothèses prudentes (à revoir avec les vrais chiffres) : 1 $ US = 1,40 $ CA; 
 | Espace supplémentaire | 300 comptes × 1,5 tranche × 5 $ | 2 250 $ |
 | Abonnement Intégrations | 300 × 18 $ | 5 400 $ |
 | Activations de modules | 600 × 30 $ par an, au mois | 1 500 $ |
-| **Total** | | **≈ 38 220 $ / mois (≈ 458 600 $ / an)** |
+| Accès avocat (D-044) | 350 avocats : 25 % à la semaine, 75 % au mois | ≈ 116 640 $ |
+| **Total** | | **≈ 154 860 $ / mois (≈ 1,86 M$ / an)**, dont ≈ 38 220 $ des clients |
 
 | Coûts par mois | Montant |
 |---|---|
@@ -120,12 +122,14 @@ Dans Coolify (application du portail), puis redéployer :
 | `APP_ORIGIN` | `https://portail.besoinavocat.ca` (déjà requis) |
 | facultatif `BESOINAVOCAT_BILLING_ENFORCED` | `false` pour suspendre les limites |
 | facultatif `BESOINAVOCAT_STRIPE_AUTOMATIC_TAX` | `true` pour Stripe Tax (0,5 % par transaction) au lieu des taux |
-| facultatif `BESOINAVOCAT_LAWYER_ACCESS` | `paid` le jour où l'accès avocat devient payant |
+| `BESOINAVOCAT_STRIPE_PRICE_WEEKLY` | `price_…` (avocat, 100,00 $ par semaine, récurrent) |
+| `BESOINAVOCAT_STRIPE_PRICE_MONTHLY` | `price_…` (avocat, 300,00 $ par mois, récurrent; l'engagement d'un an est dans les conditions et en métadonnée) |
+| facultatif `BESOINAVOCAT_LAWYER_ACCESS` | `free` pour rendre l'accès avocat gratuit; `paid` pour bloquer l'essai expiré même sans Stripe; sinon le blocage suit le raccordement de Stripe |
 
 Aucune clé ne va dans le dépôt, le clavardage ou la mémoire : seulement dans Coolify et le fichier `CLES-INTEGRATIONS-BESOINAVOCAT.txt` du PC du propriétaire.
 
 ## 5. Ce qui n'est pas fait (volontairement)
 
-- Prix de l'accès avocat : gratuit sur décision du propriétaire. Les anciens prix de D-017 (100 $/semaine, 300 $/mois) restent dans l'ancien catalogue public de la demande (`lib/catalog.mjs`) et sont à revoir le jour où l'accès devient payant.
+- Engagement d'un an du forfait avocat mensuel : Stripe Checkout ne sait pas l'imposer; il est écrit dans les conditions et dans la métadonnée de l'abonnement. Dans le portail client de Stripe, désactiver l'annulation immédiate pour ce prix si l'on veut le faire respecter techniquement.
 - Crédits IA : l'IA est éteinte; rien à facturer.
 - Aucun paiement d'honoraires, d'avance ou de commission ne passe par BesoinAvocat (D-025).

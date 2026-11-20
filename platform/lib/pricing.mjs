@@ -9,7 +9,7 @@
 // Ces montants sont l'affichage et le contrat : les prix créés dans Stripe (compte ALKAO.CA) doivent avoir
 // exactement les mêmes montants. Montants en cents, CAD, taxes en sus. Aucun paiement n'est possible tant que les
 // identifiants de prix et la clé Stripe ne sont pas posés dans Coolify (lib/billing.mjs).
-export const PRICING_VERSION = '2026-11-20.1';
+export const PRICING_VERSION = '2026-11-20.2';
 export const GB = 1024 ** 3;
 export const TRIAL_DAYS = 14;
 
@@ -55,9 +55,16 @@ export const PLUGINS = Object.freeze([
 ].map(Object.freeze));
 export const PLUGIN_IDS = Object.freeze(PLUGINS.map(p => p.id));
 
-// Accès des avocats : gratuit pour le moment (propriétaire, 13 novembre 2026). L'abonnement avocat existant
-// (lib/membership.mjs) reste prêt, réglé par BESOINAVOCAT_LAWYER_ACCESS=paid le jour où le propriétaire le décide.
-export const LAWYER_ACCESS = Object.freeze({ status: 'free', label: 'Accès avocat gratuit pour le moment' });
+// Accès des avocats (propriétaire, 20 novembre 2026, D-044) : 14 jours gratuits, puis 100 $ par semaine sans
+// engagement, ou 300 $ par mois avec engagement d'un an (facturé chaque mois d'avance). Les prix réels sont lus chez
+// Stripe (lib/membership.mjs, BESOINAVOCAT_STRIPE_PRICE_WEEKLY / _MONTHLY) et doivent avoir ces montants. Tant que Stripe
+// n'est pas raccordé, rien n'est bloqué; BESOINAVOCAT_LAWYER_ACCESS=free rend l'accès gratuit, =paid le bloque même sans Stripe.
+export const LAWYER_PLANS = Object.freeze({
+  weekly: Object.freeze({ id: 'weekly', label: 'À la semaine', amount: 10000, interval: 'week', commitmentMonths: 0, tagline: 'Sans engagement, arrêt quand vous voulez.' }),
+  monthly: Object.freeze({ id: 'monthly', label: 'Au mois, engagement d’un an', amount: 30000, interval: 'month', commitmentMonths: 12, tagline: 'Facturé chaque mois d’avance, engagement de douze mois.' }),
+});
+export const LAWYER_ACCESS = Object.freeze({ status: 'paid', trialDays: TRIAL_DAYS, label: '14 jours gratuits, puis 100 $ par semaine ou 300 $ par mois avec engagement d’un an',
+  plans: Object.freeze(Object.values(LAWYER_PLANS).map(p => ({ ...p }))) });
 
 const formatMoney = cents => new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
 export { formatMoney };
@@ -70,7 +77,7 @@ export function publicPricing({ available = {} } = {}) {
     version: PRICING_VERSION, currency: 'CAD', amountUnit: 'cents', taxes: 'en sus', trialDays: TRIAL_DAYS,
     client: { plans: [plan(CLIENT_PLANS.free), plan(CLIENT_PLANS.member), plan(CLIENT_PLANS.premium)], storagePack: { ...STORAGE_PACK, forPlans: [...STORAGE_PACK.forPlans], prices: { ...STORAGE_PACK.prices } } },
     plugins: { activation: { ...PLUGIN_ACTIVATION.prices }, subscription: { ...INTEGRATIONS_SUBSCRIPTION.prices }, items: PLUGINS.map(p => ({ ...p })) },
-    lawyer: { ...LAWYER_ACCESS },
+    lawyer: { ...LAWYER_ACCESS, plans: LAWYER_ACCESS.plans.map(p => ({ ...p })) },
     purchaseAvailable: { member: Boolean(available.member), memberYear: Boolean(available.memberYear), premium: Boolean(available.premium), premiumYear: Boolean(available.premiumYear), storage: Boolean(available.storage), plugin: Boolean(available.plugin), integrationsYear: Boolean(available.integrationsYear) },
   };
 }

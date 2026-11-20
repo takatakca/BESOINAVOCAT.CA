@@ -305,3 +305,7 @@ Format : `AAAA-MM-JJ HH:MM UTC · Agent (outil, session) · ÉTIQUETTE · branch
 ### 2026-11-20 — Thread « Connecter et activer toutes les intégrations » — ÉTAPE
 - Manifest PWA enrichi (score PWABuilder) : launch_handler, handle_links, edge_side_panel, related_applications (Play `ca.besoinavocat.portail`), protocol_handlers `web+besoinavocat`, share_target GET vers `/`, descriptions des raccourcis. Fichier : platform/public/manifest.webmanifest. Visible en ligne seulement après redéploiement Coolify.
 - Google Play : compte Organisation « Groupe TAKATAK » créé, identité et site takatak.ca vérifiés ; app BesoinAvocat en création.
+
+### 2026-11-20 — Google Play : compte de vérification réel (fil « Connecter et activer toutes les intégrations »)
+- L'accès « aperçu » proposé à Google est remplacé par un vrai compte client sur portail.besoinavocat.ca : takatak.ca+playreview@gmail.com (projet Supabase « TAKATAK User Official Dashboard V1 »), connexion par mot de passe (« Utiliser un mot de passe existant »). Le mot de passe est choisi et saisi par le propriétaire seulement (Supabase et Play Console), jamais dans le dépôt.
+- Le compte doit aussi passer une fois l'inscription client (code courriel) pour que le tableau de bord client existe (client-accounts.completeSignup exige une inscription en attente).

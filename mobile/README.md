@@ -44,19 +44,18 @@ Le flux `.github/workflows/mobile.yml` tourne à chaque modification de `mobile/
 Les fichiers Android du flux sont signés avec la clé de test publique d'Android : bons pour essayer, **pas pour Google
 Play**.
 
-## Publier sur Google Play (plus tard, après les soumissions en cours)
+## Version 2 pour Google Play et Amazon (signée sur le PC du propriétaire)
 
-La clé de téléversement Google Play reste **sur le PC du propriétaire** (fichier PWABuilder) et ne va jamais sur
-GitHub ni sur Drive. Pour publier, sur le PC (ou par Colombo) :
+Le flux publie `besoinavocat-store-kit` : le `.aab` et le `.apk` à signer, `apksigner.jar` (outil officiel
+d'Android), `SIGNER.bat`, `SIGNER.ps1` et `LISEZ-MOI.txt` (sources dans `store-kit/`). Le propriétaire décompresse le
+ZIP, y copie `signing.keystore` et `signing-key-info.txt` du ZIP PWABuilder, puis double-clique sur `SIGNER.bat`.
+Il obtient `BesoinAvocat-v2-google-play.aab` (Play Console, nouvelle version de l'app existante) et
+`BesoinAvocat-v2-amazon.apk` (Amazon Appstore). La clé et son mot de passe ne quittent jamais le PC : ni GitHub, ni
+Drive. Il faut la même clé que la version PWABuilder pour que Google accepte la mise à jour.
 
-```sh
-# une fois : Java 17 installé (il fournit jarsigner)
-jarsigner -keystore signing.keystore -signedjar BesoinAvocat-2.0.0.aab \
-  BesoinAvocat-native-unsigned-for-play.aab my-key-alias
-```
-
-Le nom d'alias et le mot de passe sont dans le fichier `signing-key-info.txt` du ZIP PWABuilder, sur le PC. Ensuite,
-téléverser `BesoinAvocat-2.0.0.aab` comme nouvelle version de l'app existante dans la Play Console.
+- Java 17 (gratuit, Temurin) est requis ; s'il manque, la page de téléchargement s'ouvre.
+- Le flux vérifie les commandes de signature avec une clé jetable, sur Linux et sur Windows (`store-kit-windows`).
+- Version `2.0.0`, code `100` : plus élevé que la version PWABuilder, donc accepté comme mise à jour.
 
 ## Apple (en dernier)
 

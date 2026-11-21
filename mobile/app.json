@@ -1,0 +1,92 @@
+{
+  "expo": {
+    "name": "BesoinAvocat",
+    "slug": "besoinavocat",
+    "scheme": "besoinavocat",
+    "version": "2.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f7f4ee",
+    "primaryColor": "#8b2132",
+    "description": "Préparez votre dossier juridique et retrouvez-le, prêt, avec l’avocat qui l’accepte.",
+    "ios": {
+      "bundleIdentifier": "ca.besoinavocat.portail",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "BesoinAvocat utilise l’appareil photo pour photographier les pièces de votre dossier.",
+        "NSPhotoLibraryUsageDescription": "BesoinAvocat accède à vos photos pour ajouter une image à votre dossier.",
+        "NSFaceIDUsageDescription": "BesoinAvocat utilise Face ID pour verrouiller votre espace.",
+        "CFBundleDevelopmentRegion": "fr_CA",
+        "CFBundleAllowMixedLocalizations": true
+      }
+    },
+    "android": {
+      "package": "ca.besoinavocat.portail",
+      "versionCode": 100,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-foreground.png",
+        "backgroundImage": "./assets/adaptive-background.png",
+        "monochromeImage": "./assets/adaptive-monochrome.png",
+        "backgroundColor": "#8b2132"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-web-browser",
+      "expo-font",
+      "expo-localization",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 140,
+          "backgroundColor": "#f7f4ee"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "BesoinAvocat utilise Face ID pour verrouiller votre espace."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BesoinAvocat accède à vos photos pour ajouter une image à votre dossier.",
+          "cameraPermission": "BesoinAvocat utilise l’appareil photo pour photographier les pièces de votre dossier.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-status-bar"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "portalOrigin": "https://portail.besoinavocat.ca"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

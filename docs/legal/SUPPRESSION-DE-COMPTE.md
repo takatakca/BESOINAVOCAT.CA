@@ -12,6 +12,7 @@
 
 **Ce qui est gardé, et combien de temps** :
 
+- les demandes guidées : 12 mois après la fermeture de la demande, puis suppression ou anonymisation; les demandes marquées indésirables sont supprimées plus tôt;
 - les journaux de connexion et d'accès : 24 mois, pour la sécurité et la preuve en cas d'incident;
 - les dossiers qu'un avocat a acceptés : 90 jours après la demande, pour permettre le retour des pièces aux parties, puis suppression ou anonymisation;
 - les enregistrements d'appels : au plus 90 jours après l'appel;
@@ -19,7 +20,6 @@
 
 ## 2. Supprimer certaines données sans supprimer votre compte
 
-- **Dans l'application** : ouvrez le dossier, puis supprimez une pièce ou fermez le dossier. Une pièce supprimée n'est plus visible; un dossier fermé suit les délais de la section 1.
 - **Par courriel** : écrivez à support@takatak.ca avec l'objet « Suppression de données — BesoinAvocat » et précisez les données visées (une pièce, un dossier, un enregistrement d'appel, vos messages). Nous les supprimons au plus tard 30 jours après la demande et vous le confirmons.
 
 ## 3. Vos autres droits

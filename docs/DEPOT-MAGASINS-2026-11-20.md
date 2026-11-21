@@ -2,16 +2,16 @@
 
 Suite de [APPS-MAGASINS.md](APPS-MAGASINS.md). Ce guide donne, pour chaque magasin, ce que le propriétaire fait lui-même et ce que Claude remplit ensuite, avec les réponses à copier. Les réponses reprennent celles de Google Play, déjà enregistrées le 20 novembre.
 
-## État au 20 novembre 2026 (22 h 20 UTC)
+## État au 21 novembre 2026 (00 h 10 UTC)
 
 | Magasin | État | Prochaine étape | Qui |
 |---|---|---|---|
-| Google Play | 11 tâches sur 12 terminées; nouveau paquet Android généré sur PWABuilder (identifiant `ca.besoinavocat.portail`) | « Don't label assets » + Save sur la fiche; copier le ZIP dans le dossier BESOINAVOCAT; téléverser l'AAB en test interne | propriétaire, puis Claude |
+| Google Play | 11 tâches sur 12 terminées; paquet Android `ca.besoinavocat.portail` dans `BESOINAVOCAT\APP-ANDROID`; version de test interne préparée, notes de version en français écrites | « Don't label assets » + Save; cliquer Upload et choisir `APP-ANDROID\BesoinAvocat.aab` | propriétaire, puis Claude |
 | Microsoft Store | compte « Groupe TAKATAK » : courriel et entreprise vérifiés, emploi en vérification (environ 5 jours ouvrables) | attendre le courriel de Microsoft | Microsoft |
 | Zoom Marketplace | application soumise, en révision fonctionnelle | attendre la réponse de Zoom | Zoom |
 | Samsung Galaxy Store | compte vendeur créé (Free Distribution Seller). La demande « Corporate Commercial Distribution Seller » échoue toujours avec « Security error ». Demande au support Samsung envoyée le 20 novembre (enregistrée). | attendre la réponse de Samsung par courriel | Samsung |
-| Huawei AppGallery | formulaire de vérification entreprise rempli (D-U-N-S 203779971, adresse D&B Fleury) | cocher les 2 accords, Submit, puis téléverser les documents | propriétaire |
-| Amazon (tablettes Fire, Fire TV) | inscription développeur envoyée (Business, Quadro Holdings Ltée, nom public Groupe TAKATAK) | vérification d'identité; le nom légal du profil doit être celui de la pièce d'identité | propriétaire |
+| Huawei AppGallery | formulaire de vérification entreprise rempli et vérifié, accords cochés (D-U-N-S 203779971, adresse D&B 1649F Rue Fleury E bureau 201, H2C 1S9) | cliquer Submit, puis téléverser les documents | propriétaire |
+| Amazon (tablettes Fire, Fire TV) | compte approuvé. App « BesoinAvocat » créée (SKU `ca.besoinavocat.portail`, catégorie Business) : descriptions FR/EN, gratuite, tous les pays, 18 ans et plus, politique de confidentialité, classement du contenu, 2 icônes. Courriel de soutien : support@takatak.ca (choix du propriétaire) | ajouter 3 captures ou plus (`APP-ANDROID\AMAZON\capture-*.jpg`, 1280x800), puis l'APK | propriétaire, puis Claude |
 | Apple App Store | pas de compte | inscription « Organization », 99 $ US par an | propriétaire |
 
 **Clé de signature Android :** le ZIP PWABuilder contient la clé (`signing.keystore`) et ses mots de passe (`signing-key-info.txt`). Ces fichiers ne vont jamais dans GitHub, Drive ou une conversation. Le ZIP reste seulement dans le dossier BESOINAVOCAT du PC, avec une copie de sauvegarde hors ligne. Sans cette clé, aucune mise à jour de l'app n'est possible.

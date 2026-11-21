@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="same-origin">
+  <meta name="description" content="Nos avocats : les bureaux d'avocats du répertoire BesoinAvocat, par ville. Préparez votre dossier, puis choisissez le bureau qui vous convient.">
+  <title>Nos avocats · BesoinAvocat</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./avocats.css">
+  <script src="./avocats.js" defer></script>
+</head>
+<body class="directory-page">
+  <a class="skip-link" href="#directory-main">Aller au contenu</a>
+  <header class="directory-top">
+    <a class="brand" href="./" aria-label="BesoinAvocat — espace de travail"><span class="brand-mark" aria-hidden="true">b<span>.</span></span><span>besoin<span class="brand-light">avocat</span><small>NOS AVOCATS</small></span></a>
+    <nav class="directory-top-actions" aria-label="Navigation">
+      <a class="text-button" href="./avocat">Vous êtes avocat ?</a>
+      <a class="text-button" href="./">Centre de commandement</a>
+    </nav>
+  </header>
+  <main id="directory-main" class="directory" tabindex="-1">
+    <div class="directory-hero">
+      <h1>Nos avocats</h1>
+      <p>Les bureaux d’avocats du répertoire BesoinAvocat. Préparez votre dossier ici, puis choisissez le bureau qui vous convient : aucun frais de référence, aucune commission sur les honoraires.</p>
+    </div>
+    <div class="directory-search">
+      <label for="firms-search">Rechercher un bureau</label>
+      <input id="firms-search" type="search" autocomplete="off" placeholder="Nom du bureau ou de la ville…">
+    </div>
+    <div id="directory-state" class="directory-state" role="status" aria-live="polite">Chargement du répertoire…</div>
+    <section class="directory-section" id="firms-top-section" aria-labelledby="firms-top-title">
+      <h2 id="firms-top-title">Top placement</h2>
+      <p class="directory-note">Les trois bureaux partenaires rattachés à BesoinAvocat.</p>
+      <ul class="firm-list" id="firms-top"></ul>
+      <p class="directory-empty" id="firms-top-empty" hidden>Emplacements partenaires — à venir</p>
+    </section>
+    <section class="directory-section" id="firms-sponsored-section" aria-labelledby="firms-sponsored-title">
+      <h2 id="firms-sponsored-title">Bureaux partenaires</h2>
+      <ul class="firm-list" id="firms-sponsored"></ul>
+      <p class="directory-empty" id="firms-sponsored-empty" hidden>Aucun bureau partenaire pour le moment.</p>
+    </section>
+    <section class="directory-section" id="firms-free-section" aria-labelledby="firms-free-title">
+      <h2 id="firms-free-title">Répertoire des bureaux <span class="directory-count" id="firms-count"></span></h2>
+      <ul class="firm-list" id="firms-free"></ul>
+      <p class="directory-empty" id="firms-free-empty" hidden>Le répertoire est en préparation.</p>
+      <p class="directory-empty" id="firms-noresult" hidden>Aucun bureau ne correspond à votre recherche.</p>
+    </section>
+  </main>
+  <footer class="page-footer directory-foot"><span>BesoinAvocat <span aria-hidden="true">·</span> besoinavocat.ca</span><span>Un outil de préparation, pas un cabinet d’avocats ni un service de conseils juridiques. Aucune commission sur vos honoraires.</span></footer>
+  <noscript><p class="noscript">Cette page nécessite JavaScript pour afficher le répertoire.</p></noscript>
+</body>
+</html>

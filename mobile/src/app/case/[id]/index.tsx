@@ -19,8 +19,8 @@ type Tab = 'apercu' | 'pieces' | 'echanges' | 'demandes' | 'echeances' | 'rdv';
 export default function CaseScreen() {
   const params = useLocalSearchParams<{ id: string; tab?: Tab; add?: Source }>();
   const id = params.id;
-  const { capabilities } = useSession();
-  const [tab, setTab] = useState<Tab>(params.tab ?? 'apercu');
+  const { capabilities, user } = useSession();
+  const [tab, setTab] = useState<Tab>(TABS.includes(params.tab as Tab) ? params.tab as Tab : 'apercu');
   const [uploading, setUploading] = useState<{ name: string; ratio: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const autoAdd = useRef(params.add);
@@ -105,14 +105,19 @@ export default function CaseScreen() {
       ) : null}
 
       {tab === 'echanges' ? (
-        details.messages.length ? details.messages.map(m => (
-          <View key={m.id} style={{ marginBottom: 12, alignItems: 'flex-start' }}>
-            <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, borderTopLeftRadius: 4, padding: 14, borderWidth: 1, borderColor: colors.line, maxWidth: '92%' }}>
-              <Text style={type.body}>{m.body}</Text>
+        details.messages.length ? details.messages.map(m => {
+          const mine = Boolean(user && m.authorSubject === user.subject);
+          return (
+            <View key={m.id} style={{ marginBottom: 12, alignItems: mine ? 'flex-end' : 'flex-start' }}>
+              <View style={mine
+                ? { backgroundColor: colors.wine, borderRadius: radius.lg, borderTopRightRadius: 4, padding: 14, maxWidth: '88%' }
+                : { backgroundColor: colors.surface, borderRadius: radius.lg, borderTopLeftRadius: 4, padding: 14, borderWidth: 1, borderColor: colors.line, maxWidth: '88%' }}>
+                <Text style={[type.body, mine ? { color: '#fff' } : null]}>{m.body}</Text>
+              </View>
+              <Text style={[type.small, { fontSize: 11.5, marginTop: 4, marginHorizontal: 4 }]}>{mine ? 'Vous · ' : ''}{formatDateTime(m.createdAt)}</Text>
             </View>
-            <Text style={[type.small, { fontSize: 11.5, marginTop: 4, marginLeft: 4 }]}>{formatDateTime(m.createdAt)}</Text>
-          </View>
-        )) : <Empty icon="message" title="Aucun échange" text="Écrivez vos questions pour l’avocat. Il les retrouvera dans le dossier." />
+          );
+        }) : <Empty icon="message" title="Aucun échange" text="Écrivez vos questions pour l’avocat. Il les retrouvera dans le dossier." />
       ) : null}
 
       {tab === 'demandes' ? (
@@ -231,6 +236,8 @@ function Composer({ caseId, onSent }: { caseId: string; onSent: () => void }) {
     </View>
   );
 }
+
+const TABS: Tab[] = ['apercu', 'pieces', 'echanges', 'demandes', 'echeances', 'rdv'];
 
 function latestVersions(documents: Document[]) {
   const byRoot = new Map<string, Document>();

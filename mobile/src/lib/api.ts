@@ -22,7 +22,11 @@ export class ApiError extends Error {
   }
 }
 
+// Visual preview with fictitious data (src/lib/demo.ts), never on in a store build.
+export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
+
 export async function loadSession(): Promise<string | null> {
+  if (DEMO) { token = 'demo'; return token; }
   token = await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
   return token;
 }
@@ -141,3 +145,8 @@ export const api = {
   downloadUrl: (caseId: string, documentId: string) => `${PORTAL_ORIGIN}/api/cases/${enc(caseId)}/documents/${enc(documentId)}/download`,
   authHeaders: () => baseHeaders(),
 };
+
+if (DEMO) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Object.assign(api, require('./demo').demoApi);
+}

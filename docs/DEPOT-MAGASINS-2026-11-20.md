@@ -2,17 +2,19 @@
 
 Suite de [APPS-MAGASINS.md](APPS-MAGASINS.md). Ce guide donne, pour chaque magasin, ce que le propriétaire fait lui-même et ce que Claude remplit ensuite, avec les réponses à copier. Les réponses reprennent celles de Google Play, déjà enregistrées le 20 novembre.
 
-## État au 21 novembre 2026 (00 h 10 UTC)
+## État au 21 novembre 2026 (01 h 00 UTC)
 
 | Magasin | État | Prochaine étape | Qui |
 |---|---|---|---|
-| Google Play | 11 tâches sur 12 terminées; paquet Android `ca.besoinavocat.portail` dans `BESOINAVOCAT\APP-ANDROID`; version de test interne préparée, notes de version en français écrites | « Don't label assets » + Save; cliquer Upload et choisir `APP-ANDROID\BesoinAvocat.aab` | propriétaire, puis Claude |
+| Google Play | **version 1 publiée en test interne** (liste de testeurs « Équipe TAKATAK »). Empreinte de signature Google ajoutée dans `BESOINAVOCAT_ANDROID_CERT_SHA256` | Redeploy Coolify; ensuite test fermé puis production | propriétaire, puis Claude |
 | Microsoft Store | compte « Groupe TAKATAK » : courriel et entreprise vérifiés, emploi en vérification (environ 5 jours ouvrables) | attendre le courriel de Microsoft | Microsoft |
 | Zoom Marketplace | application soumise, en révision fonctionnelle | attendre la réponse de Zoom | Zoom |
 | Samsung Galaxy Store | compte vendeur créé (Free Distribution Seller). La demande « Corporate Commercial Distribution Seller » échoue toujours avec « Security error ». Demande au support Samsung envoyée le 20 novembre (enregistrée). | attendre la réponse de Samsung par courriel | Samsung |
-| Huawei AppGallery | formulaire de vérification entreprise rempli et vérifié, accords cochés (D-U-N-S 203779971, adresse D&B 1649F Rue Fleury E bureau 201, H2C 1S9) | cliquer Submit, puis téléverser les documents | propriétaire |
-| Amazon (tablettes Fire, Fire TV) | compte approuvé. App « BesoinAvocat » créée (SKU `ca.besoinavocat.portail`, catégorie Business) : descriptions FR/EN, gratuite, tous les pays, 18 ans et plus, politique de confidentialité, classement du contenu, 2 icônes. Courriel de soutien : support@takatak.ca (choix du propriétaire) | ajouter 3 captures ou plus (`APP-ANDROID\AMAZON\capture-*.jpg`, 1280x800), puis l'APK | propriétaire, puis Claude |
+| Huawei AppGallery | **vérification entreprise envoyée** (D-U-N-S 203779971) | attendre le courriel de Huawei (1 à 2 jours ouvrables), puis créer l'app | Huawei |
+| Amazon (tablettes Fire, Fire TV) | fiche complète (App Setup vert) : textes FR/EN, gratuite, tous les pays, 18+, confidentialité, classement du contenu, 2 icônes, 4 captures 1280x800. Version : `.aab`, DRM non, 12 tablettes Fire, instructions pour l'examinateur. Soutien : support@takatak.ca | cocher « Export compliance », puis Submit for Review | propriétaire |
 | Apple App Store | pas de compte | inscription « Organization », 99 $ US par an | propriétaire |
+
+**Captures Amazon :** ajoutées sans sélecteur de fichiers, à partir de `docs/store-assets/screenshots/android-tablet-10-*` servi par cdn.jsdelivr.net (le dépôt est public), redimensionnées à 1280x800 dans la page.
 
 **Clé de signature Android :** le ZIP PWABuilder contient la clé (`signing.keystore`) et ses mots de passe (`signing-key-info.txt`). Ces fichiers ne vont jamais dans GitHub, Drive ou une conversation. Le ZIP reste seulement dans le dossier BESOINAVOCAT du PC, avec une copie de sauvegarde hors ligne. Sans cette clé, aucune mise à jour de l'app n'est possible.
 
@@ -62,8 +64,8 @@ Le même `.apk` signé par cette clé sert aux trois magasins hors Google. Pour 
 | Magasin | Icône | Bannière | Captures (au moins 4) |
 |---|---|---|---|
 | Samsung Galaxy Store | `samsung-galaxy-icon-512.png` | `samsung-galaxy-feature-1024x500.png` | `google-play/play-telephone-1080x1920-*` (4) |
-| Huawei AppGallery | `huawei-icon-216.png` | — | `google-play/play-telephone-1080x1920-*` (4) |
-| Amazon Fire | `amazon-icon-114.png` + `amazon-icon-512.png` | `amazon-firetv-banner-1280x720.png` | `screenshots/android-tablet-10-*` (4) |
+| Huawei AppGallery | **vérification entreprise envoyée** (D-U-N-S 203779971) | attendre le courriel de Huawei (1 à 2 jours ouvrables), puis créer l'app | Huawei |
+| Amazon (tablettes Fire, Fire TV) | fiche complète (App Setup vert) : textes FR/EN, gratuite, tous les pays, 18+, confidentialité, classement du contenu, 2 icônes, 4 captures 1280x800. Version : `.aab`, DRM non, 12 tablettes Fire, instructions pour l'examinateur. Soutien : support@takatak.ca | cocher « Export compliance », puis Submit for Review | propriétaire |
 | Apple | `apple-app-icon-1024.png` | — | `screenshots/apple-iphone-6.9-*` + `screenshots/apple-ipad-13-*` |
 
 ## 1. Samsung Galaxy Store

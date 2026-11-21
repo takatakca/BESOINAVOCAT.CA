@@ -1,0 +1,30 @@
+/* Nos avocats — annuaire public des cabinets. Uses the workspace tokens of styles.css; adds only its own layout. */
+.directory-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; background: var(--navy); color: #fff; }
+.directory-top .brand { color: #fff; text-decoration: none; }
+.directory-top .text-button { color: #fff; }
+.directory-top-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.directory { max-width: 1120px; margin: 0 auto; padding: 28px 24px 48px; outline: none; }
+.directory-foot { max-width: 1120px; margin: 0 auto; }
+.directory-hero { display: grid; gap: 6px; margin-bottom: 22px; max-width: 760px; }
+.directory-hero h1 { font-size: 30px; }
+.directory-hero p { color: var(--muted); font-size: 15px; }
+.directory-search { display: grid; gap: 6px; max-width: 480px; margin-bottom: 18px; }
+.directory-search label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.directory-state { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--muted); margin-bottom: 18px; }
+.directory-state:empty { display: none; }
+.directory-state.is-error { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+.directory-section { margin-bottom: 30px; }
+.directory-section h2 { font-size: 20px; margin-bottom: 4px; }
+.directory-count { font-size: 13px; font-weight: 500; color: var(--muted); }
+.directory-note { font-size: 13.5px; color: var(--muted); margin-bottom: 10px; }
+.directory-empty { font-size: 13.5px; color: var(--muted); padding: 12px 14px; border: 1px dashed var(--line-strong); border-radius: var(--r); background: var(--sunken); }
+.firm-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.firm { display: grid; gap: 2px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.firm strong { font-size: 14.5px; overflow-wrap: anywhere; }
+.firm small { color: var(--muted); font-size: 12.5px; }
+#firms-top .firm { border-left: 4px solid var(--amber); }
+#firms-sponsored .firm { border-left: 4px solid var(--green); }
+
+@media (max-width: 900px) {
+  .firm-list { grid-template-columns: 1fr; }
+}

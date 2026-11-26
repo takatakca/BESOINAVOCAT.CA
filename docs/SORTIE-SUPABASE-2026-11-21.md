@@ -1,5 +1,7 @@
 # Sortie de Supabase payant — plan (2026-11-21)
 
+> **2026-11-26 : travail arrêté.** Le propriétaire a confié Supabase à son développeur. Rien n'a été changé chez Supabase ni dans Coolify. Remise en anglais : [SUPABASE-HANDOFF-FOR-DEV.md](SUPABASE-HANDOFF-FOR-DEV.md).
+
 Décision du propriétaire, 2026-11-21 16:13 UTC : quitter Supabase (forfait Pro, trop cher) et héberger la base **sur notre serveur Coolify** (option choisie sur la carte de décision du fil « Remplacer Supabase par une solution moins chère »).
 
 ## Ce qui est facturé aujourd'hui

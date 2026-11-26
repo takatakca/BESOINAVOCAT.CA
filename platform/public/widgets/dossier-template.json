@@ -1,0 +1,13 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.5",
+  "body": [
+    { "type": "TextBlock", "text": "${titre}", "weight": "Bolder", "size": "Medium", "wrap": true },
+    { "type": "TextBlock", "text": "${texte}", "wrap": true, "spacing": "Small" }
+  ],
+  "actions": [
+    { "type": "Action.OpenUrl", "title": "Ouvrir mon dossier", "url": "${lien}" },
+    { "type": "Action.OpenUrl", "title": "Ajouter une pièce", "url": "${lienPieces}" }
+  ]
+}

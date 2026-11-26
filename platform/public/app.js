@@ -154,8 +154,8 @@
     const payload = await response.json().catch(() => ({}));
     if (sessionVersion !== state.sessionVersion) throw new Error('Cette réponse appartient à une session fermée.');
     if (!response.ok) {
-      const error = new Error(payload.error?.message || `La demande n’a pas abouti (${response.status}).`);
-      error.status = response.status;
+      const error = new Error((payload.error?.message || `La demande n’a pas abouti (${response.status}).`) + (response.status === 402 ? ' Voir « Mon forfait » dans les réglages.' : ''));
+      error.status = response.status; error.code = payload.error?.code || null;
       if (typeof payload.error?.link === 'string' && /^https:\/\/(?:[a-z0-9-]+\.)?mimt\.ca\//u.test(payload.error.link)) error.link = payload.error.link;
       throw error;
     }
@@ -1225,11 +1225,19 @@
   function summaryField(value = '', { prefix = 'case' } = {}) {
     return `<div class="field"><label for="${prefix}-summary">Votre situation, en quelques phrases <span class="table-subtext">facultatif</span></label><textarea id="${prefix}-summary" name="summary" maxlength="1500" placeholder="Ce qui s’est passé, ce que vous cherchez à obtenir, les dates importantes…">${esc(value)}</textarea><small>Ce résumé est la première chose que l’avocat lit. Pas de numéro d’assurance sociale ni de mot de passe.</small></div>`;
   }
-  function openNewCase() {
+  // Dépôt de pièces dès la création du dossier (demande du propriétaire, 18 novembre 2026) : facultatif, plusieurs fichiers,
+  // envoyés un à un après la création, avec les mêmes limites et les mêmes gardes (forfait D-041) que l'espace de travail.
+  function filesField() {
+    const accept = '.pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.txt,.csv,.json,.eml,.doc,.docx,.xls,.xlsx,.pptx,.webm,.mp4,.m4a,.mp3';
+    return `<div class="field"><label for="case-files">Vos premières pièces <span class="table-subtext">facultatif, plusieurs fichiers</span></label><input id="case-files" class="file-input" name="files" type="file" multiple accept="${accept}"><small>Photos, PDF, documents, vidéo ou audio · ${esc(bytes(state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES))} au plus par fichier, 20 à la fois. Vous pourrez en ajouter en tout temps.</small></div>`;
+  }
+  function openNewCase({ welcome = false } = {}) {
     if (!canMutate()) return;
     const handoff = readHandoff();
-    const subtitle = handoff ? 'Le domaine et le résumé de votre demande sont repris : vérifiez-les, donnez un titre, et le dossier est créé.' : 'Un titre clair, le domaine et quelques phrases suffisent pour commencer.';
-    showDialog('Nouveau dossier', subtitle, `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div>${domainField(handoff?.domain || null)}${summaryField(handoff?.summary || '')}<div class="field"><label for="case-reference">Référence <span class="table-subtext">facultatif</span></label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter('Créer le dossier')}</form>`);
+    const subtitle = handoff ? 'Le domaine et le résumé de votre demande sont repris : vérifiez-les, donnez un titre, et le dossier est créé.'
+      : welcome ? 'Gratuit pour commencer, 14 jours Premium offerts sans carte. Un titre, le domaine, vos premières pièces : votre dossier est prêt à être préparé.'
+        : 'Un titre clair, le domaine et quelques phrases suffisent pour commencer.';
+    showDialog(welcome ? 'Votre premier dossier' : 'Nouveau dossier', subtitle, `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div>${domainField(handoff?.domain || null)}${summaryField(handoff?.summary || '')}${filesField()}<div class="field"><label for="case-reference">Référence <span class="table-subtext">facultatif</span></label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter(welcome ? 'Créer mon dossier' : 'Créer le dossier')}</form>`);
   }
   function openCaseProfile() {
     if (!canMutate() || !state.detail) return;
@@ -1678,10 +1686,27 @@
         const payload = { title: String(data.get('title')).trim(), reference: String(data.get('reference') || '').trim() };
         if (data.get('domain')) payload.domain = String(data.get('domain'));
         if (String(data.get('summary') || '').trim()) payload.summary = String(data.get('summary')).trim();
+        const files = data.getAll('files').filter(f => f instanceof File && f.size);
+        const max = state.capabilities?.maxDocumentBytes || MAX_FILE_BYTES;
+        if (files.length > 20) throw new Error('20 fichiers au plus à la fois.');
+        const tooBig = files.find(f => f.size > max);
+        if (tooBig) throw new Error(`« ${cleanName(tooBig.name)} » dépasse ${bytes(max)}. Retirez-le ou envoyez-le plus tard, compressé.`);
         const result = await api('/api/cases', { method: 'POST', body: JSON.stringify(payload) });
         state.cases = (await api('/api/cases')).cases || [];
         clearHandoff();
-        state.selectedId = result.case.id; await refreshDetail(); state.view = 'documents'; message = 'Le dossier a été créé. Ajoutez vos pièces, puis déclarez-le prêt pour un avocat.';
+        state.selectedId = result.case.id;
+        // Les pièces choisies partent une à une; un refus du forfait (402) arrête la série sans annuler le dossier.
+        let sent = 0, refused = ''; const label = button.textContent;
+        for (const file of files) {
+          if (button.isConnected) button.textContent = `Envoi de la pièce ${sent + 1} sur ${files.length}…`;
+          try {
+            await queueUpload(() => postDocument(result.case.id, file, { name: cleanName(file.name), mimeType: mimeFor(file), sourceType: 'original', reviewStatus: 'a_verifier', extractedText: '', sourceReference: `Déposé à la création du dossier le ${date(new Date().toISOString(), true)} : provenance à préciser.` }));
+            sent += 1;
+          } catch (error) { refused = error.message; if (error.status === 402) break; }
+        }
+        if (button.isConnected) button.textContent = label;
+        await refreshDetail(); state.view = 'documents';
+        message = sent ? `Le dossier a été créé avec ${sent} pièce${sent > 1 ? 's' : ''}.${refused ? ` ${refused}` : ' Vous pourrez en ajouter, puis le déclarer prêt pour un avocat.'}` : refused ? `Le dossier a été créé, mais la pièce n’a pas été acceptée : ${refused}` : 'Le dossier a été créé. Ajoutez vos pièces, puis déclarez-le prêt pour un avocat.';
       } else if (form.id === 'case-profile-form') {
         const payload = { summary: String(data.get('summary') || '').trim() };
         if (data.has('domain')) payload.domain = data.get('domain') ? String(data.get('domain')) : null;
@@ -2151,9 +2176,9 @@
       await loadSession();
       if (generation !== state.sessionVersion) return;
       state.loginEmail = ''; state.signupName = ''; state.loginNotice = ''; state.loginStep = 'email';
-      notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Ouvrez votre premier dossier.');
+      notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé, avec 14 jours Premium offerts. Ouvrez votre premier dossier et déposez vos pièces.');
       state.busy = false; render(true);
-      if (!state.cases.length) openNewCase();
+      if (!state.cases.length) openNewCase({ welcome: true });
       return;
     } catch (error) {
       if (generation === state.sessionVersion) { clearSession(); state.loginEmail = email; state.loginStep = 'signup-code'; state.loginNotice = error.status === 401 ? 'Code non valide ou expiré. Demandez un nouveau code si besoin.' : error.message; notify(state.loginNotice, true); }
@@ -2243,7 +2268,7 @@
       await loadSession();
       if (state.googleReturn === 'connecte' && state.mode === 'authenticated') {
         state.googleReturn = '';
-        notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Ouvrez votre premier dossier.');
+        notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé, avec 14 jours Premium offerts. Ouvrez votre premier dossier et déposez vos pièces.');
         if (!state.cases.length) { render(); openNewCase(); return; }
       }
       // Deep links: /#case/<id>[/<section>] opens one dossier directly (used by the lawyer space); /#integrations is the connector return page.

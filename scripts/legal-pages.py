@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Génère les pages publiques /confidentialite et /conditions du portail à partir de docs/legal/*.md.
+"""Génère les pages publiques /confidentialite, /conditions et /suppression-compte du portail à partir de docs/legal/*.md.
 Usage : python3 scripts/legal-pages.py   (sans dépendance; Markdown simple : titres, paragraphes, listes, gras, italique, code, liens)."""
 import html, re, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGES = [('POLITIQUE-DE-CONFIDENTIALITE.md', 'confidentialite.html', 'Politique de confidentialité'),
-         ('CONDITIONS-AVOCATS.md', 'conditions.html', 'Conditions d’utilisation de l’espace avocat')]
+         (('CONDITIONS-CLIENTS.md', 'CONDITIONS-AVOCATS.md'), 'conditions.html', 'Conditions d’utilisation'),
+         ('SUPPRESSION-DE-COMPTE.md', 'suppression-compte.html', 'Supprimer votre compte ou vos données')]
 
 def inline(text):
     t = html.escape(text, quote=False)
@@ -38,7 +39,9 @@ def convert(md):
     return '\n'.join(out)
 
 for source, target, title in PAGES:
-    body = convert((ROOT / 'docs/legal' / source).read_text(encoding='utf-8'))
+    sources = source if isinstance(source, tuple) else (source,)
+    body = '\n'.join(convert((ROOT / 'docs/legal' / s).read_text(encoding='utf-8')) for s in sources)
+    source = ' + '.join(sources)
     page = f'''<!doctype html>
 <html lang="fr-CA">
 <head>

@@ -150,14 +150,16 @@ test('an existing TAKATAK account does not become a lawyer without a pending sig
   assert.equal((await f.request('/api/auth/lawyer/verify', { method: 'POST', headers: csrf, body: { email: 'avocate@example.test', code: '00123456' } })).status, 403);
 });
 
-test('lawyer access is free by default (owner, 13 November 2026): an expired trial still joins cases', async t => {
+test('lawyer access is paid (owner, 20 November 2026) but nothing blocks until Stripe is connected: an expired trial still joins cases', async t => {
   const f = await fixture(t);
   const { cookie } = await f.signup();
   const created = await f.request('/api/cases', { method: 'POST', token: 'client', body: { title: 'Dossier', reference: 'CL-3' } });
   f.advance(15 * 86_400_000);
   const later = await f.login('avocate@example.test');
   const me = await f.request('/api/lawyer/me', { cookie: later });
-  assert.equal(me.json.membership.accessFree, true);
+  assert.equal(me.json.membership.accessFree, false);
+  assert.equal(me.json.membership.accessEnforced, false);
+  assert.deepEqual(me.json.membership.grid.map(p => [p.id, p.amount, p.interval, p.commitmentMonths]), [['weekly', 10000, 'week', 0], ['monthly', 30000, 'month', 12]]);
   const code = (await f.request(`/api/cases/${created.json.case.id}/invitations`, { method: 'POST', token: 'client', body: {} })).json.code;
   assert.equal((await f.request('/api/lawyer/join', { method: 'POST', cookie: later, body: { code } })).status, 200);
   assert.ok(cookie);
@@ -166,6 +168,7 @@ test('lawyer access is free by default (owner, 13 November 2026): an expired tri
 test('after 14 days the trial expires: payment is asked, new cases cannot be joined, existing cases stay readable', async t => {
   const f = await fixture(t, { env: { BESOINAVOCAT_LAWYER_ACCESS: 'paid' } });
   const { cookie } = await f.signup();
+  assert.equal((await f.request('/api/capabilities', { cookie })).json.lawyerAccessEnforced, true);
   const created = await f.request('/api/cases', { method: 'POST', token: 'client', body: { title: 'Dossier', reference: 'CL-2' } });
   const caseId = created.json.case.id;
   const first = await f.request(`/api/cases/${caseId}/invitations`, { method: 'POST', token: 'client', body: {} });
@@ -190,6 +193,35 @@ test('after 14 days the trial expires: payment is asked, new cases cannot be joi
   assert.equal(refused.json.error.code, 'PAYMENT_REQUIRED');
   assert.equal((await f.request(`/api/cases/${caseId}`, { cookie: expiredCookie })).status, 200, 'the client never loses their lawyer’s eyes on the file');
   assert.equal((await f.request('/api/membership/checkout', { method: 'POST', cookie: expiredCookie, body: { plan: 'monthly' } })).status, 503, 'Stripe not configured: no payment possible yet');
+});
+
+test('with Stripe connected, the expired trial blocks by default and the monthly plan carries the one-year commitment and the TPS/TVQ rates', async t => {
+  const calls = [];
+  const stripe = async (url, options = {}) => {
+    const u = new URL(url); calls.push({ path: u.pathname, form: options.body ? Object.fromEntries(new URLSearchParams(options.body)) : null });
+    if (u.pathname === '/v1/prices/price_weekly0001') return Response.json({ id: 'price_weekly0001', unit_amount: 10000, currency: 'cad', recurring: { interval: 'week', interval_count: 1 }, active: true });
+    if (u.pathname === '/v1/prices/price_monthly001') return Response.json({ id: 'price_monthly001', unit_amount: 30000, currency: 'cad', recurring: { interval: 'month', interval_count: 1 }, active: true });
+    if (u.pathname === '/v1/checkout/sessions') return Response.json({ id: 'cs_2', url: 'https://checkout.stripe.com/c/pay/cs_2' });
+    throw new Error(`Unexpected Stripe call ${u.pathname}`);
+  };
+  const f = await fixture(t, { stripe, env: { BESOINAVOCAT_STRIPE_SECRET_KEY: `sk_test_${'a'.repeat(24)}`, BESOINAVOCAT_STRIPE_PRICE_WEEKLY: 'price_weekly0001', BESOINAVOCAT_STRIPE_PRICE_MONTHLY: 'price_monthly001', BESOINAVOCAT_STRIPE_WEBHOOK_SECRET: `whsec_${'w'.repeat(32)}`, BESOINAVOCAT_STRIPE_TAX_RATES: 'txr_tpsTPS0001,txr_tvqTVQ0001' } });
+  await f.signup();
+  const created = await f.request('/api/cases', { method: 'POST', token: 'client', body: { title: 'Dossier', reference: 'CL-4' } });
+  f.advance(15 * 86_400_000);
+  const cookie = await f.login('avocate@example.test');
+  assert.equal((await f.request('/api/capabilities', { cookie })).json.lawyerAccessEnforced, true);
+  const overview = (await f.request('/api/membership', { cookie })).json;
+  assert.deepEqual(overview.plans.map(p => [p.plan, p.amountCents, p.commitmentMonths, p.matchesGrid]), [['weekly', 10000, 0, true], ['monthly', 30000, 12, true]]);
+  const code = (await f.request(`/api/cases/${created.json.case.id}/invitations`, { method: 'POST', token: 'client', body: {} })).json.code;
+  assert.equal((await f.request('/api/lawyer/join', { method: 'POST', cookie, body: { code } })).status, 402);
+  const checkout = await f.request('/api/membership/checkout', { method: 'POST', cookie, body: { plan: 'monthly' } });
+  assert.equal(checkout.status, 201, checkout.text);
+  const form = calls.at(-1).form;
+  assert.equal(form['line_items[0][price]'], 'price_monthly001');
+  assert.equal(form['subscription_data[metadata][ba_commitment_months]'], '12');
+  assert.equal(form['line_items[0][tax_rates][0]'], 'txr_tpsTPS0001');
+  assert.equal(form['automatic_tax[enabled]'], undefined, 'tax rates replace Stripe Tax');
+  assert.equal(form['subscription_data[trial_end]'], undefined, 'no trial left to keep');
 });
 
 test('a person already granted access opens the lawyer space from their session; Stripe checkout keeps the remaining trial', async t => {

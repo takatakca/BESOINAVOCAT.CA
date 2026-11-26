@@ -26,6 +26,7 @@ import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
 import { billingConfiguration, createBilling } from './lib/billing.mjs';
 import { createLawyerAccounts, lawyerAccountsConfiguration } from './lib/lawyer-accounts.mjs';
+import { createFirmsDirectory, firmsDirectoryConfiguration } from './lib/firms-directory.mjs';
 import { createClientAccounts } from './lib/client-accounts.mjs';
 import { createCaseMatching } from './lib/case-matching.mjs';
 import { createAuditSeal } from './lib/audit-seal.mjs';
@@ -76,6 +77,11 @@ const assets = new Map([
   ['/avocat/', ['avocat.html', 'text/html; charset=utf-8']],
   ['/avocat.js', ['avocat.js', 'text/javascript; charset=utf-8']],
   ['/avocat.css', ['avocat.css', 'text/css; charset=utf-8']],
+  // Annuaire public des cabinets : la page ne reçoit que la projection de lib/firms-directory.mjs (nom + ville + palier).
+  ['/avocats', ['avocats.html', 'text/html; charset=utf-8']],
+  ['/avocats/', ['avocats.html', 'text/html; charset=utf-8']],
+  ['/avocats.js', ['avocats.js', 'text/javascript; charset=utf-8']],
+  ['/avocats.css', ['avocats.css', 'text/css; charset=utf-8']],
   // Public help pages (support and Zoom app guide), linked from the Zoom App Marketplace listing.
   ['/aide', ['aide.html', 'text/html; charset=utf-8']],
   ['/aide/', ['aide.html', 'text/html; charset=utf-8']],
@@ -88,6 +94,8 @@ const assets = new Map([
   // Public legal pages, generated from docs/legal/*.md by scripts/legal-pages.py.
   ['/confidentialite', ['confidentialite.html', 'text/html; charset=utf-8']],
   ['/conditions', ['conditions.html', 'text/html; charset=utf-8']],
+  // Account and data deletion steps, linked from the Google Play data safety form.
+  ['/suppression-compte', ['suppression-compte.html', 'text/html; charset=utf-8']],
   // Installable app on every device (Android, iOS, Windows, macOS, Linux): manifest, service worker, icons, offline page.
   ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
   ['/sw.js', ['sw.js', 'text/javascript; charset=utf-8']],
@@ -101,6 +109,10 @@ const assets = new Map([
   ['/screenshots/narrow-accueil.png', ['screenshots/narrow-accueil.png', 'image/png']],
   ['/screenshots/narrow-demande.png', ['screenshots/narrow-demande.png', 'image/png']],
   ['/screenshots/wide-accueil.png', ['screenshots/wide-accueil.png', 'image/png']],
+  ['/screenshots/widget-dossier.png', ['screenshots/widget-dossier.png', 'image/png']],
+  // Windows widget board (manifest "widgets"): Adaptive Card template and its public data (no account data).
+  ['/widgets/dossier-template.json', ['widgets/dossier-template.json', 'application/json; charset=utf-8']],
+  ['/widgets/dossier-data.json', ['widgets/dossier-data.json', 'application/json; charset=utf-8']],
   // Self-hosted fonts of the request page (SIL Open Font License, see public/fonts/LICENSE.txt).
   ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
   ['/fonts/montserrat-latin.woff2', ['fonts/montserrat-latin.woff2', 'font/woff2']],
@@ -194,6 +206,8 @@ export function createApp({
   const store = createStore({ dbPath, blobDir, blobKey: loadBlobKey(env.BESOINAVOCAT_BLOB_KEY_FILE) });
   // Comptes avocats inscrits eux-mêmes : leur habilitation est lue à chaque connexion, en plus du fichier de grants.
   const accounts = createLawyerAccounts({ db: store.db, store, audit: store.audit, config: lawyerAccountsConfiguration(env), clock });
+  // Annuaire des cabinets : dataset arrière-plan lu une fois au démarrage; seule sa projection publique est servie.
+  const firmsDirectory = createFirmsDirectory(firmsDirectoryConfiguration(env));
   // Trois sources d'habilitation, relues à chaque requête : le fichier privé de grants, les comptes avocats, les comptes clients (D-036).
   const clients = createClientAccounts({ db: store.db, audit: store.audit, tenantId: accounts.config.tenantId, clock });
   const matching = createCaseMatching({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -211,13 +225,16 @@ export function createApp({
   // le paiement est raccordé; la garde des pièces s'exécute dans la transaction d'ajout.
   const billing = createBilling({ db: store.db, config: billingConfiguration(env), fetch: paymentsFetch, clock, isClient: clients.has, isLawyer: accounts.has });
   store.setUploadGuard((actor, caseId, info) => billing.checkUpload(actor, caseId, info));
-  // Accès avocat gratuit pour le moment (propriétaire, 13 novembre 2026); BESOINAVOCAT_LAWYER_ACCESS=paid rétablit
-  // le paiement après l'essai de 14 jours.
-  const lawyerAccessFree = env.BESOINAVOCAT_LAWYER_ACCESS !== 'paid';
-  // Essai ou abonnement en cours : exigé pour rejoindre un dossier quand l'accès avocat est payant.
+  // Accès avocat payant (propriétaire, 20 novembre 2026, D-044) : 14 jours gratuits, puis 100 $ par semaine ou 300 $
+  // par mois avec engagement d'un an (lib/pricing.mjs). Par défaut, l'essai expiré ne bloque que lorsque Stripe est
+  // raccordé (on n'empêche jamais quelqu'un qui ne peut pas payer); BESOINAVOCAT_LAWYER_ACCESS=paid bloque même sans
+  // Stripe, =free rend l'accès gratuit.
+  const lawyerAccessFree = env.BESOINAVOCAT_LAWYER_ACCESS === 'free';
+  const lawyerAccessEnforced = !lawyerAccessFree && (env.BESOINAVOCAT_LAWYER_ACCESS === 'paid' || membershipConfiguration(env).configured);
+  // Essai ou abonnement en cours : exigé pour rejoindre ou accepter un dossier quand l'accès avocat est exigé.
   const requireLawyerAccess = user => {
     if (!accounts.has(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'Ouvrez d’abord votre espace avocat.');
-    if (!lawyerAccessFree && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+    if (lawyerAccessEnforced && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
   };
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
@@ -252,6 +269,8 @@ export function createApp({
       return json(res, 200, assetLinks);
     }
     if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured });
+    // Annuaire public : nom du cabinet, ville et palier seulement — jamais une coordonnée (lib/firms-directory.mjs).
+    if (path === '/api/firms' && method === 'GET') return json(res, 200, firmsDirectory.publicDirectory());
     // Public price grid (lib/pricing.mjs): no account state, readable before sign-in.
     if (path === '/api/pricing') {
       if (method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -293,6 +312,15 @@ export function createApp({
         const reason = error instanceof HttpError && error.status === 403 ? '/?signup=1&google=nouveau' : error instanceof HttpError && error.status === 429 ? '/?google=attendre' : '/?google=erreur';
         return back(reason, [clearFlow]);
       }
+    }
+    // Share sheet target (manifest "share_target"): the service worker answers it on the device. Without the
+    // service worker (first visit, private window), nothing is stored here: back to the portal.
+    if (path === '/partager') {
+      if (!['GET', 'POST'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
+      req.resume();
+      res.statusCode = 303;
+      res.setHeader('Location', '/');
+      return res.end();
     }
     if (!path.startsWith('/api/')) {
       if (!['GET', 'HEAD'].includes(method)) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
@@ -590,7 +618,7 @@ export function createApp({
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (path === '/api/lawyer/me' && method === 'GET') {
         const account = accounts.get(user);
-        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
+        return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree, accessEnforced: lawyerAccessEnforced } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
       }
       // Dossiers prêts du domaine de l'avocat (D-036) : titre, domaine, résumé, nombre de pièces; jamais les pièces.
       if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user))); }
@@ -611,7 +639,7 @@ export function createApp({
     // Lawyer subscription to the platform, by Stripe Checkout (lib/membership.mjs). Never a client payment.
     if (path === '/api/membership' || path.startsWith('/api/membership/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
-        if (path === '/api/membership' && method === 'GET') return json(res, 200, { ...await membership.overview(user), accessFree: lawyerAccessFree });
+        if (path === '/api/membership' && method === 'GET') return json(res, 200, { ...await membership.overview(user), accessFree: lawyerAccessFree, accessEnforced: lawyerAccessEnforced });
         if (path === '/api/membership/checkout' && method === 'POST') return json(res, 201, await membership.checkout(user, await readJson(req, 256)));
         if (path === '/api/membership/portal' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 201, await membership.portal(user)); }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
@@ -661,7 +689,7 @@ export function createApp({
       if (integration[2] === 'connect') billing.checkPlugin(user, integration[1]);
       return json(res, 200, integration[2] === 'connect' ? integrations.connect(user, integration[1]) : await integrations.disconnect(user, integration[1]));
     }
-    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, lawyerAccessFree, billing: { configured: billing.configured(), enforced: billing.enforced() }, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
+    if (path === '/api/capabilities' && method === 'GET') return json(res, 200, { intakeReview: intake.isReviewer(user), lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays, account: accounts.has(user) }, clientAccount: clients.has(user), caseMatching: { domains: matching.domains }, ai: false, structuredSearch: true, telephony: telephony.overview(user), video: { builtIn: true }, documentGeneration: true, documentRequests: true, deadlines: true, calendarFeed: calendarFeed.configured(), signatures: signatures.ready(), emailNotices: notifications.configured(), canlii: canlii.configured(), clio: clio.ready(), auditSeal: true, payments: false, lawyerSubscription: membershipConfiguration(env).configured, lawyerAccessFree, lawyerAccessEnforced, billing: { configured: billing.configured(), enforced: billing.enforced() }, addons: publicAddonCatalog(), communications: { appointments: true, manualServerTimer: true, providers: COMMUNICATION_PROVIDERS, billingEnabled: false }, integrations: { engineReady: integrations.engineReady() }, maxDocumentBytes: MAX_DOCUMENT_BYTES, caseStorageQuotaBytes: CASE_STORAGE_QUOTA_BYTES, pageCitations: true });
     if (path === '/api/cases') {
       if (method === 'GET') return json(res, 200, { cases: matching.decorate(user.tenantId, store.listCases(user)) });
       if (method === 'POST') {

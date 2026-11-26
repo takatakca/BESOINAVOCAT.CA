@@ -1,4 +1,4 @@
-// Monétisation (D-041) : grille publique, essai Premium de 14 jours, limites du forfait Essentiel (vidéo, dossiers,
+// Monétisation (D-041, grille A de D-043) : grille publique, essai Premium de 14 jours, limites du forfait Découverte (vidéo, dossiers,
 // espace), paiement par Stripe Checkout, notifications signées, modules d'intégration. Stripe et le fournisseur
 // d'identité sont simulés; aucun compte, courriel ni paiement réel.
 import test from 'node:test';
@@ -21,9 +21,10 @@ const LAWYER = '33333333-3333-4333-8333-333333333333';
 const WEBHOOK_SECRET = `whsec_${'w'.repeat(32)}`;
 const STRIPE_ENV = {
   BESOINAVOCAT_STRIPE_SECRET_KEY: `sk_test_${'a'.repeat(24)}`, BESOINAVOCAT_STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
+  BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY: 'price_memberM001', BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_YEARLY: 'price_memberY001',
   BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_MONTHLY: 'price_premiumM01', BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_YEARLY: 'price_premiumY01',
   BESOINAVOCAT_STRIPE_PRICE_STORAGE_PACK_MONTHLY: 'price_storage001', BESOINAVOCAT_STRIPE_PRICE_PLUGIN_ACTIVATION: 'price_plugin0001',
-  BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_MONTHLY: 'price_integra001', BESOINAVOCAT_STRIPE_TAX_RATES: 'txr_tpsTPS0001,txr_tvqTVQ0001',
+  BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_MONTHLY: 'price_integra001', BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_YEARLY: 'price_integraY01', BESOINAVOCAT_STRIPE_TAX_RATES: 'txr_tpsTPS0001,txr_tvqTVQ0001',
 };
 const csrf = { Origin: ORIGIN, 'X-Requested-With': 'XMLHttpRequest' };
 const providerJson = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
@@ -104,11 +105,18 @@ test('the price grid is public, consistent and matches the /forfaits page', asyn
   const f = await fixture(t);
   const pricing = await f.request('/api/pricing');
   assert.equal(pricing.status, 200);
-  assert.deepEqual(pricing.json, publicPricing({ available: { premium: false, storage: false, plugin: false } }));
+  assert.deepEqual(pricing.json, publicPricing({ available: {} }));
+  assert.deepEqual(pricing.json.client.plans.map(x => x.id), ['free', 'member', 'premium']);
   assert.equal(pricing.json.client.plans[1].prices.month, 1500);
   assert.equal(pricing.json.client.plans[1].prices.year, 15000);
+  assert.equal(pricing.json.client.plans[2].prices.month, 3900);
+  assert.equal(pricing.json.client.plans[2].prices.year, 39000);
+  assert.equal(pricing.json.client.plans[1].maxCases, 5);
+  assert.equal(pricing.json.client.plans[2].maxCases, null);
+  assert.deepEqual(pricing.json.client.storagePack.forPlans, ['member', 'premium']);
   assert.equal(pricing.json.trialDays, 14);
-  assert.equal(pricing.json.lawyer.status, 'free');
+  assert.equal(pricing.json.lawyer.status, 'paid');
+  assert.deepEqual(pricing.json.lawyer.plans.map(p => [p.id, p.amount, p.interval, p.commitmentMonths]), [['weekly', 10000, 'week', 0], ['monthly', 30000, 'month', 12]]);
   assert.equal((await f.request('/api/pricing?x=1')).status, 400);
   assert.equal((await f.request('/api/pricing', { method: 'POST', headers: csrf, body: {} })).status, 405);
   // The page shows exactly the grid's amounts and never the TAKATAK name.
@@ -117,10 +125,12 @@ test('the price grid is public, consistent and matches the /forfaits page', asyn
   assert.match(page.headers.get('content-type'), /text\/html/u);
   const spaces = value => value.replace(/&nbsp;|[\u00a0\u202f]/gu, ' ');
   const html = spaces(await readFile(new URL('../public/forfaits.html', import.meta.url), 'utf8'));
-  for (const cents of [CLIENT_PLANS.premium.prices.month, CLIENT_PLANS.premium.prices.year, STORAGE_PACK.prices.month, PLUGIN_ACTIVATION.prices.once, INTEGRATIONS_SUBSCRIPTION.prices.month]) {
+  for (const cents of [CLIENT_PLANS.member.prices.month, CLIENT_PLANS.member.prices.year, CLIENT_PLANS.premium.prices.month, CLIENT_PLANS.premium.prices.year, STORAGE_PACK.prices.month, PLUGIN_ACTIVATION.prices.once, INTEGRATIONS_SUBSCRIPTION.prices.month, INTEGRATIONS_SUBSCRIPTION.prices.year]) {
     assert.ok(html.includes(spaces(formatMoney(cents))), `the page shows ${formatMoney(cents)}`);
   }
-  assert.ok(html.includes(`${CLIENT_PLANS.premium.storageBytes / GB} Go`) && html.includes(`${CLIENT_PLANS.free.storageBytes / GB} Go`) && html.includes(`${STORAGE_PACK.bytes / GB} Go`));
+  for (const bytes of [CLIENT_PLANS.free.storageBytes, CLIENT_PLANS.member.storageBytes, CLIENT_PLANS.premium.storageBytes, STORAGE_PACK.bytes]) assert.ok(html.includes(`${bytes / GB} Go`), `the page shows ${bytes / GB} Go`);
+  for (const label of ['Découverte', 'Membre', 'Premium']) assert.ok(html.includes(`<h2>${label}</h2>`), `the page names ${label}`);
+  for (const cents of [10000, 30000]) assert.ok(html.includes(spaces(formatMoney(cents))), `the page shows the lawyer price ${formatMoney(cents)}`);
   assert.doesNotMatch(html, /takatak/iu);
   assert.doesNotMatch(html, /<script/iu);
 });
@@ -131,12 +141,15 @@ test('configuration: payments open only with the key, the monthly Premium price,
   const full = billingConfiguration({ ...STRIPE_ENV, APP_ORIGIN: ORIGIN });
   assert.equal(full.configured, true);
   assert.equal(full.enforced, true);
-  assert.deepEqual({ ...full.available }, { premium: true, premiumYear: true, storage: true, plugin: true });
+  assert.deepEqual({ ...full.available }, { member: true, memberYear: true, premium: true, premiumYear: true, storage: true, plugin: true, integrationsYear: true });
+  const noYear = billingConfiguration({ ...STRIPE_ENV, APP_ORIGIN: ORIGIN, BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_YEARLY: '', BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_YEARLY: '' });
+  assert.equal(noYear.configured, true);
+  assert.deepEqual({ ...noYear.available }, { member: true, memberYear: false, premium: true, premiumYear: true, storage: true, plugin: true, integrationsYear: false });
   assert.deepEqual([...full.taxRates], ['txr_tpsTPS0001', 'txr_tvqTVQ0001']);
   assert.equal(billingConfiguration({ ...STRIPE_ENV, APP_ORIGIN: ORIGIN, BESOINAVOCAT_BILLING_ENFORCED: 'false' }).enforced, false);
   const noPlugin = billingConfiguration({ ...STRIPE_ENV, APP_ORIGIN: ORIGIN, BESOINAVOCAT_STRIPE_PRICE_PLUGIN_ACTIVATION: '' });
   assert.equal(noPlugin.available.plugin, false);
-  assert.ok(billingConfiguration({ ...STRIPE_ENV, APP_ORIGIN: ORIGIN, BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_MONTHLY: 'nope' }).missing.includes('BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_MONTHLY'));
+  assert.ok(billingConfiguration({ ...STRIPE_ENV, APP_ORIGIN: ORIGIN, BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY: 'nope' }).missing.includes('BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY'));
 });
 
 test('without Stripe nothing is blocked: the client sees the 14-day Premium trial and no payment is possible', async t => {
@@ -148,7 +161,7 @@ test('without Stripe nothing is blocked: the client sees the 14-day Premium tria
   assert.equal(overview.json.enforced, false);
   assert.deepEqual(overview.json.plan, { id: 'premium', label: 'Premium', source: 'trial' });
   assert.equal(overview.json.trial.daysLeft, 14);
-  assert.equal(overview.json.usage.quotaBytes, 50 * GB);
+  assert.equal(overview.json.usage.quotaBytes, 100 * GB);
   f.advance(20 * 86_400_000);
   const later = await f.login('cliente@example.test');
   assert.equal((await f.request('/api/billing', { cookie: later })).json.plan.id, 'free');
@@ -162,7 +175,7 @@ test('without Stripe nothing is blocked: the client sees the 14-day Premium tria
   assert.equal(f.stripeCalls.length, 0);
 });
 
-test('with Stripe: the Essentiel plan limits videos, cases and space; Premium bought by Checkout lifts them after the signed notification', async t => {
+test('with Stripe: the Découverte plan limits videos, cases and space; Premium bought by Checkout lifts them after the signed notification', async t => {
   const f = await fixture(t, { env: STRIPE_ENV });
   const client = await f.clientSignup();
   const caps = (await f.request('/api/capabilities', { cookie: client })).json;
@@ -189,11 +202,11 @@ test('with Stripe: the Essentiel plan limits videos, cases and space; Premium bo
   assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'premium', interval: 'month', extra: 1 } })).status, 400);
   assert.equal((await f.request('/api/billing/portal', { method: 'POST', cookie: client, body: {} })).status, 409, 'no customer yet');
 
-  // The trial ends without payment: Essentiel. Videos and a new case are refused with a clear message.
+  // The trial ends without payment: Découverte. Videos and a new case are refused with a clear message.
   f.advance(15 * 86_400_000);
   const later = await f.login('cliente@example.test');
   const free = (await f.request('/api/billing', { cookie: later })).json;
-  assert.deepEqual(free.plan, { id: 'free', label: 'Essentiel', source: 'free' });
+  assert.deepEqual(free.plan, { id: 'free', label: 'Découverte', source: 'free' });
   assert.equal(free.usage.quotaBytes, 1 * GB);
   assert.equal(free.usage.cases, 2);
   const video = await f.request(`/api/cases/${first.id}/documents`, { method: 'POST', cookie: later, body: { ...VIDEO, contentBase64: Buffer.from('another video').toString('base64') } });
@@ -227,14 +240,14 @@ test('with Stripe: the Essentiel plan limits videos, cases and space; Premium bo
   assert.equal(portal.json.url, 'https://billing.stripe.com/p/session/bps_1');
   assert.equal(f.stripeCalls.at(-1).form.customer, 'cus_Client001');
 
-  // A storage pack adds 100 Go per slice; quantity is checked.
-  assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: later, body: { item: 'storage', quantity: 11 } })).status, 400);
+  // A storage pack adds 50 Go per slice; quantity is checked.
+  assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: later, body: { item: 'storage', quantity: 21 } })).status, 400);
   assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: later, body: { item: 'storage', quantity: 2 } })).status, 201);
   assert.equal(f.stripeCalls.at(-1).form['line_items[0][quantity]'], '2');
   await f.stripeEvent({ id: 'evt_sub2', type: 'customer.subscription.created', data: { object: { ...subscription, id: 'sub_Storage001', metadata: { bc_account: key, bc_item: 'storage' }, items: { data: [{ quantity: 2, price: { id: 'price_storage001' } }] } } } });
-  assert.equal((await f.request('/api/billing', { cookie: later })).json.usage.quotaBytes, 250 * GB);
+  assert.equal((await f.request('/api/billing', { cookie: later })).json.usage.quotaBytes, 200 * GB);
 
-  // Cancellation (deleted) brings the account back to Essentiel; a replayed event changes nothing.
+  // Cancellation (deleted) brings the account back to Découverte; a replayed event changes nothing.
   await f.stripeEvent({ id: 'evt_sub3', type: 'customer.subscription.deleted', data: { object: { ...subscription, status: 'canceled' } } });
   assert.equal((await f.request('/api/billing', { cookie: later })).json.plan.id, 'free');
   assert.equal((await f.stripeEvent({ id: 'evt_sub1', type: 'customer.subscription.created', data: { object: subscription } })).json.duplicate, true);
@@ -244,6 +257,50 @@ test('with Stripe: the Essentiel plan limits videos, cases and space; Premium bo
   assert.equal((await f.request('/api/billing', { cookie: later })).json.plan.id, 'free');
   const forged = await f.request('/api/webhooks/stripe', { method: 'POST', raw: JSON.stringify({ id: 'evt_f', type: 'customer.subscription.created', data: { object: subscription } }), headers: { 'Content-Type': 'application/json', 'Stripe-Signature': `t=${Math.floor(Date.now() / 1000)},v1=${'0'.repeat(64)}` } });
   assert.equal(forged.status, 401);
+});
+
+test('Membre (grid A): 15 $ a month, 5 cases, 25 Go, videos; storage packs only on a paid plan; the yearly Integrations price is optional', async t => {
+  const f = await fixture(t, { env: STRIPE_ENV });
+  const client = await f.clientSignup();
+  // No storage pack during the trial: it comes with a paid plan.
+  const pack = await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'storage' } });
+  assert.equal(pack.status, 409);
+  assert.equal(pack.json.error.code, 'PLAN_REQUIRED');
+  const checkout = await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'member', interval: 'month' } });
+  assert.equal(checkout.status, 201, checkout.text);
+  const form = f.stripeCalls.at(-1).form;
+  assert.equal(form['line_items[0][price]'], 'price_memberM001');
+  assert.equal(form['subscription_data[metadata][bc_item]'], 'member');
+  const key = form['metadata[bc_account]'];
+  await f.stripeEvent({ id: 'evt_m0', type: 'checkout.session.completed', data: { object: { id: 'cs_test_1', mode: 'subscription', client_reference_id: key, customer: 'cus_Member001', payment_status: 'paid', metadata: { bc_account: key, bc_item: 'member' } } } });
+  const subscription = { id: 'sub_Member001', customer: 'cus_Member001', status: 'active', cancel_at_period_end: false, metadata: { bc_account: key, bc_item: 'member' }, items: { data: [{ quantity: 1, price: { id: 'price_memberM001' }, current_period_end: Math.floor(Date.parse('2026-12-20T12:00:00Z') / 1000) }] } };
+  await f.stripeEvent({ id: 'evt_m1', type: 'customer.subscription.created', data: { object: subscription } });
+  const paid = (await f.request('/api/billing', { cookie: client })).json;
+  assert.deepEqual(paid.plan, { id: 'member', label: 'Membre', source: 'subscription' });
+  assert.equal(paid.usage.quotaBytes, 25 * GB);
+  assert.equal(paid.usage.maxCases, 5);
+  assert.equal(paid.features.video, true);
+  assert.equal(paid.subscriptions.member.live, true);
+  // Five cases, then a clear refusal pointing to Premium.
+  for (const n of [1, 2, 3, 4, 5]) assert.equal((await f.request('/api/cases', { method: 'POST', cookie: client, body: { title: `Dossier ${n}` } })).status, 201);
+  const sixth = await f.request('/api/cases', { method: 'POST', cookie: client, body: { title: 'Six' } });
+  assert.equal(sixth.status, 402);
+  assert.match(sixth.json.error.message, /Premium/u);
+  // Premium cannot be bought on top: the change goes through the Stripe portal.
+  assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'premium', interval: 'month' } })).json.error.code, 'ALREADY_SUBSCRIBED');
+  // Paid plan: the storage pack is available, 50 Go per slice.
+  assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'storage', quantity: 3 } })).status, 201);
+  await f.stripeEvent({ id: 'evt_m2', type: 'customer.subscription.created', data: { object: { ...subscription, id: 'sub_Storage002', metadata: { bc_account: key, bc_item: 'storage' }, items: { data: [{ quantity: 3, price: { id: 'price_storage001' } }] } } } });
+  assert.equal((await f.request('/api/billing', { cookie: client })).json.usage.quotaBytes, (25 + 3 * 50) * GB);
+  // Cancelled Membre: the remaining trial days still apply, then Découverte; packs still paid for keep counting.
+  await f.stripeEvent({ id: 'evt_m3', type: 'customer.subscription.deleted', data: { object: { ...subscription, status: 'canceled' } } });
+  assert.equal((await f.request('/api/billing', { cookie: client })).json.plan.source, 'trial');
+  f.advance(15 * 86_400_000);
+  const after = (await f.request('/api/billing', { cookie: await f.login('cliente@example.test') })).json;
+  assert.equal(after.plan.id, 'free');
+  assert.equal(after.usage.quotaBytes, (1 + 3 * 50) * GB);
+  await f.stripeEvent({ id: 'evt_m4', type: 'customer.subscription.deleted', data: { object: { ...subscription, id: 'sub_Storage002', status: 'canceled', metadata: { bc_account: key, bc_item: 'storage' }, items: { data: [{ quantity: 3 }] } } } });
+  assert.equal((await f.request('/api/billing', { cookie: await f.login('cliente@example.test') })).json.usage.quotaBytes, 1 * GB);
 });
 
 test('integration plugins: activated one by one, kept by the monthly Integrations subscription; staff accounts are never billed', async t => {

@@ -461,8 +461,10 @@ test('BesoinAvocat guide: exact text, disclaimer, existing actions only, once pe
   const h = harness();
   signedIn(h); h.ui.render();
   const guide = h.node('cockpit-guide');
-  assert.equal(guide.hidden, false, 'opens by itself the first time');
-  assert.equal(h.ui.guideMemory.autoShown, true);
+  assert.equal(h.ui.guideMemory.open, false, 'lot 11: never opens by itself'); assert.equal(guide.innerHTML || '', '', 'nothing rendered until asked');
+  assert.equal(h.node('guide-avatar').hidden, false, 'the robot button is there instead');
+  h.click({}, { id: 'guide-avatar' });
+  assert.equal(guide.hidden, false, 'opens on demand');
   const html = guide.innerHTML;
   assert.ok(html.includes('« Je suis là pour vous aider et vous guider. Pas vous conseiller, mais bien vous guider à préparer votre dossier pour votre avocat. »'));
   assert.equal(h.ui.GUIDE_TEXT, '« Je suis là pour vous aider et vous guider. Pas vous conseiller, mais bien vous guider à préparer votre dossier pour votre avocat. »');
@@ -483,7 +485,7 @@ test('BesoinAvocat guide: exact text, disclaimer, existing actions only, once pe
   h.click({ action: 'guide-close' });
   assert.equal(guide.hidden, true);
   // In the preview, adding a piece points to the Pièces page (no upload).
-  const demo = harness(true); await demo.ui.start();
+  const demo = harness(true); await demo.ui.start(); demo.click({}, { id: 'guide-avatar' });
   assert.match(demo.node('cockpit-guide').innerHTML, /data-view="documents"/u);
   assert.equal(h.requests.length, 0); assert.equal(demo.requests.length, 0);
   assert.deepEqual(source.match(/\bfetch\([^,)]*/gu), ['fetch(path', "fetch('/api/health'"], 'same-origin api() and health only: no other network call');
@@ -765,12 +767,13 @@ test('lot 10: the guide closes when the person changes section, and never covers
   const h = harness();
   signedIn(h, { role: 'client' }); h.ui.render();
   const guide = h.node('cockpit-guide');
-  assert.equal(guide.hidden, false, 'opens by itself once on the cockpit');
+  h.click({}, { id: 'guide-avatar' });
+  assert.equal(guide.hidden, false, 'opened from the robot button');
   h.ui.navigate('cases');
   assert.equal(guide.hidden, true, 'closed on navigation: it does not follow the person');
   assert.equal(h.node('guide-avatar').hidden, false, 'still reachable from the robot button');
   h.ui.navigate('home');
-  assert.equal(guide.hidden, true, 'once per session');
+  assert.equal(guide.hidden, true, 'stays closed until asked again');
   assert.match(styles, /@media \(max-width: 860px\) \{\s*\.sidebar \{ z-index: 45; \}\s*body\.drawer-open \.help-dock \{ visibility: hidden; \}\s*\.guide-panel \{ max-height: 60vh; \}/u);
   assert.match(styles, /body\.signed-out \.tabbar, body\.signed-out \.help-dock \{ display: none !important; \}/u);
   assert.match(styles, /body\.signed-out \.secondary-nav, body\.signed-out \.nav-label-tools \{ display: none; \}/u, 'case tools hidden before sign-in');
@@ -790,4 +793,13 @@ test('lot 10: a client-only account does not see Clients, Usages and Suivi du te
   const signedOut = harness(); signedOut.lists['[data-view]'] = nav();
   signedOut.ui.state.mode = 'signed-out'; signedOut.ui.render();
   assert.deepEqual(signedOut.lists['[data-view]'].filter(b => b.hidden), [], 'nothing hidden before sign-in');
+});
+
+test('lot 11: the preview Réglages shows one account-settings card instead of five empty service panels', () => {
+  const demo = harness(true); Object.assign(demo.ui.state, { mode: 'demo', demo: true, view: 'settings' }); demo.ui.render();
+  const html = demo.main();
+  assert.doesNotMatch(html, /data-live="(notices|phone|calendar-feed|billing|membership)"/u);
+  assert.match(html, /Réglages du compte/u);
+  const h = harness(); signedIn(h); h.ui.state.view = 'settings'; h.ui.render();
+  for (const live of ['notices', 'phone', 'calendar-feed', 'billing', 'membership']) assert.match(h.main(), new RegExp(`data-live="${live}"`, 'u'));
 });

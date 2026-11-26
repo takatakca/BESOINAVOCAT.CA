@@ -161,3 +161,10 @@ Corrigé (D-042) :
 - Menu client : `clientOnlyAccount()` (mode aperçu ou connecté, tous les dossiers sans rôle avocat/propriétaire) masque `clients`, `usage`, `time` dans `.primary-nav`; l'étape « La navigation » de la visite ne cite plus « Clients ».
 
 Non modifié, à décider : tarif avocat affiché dans `demande.html` (zone réservée), vide des sections « L'aperçu n'appelle aucun service » dans Réglages/Appels/Journal en mode aperçu (choix antérieur : rien d'inventé).
+
+## Lot 11 — deuxième vérification de bout en bout (26 novembre 2026)
+
+Même parcours que le lot 10, plus `/avocats` et `/suppression-compte` : 27 écrans, deux largeurs, 430 tests. Corrigé (D-045) :
+- `render()` n'appelle plus `showGuide(false)` à l'arrivée sur l'accueil téléphone; `guideMemory.autoShown` n'est plus posé. Le guide s'ouvre par `#guide-avatar` ou « Besoin d'aide ? → Guide BesoinAvocat ».
+- `settingsView()` en mode aperçu : une carte « Réglages du compte » remplace les cinq sections `data-live` (notices, phone, calendar-feed, billing, membership); hors aperçu, rien ne change (les sections du fil monétisation sont intactes).
+- Tests : le test du guide ouvre désormais le guide par le bouton robot; nouveau test « lot 11 » pour Réglages.

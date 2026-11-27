@@ -249,9 +249,9 @@
   }
   function signedOut() {
     const login = state.health?.loginConfigured === true;
-    // Lawyer sign-up (14-day trial, no card) is a separate space; the link appears only once the server announces it.
+    // Lawyer sign-up (14-day trial; card asked at signup since D-046) is a separate space; the link appears only once the server announces it.
     const space = state.health?.lawyerSpace, trialDays = Number(space?.trialDays) || 0;
-    const lawyer = space?.url && /^(\.\/|\/)[A-Za-z0-9/_-]*$/u.test(space.url) ? `<p class="login-lawyer">Vous êtes avocat ? <a href="${esc(space.url)}">Créer mon compte${trialDays ? ` (${trialDays} jours gratuits, sans carte)` : ''}</a></p>` : '';
+    const lawyer = space?.url && /^(\.\/|\/)[A-Za-z0-9/_-]*$/u.test(space.url) ? `<p class="login-lawyer">Vous êtes avocat ? <a href="${esc(space.url)}">Créer mon compte${trialDays ? ` (${trialDays} jours gratuits)` : ''}</a></p>` : '';
     const emailCode = login && state.health?.emailCodeConfigured === true;
     // Création du tableau de bord d'une personne (D-036) : annoncée par le serveur seulement quand le code courriel marche.
     // « Continuer avec Google » : annoncé par le serveur (googleSignIn); même consentement que l'inscription par code.
@@ -1263,7 +1263,7 @@
     if (!canMutate()) return;
     const handoff = readHandoff();
     const subtitle = handoff ? 'Le domaine et le résumé de votre demande sont repris : vérifiez-les, donnez un titre, et le dossier est créé.'
-      : welcome ? 'Gratuit pour commencer, 14 jours Premium offerts sans carte. Un titre, le domaine, vos premières pièces : votre dossier est prêt à être préparé.'
+      : welcome ? '14 jours gratuits pour commencer. Un titre, le domaine, vos premières pièces : votre dossier est prêt à être préparé.'
         : 'Un titre clair, le domaine et quelques phrases suffisent pour commencer.';
     showDialog(welcome ? 'Votre premier dossier' : 'Nouveau dossier', subtitle, `<form id="case-form"><div class="field"><label for="case-title">Titre du dossier</label><input id="case-title" name="title" required maxlength="200" autocomplete="off" placeholder="Nommer le dossier"></div>${domainField(handoff?.domain || null)}${summaryField(handoff?.summary || '')}${filesField()}<div class="field"><label for="case-reference">Référence <span class="table-subtext">facultatif</span></label><input id="case-reference" name="reference" maxlength="100" autocomplete="off" placeholder="Votre référence de classement"><small>Évitez les renseignements personnels inutiles dans le titre et la référence.</small></div>${formFooter(welcome ? 'Créer mon dossier' : 'Créer le dossier')}</form>`);
   }

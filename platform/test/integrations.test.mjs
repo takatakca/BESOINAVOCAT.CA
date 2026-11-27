@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createStore } from '../lib/store.mjs';
@@ -519,4 +519,26 @@ test('QuickBooks connects the company chosen at Intuit: realmId required, Basic 
   const production = f.make({ [`${base}QUICKBOOKS_ENVIRONMENT`]: 'production' });
   assert.equal(production.quickbooks.host(), 'quickbooks.api.intuit.com');
   assert.equal(f.make({ [`${base}QUICKBOOKS_ENVIRONMENT`]: 'other' }).list(users.lawyer).providers.find(item => item.id === 'quickbooks').state, 'not_configured');
+});
+
+test('D-048: a missing key file is created once when credentials exist, and an existing key is never replaced', t => {
+  const f = fixture(t);
+  const fresh = join(f.dir, 'created.key');
+  // No credentials: nothing is created and the connectors stay off.
+  const none = f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: fresh, ...Object.fromEntries(Object.keys(credentials).map(key => [key, undefined])) });
+  assert.equal(existsSync(fresh), false);
+  assert.equal(none.list(users.lawyer).engine.ready, false);
+  // Credentials present: the key is created with 32 bytes, private mode, and connectors can start.
+  const made = f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: fresh });
+  assert.equal(made.list(users.lawyer).engine.ready, true);
+  assert.equal(statSync(fresh).size, 32);
+  if (process.platform !== 'win32') assert.equal(statSync(fresh).mode & 0o777, 0o600);
+  const before = readFileSync(fresh);
+  f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: fresh });
+  assert.deepEqual(readFileSync(fresh), before);
+  // A file left readable by others still fails closed rather than being rewritten.
+  const open = join(f.dir, 'open.key');
+  writeFileSync(open, randomBytes(32), { mode: 0o644 });
+  chmodSync(open, 0o644);
+  assert.equal(f.make({ [`${base}INTEGRATIONS_KEY_FILE`]: open }).list(users.lawyer).engine.reason, 'key_invalid');
 });

@@ -156,7 +156,12 @@ export function readiness(env = process.env) {
 
   // Connectors are optional; report only whether the encryption key exists.
   const integrationsKey = env.BESOINAVOCAT_INTEGRATIONS_KEY_FILE;
-  if (!integrationsKey || !existsSync(integrationsKey)) add('warn', 'connectors', 'No connector key file: Zoom, Outlook, Google and the other connectors stay off.');
+  const anyConnector = ['ZOOM', 'MICROSOFT', 'GOOGLE', 'DOCUSIGN', 'CLIO', 'QUICKBOOKS'].some(p => env[`BESOINAVOCAT_${p}_CLIENT_ID`] && env[`BESOINAVOCAT_${p}_CLIENT_SECRET`]);
+  if (!integrationsKey) add('warn', 'connectors', 'BESOINAVOCAT_INTEGRATIONS_KEY_FILE is unset: Zoom, Outlook, Google and the other connectors stay off.');
+  else if (!existsSync(integrationsKey)) add(anyConnector ? 'ok' : 'warn', 'connectors', anyConnector ? 'Connector key file will be created at start (D-048). Back it up privately once created.' : 'No connector credentials yet: Zoom, Outlook, Google and the other connectors stay off.');
+  for (const [name, value] of [['DOCUSIGN', 'production'], ['QUICKBOOKS', 'production']]) {
+    if (env[`BESOINAVOCAT_${name}_CLIENT_ID`] && env[`BESOINAVOCAT_${name}_ENVIRONMENT`] !== value) add('warn', 'connectors', `BESOINAVOCAT_${name}_ENVIRONMENT is not ${value}: this connector reaches the provider's test environment only.`);
+  }
 
   // Phone calls through MIMT and the built-in video room. Only names and counts are reported.
   const mimtMissing = ['BESOINAVOCAT_MIMT_API_KEY', 'BESOINAVOCAT_MIMT_WEBHOOK_SECRET'].filter(name => !env[name]);

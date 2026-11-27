@@ -129,6 +129,8 @@ Dans Coolify (application du portail), puis redéployer :
 
 Aucune clé ne va dans le dépôt, le clavardage ou la mémoire : seulement dans Coolify et le fichier `CLES-INTEGRATIONS-BESOINAVOCAT.txt` du PC du propriétaire.
 
+Les anciens prix live (Membre 15 $, Premium 39 $, Intégrations 19 $, avocat 100 $/semaine et 300 $/mois) ont été **archivés** le 27 novembre 2026, avec l'accord du propriétaire. Aucun abonnement ne les utilisait. L'avocat à l'année a son propre produit, « BesoinAvocat Accès avocat (annuel) ».
+
 ## 5. Ce qui n'est pas fait (volontairement)
 
 - Engagement d'un an du forfait avocat mensuel : Stripe Checkout ne sait pas l'imposer; il est écrit dans les conditions et dans la métadonnée de l'abonnement. Dans le portail client de Stripe, désactiver l'annulation immédiate pour ce prix si l'on veut le faire respecter techniquement.

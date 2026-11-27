@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto';
 import { HttpError, fields, invalid } from './validation.mjs';
-import { CLIENT_PLANS, GB, INTEGRATIONS_SUBSCRIPTION, PAID_PLAN_IDS, PLUGINS, PLUGIN_IDS, STORAGE_PACK, TRIAL_DAYS, publicPricing } from './pricing.mjs';
+import { CARD_TRIAL, CLIENT_PLANS, DEFAULT_INTERVAL, GB, INTEGRATIONS_SUBSCRIPTION, PAID_PLAN_IDS, PLUGINS, PLUGIN_IDS, STORAGE_PACK, TRIAL_DAYS, publicPricing } from './pricing.mjs';
 
 // Forfaits des comptes clients, espace de stockage et modules d'intégration payants (D-041, docs/MONETISATION.md).
 //
 // - Un compte client a le forfait Découverte (gratuit), Membre ou Premium (mensuel ou annuel), plus des tranches d'espace
-//   (Membre et Premium). Chaque nouveau compte client reçoit 14 jours de Premium, sans carte et sans appel à Stripe.
+//   (Membre et Premium). Depuis le 27 novembre 2026 (D-046), un nouveau compte client choisit son forfait et donne sa
+//   carte dès l'inscription : Stripe offre les 14 premiers jours, puis facture l'année (ou le mois, 50 % plus cher).
+//   Sans forfait payé ni essai en cours, le compte ne peut plus ouvrir de dossier ni déposer de pièce (CARD_REQUIRED);
+//   ses dossiers restent consultables. Un compte ouvert avant cette règle garde son essai sans carte jusqu'à son terme.
+//   Tant que Stripe n'est pas raccordé, l'ancien essai sans carte s'applique (on ne retient personne qui ne peut payer).
 //   Grille A choisie par le propriétaire le 20 novembre 2026 (lib/pricing.mjs, docs/TARIFICATION-2026-11-19.md).
 // - L'espace se compte par compte : la somme des pièces (sans doublon dans un dossier) des dossiers que la personne a
 //   créés. Une pièce versée par l'avocat dans le dossier d'un client compte dans l'espace du client.
@@ -53,7 +57,8 @@ export function billingConfiguration(env = process.env) {
     available: Object.freeze(available), mode: secretKey?.includes('_live_') ? 'live' : 'test' });
 }
 
-export function createBilling({ db, config = billingConfiguration(), fetch = globalThis.fetch, clock = Date.now, isClient = () => false, isLawyer = () => false, trialDays = TRIAL_DAYS }) {
+export function createBilling({ db, config = billingConfiguration(), fetch = globalThis.fetch, clock = Date.now, isClient = () => false, isLawyer = () => false, trialDays = TRIAL_DAYS, cardTrial = CARD_TRIAL }) {
+  const cardFirst = Boolean(cardTrial && config.configured);
   db.exec(`
     CREATE TABLE IF NOT EXISTS billing_accounts (
       tenantId TEXT NOT NULL, subject TEXT NOT NULL, accountKey TEXT NOT NULL UNIQUE, customerId TEXT,
@@ -86,14 +91,15 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
     const existing = row(user);
     if (existing) return existing;
     const at = clock();
-    // L'essai Premium ne concerne que les comptes clients.
-    const trial = kind === 'client' ? [new Date(at).toISOString(), new Date(at + trialDays * DAY).toISOString()] : [null, null];
+    // L'essai Premium sans carte ne concerne que les comptes clients, et seulement tant que la carte n'est pas exigée.
+    const trial = kind === 'client' && !cardFirst ? [new Date(at).toISOString(), new Date(at + trialDays * DAY).toISOString()] : [null, null];
     sql('INSERT OR IGNORE INTO billing_accounts (tenantId,subject,accountKey,trialStartedAt,trialEndsAt,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?)')
       .run(user.tenantId, user.subject, keyOf(user), trial[0], trial[1], new Date(at).toISOString(), new Date(at).toISOString());
     return row(user);
   }
   const subscription = (accountKey, item) => sql(`SELECT * FROM billing_subscriptions WHERE accountKey=? AND item=? ORDER BY CASE WHEN status IN ('active','trialing','past_due') THEN 0 ELSE 1 END, updatedAt DESC LIMIT 1`).get(accountKey, item) ?? null;
   const live = s => Boolean(s && LIVE.has(s.status));
+  const hadPlan = accountKey => Boolean(sql("SELECT 1 FROM billing_subscriptions WHERE accountKey=? AND item IN ('member','premium') LIMIT 1").get(accountKey));
   const trialOf = r => {
     if (!r?.trialEndsAt) return null;
     const endsAt = Date.parse(r.trialEndsAt);
@@ -116,11 +122,13 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
     const planId = kind !== 'client' ? 'free' : paidPremium ? 'premium' : paidMember ? 'member' : trial?.active ? 'premium' : 'free';
     const plan = CLIENT_PLANS[planId];
     const paid = paidPremium || paidMember;
+    // Carte exigée : compte client sans forfait payé (essai Stripe compris) ni essai sans carte en cours.
+    const cardRequired = kind === 'client' && cardFirst && config.enforced && !paid && !trial?.active;
     // L'espace additionnel s'ajoute à un forfait payé; il reste compté tant que son abonnement court.
     const packs = live(storage) ? Math.min(Math.max(1, storage.quantity), STORAGE_PACK.maxQuantity) : 0;
     const activated = sql('SELECT plugin, activatedAt FROM billing_plugins WHERE accountKey=? ORDER BY activatedAt').all(r.accountKey);
     return {
-      kind, account: r, planId, plan, source: kind !== 'client' ? null : paid ? 'subscription' : trial?.active ? 'trial' : 'free', trial, paid,
+      kind, account: r, cardRequired, planId, plan, source: kind !== 'client' ? null : paid ? 'subscription' : trial?.active ? 'trial' : 'free', trial, paid,
       storageQuotaBytes: kind === 'client' ? plan.storageBytes + packs * STORAGE_PACK.bytes : null, packs,
       video: kind !== 'client' || plan.video, maxCases: kind === 'client' ? plan.maxCases : null,
       integrationsActive: live(integrations), plugins: new Map(activated.map(p => [p.plugin, p.activatedAt])),
@@ -165,7 +173,7 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       const base = { configured: config.configured, enforced: config.enforced, mode: config.secretKey ? config.mode : null, missing: config.missing, available: { ...config.available }, pricing: publicPricing({ available: config.available }) };
       if (!e) return { ...base, billed: false };
       const used = usedBytes(user);
-      return { ...base, billed: true, kind: e.kind, plan: { id: e.planId, label: e.plan.label, source: e.source }, trial: e.trial,
+      return { ...base, billed: true, kind: e.kind, cardRequired: e.cardRequired, defaultInterval: DEFAULT_INTERVAL, trialDays, plan: { id: e.planId, label: e.plan.label, source: e.source }, trial: e.trial,
         usage: e.kind === 'client' ? { bytes: used, quotaBytes: e.storageQuotaBytes, percent: Math.min(100, Math.round((used / e.storageQuotaBytes) * 100)), cases: casesCreated(user), maxCases: e.maxCases } : null,
         features: { video: e.video, storagePacks: e.packs },
         subscriptions: { member: publicSubscription(e.subscriptions.member), premium: publicSubscription(e.subscriptions.premium), storage: publicSubscription(e.subscriptions.storage), integrations: publicSubscription(e.subscriptions.integrations) },
@@ -179,6 +187,7 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       const e = payer && entitlements(payer);
       if (!e || e.kind !== 'client') return;
       const own = payer.subject === user.subject;
+      if (e.cardRequired) throw new HttpError(402, 'CARD_REQUIRED', own ? 'Choisissez votre forfait pour commencer vos 14 jours gratuits : la carte est demandée, rien n’est facturé avant la fin de l’essai.' : 'La personne cliente doit d’abord activer son forfait pour qu’on puisse déposer des pièces dans ce dossier.');
       if (/^video\//u.test(mimeType) && !e.video) throw new HttpError(402, 'PLAN_REQUIRED', own ? 'Les vidéos sont comprises dans les forfaits Membre et Premium. Choisissez un forfait dans Réglages, « Mon forfait ».' : 'Ce dossier est au forfait Découverte : les vidéos y sont réservées aux forfaits Membre et Premium de la personne cliente.');
       // L'espace du compte remplace alors le plafond fixe par dossier (BA_CASE_STORAGE_QUOTA_BYTES).
       if (sql('SELECT 1 FROM documents WHERE tenantId=? AND caseId=? AND sha256=? LIMIT 1').get(user.tenantId, caseId, hash)) return { accountQuota: true };
@@ -188,7 +197,9 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
     checkCaseCreate(user) {
       if (!config.enforced) return;
       const e = entitlements(user);
-      if (!e || e.kind !== 'client' || e.maxCases === null) return;
+      if (!e || e.kind !== 'client') return;
+      if (e.cardRequired) throw new HttpError(402, 'CARD_REQUIRED', 'Choisissez votre forfait pour commencer vos 14 jours gratuits : la carte est demandée, rien n’est facturé avant la fin de l’essai.');
+      if (e.maxCases === null) return;
       if (casesCreated(user) >= e.maxCases) throw new HttpError(402, 'PLAN_REQUIRED', `Le forfait ${e.plan.label} comprend ${e.maxCases} dossier${e.maxCases > 1 ? 's' : ''}. ${e.planId === 'free' ? 'Membre en permet 5, Premium sans limite' : 'Premium n’a pas de limite'} : choisissez un forfait dans Réglages, « Mon forfait ».`);
     },
     checkPlugin(user, provider) {
@@ -209,13 +220,16 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       let form;
       if (PAID_PLAN_IDS.includes(item)) {
         if (e.kind !== 'client') throw new HttpError(403, 'NOT_A_CLIENT', `Le forfait ${CLIENT_PLANS[item].label} est offert aux comptes clients.`);
-        if (!['month', 'year'].includes(interval)) throw invalid('Choisissez une facturation mensuelle ou annuelle.');
-        const price = config.prices[`${item}_${interval}`];
-        if (!price) throw unavailable([PRICE_ENV[`${item}_${interval}`]]);
+        const every = interval === undefined ? DEFAULT_INTERVAL : interval;
+        if (!['month', 'year'].includes(every)) throw invalid('Choisissez une facturation mensuelle ou annuelle.');
+        const price = config.prices[`${item}_${every}`];
+        if (!price) throw unavailable([PRICE_ENV[`${item}_${every}`]]);
         // Un seul forfait payé à la fois : le changement Membre ↔ Premium se fait dans le portail Stripe.
         if (e.paid) throw new HttpError(409, 'ALREADY_SUBSCRIBED', `Votre forfait ${e.plan.label} est déjà actif. Changez-le ou résiliez-le avec « Gérer mes paiements ».`);
         // Les jours d'essai qui restent sont gardés (Stripe exige au moins 48 h avant la fin d'un essai).
-        const keep = e.trial?.active && Date.parse(e.trial.endsAt) - clock() >= 48 * 3600_000 ? { 'subscription_data[trial_end]': String(Math.floor(Date.parse(e.trial.endsAt) / 1000)) } : {};
+        // Sinon, un premier forfait commence par les 14 jours gratuits chez Stripe, carte exigée (D-046).
+        const keep = e.trial?.active && Date.parse(e.trial.endsAt) - clock() >= 48 * 3600_000 ? { 'subscription_data[trial_end]': String(Math.floor(Date.parse(e.trial.endsAt) / 1000)) }
+          : cardTrial && !e.trial?.active && !hadPlan(key) ? { 'subscription_data[trial_period_days]': String(trialDays), payment_method_collection: 'always' } : {};
         form = { mode: 'subscription', ...lineItems([[price, 1]]), ...metadata, ...subMeta, ...keep };
       } else if (item === 'storage') {
         if (e.kind !== 'client') throw new HttpError(403, 'NOT_A_CLIENT', 'L’espace additionnel est offert aux comptes clients.');

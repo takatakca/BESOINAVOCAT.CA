@@ -183,8 +183,8 @@ test('every payload the page builds is accepted unchanged by the real intake ser
   assert.deepEqual(municipal.questionnaire.answers, { topic: 'permit', municipalRole: 'resident', writtenDecision: 'no' }); assert.deepEqual(municipal.otherParties, { status: 'unknown' });
   const contact = plain(api.payloadFrom({ ...api.initialState('client', 'en', false), domain: 'civil', region: 'estrie', name: 'Synthetic', email: 'contact@example.test', consent: true }));
   assert.equal(contact.consentVersion, CONSENT_VERSION); assert.equal('summary' in contact, false);
-  const lawyer = plain(api.payloadFrom({ ...api.initialState('professional', 'fr', true), domain: 'business', region: 'montreal', periodicity: 'weekly', name: 'Avocate', email: 'lawyer@example.test', consent: true }));
-  assert.equal(lawyer.periodicity, 'weekly'); assert.equal('summary' in lawyer, false);
+  const lawyer = plain(api.payloadFrom({ ...api.initialState('professional', 'fr', true), domain: 'business', region: 'montreal', periodicity: 'yearly', name: 'Avocate', email: 'lawyer@example.test', consent: true }));
+  assert.equal(lawyer.periodicity, 'yearly'); assert.equal('summary' in lawyer, false);
   for (const payload of [detailed, noDeadline, slots, criminal, business, municipal, contact, lawyer]) assert.equal(service.receive(payload, randomUUID(), PORTAL).status, 'received');
 });
 
@@ -197,8 +197,8 @@ test('service state comes only from matching consent versions; preselection read
   assert.deepEqual(plain(api.serviceFrom(stale)), { open: true, requestMode: false });
   for (const bad of [null, {}, { intake: { enabled: 'true' } }, 'x']) assert.deepEqual(plain(api.serviceFrom(bad)), { open: false, requestMode: false });
   assert.deepEqual(plain(api.preselection('?domaine=family&lang=en')), { domain: 'family', language: 'en' });
-  assert.deepEqual(plain(api.preselection('?role=professional&formule=weekly')), { role: 'professional', periodicity: 'weekly' });
-  assert.deepEqual(plain(api.preselection('?domaine=__proto__&email=a@b.c&name=x&lang=de&formule=yearly')), {});
+  assert.deepEqual(plain(api.preselection('?role=professional&formule=yearly')), { role: 'professional', periodicity: 'yearly' });
+  assert.deepEqual(plain(api.preselection('?domaine=__proto__&email=a@b.c&name=x&lang=de&formule=weekly')), {});
 });
 
 test('idempotent attempts keep one key per exact body and receipts must match the exact contract', () => {

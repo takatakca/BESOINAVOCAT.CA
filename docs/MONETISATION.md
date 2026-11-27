@@ -11,13 +11,13 @@ Prix en dollars canadiens, taxes en sus.
 | Offre | Prix | Contenu |
 |---|---|---|
 | **Découverte** (client) | 0 $ | 1 dossier, 1 Go, documents, images, notes vocales, messages, rendez-vous, appels vidéo avec l'avocat |
-| **Membre** (client) | **15 $ / mois** ou **150 $ / an** (2 mois offerts) | 5 dossiers, 25 Go, vidéos dans les pièces |
-| **Premium** (client) | **39 $ / mois** ou **390 $ / an** (2 mois offerts) | dossiers illimités, 100 Go, vidéos dans les pièces |
-| Essai Premium | 0 $, 14 jours, sans carte | ouvert automatiquement à chaque nouveau compte client |
+| **Membre** (client) | **150 $ / an** ou **19 $ / mois** (D-046 : le mois coûte 50 % de plus) | 5 dossiers, 25 Go, vidéos dans les pièces |
+| **Premium** (client) | **390 $ / an** ou **49 $ / mois** | dossiers illimités, 100 Go, vidéos dans les pièces |
+| Essai (D-046) | 0 $, 14 jours, **carte demandée à l'inscription** | essai Stripe; ensuite l'année (ou le mois) est débitée automatiquement |
 | **Espace supplémentaire** | **5 $ / mois** par tranche de 50 Go (max. 20, cumulable) | Membre ou Premium (un forfait payé) |
 | **Module d'intégration** | **30 $ une fois** par module | Zoom, Google Agenda, Outlook, DocuSign, Clio, QuickBooks |
-| **Abonnement Intégrations** | **19 $ / mois** ou **190 $ / an** | garde tous les modules activés branchés au portail |
-| **Accès avocat** (D-044, 20 novembre 2026) | 14 jours gratuits, puis **100 $ / semaine** sans engagement ou **300 $ / mois** avec engagement d'un an (facturé chaque mois d'avance) | `lib/membership.mjs`, prix lus chez Stripe (`BESOINAVOCAT_STRIPE_PRICE_WEEKLY` / `_MONTHLY`, mêmes montants); rien n'est bloqué tant que Stripe n'est pas raccordé; `BESOINAVOCAT_LAWYER_ACCESS=free` rend l'accès gratuit, `=paid` bloque même sans Stripe |
+| **Abonnement Intégrations** | **190 $ / an** ou **24 $ / mois** | garde tous les modules activés branchés au portail |
+| **Accès avocat** (D-044, 20 novembre 2026) | (D-046) carte à l'inscription, 14 jours gratuits, puis **3 600 $ / an** ou **450 $ / mois** (le forfait à la semaine est retiré) | `lib/membership.mjs`, prix lus chez Stripe (`BESOINAVOCAT_STRIPE_PRICE_LAWYER_YEARLY` / `_MONTHLY`); rien n'est bloqué tant que Stripe n'est pas raccordé; `BESOINAVOCAT_LAWYER_ACCESS=free` rend l'accès gratuit, `=paid` bloque même sans Stripe |
 
 Historique : la grille D-041 du 18 novembre avait deux paliers (Essentiel 0 $, Premium 15 $/150 $ avec 50 Go, +100 Go à 5 $, Intégrations 9 $). Le 19 novembre, [TARIFICATION-2026-11-19.md](TARIFICATION-2026-11-19.md) a proposé trois options; le propriétaire a choisi l'option **A** le 20 novembre 2026 (D-043). Seules les lignes que le portail sait appliquer (prix, dossiers, espace, vidéo) sont programmées; les autres lignes de l'option A (résumés par l'IA, priorité, conservation, soutien) restent des promesses à ne pas afficher tant qu'elles ne sont pas codées.
 
@@ -110,20 +110,21 @@ Dans Coolify (application du portail), puis redéployer :
 |---|---|
 | `BESOINAVOCAT_STRIPE_SECRET_KEY` | clé secrète `sk_test_…` puis `sk_live_…` (ou clé restreinte `rk_…`) |
 | `BESOINAVOCAT_STRIPE_WEBHOOK_SECRET` | `whsec_…` du webhook |
-| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY` | `price_…` (Membre 15 $, requis pour ouvrir le paiement) |
-| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_YEARLY` | `price_…` (Membre 150 $, facultatif) |
-| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_MONTHLY` | `price_…` (Premium 39 $) |
-| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_YEARLY` | `price_…` (Premium 390 $, facultatif) |
+| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_MONTHLY` | `price_…` (Membre 19 $) |
+| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_MEMBER_YEARLY` | `price_…` (Membre 150 $) |
+| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_MONTHLY` | `price_…` (Premium 49 $) |
+| `BESOINAVOCAT_STRIPE_PRICE_CLIENT_PREMIUM_YEARLY` | `price_…` (Premium 390 $) |
 | `BESOINAVOCAT_STRIPE_PRICE_STORAGE_PACK_MONTHLY` | `price_…` (50 Go, 5 $) |
 | `BESOINAVOCAT_STRIPE_PRICE_PLUGIN_ACTIVATION` | `price_…` (30 $ une fois) |
-| `BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_MONTHLY` | `price_…` (19 $) |
-| `BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_YEARLY` | `price_…` (190 $, facultatif) |
+| `BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_MONTHLY` | `price_…` (24 $) |
+| `BESOINAVOCAT_STRIPE_PRICE_INTEGRATIONS_YEARLY` | `price_…` (190 $) |
 | `BESOINAVOCAT_STRIPE_TAX_RATES` | `txr_…,txr_…` (TPS, TVQ) |
 | `APP_ORIGIN` | `https://portail.besoinavocat.ca` (déjà requis) |
 | facultatif `BESOINAVOCAT_BILLING_ENFORCED` | `false` pour suspendre les limites |
 | facultatif `BESOINAVOCAT_STRIPE_AUTOMATIC_TAX` | `true` pour Stripe Tax (0,5 % par transaction) au lieu des taux |
-| `BESOINAVOCAT_STRIPE_PRICE_WEEKLY` | `price_…` (avocat, 100,00 $ par semaine, récurrent) |
-| `BESOINAVOCAT_STRIPE_PRICE_MONTHLY` | `price_…` (avocat, 300,00 $ par mois, récurrent; l'engagement d'un an est dans les conditions et en métadonnée) |
+| `BESOINAVOCAT_STRIPE_PRICE_LAWYER_YEARLY` | `price_…` (avocat, 3 600,00 $ par année, récurrent) |
+| `BESOINAVOCAT_STRIPE_PRICE_MONTHLY` | `price_…` (avocat, 450,00 $ par mois, récurrent, sans engagement) |
+| facultatif `BESOINAVOCAT_CARD_TRIAL` | `false` remet l'ancien essai de 14 jours sans carte (D-046) |
 | facultatif `BESOINAVOCAT_LAWYER_ACCESS` | `free` pour rendre l'accès avocat gratuit; `paid` pour bloquer l'essai expiré même sans Stripe; sinon le blocage suit le raccordement de Stripe |
 
 Aucune clé ne va dans le dépôt, le clavardage ou la mémoire : seulement dans Coolify et le fichier `CLES-INTEGRATIONS-BESOINAVOCAT.txt` du PC du propriétaire.

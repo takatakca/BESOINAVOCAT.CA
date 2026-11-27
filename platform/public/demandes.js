@@ -137,7 +137,7 @@
       ['Domaine', fr(r.domain && r.domain.label)], ['Région', fr(r.region && r.region.label)],
       ['Étape', fr(r.stage && r.stage.label)], ['Objectif', fr(r.objective && r.objective.label)],
       ['Urgence', fr(r.urgency && r.urgency.label)], ['Échéance', r.deadline],
-      ['Forfait envisagé', r.periodicity === 'weekly' ? 'Hebdomadaire' : r.periodicity === 'monthly' ? 'Mensuel' : null],
+      ['Forfait envisagé', r.periodicity === 'yearly' ? 'Annuel' : r.periodicity === 'weekly' ? 'Hebdomadaire' : r.periodicity === 'monthly' ? 'Mensuel' : null],
     ].concat(flowRows(r)).filter(function (item) { return item[1]; });
     var answers = (r.answers || []).map(function (a) { return [fr(a.question), fr(a.answer && a.answer.label) || a.answer.id]; });
     var history = (data.history || []).map(function (h) {

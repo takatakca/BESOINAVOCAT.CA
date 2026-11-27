@@ -56,7 +56,7 @@
   };
   const CONTACT_PREFERENCES = { email: ['Par courriel', 'By email'], phone: ['Par téléphone', 'By phone'] };
   const DEADLINE_CHOICES = { yes: ['Oui', 'Yes'], no: ['Non, ou je ne sais pas', 'No, or I do not know'] };
-  const PLANS = { weekly: ['100 CAD / semaine', '100 CAD / week'], monthly: ['300 CAD / mois', '300 CAD / month'] };
+  const PLANS = { yearly: ['3 600 CAD / année', 'CAD 3,600 / year'], monthly: ['450 CAD / mois', 'CAD 450 / month'] };
   // Shared steps; the same identifiers and labels are published by the server (questionnaire.flow).
   const OTHER_PARTY_STATUSES = { named: ['Je connais le nom', 'I know the name'], none: ['Aucune autre partie', 'No other party'], unknown: ['Je ne sais pas encore', 'I do not know yet'] };
   const LEGAL_AID_INTEREST = {
@@ -263,7 +263,7 @@
 
   function initialState(role, language, requestMode) {
     return { role: role === 'professional' || role === 'lawyer' ? 'professional' : 'client', language: languageOf(language),
-      requestMode: requestMode === true, preview: false, step: 'domain', domain: '', region: '', periodicity: 'monthly',
+      requestMode: requestMode === true, preview: false, step: 'domain', domain: '', region: '', periodicity: 'yearly',
       stage: '', objective: '', summary: '', otherPartiesStatus: '', otherPartiesNames: '', urgency: '', hasDeadline: '', deadline: '',
       legalAidInterest: '', household: '', income: '', availabilityMode: '', slots: [],
       contactPreference: 'email', name: '', email: '', phone: '', acceptRemote: false, contactTimes: [], consent: false, website: '',

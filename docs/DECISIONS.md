@@ -1,5 +1,20 @@
 # DECISIONS — BESOINAVOCAT.CA
 
+## D-046 — Carte à l'inscription, 14 jours gratuits, puis l'année facturée; le mois coûte 50 % de plus (27 novembre 2026)
+
+Le propriétaire (27 novembre 2026, 02:05 et 02:06 UTC) : la même règle pour tout le monde, membres et avocats. La personne s'inscrit, donne sa carte, a **14 jours gratuits** pour travailler dans le portail, puis la carte est **débitée pour une année complète**. Les forfaits au mois restent offerts, mais **50 % plus cher** que l'année ramenée au mois. Il a choisi la **grille A** (on garde les prix annuels) sur la carte de décision :
+
+| Forfait | Année | Mois |
+|---|---|---|
+| Membre | 150 $ | 19 $ |
+| Premium | 390 $ | 49 $ |
+| Avocat | 3 600 $ | 450 $ |
+| Abonnement Intégrations | 190 $ | 24 $ |
+
+Le forfait avocat à la semaine est retiré. Espace 50 Go (5 $/mois) et module (30 $ une fois) ne changent pas. Taxes en sus.
+
+Appliqué dans le code : l'essai de 14 jours est un essai **Stripe** (`subscription_data[trial_period_days]=14`, `payment_method_collection=always`), plus un essai local sans carte. Tant qu'aucune carte n'est enregistrée, une personne cliente peut consulter ses dossiers, mais pas en créer ni déposer de pièces (402 `CARD_REQUIRED`); l'avocat voit « Activez vos 14 jours gratuits ». L'année est le choix par défaut partout. Les comptes déjà en essai local le gardent jusqu'à la fin. `BESOINAVOCAT_CARD_TRIAL=false` remet l'ancien essai sans carte. Le formulaire public `/demande` affiche les nouveaux prix avocat (catalogue `2026-11-27.1`).
+
 ## D-045 — Deuxième vérification de bout en bout : le guide ne s'ouvre plus tout seul, Réglages de l'aperçu condensés (26 novembre 2026)
 
 Le propriétaire a demandé (26 novembre, 04:48) de continuer jusqu'à « 100 % complet », tout fonctionnel, testé et vérifié. Nouveau relevé de 27 écrans (ordinateur et téléphone) après les 45 commits fusionnés depuis D-042 : aucune erreur de script, aucune ressource manquante, 430 tests verts. Deux simplifications, sans changer le design : sur téléphone, le guide BesoinAvocat ne s'ouvre plus de lui-même à l'arrivée (il couvrait 60 % de l'écran par-dessus la première étape); le bouton robot et « Besoin d'aide ? » restent visibles et l'ouvrent à la demande; en mode aperçu, la page Réglages montre une seule carte « Réglages du compte » au lieu de cinq cadres vides « L'aperçu n'appelle aucun service » (connecté, les cinq sections réelles restent). Le texte tarifaire avocat de `demande.html` est déjà conforme à D-044 (corrigé par un autre fil). Constat : `/avocats` affiche « Le répertoire est temporairement indisponible » quand `/api/firms` ne répond pas; comportement attendu hors ligne, à surveiller en ligne.

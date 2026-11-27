@@ -461,9 +461,9 @@
     const gridCards = (o.grid || []).map(p => `<div class="live-card"><h4>${esc(p.label)}</h4><p class="live-big mono">${esc(money(p.amount, 'CAD'))}</p><p class="table-subtext">par ${esc(INTERVAL[p.interval] || p.interval)}, taxes en sus · ${esc(p.tagline)}</p></div>`).join('');
     if (!o.configured) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Paiement en ligne bientôt ouvert</strong>${o.trialDays} jours gratuits à l’inscription, puis l’un des deux forfaits ci-dessous. Rien n’est limité tant que le paiement n’est pas ouvert.</p></div><div class="live-grid">${gridCards}</div></div>`; return; }
     const m = o.membership, [tone, label] = MEMBERSHIP_STATUS[m.status] || ['off', m.status];
-    const status = `<p>${pill(tone, label)}${m.plan ? ` Forfait ${{ weekly: 'hebdomadaire', monthly: 'mensuel', trial: 'd’essai' }[m.plan] || esc(m.plan)}` : ''}${m.trial && !m.trial.expired && Number.isFinite(m.trial.daysLeft) ? ` · ${m.trial.daysLeft} jour${m.trial.daysLeft > 1 ? 's' : ''} d’essai restant${m.trial.daysLeft > 1 ? 's' : ''}` : ''}${m.trial?.expired ? ' · essai terminé, choisissez un forfait pour continuer' : ''}${m.currentPeriodEnd ? ` · ${m.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(m.currentPeriodEnd))}` : ''}</p>`;
+    const status = `<p>${pill(tone, label)}${m.plan ? ` Forfait ${{ yearly: 'annuel', weekly: 'hebdomadaire', monthly: 'mensuel', trial: 'd’essai' }[m.plan] || esc(m.plan)}` : ''}${m.trial && !m.trial.expired && Number.isFinite(m.trial.daysLeft) ? ` · ${m.trial.daysLeft} jour${m.trial.daysLeft > 1 ? 's' : ''} d’essai restant${m.trial.daysLeft > 1 ? 's' : ''}` : ''}${m.trial?.expired ? ' · essai terminé, choisissez un forfait pour continuer' : ''}${m.currentPeriodEnd ? ` · ${m.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(m.currentPeriodEnd))}` : ''}</p>`;
     const manage = m.canManage ? `<button type="button" class="button secondary small" data-live-action="membership-portal">Gérer mon abonnement chez Stripe</button>` : '';
-    const plans = m.active ? '' : `<div class="live-grid">${o.plans.map(p => `<div class="live-card"><h4>${esc(p.label || (p.plan === 'weekly' ? 'À la semaine' : 'Au mois'))}</h4><p class="live-big mono">${esc(money(p.amountCents, p.currency))}</p><p class="table-subtext">par ${p.intervalCount > 1 ? `${p.intervalCount} ` : ''}${esc(INTERVAL[p.interval] || p.interval)}, taxes en sus${p.commitmentMonths ? ` · engagement de ${p.commitmentMonths} mois, facturé chaque mois d’avance` : ' · sans engagement'}</p><div class="tile-actions"><button type="button" class="button small" data-live-action="membership-checkout" data-plan="${esc(p.plan)}">S’abonner</button></div></div>`).join('') || empty('Les forfaits n’ont pas pu être lus chez Stripe.')}</div>`;
+    const plans = m.active ? '' : `<div class="live-grid">${o.plans.map(p => `<div class="live-card"><h4>${esc(p.label || (p.plan === 'yearly' ? 'À l’année' : p.plan === 'weekly' ? 'À la semaine' : 'Au mois'))}</h4><p class="live-big mono">${esc(money(p.amountCents, p.currency))}</p><p class="table-subtext">par ${p.intervalCount > 1 ? `${p.intervalCount} ` : ''}${esc(INTERVAL[p.interval] || p.interval)}, taxes en sus${p.interval === 'year' ? ' · facturé une fois par année, d’avance' : ' · facturé chaque mois, d’avance'}${m.cardRequired ? ' · 14 jours gratuits d’abord' : ''}</p><div class="tile-actions"><button type="button" class="button small" data-live-action="membership-checkout" data-plan="${esc(p.plan)}">S’abonner</button></div></div>`).join('') || empty('Les forfaits n’ont pas pu être lus chez Stripe.')}</div>`;
     node.innerHTML = `${head}<div class="panel-body">${o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : ''}${status}${plans}<div class="tile-actions">${manage}</div>
       <p class="table-subtext">L’abonnement couvre l’accès des avocats à la plateforme. Aucun paiement de client, aucune avance d’honoraires et aucune commission sur vos honoraires ne passent par BesoinAvocat.</p></div>`;
   }
@@ -484,7 +484,7 @@
     if (o.kind === 'client') {
       const u = o.usage, sub = o.subscriptions.premium?.live ? o.subscriptions.premium : o.subscriptions.member;
       const trial = o.plan.source === 'trial' ? ` · essai gratuit, ${o.trial.daysLeft} jour${o.trial.daysLeft > 1 ? 's' : ''} restant${o.trial.daysLeft > 1 ? 's' : ''}` : '';
-      const renew = sub?.live && sub.currentPeriodEnd ? ` · ${sub.cancelAtPeriodEnd ? 'se termine' : 'renouvellement'} le ${esc(when(sub.currentPeriodEnd))}` : '';
+      const renew = sub?.live && sub.currentPeriodEnd ? ` · ${sub.cancelAtPeriodEnd ? 'se termine' : sub.status === 'trialing' ? 'essai gratuit, premier paiement' : 'renouvellement'} le ${esc(when(sub.currentPeriodEnd))}` : '';
       const keep = o.plan.source === 'trial' ? ' · vos jours d’essai sont conservés' : '';
       const offer = (id, interval, title, note) => {
         const x = byId(id), ok = canPay && o.available[interval === 'year' ? `${id}Year` : id];
@@ -492,15 +492,16 @@
       };
       const member = byId('member'), premium = byId('premium');
       const offers = o.plan.source === 'subscription' ? '' : `<div class="live-grid">
-        ${offer('member', 'month', 'Membre mensuel', `par mois · ${esc(String(member.maxCases))} dossiers, ${esc(gb(member.storageBytes))}, vidéos${keep}`)}
-        ${offer('member', 'year', 'Membre annuel', 'par année · deux mois offerts')}
-        ${offer('premium', 'month', 'Premium mensuel', `par mois · dossiers illimités, ${esc(gb(premium.storageBytes))}, vidéos${keep}`)}
-        ${offer('premium', 'year', 'Premium annuel', 'par année · deux mois offerts')}</div>`;
+        ${offer('member', 'year', 'Membre annuel', `par année · ${esc(String(member.maxCases))} dossiers, ${esc(gb(member.storageBytes))}, vidéos${keep}`)}
+        ${offer('member', 'month', 'Membre mensuel', 'par mois · 50 % de plus qu’à l’année')}
+        ${offer('premium', 'year', 'Premium annuel', `par année · dossiers illimités, ${esc(gb(premium.storageBytes))}, vidéos${keep}`)}
+        ${offer('premium', 'month', 'Premium mensuel', 'par mois · 50 % de plus qu’à l’année')}</div>`;
+      const gate = o.cardRequired ? `<div class="callout warning">${icon('info')}<p><strong>Activez vos ${esc(String(o.trialDays || 14))} jours gratuits</strong>Choisissez un forfait ci-dessous et entrez votre carte chez Stripe. Rien n’est facturé pendant l’essai; ensuite, le forfait choisi est facturé automatiquement, sauf si vous l’annulez avant. Vos dossiers restent consultables.</p></div>` : '';
       const pack = p.client.storagePack;
       const storage = o.subscriptions.storage?.live ? `<p class="table-subtext">Espace supplémentaire : ${esc(String(o.subscriptions.storage.quantity))} × ${esc(gb(pack.bytes))}.</p>`
         : o.plan.source === 'subscription' ? `<p class="table-subtext">Besoin de plus d’espace ? ${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois, cumulable. <button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="storage"${canPay && o.available.storage ? '' : ' disabled'}>Ajouter ${esc(gb(pack.bytes))}</button></p>`
         : `<p class="table-subtext">L’espace additionnel (${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois) s’ajoute aux forfaits Membre et Premium.</p>`;
-      plan = `<p>${pill(o.plan.id === 'free' ? 'off' : 'ok', o.plan.label)}${trial}${renew}</p>
+      plan = `${gate}<p>${pill(o.plan.id === 'free' ? 'off' : 'ok', o.plan.label)}${trial}${renew}</p>
         <p class="table-subtext">Espace utilisé : ${esc(gb(u.bytes))} sur ${esc(gb(u.quotaBytes))} · ${esc(String(u.cases))} dossier${u.cases > 1 ? 's' : ''}${u.maxCases ? ` sur ${esc(String(u.maxCases))}` : ''}${o.features.video ? ' · vidéos comprises' : ' · vidéos avec Membre ou Premium'}</p>
         <meter class="billing-meter" min="0" max="100" low="70" high="90" optimum="10" value="${esc(String(u.percent))}" aria-label="Espace utilisé">${esc(String(u.percent))} %</meter>${offers}${storage}`;
     }

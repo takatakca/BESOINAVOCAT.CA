@@ -107,16 +107,20 @@ test('the price grid is public, consistent and matches the /forfaits page', asyn
   assert.equal(pricing.status, 200);
   assert.deepEqual(pricing.json, publicPricing({ available: {} }));
   assert.deepEqual(pricing.json.client.plans.map(x => x.id), ['free', 'member', 'premium']);
-  assert.equal(pricing.json.client.plans[1].prices.month, 1500);
+  assert.equal(pricing.json.client.plans[1].prices.month, 1900);
   assert.equal(pricing.json.client.plans[1].prices.year, 15000);
-  assert.equal(pricing.json.client.plans[2].prices.month, 3900);
+  assert.equal(pricing.json.client.plans[2].prices.month, 4900);
   assert.equal(pricing.json.client.plans[2].prices.year, 39000);
   assert.equal(pricing.json.client.plans[1].maxCases, 5);
   assert.equal(pricing.json.client.plans[2].maxCases, null);
   assert.deepEqual(pricing.json.client.storagePack.forPlans, ['member', 'premium']);
   assert.equal(pricing.json.trialDays, 14);
+  assert.equal(pricing.json.cardRequired, true);
+  assert.equal(pricing.json.defaultInterval, 'year');
+  // D-046 : le mois coûte 50 % de plus que l'équivalent mensuel de l'année (arrondi au dollar).
+  for (const x of [CLIENT_PLANS.member.prices, CLIENT_PLANS.premium.prices, INTEGRATIONS_SUBSCRIPTION.prices]) assert.equal(x.month, Math.round((x.year / 12) * 1.5 / 100) * 100);
   assert.equal(pricing.json.lawyer.status, 'paid');
-  assert.deepEqual(pricing.json.lawyer.plans.map(p => [p.id, p.amount, p.interval, p.commitmentMonths]), [['weekly', 10000, 'week', 0], ['monthly', 30000, 'month', 12]]);
+  assert.deepEqual(pricing.json.lawyer.plans.map(p => [p.id, p.amount, p.interval, p.commitmentMonths]), [['yearly', 360000, 'year', 12], ['monthly', 45000, 'month', 0]]);
   assert.equal((await f.request('/api/pricing?x=1')).status, 400);
   assert.equal((await f.request('/api/pricing', { method: 'POST', headers: csrf, body: {} })).status, 405);
   // The page shows exactly the grid's amounts and never the TAKATAK name.
@@ -130,7 +134,7 @@ test('the price grid is public, consistent and matches the /forfaits page', asyn
   }
   for (const bytes of [CLIENT_PLANS.free.storageBytes, CLIENT_PLANS.member.storageBytes, CLIENT_PLANS.premium.storageBytes, STORAGE_PACK.bytes]) assert.ok(html.includes(`${bytes / GB} Go`), `the page shows ${bytes / GB} Go`);
   for (const label of ['Découverte', 'Membre', 'Premium']) assert.ok(html.includes(`<h2>${label}</h2>`), `the page names ${label}`);
-  for (const cents of [10000, 30000]) assert.ok(html.includes(spaces(formatMoney(cents))), `the page shows the lawyer price ${formatMoney(cents)}`);
+  for (const cents of [360000, 45000]) assert.ok(html.includes(spaces(formatMoney(cents))), `the page shows the lawyer price ${formatMoney(cents)}`);
   assert.doesNotMatch(html, /takatak/iu);
   assert.doesNotMatch(html, /<script/iu);
 });
@@ -175,8 +179,11 @@ test('without Stripe nothing is blocked: the client sees the 14-day Premium tria
   assert.equal(f.stripeCalls.length, 0);
 });
 
+// Les deux tests suivants gardent l'ancien essai sans carte (BESOINAVOCAT_CARD_TRIAL=false), encore valable pour les
+// comptes ouverts avant D-046; le parcours avec carte est vérifié plus bas.
+const LEGACY_TRIAL_ENV = { ...STRIPE_ENV, BESOINAVOCAT_CARD_TRIAL: 'false' };
 test('with Stripe: the Découverte plan limits videos, cases and space; Premium bought by Checkout lifts them after the signed notification', async t => {
-  const f = await fixture(t, { env: STRIPE_ENV });
+  const f = await fixture(t, { env: LEGACY_TRIAL_ENV });
   const client = await f.clientSignup();
   const caps = (await f.request('/api/capabilities', { cookie: client })).json;
   assert.deepEqual(caps.billing, { configured: true, enforced: true });
@@ -259,8 +266,8 @@ test('with Stripe: the Découverte plan limits videos, cases and space; Premium 
   assert.equal(forged.status, 401);
 });
 
-test('Membre (grid A): 15 $ a month, 5 cases, 25 Go, videos; storage packs only on a paid plan; the yearly Integrations price is optional', async t => {
-  const f = await fixture(t, { env: STRIPE_ENV });
+test('Membre (grid A): 5 cases, 25 Go, videos; storage packs only on a paid plan; the yearly Integrations price is optional', async t => {
+  const f = await fixture(t, { env: LEGACY_TRIAL_ENV });
   const client = await f.clientSignup();
   // No storage pack during the trial: it comes with a paid plan.
   const pack = await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'storage' } });
@@ -358,4 +365,42 @@ test('integration plugins: activated one by one, kept by the monthly Integration
   assert.equal((await f.request('/api/billing/checkout', { method: 'POST', cookie: owner, body: { item: 'premium', interval: 'month' } })).status, 403);
   const ownerCase = (await f.request('/api/cases', { method: 'POST', cookie: owner, body: { title: 'Cabinet' } })).json.case;
   assert.equal((await f.request(`/api/cases/${ownerCase.id}/documents`, { method: 'POST', cookie: owner, body: VIDEO })).status, 201);
+});
+
+test('D-046: card at signup for everyone; Stripe gives the 14 days, then bills the year by default; no card, no new case', async t => {
+  const f = await fixture(t, { env: STRIPE_ENV });
+  const client = await f.clientSignup();
+  const start = (await f.request('/api/billing', { cookie: client })).json;
+  assert.equal(start.cardRequired, true);
+  assert.equal(start.trial, null, 'no trial without a card');
+  assert.equal(start.defaultInterval, 'year');
+  // Without a card: no new case, no upload; the error says why.
+  const blocked = await f.request('/api/cases', { method: 'POST', cookie: client, body: { title: 'Sinistre' } });
+  assert.equal(blocked.status, 402);
+  assert.equal(blocked.json.error.code, 'CARD_REQUIRED');
+  // The checkout defaults to the year and asks Stripe for the 14 free days with a card.
+  const checkout = await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'member' } });
+  assert.equal(checkout.status, 201, checkout.text);
+  const form = f.stripeCalls.at(-1).form;
+  assert.equal(form['line_items[0][price]'], 'price_memberY001');
+  assert.equal(form['subscription_data[trial_period_days]'], '14');
+  assert.equal(form.payment_method_collection, 'always');
+  assert.equal(form['subscription_data[trial_end]'], undefined);
+  // The month is still offered.
+  await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'premium', interval: 'month' } });
+  assert.equal(f.stripeCalls.at(-1).form['line_items[0][price]'], 'price_premiumM01');
+  // Stripe confirms the trialing subscription: the plan applies at once.
+  const key = form['metadata[bc_account]'];
+  const sub = { id: 'sub_CardTrial01', customer: 'cus_CardTrial1', status: 'trialing', cancel_at_period_end: false, metadata: { bc_account: key, bc_item: 'member' }, items: { data: [{ quantity: 1, price: { id: 'price_memberY001' }, current_period_end: Math.floor(Date.parse('2026-12-02T12:00:00Z') / 1000) }] } };
+  await f.stripeEvent({ id: 'evt_ct1', type: 'customer.subscription.created', data: { object: sub } });
+  const trialing = (await f.request('/api/billing', { cookie: client })).json;
+  assert.equal(trialing.cardRequired, false);
+  assert.deepEqual(trialing.plan, { id: 'member', label: 'Membre', source: 'subscription' });
+  assert.equal(trialing.subscriptions.member.status, 'trialing');
+  assert.equal((await f.request('/api/cases', { method: 'POST', cookie: client, body: { title: 'Sinistre' } })).status, 201);
+  // Cancelled before the end: no charge, the account needs a plan again; a second checkout gets no new free days.
+  await f.stripeEvent({ id: 'evt_ct2', type: 'customer.subscription.deleted', data: { object: { ...sub, status: 'canceled' } } });
+  assert.equal((await f.request('/api/billing', { cookie: client })).json.cardRequired, true);
+  await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'member' } });
+  assert.equal(f.stripeCalls.at(-1).form['subscription_data[trial_period_days]'], undefined, 'the free days are given once');
 });

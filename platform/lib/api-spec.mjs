@@ -23,7 +23,7 @@ const intakeRequest = {
     language: { type: 'string', enum: ['fr', 'en'] },
     domain: { type: 'string', enum: DOMAINS.map(item => item.id) },
     region: { type: 'string', enum: REGIONS.map(item => item.id) },
-    periodicity: { type: 'string', enum: ['weekly', 'monthly'], description: 'Obligatoire pour `professional`, absent pour `client`.' },
+    periodicity: { type: 'string', enum: ['yearly', 'monthly'], description: 'Obligatoire pour `professional`, absent pour `client`.' },
     consent: { type: 'boolean', const: true },
     consentVersion: { type: 'string', description: 'Version exacte du consentement en vigueur (voir GET /api/catalog).' },
     website: { type: 'string', maxLength: 0, description: 'Pot de miel : toujours vide.' },

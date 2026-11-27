@@ -20,7 +20,8 @@ import { createDocumentRequests } from './lib/document-requests.mjs';
 import { createDeadlines } from './lib/deadlines.mjs';
 import { calendarFeedConfiguration, createCalendarFeed } from './lib/calendar-feed.mjs';
 import { createSignatures } from './lib/signatures.mjs';
-import { createNotifications, notificationConfiguration } from './lib/notifications.mjs';
+import { NOTICE_KINDS, caseAudience, createNotifications, notificationConfiguration } from './lib/notifications.mjs';
+import { createWebPush } from './lib/web-push.mjs';
 import { createCanlii } from './lib/canlii.mjs';
 import { createClio } from './lib/clio.mjs';
 import { createMembership, membershipConfiguration } from './lib/membership.mjs';
@@ -191,6 +192,7 @@ export function createApp({
   telephonyFetch = globalThis.fetch,
   paymentsFetch = globalThis.fetch,
   notificationFetch = globalThis.fetch,
+  pushFetch = globalThis.fetch,
   researchFetch = globalThis.fetch,
   clock = Date.now,
 } = {}) {
@@ -243,7 +245,30 @@ export function createApp({
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });
   const notifications = createNotifications({ db: store.db, audit: store.audit, config: notificationConfiguration(env), fetch: notificationFetch, clock, log: message => console.warn(message) });
   // Email notices never delay or fail the action that caused them.
-  const notify = (actor, caseId, kind, extra) => { void notifications.caseEvent(actor, caseId, kind, extra).catch(error => console.warn(`notification ${kind}: ${error.message}`)); };
+  const push = createWebPush({ db: store.db, audit: store.audit, origin: notificationConfiguration(env).origin, fetch: pushFetch, clock, env, log: message => console.warn(message) });
+  // Avis d'un événement de dossier : courriel (si l'adresse est confirmée) et appareils inscrits (Web Push, D-047).
+  const notify = (actor, caseId, kind, extra = {}) => {
+    void notifications.caseEvent(actor, caseId, kind, extra).catch(error => console.warn(`notification ${kind}: ${error.message}`));
+    const notice = NOTICE_KINDS[kind];
+    if (notice && push.ready()) {
+      let subjects = [];
+      try { subjects = caseAudience(store.db, actor, caseId, kind, extra.sender); } catch { subjects = []; }
+      if (subjects.length) void push.notify(actor.tenantId, subjects, { kind, caseId, title: notice.subject, body: notice.body, url: `/#case/${encodeURIComponent(caseId)}` }).catch(error => console.warn(`push ${kind}: ${error.message}`));
+    }
+  };
+  // Un dossier déclaré prêt : les avocats actifs dont les domaines le couvrent (ou sans domaine déclaré) en sont avisés
+  // sur leurs appareils. Le message ne dit que le domaine; le dossier ne s'ouvre qu'après l'acceptation.
+  const notifyReady = (actor, caseId, profile) => {
+    if (!push.ready() || !profile?.domain) return;
+    let subjects = [];
+    try {
+      subjects = store.db.prepare('SELECT subject, domains FROM lawyer_accounts WHERE tenantId=? AND active=1').all(actor.tenantId)
+        .filter(row => { let list = []; try { list = JSON.parse(row.domains || '[]'); } catch { list = []; } return !list.length || list.includes(profile.domain); })
+        .map(row => row.subject)
+        .filter(subject => subject !== actor.subject && !store.db.prepare('SELECT 1 FROM members WHERE tenantId=? AND caseId=? AND subject=?').get(actor.tenantId, caseId, subject));
+    } catch { subjects = []; }
+    if (subjects.length) void push.notify(actor.tenantId, subjects, { kind: 'case_ready', caseId, title: 'Un dossier prêt dans votre domaine', body: `Un dossier ${profile.domainLabel ? `en ${profile.domainLabel.toLowerCase()} ` : ''}est prêt à être accepté sur BesoinAvocat.`, url: '/avocat#ready-panel' }).catch(error => console.warn(`push case_ready: ${error.message}`));
+  };
   const canliiKey = typeof env.BESOINAVOCAT_CANLII_API_KEY === 'string' && /^[\x21-\x7e]{8,4096}$/u.test(env.BESOINAVOCAT_CANLII_API_KEY) ? env.BESOINAVOCAT_CANLII_API_KEY : null;
   const canlii = createCanlii({ db: store.db, config: { apiKey: canliiKey }, fetch: researchFetch, clock });
   const clio = createClio({ db: store.db, access: store.access, audit: store.audit, clio: integrations.clio, clock });
@@ -601,10 +626,14 @@ export function createApp({
     if (path === '/api/notifications' || path.startsWith('/api/notifications/')) {
       if (url.search) throw invalid('Paramètre URL non autorisé.');
       if (path === '/api/notifications' && method === 'GET') return json(res, 200, notifications.status(user));
+      if (path === '/api/notifications/push' && method === 'GET') return json(res, 200, push.status(user));
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (path === '/api/notifications/email') return json(res, 200, await notifications.register(user, await readJson(req, 512)));
       if (path === '/api/notifications/verify') return json(res, 200, notifications.verify(user, await readJson(req, 128)));
       if (path === '/api/notifications/pause') return json(res, 200, notifications.pause(user, await readJson(req, 128)));
+      if (path === '/api/notifications/push/subscribe') return json(res, 200, push.subscribe(user, await readJson(req, 4096)));
+      if (path === '/api/notifications/push/unsubscribe') return json(res, 200, push.unsubscribe(user, await readJson(req, 4096)));
+      if (path === '/api/notifications/push/test') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, await push.test(user)); }
       if (path === '/api/notifications/remove') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, notifications.remove(user)); }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     }
@@ -624,7 +653,7 @@ export function createApp({
         return json(res, 200, { account, tenantId: user.tenantId, membership: account ? { ...await membership.overview(user), accessFree: lawyerAccessFree, accessEnforced: lawyerAccessEnforced } : null, cases: matching.decorate(user.tenantId, store.listCases(user)), trialDays: accounts.config.trialDays, payments: membershipConfiguration(env).configured, domains: matching.domains });
       }
       // Dossiers prêts du domaine de l'avocat (D-036) : titre, domaine, résumé, nombre de pièces; jamais les pièces.
-      if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user))); }
+      if (path === '/api/lawyer/ready-cases' && method === 'GET') { requireLawyerAccess(user); return json(res, 200, matching.readyCases(user, accounts.domainsOf(user), { priorityOf: payer => billing.priorityRank(payer) })); }
       if (method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Méthode non autorisée.');
       if (path === '/api/lawyer/activate') {
         const account = accounts.activate(user, await readJson(req, 2048));
@@ -635,7 +664,9 @@ export function createApp({
       if (path === '/api/lawyer/accept') {
         requireLawyerAccess(user);
         const body = fields(await readJson(req, 256), ['caseId'], ['caseId']);
-        return json(res, 200, matching.accept(user, identifier(body.caseId), { lawyerName: accounts.get(user)?.name ?? '' }));
+        const accepted = matching.accept(user, identifier(body.caseId), { lawyerName: accounts.get(user)?.name ?? '' });
+        notify(user, accepted.case.id, 'case_accepted');
+        return json(res, 200, accepted);
       }
       throw new HttpError(404, 'NOT_FOUND', 'Ressource introuvable.');
     }
@@ -715,7 +746,13 @@ export function createApp({
     // Préparation du dossier pour un avocat (D-036) : domaine, résumé, « prêt », retour en préparation.
     if (suffix === '/profile' && method === 'GET') return json(res, 200, { profile: matching.profile(user, caseId) });
     if (suffix === '/profile' && method === 'POST') return json(res, 200, { profile: matching.setProfile(user, caseId, await readJson(req, 4096)) });
-    if (suffix === '/ready' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, { profile: matching.markReady(user, caseId) }); }
+    if (suffix === '/ready' && method === 'POST') {
+      fields(await readJson(req, 128, { allowEmpty: true }), []);
+      const before = matching.profile(user, caseId).status;
+      const profile = matching.markReady(user, caseId);
+      if (before !== 'pret' && profile.status === 'pret') notifyReady(user, caseId, profile);
+      return json(res, 200, { profile });
+    }
     if (suffix === '/reopen' && method === 'POST') { fields(await readJson(req, 128, { allowEmpty: true }), []); return json(res, 200, { profile: matching.reopen(user, caseId) }); }
     // Older appointments and usages, page by page (?offset=200&limit=200).
     const pageQuery = () => {
@@ -832,7 +869,9 @@ export function createApp({
     }
     if (suffix === '/messages' && method === 'POST') {
       const body = fields(await readJson(req), ['body'], ['body']);
-      return json(res, 201, { message: store.addMessage(user, caseId, text(body.body, 'Message', 20000, { multiline: true })) });
+      const message = store.addMessage(user, caseId, text(body.body, 'Message', 20000, { multiline: true }));
+      notify(user, caseId, 'message_posted');
+      return json(res, 201, { message });
     }
     if (suffix === '/time' && method === 'POST') {
       const body = fields(await readJson(req, 16384), ['description', 'minutes'], ['description', 'minutes']);

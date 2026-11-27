@@ -51,7 +51,7 @@ OPTIONAL_TABLES = {
     "client_signups", "client_accounts", "case_profiles",
     "case_deadlines", "case_deadline_events",
     "calendar_feeds", "signature_envelopes", "signature_envelope_events",
-    "notification_contacts", "notification_log",
+    "notification_contacts", "notification_log", "push_keys", "push_subscriptions", "push_log",
     "canlii_cache", "canlii_usage",
     "clio_matters", "clio_time_exports",
     "billing_accounts", "billing_subscriptions", "billing_plugins", "billing_events",

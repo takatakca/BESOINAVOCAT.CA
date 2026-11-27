@@ -167,6 +167,15 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
     enforced: () => config.enforced,
     ensure,
     entitlements,
+    // Rang de priorité d'une personne cliente auprès des avocats (D-047) : 2 Premium payé, 1 Membre payé, 0 sinon.
+    // L'essai Stripe avec carte (« trialing ») compte comme payé; l'essai sans carte et Découverte ne comptent pas.
+    priorityRank(user) {
+      if (!isClient(user)) return 0;
+      const r = row(user);
+      if (!r) return 0;
+      if (live(subscription(r.accountKey, 'premium'))) return 2;
+      return live(subscription(r.accountKey, 'member')) ? 1 : 0;
+    },
     pricing: () => publicPricing({ available: config.available }),
     overview(user) {
       const e = entitlements(user);
@@ -175,7 +184,7 @@ export function createBilling({ db, config = billingConfiguration(), fetch = glo
       const used = usedBytes(user);
       return { ...base, billed: true, kind: e.kind, cardRequired: e.cardRequired, defaultInterval: DEFAULT_INTERVAL, trialDays, plan: { id: e.planId, label: e.plan.label, source: e.source }, trial: e.trial,
         usage: e.kind === 'client' ? { bytes: used, quotaBytes: e.storageQuotaBytes, percent: Math.min(100, Math.round((used / e.storageQuotaBytes) * 100)), cases: casesCreated(user), maxCases: e.maxCases } : null,
-        features: { video: e.video, storagePacks: e.packs },
+        features: { video: e.video, storagePacks: e.packs, priority: e.kind === 'client' ? (live(e.subscriptions.premium) ? 2 : live(e.subscriptions.member) ? 1 : 0) : 0, prioritySupport: e.kind === 'client' && live(e.subscriptions.premium) },
         subscriptions: { member: publicSubscription(e.subscriptions.member), premium: publicSubscription(e.subscriptions.premium), storage: publicSubscription(e.subscriptions.storage), integrations: publicSubscription(e.subscriptions.integrations) },
         plugins: PLUGINS.map(p => ({ ...p, activated: e.plugins.has(p.id), active: e.plugins.has(p.id) && e.integrationsActive })),
         canManage: Boolean(e.account.customerId) };

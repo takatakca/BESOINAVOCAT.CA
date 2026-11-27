@@ -18,6 +18,7 @@ const TENANT = 'synthetic-tenant';
 const OWNER = '11111111-1111-4111-8111-111111111111';
 const CLIENT = '22222222-2222-4222-8222-222222222222';
 const LAWYER = '33333333-3333-4333-8333-333333333333';
+const CLIENT_B = '44444444-4444-4444-8444-444444444444';
 const WEBHOOK_SECRET = `whsec_${'w'.repeat(32)}`;
 const STRIPE_ENV = {
   BESOINAVOCAT_STRIPE_SECRET_KEY: `sk_test_${'a'.repeat(24)}`, BESOINAVOCAT_STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
@@ -31,12 +32,12 @@ const providerJson = (value, status = 200) => new Response(JSON.stringify(value)
 const VIDEO = { name: 'visite.mp4', mimeType: 'video/mp4', contentBase64: Buffer.from('synthetic video bytes').toString('base64'), sourceType: 'original', reviewStatus: 'a_verifier' };
 const PDF = { name: 'bail.pdf', mimeType: 'application/pdf', contentBase64: Buffer.from('%PDF-1.4 synthetic').toString('base64'), sourceType: 'original', reviewStatus: 'a_verifier' };
 
-async function fixture(t, { env: extraEnv = {} } = {}) {
+async function fixture(t, { env: extraEnv = {}, pushFetch } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'ba-billing-'));
   const grantsFile = path.join(directory, 'grants.json');
   await writeFile(grantsFile, JSON.stringify({ version: 1, grants: { [OWNER]: { tenantId: TENANT, product: 'besoinavocat', active: true } } }), { mode: 0o600 });
   let time = Date.parse('2026-11-18T12:00:00Z');
-  const accounts = { 'owner@example.test': OWNER, 'cliente@example.test': CLIENT, 'avocate@example.test': LAWYER };
+  const accounts = { 'owner@example.test': OWNER, 'cliente@example.test': CLIENT, 'avocate@example.test': LAWYER, 'cliente2@example.test': CLIENT_B };
   const identityFetch = async (url, options) => {
     if (url.endsWith('/otp')) return providerJson({});
     if (url.endsWith('/verify')) {
@@ -63,7 +64,7 @@ async function fixture(t, { env: extraEnv = {} } = {}) {
   const dbPath = path.join(directory, 'db.sqlite');
   const env = { TAKATAK_SUPABASE_URL: 'https://auth.example.test', TAKATAK_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_SYNTHETIC_NOT_A_REAL_KEY', BESOINAVOCAT_GRANTS_FILE: grantsFile,
     APP_ORIGIN: ORIGIN, BESOINAVOCAT_EMAIL_OTP_ENABLED: 'true', BESOINAVOCAT_LAWYER_TENANT: TENANT, ...extraEnv };
-  const app = createApp({ dbPath, blobDir: path.join(directory, 'blobs'), env, identityFetch, paymentsFetch, authenticate: async () => null, clock: () => time });
+  const app = createApp({ dbPath, blobDir: path.join(directory, 'blobs'), env, identityFetch, paymentsFetch, ...(pushFetch ? { pushFetch } : {}), authenticate: async () => null, clock: () => time });
   app.listen(0, '127.0.0.1');
   await once(app, 'listening');
   const base = `http://127.0.0.1:${app.address().port}`;
@@ -403,4 +404,73 @@ test('D-046: card at signup for everyone; Stripe gives the 14 days, then bills t
   assert.equal((await f.request('/api/billing', { cookie: client })).json.cardRequired, true);
   await f.request('/api/billing/checkout', { method: 'POST', cookie: client, body: { item: 'member' } });
   assert.equal(f.stripeCalls.at(-1).form['subscription_data[trial_period_days]'], undefined, 'the free days are given once');
+});
+
+test('D-047 : les dossiers des forfaits payés passent en tête chez les avocats, Premium d’abord, et Mon forfait le dit', async t => {
+  const f = await fixture(t, { env: { ...STRIPE_ENV, BESOINAVOCAT_CARD_TRIAL: 'false' } });
+  const free = await f.clientSignup('cliente2@example.test');
+  const paying = await f.clientSignup();
+  const ready = async (cookie, title) => {
+    const created = await f.request('/api/cases', { method: 'POST', cookie, body: { title } });
+    assert.equal(created.status, 201, created.text);
+    const id = created.json.case.id;
+    assert.equal((await f.request(`/api/cases/${id}/profile`, { method: 'POST', cookie, body: { domain: 'family', summary: title } })).status, 200);
+    assert.equal((await f.request(`/api/cases/${id}/ready`, { method: 'POST', cookie, body: {} })).status, 200);
+    f.advance(60_000);
+    return id;
+  };
+  const freeCase = await ready(free, 'Dossier gratuit');
+  const paidCase = await ready(paying, 'Dossier Premium');
+  const lawyer = await f.lawyerSignup();
+  // Sans forfait payé (l'essai sans carte ne compte pas), l'ordre reste celui de la date « prêt ».
+  let seen = (await f.request('/api/lawyer/ready-cases', { cookie: lawyer })).json.cases;
+  assert.deepEqual(seen.map(c => [c.id, c.priority]), [[freeCase, false], [paidCase, false]]);
+  assert.equal((await f.request('/api/billing', { cookie: paying })).json.features.priority, 0);
+
+  const checkout = await f.request('/api/billing/checkout', { method: 'POST', cookie: paying, body: { item: 'premium', interval: 'year' } });
+  assert.equal(checkout.status, 201, checkout.text);
+  const key = f.stripeCalls.at(-1).form['metadata[bc_account]'];
+  await f.stripeEvent({ id: 'evt_prioSession', type: 'checkout.session.completed', data: { object: { id: 'cs_test_1', mode: 'subscription', client_reference_id: key, customer: 'cus_Prio001', payment_status: 'paid', metadata: { bc_account: key, bc_item: 'premium' } } } });
+  await f.stripeEvent({ id: 'evt_prioSub', type: 'customer.subscription.created', data: { object: { id: 'sub_Prio001', customer: 'cus_Prio001', status: 'trialing', cancel_at_period_end: false, metadata: { bc_account: key, bc_item: 'premium' }, items: { data: [{ quantity: 1, price: { id: 'price_premiumY01' }, current_period_end: Math.floor(Date.parse('2027-12-03T12:00:00Z') / 1000) }] } } } });
+
+  seen = (await f.request('/api/lawyer/ready-cases', { cookie: lawyer })).json.cases;
+  assert.deepEqual(seen.map(c => [c.id, c.priority]), [[paidCase, true], [freeCase, false]], 'the paid case (Stripe trial with card counts) is first');
+  const features = (await f.request('/api/billing', { cookie: paying })).json.features;
+  assert.equal(features.priority, 2);
+  assert.equal(features.prioritySupport, true);
+  assert.equal((await f.request('/api/billing', { cookie: free })).json.features.prioritySupport, false);
+});
+
+test('D-047 : avis poussés au dossier prêt (avocat du domaine), à l’acceptation et aux messages (autres membres)', async t => {
+  const sent = [];
+  const f = await fixture(t, { env: { BESOINAVOCAT_CARD_TRIAL: 'false' }, pushFetch: async url => { sent.push(new URL(url).pathname); return new Response(null, { status: 201 }); } });
+  const { createECDH, randomBytes } = await import('node:crypto');
+  const keys = () => { const e = createECDH('prime256v1'); e.generateKeys(); return { p256dh: e.getPublicKey().toString('base64url'), auth: randomBytes(16).toString('base64url') }; };
+  const client = await f.clientSignup();
+  const lawyer = await f.lawyerSignup();
+  for (const [cookie, device] of [[client, 'client'], [lawyer, 'lawyer']]) {
+    const r = await f.request('/api/notifications/push/subscribe', { method: 'POST', cookie, body: { endpoint: `https://fcm.googleapis.com/fcm/send/${device}`, keys: keys(), label: device } });
+    assert.equal(r.status, 200, r.text);
+  }
+  assert.equal((await f.request('/api/notifications/push', { cookie: client })).json.devices.length, 1);
+  assert.equal((await f.request('/api/notifications/push/subscribe', { method: 'POST', cookie: client, body: { endpoint: 'https://evil.example/x', keys: keys() } })).status, 400);
+  const settle = () => new Promise(r => setTimeout(r, 50));
+
+  const id = (await f.request('/api/cases', { method: 'POST', cookie: client, body: { title: 'Garde' } })).json.case.id;
+  await f.request(`/api/cases/${id}/profile`, { method: 'POST', cookie: client, body: { domain: 'family', summary: 'Garde' } });
+  await f.request(`/api/cases/${id}/ready`, { method: 'POST', cookie: client, body: {} });
+  await settle();
+  assert.deepEqual(sent, ['/fcm/send/lawyer'], 'the family lawyer hears about the ready case');
+  await f.request(`/api/cases/${id}/ready`, { method: 'POST', cookie: client, body: {} });
+  await settle();
+  assert.equal(sent.length, 1, 'declaring it ready again does not notify twice');
+
+  assert.equal((await f.request('/api/lawyer/accept', { method: 'POST', cookie: lawyer, body: { caseId: id } })).status, 200);
+  await settle();
+  assert.deepEqual(sent.slice(1), ['/fcm/send/client'], 'the person hears that a lawyer accepted');
+
+  assert.equal((await f.request(`/api/cases/${id}/messages`, { method: 'POST', cookie: lawyer, body: { body: 'Bonjour' } })).status, 201);
+  await settle();
+  assert.deepEqual(sent.slice(2), ['/fcm/send/client'], 'a message notifies the other member, never its author');
+  assert.equal((await f.request('/api/notifications/push/test', { method: 'POST', cookie: lawyer, body: {} })).json.sent, 1);
 });

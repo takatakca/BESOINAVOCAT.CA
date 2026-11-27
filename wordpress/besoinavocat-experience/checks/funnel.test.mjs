@@ -39,7 +39,7 @@ test('the endpoint must be explicit HTTPS with the exact intake path and no secr
 
 test('client payload is minimal, has explicit consent, and never sends a professional plan', () => {
   const state = valid();
-  state.name = '  Nom de test  '; state.phone = ' '; state.periodicity = 'weekly'; state.story = 'Must not be sent';
+  state.name = '  Nom de test  '; state.phone = ' '; state.periodicity = 'yearly'; state.story = 'Must not be sent';
   const payload = plain(api.payloadFrom(state));
   assert.deepEqual(payload, { name: 'Nom de test', email: 'test@example.test', role: 'client', language: 'fr', domain: 'civil', region: 'montreal', consent: true, consentVersion: '2026-10-26.1', website: '' });
   assert.equal('periodicity' in payload, false);
@@ -47,14 +47,14 @@ test('client payload is minimal, has explicit consent, and never sends a profess
   assert.equal('source' in payload, false);
 });
 
-test('professional selection and weekly/monthly plan are retained through a language change', () => {
-  const state = valid('professional'); state.periodicity = 'weekly'; state.phone = '+1 (514) 555-1234';
+test('professional selection and yearly/monthly plan are retained through a language change', () => {
+  const state = valid('professional'); state.periodicity = 'yearly'; state.phone = '+1 (514) 555-1234';
   state.language = 'en';
   const payload = api.payloadFrom(state);
-  assert.equal(payload.role, 'professional'); assert.equal(payload.periodicity, 'weekly'); assert.equal(payload.language, 'en');
+  assert.equal(payload.role, 'professional'); assert.equal(payload.periodicity, 'yearly'); assert.equal(payload.language, 'en');
   assert.equal(payload.phone, '+1 (514) 555-1234');
   state.periodicity = 'monthly'; assert.equal(api.payloadFrom(state).periodicity, 'monthly');
-  state.periodicity = 'yearly'; assert.equal(api.validate(state).key, 'missingPlan');
+  state.periodicity = 'weekly'; assert.equal(api.validate(state).key, 'missingPlan');
 });
 
 test('staged validation allows exploration without collecting contact details', () => {
@@ -168,7 +168,7 @@ test('every UI/error key has both languages and all choices have two labels', ()
     assert.ok(value.length, key); assert.ok(api.COPY.en[key].length, key);
   }
   for (const pair of Object.values({ ...api.DOMAINS, ...api.REGIONS })) assert.equal(pair.length, 2);
-  assert.match(api.COPY.fr.weekly, /100 CAD/); assert.match(api.COPY.en.monthly, /300 CAD/);
+  assert.match(api.COPY.fr.yearly, /3 600 CAD/); assert.match(api.COPY.en.monthly, /CAD 450/);
   assert.match(api.COPY.fr.uncertain, /ne pouvons pas confirmer/);
 });
 
@@ -182,8 +182,8 @@ test('version, exact displayed consent, choices and prices agree with the server
   }
   const catalog = publicCatalog();
   assert.equal(catalog.client.amountMinor, 0);
-  assert.equal(catalog.professional.plans.find((plan) => plan.id === 'weekly').amountMinor, 10000);
-  assert.equal(catalog.professional.plans.find((plan) => plan.id === 'monthly').amountMinor, 30000);
+  assert.equal(catalog.professional.plans.find((plan) => plan.id === 'yearly').amountMinor, 360000);
+  assert.equal(catalog.professional.plans.find((plan) => plan.id === 'monthly').amountMinor, 45000);
   assert.equal(catalog.purchaseAvailable, false);
 });
 

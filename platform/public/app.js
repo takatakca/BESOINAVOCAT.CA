@@ -943,6 +943,35 @@
     (document.getElementById('cockpit-consent') || cockpitModal.querySelector('[data-action="cockpit-modal-close"]'))?.focus();
   }
   function closeCockpitModal() { if (cockpitModal?.open) cockpitModal.close(); }
+  // Carte à l'inscription (D-046, 27 novembre 2026) : un compte client sans forfait ni essai en cours choisit son forfait
+  // et donne sa carte chez Stripe, qui offre les 14 jours puis facture l'année (ou le mois, 50 % plus cher). Le serveur
+  // bloque aussi l'ouverture de dossiers et le dépôt de pièces (CARD_REQUIRED); les dossiers existants restent lisibles.
+  async function maybeCardGate() {
+    if (state.demo || !state.capabilities?.clientAccount || !state.capabilities?.billing?.enforced) return false;
+    const o = await api('/api/billing').catch(() => null);
+    if (!o?.cardRequired || !cockpitModal) return false;
+    const plans = o.pricing?.client?.plans || [], days = o.trialDays || 14;
+    const card = (id, interval) => {
+      const plan = plans.find(p => p.id === id); if (!plan) return '';
+      const ok = o.available?.[interval === 'year' ? `${id}Year` : id];
+      const main = interval === 'year';
+      return `<button type="button" class="button${main ? '' : ' secondary'}" data-action="card-gate-checkout" data-item="${id}" data-interval="${interval}"${ok ? '' : ' disabled'}>${esc(plan.label)} · ${esc(money(plan.prices[interval]))} ${main ? 'par année' : 'par mois'}</button>`;
+    };
+    document.getElementById('cockpit-modal-content').innerHTML = `<div class="dialog-header"><div class="modal-title"><span class="tile-icon">${icon('check')}</span><div><h2 id="cockpit-modal-title">Activez vos ${esc(String(days))} jours gratuits</h2></div></div></div><div class="dialog-body"><p id="cockpit-modal-desc">Choisissez votre forfait, puis entrez votre carte chez Stripe. Rien n’est facturé pendant ${esc(String(days))} jours; ensuite, le forfait choisi est facturé automatiquement, sauf si vous l’annulez avant. Au mois, le prix est 50 % plus élevé qu’à l’année. Taxes en sus. BesoinAvocat ne voit jamais votre carte.</p><div class="form-actions">${card('member', 'year')}${card('premium', 'year')}</div><div class="form-actions">${card('member', 'month')}${card('premium', 'month')}</div>${o.mode === 'test' ? '<p class="table-subtext">Mode test de Stripe : aucun vrai paiement.</p>' : ''}<div class="form-actions"><button type="button" class="button subtle" data-action="cockpit-modal-close">Plus tard : voir mes dossiers seulement</button></div></div>`;
+    if (!cockpitModal.open) cockpitModal.showModal();
+    cockpitModal.querySelector('[data-action="card-gate-checkout"]:not([disabled])')?.focus();
+    return true;
+  }
+  async function cardGateCheckout(button) {
+    if (state.busy) return;
+    state.busy = true; button.disabled = true;
+    try {
+      const { url } = await api('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ item: button.dataset.item, interval: button.dataset.interval }) });
+      const target = new URL(url);
+      if (target.protocol !== 'https:' || target.hostname !== 'checkout.stripe.com') throw new Error('Adresse de paiement invalide.');
+      window.location.assign(target.href);
+    } catch (error) { notify(error.message, true); button.disabled = false; } finally { state.busy = false; }
+  }
   cockpitModal?.addEventListener('close', () => { const back = modalReturn; modalReturn = null; if (back?.isConnected) back.focus(); });
 
   // ---------- Téléphonie MIMT (direction du propriétaire, 30 octobre 2026) ----------
@@ -1915,6 +1944,7 @@
     if (button.classList.contains('search-hit')) closeLocalSearch(true);
     if (action === 'cockpit-integration') openIntegrationModal(button.dataset.id, button);
     if (action === 'cockpit-modal-close') closeCockpitModal();
+    if (action === 'card-gate-checkout') void cardGateCheckout(button);
     if (action === 'cockpit-drawer') toggleDrawer(button.dataset.panel);
     if (action === 'cockpit-drawer-close') closeDrawer();
     if (action === 'cockpit-select-case' && state.cases.some(item => item.id === button.dataset.id)) { if (button.dataset.id !== state.selectedId) void loadCase(button.dataset.id, 'home'); else closeDrawer(false); }
@@ -2127,6 +2157,7 @@
       state.loginEmail = ''; state.loginNotice = ''; state.loginStep = 'email';
       // Une demande guidée laissée en attente (domaine, résumé) devient le premier dossier d'un compte encore vide.
       proposeFirstCase = !state.cases.length && Boolean(readHandoff());
+      void maybeCardGate();
       notify(proposeFirstCase ? 'Vous êtes connecté. Votre demande devient votre premier dossier.' : 'Vous êtes connecté à votre espace.');
     } catch (error) {
       if (generation === state.sessionVersion) { clearSession(); state.loginNotice = error.message; notify(error.message, true); render(); }
@@ -2175,8 +2206,9 @@
       await loadSession();
       if (generation !== state.sessionVersion) return;
       state.loginEmail = ''; state.signupName = ''; state.loginNotice = ''; state.loginStep = 'email';
-      notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé, avec 14 jours Premium offerts. Ouvrez votre premier dossier et déposez vos pièces.');
+      notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Activez vos 14 jours gratuits, puis ouvrez votre premier dossier.');
       state.busy = false; render(true);
+      if (await maybeCardGate()) return;
       if (!state.cases.length) openNewCase({ welcome: true });
       return;
     } catch (error) {
@@ -2267,8 +2299,10 @@
       await loadSession();
       if (state.googleReturn === 'connecte' && state.mode === 'authenticated') {
         state.googleReturn = '';
-        notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé, avec 14 jours Premium offerts. Ouvrez votre premier dossier et déposez vos pièces.');
-        if (!state.cases.length) { render(); openNewCase(); return; }
+        notify(state.cases.length ? 'Vous êtes connecté à votre tableau de bord.' : 'Votre tableau de bord est créé. Activez vos 14 jours gratuits, puis ouvrez votre premier dossier.');
+        render();
+        if (await maybeCardGate()) return;
+        if (!state.cases.length) { openNewCase(); return; }
       }
       // Deep links: /#case/<id>[/<section>] opens one dossier directly (used by the lawyer space); /#integrations is the connector return page.
       const deep = /^#case\/([A-Za-z0-9_.:-]{1,80})(?:\/([a-z]+))?$/u.exec(window.location.hash || '');
@@ -2278,6 +2312,8 @@
         state.view = section;
       } else if (window.location.hash === '#integrations') state.view = 'integrations';
       render();
+      // Au retour de Stripe (#settings), la confirmation arrive par webhook : on n'affiche pas la fenêtre tout de suite.
+      if (window.location.hash !== '#settings') void maybeCardGate();
     }
     catch (error) {
       clearSession(); render();

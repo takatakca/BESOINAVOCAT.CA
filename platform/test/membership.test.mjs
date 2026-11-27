@@ -13,7 +13,7 @@ const users = {
   client: { subject: 'client-1', tenantId: 'tenant-a', product: 'besoinavocat', active: true },
 };
 const WHSEC = `whsec_${'w'.repeat(32)}`;
-const ENV = { APP_ORIGIN: 'https://portail.example.test', BESOINAVOCAT_STRIPE_SECRET_KEY: `sk_test_${'a'.repeat(24)}`, BESOINAVOCAT_STRIPE_PRICE_WEEKLY: 'price_weekly0001', BESOINAVOCAT_STRIPE_PRICE_MONTHLY: 'price_monthly001', BESOINAVOCAT_STRIPE_WEBHOOK_SECRET: WHSEC };
+const ENV = { APP_ORIGIN: 'https://portail.example.test', BESOINAVOCAT_STRIPE_SECRET_KEY: `sk_test_${'a'.repeat(24)}`, BESOINAVOCAT_STRIPE_PRICE_LAWYER_YEARLY: 'price_yearly0001', BESOINAVOCAT_STRIPE_PRICE_MONTHLY: 'price_monthly001', BESOINAVOCAT_STRIPE_WEBHOOK_SECRET: WHSEC };
 
 // A stand-in for the three Stripe endpoints used: prices, Checkout sessions and the billing portal.
 function fakeStripe() {
@@ -24,8 +24,8 @@ function fakeStripe() {
     assert.equal(options.headers.Authorization, `Bearer ${ENV.BESOINAVOCAT_STRIPE_SECRET_KEY}`);
     const form = options.body ? Object.fromEntries(new URLSearchParams(options.body)) : null;
     calls.push({ path: u.pathname, method: options.method || 'GET', form });
-    if (u.pathname === '/v1/prices/price_weekly0001') return Response.json({ id: 'price_weekly0001', unit_amount: 10000, currency: 'cad', recurring: { interval: 'week', interval_count: 1 }, active: true });
-    if (u.pathname === '/v1/prices/price_monthly001') return Response.json({ id: 'price_monthly001', unit_amount: 30000, currency: 'cad', recurring: { interval: 'month', interval_count: 1 }, active: true });
+    if (u.pathname === '/v1/prices/price_yearly0001') return Response.json({ id: 'price_yearly0001', unit_amount: 360000, currency: 'cad', recurring: { interval: 'year', interval_count: 1 }, active: true });
+    if (u.pathname === '/v1/prices/price_monthly001') return Response.json({ id: 'price_monthly001', unit_amount: 45000, currency: 'cad', recurring: { interval: 'month', interval_count: 1 }, active: true });
     if (u.pathname === '/v1/checkout/sessions') return Response.json({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
     if (u.pathname === '/v1/billing_portal/sessions') return Response.json({ id: 'bps_1', url: 'https://billing.stripe.com/p/session/test_1' });
     return Response.json({ error: { message: 'no' } }, { status: 404 });
@@ -65,9 +65,9 @@ test('configuration accepts only Stripe-shaped keys and price ids, and names wha
   assert.equal(membershipConfiguration(ENV).mode, 'test');
   const none = membershipConfiguration({ APP_ORIGIN: 'https://portail.example.test' });
   assert.equal(none.configured, false);
-  assert.deepEqual(none.missing, ['BESOINAVOCAT_STRIPE_SECRET_KEY', 'BESOINAVOCAT_STRIPE_PRICE_WEEKLY ou _MONTHLY', 'BESOINAVOCAT_STRIPE_WEBHOOK_SECRET']);
+  assert.deepEqual(none.missing, ['BESOINAVOCAT_STRIPE_SECRET_KEY', 'BESOINAVOCAT_STRIPE_PRICE_LAWYER_YEARLY ou _MONTHLY', 'BESOINAVOCAT_STRIPE_WEBHOOK_SECRET']);
   assert.equal(membershipConfiguration({ ...ENV, BESOINAVOCAT_STRIPE_SECRET_KEY: 'pk_test_abcdefabcdefabcdef' }).secretKey, null, 'a publishable key is refused');
-  assert.equal(membershipConfiguration({ ...ENV, BESOINAVOCAT_STRIPE_PRICE_WEEKLY: '100' }).prices.weekly, undefined, 'an amount is never accepted in place of a Stripe price');
+  assert.equal(membershipConfiguration({ ...ENV, BESOINAVOCAT_STRIPE_PRICE_LAWYER_YEARLY: '100' }).prices.yearly, undefined, 'an amount is never accepted in place of a Stripe price');
 });
 
 test('a lawyer subscribes through Stripe Checkout; only signed Stripe events activate the membership', async t => {
@@ -78,9 +78,9 @@ test('a lawyer subscribes through Stripe Checkout; only signed Stripe events act
   const overview = await f.request('/api/membership');
   assert.equal(overview.json.eligible, true);
   assert.equal(overview.json.membership.status, 'none');
-  assert.deepEqual(overview.json.plans.map(p => [p.plan, p.amountCents, p.currency, p.interval]), [['weekly', 10000, 'CAD', 'week'], ['monthly', 30000, 'CAD', 'month']], 'amounts come from Stripe');
+  assert.deepEqual(overview.json.plans.map(p => [p.plan, p.amountCents, p.currency, p.interval]), [['yearly', 360000, 'CAD', 'year'], ['monthly', 45000, 'CAD', 'month']], 'amounts come from Stripe');
 
-  assert.equal((await f.request('/api/membership/checkout', { method: 'POST', body: { plan: 'yearly' } })).status, 400);
+  assert.equal((await f.request('/api/membership/checkout', { method: 'POST', body: { plan: 'weekly' } })).status, 400, 'the weekly plan no longer exists (D-046)');
   const checkout = await f.request('/api/membership/checkout', { method: 'POST', body: { plan: 'monthly' } });
   assert.equal(checkout.status, 201);
   assert.equal(checkout.json.url, 'https://checkout.stripe.com/c/pay/cs_test_1');
@@ -104,7 +104,7 @@ test('a lawyer subscribes through Stripe Checkout; only signed Stripe events act
   assert.equal(state.active, true);
   assert.equal(state.plan, 'monthly');
   assert.equal(state.canManage, true);
-  assert.equal((await f.request('/api/membership/checkout', { method: 'POST', body: { plan: 'weekly' } })).status, 409);
+  assert.equal((await f.request('/api/membership/checkout', { method: 'POST', body: { plan: 'yearly' } })).status, 409);
 
   // Duplicates change nothing; cancellation is applied; the history is append-only.
   assert.equal((await f.stripeEvent(active)).json.duplicate, true);

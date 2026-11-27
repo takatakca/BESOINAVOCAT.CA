@@ -31,6 +31,7 @@ test('après la création, les fichiers partent un à un par la file de dépôt;
 test('à l’inscription, le premier dossier s’ouvre en mode accueil et les refus 402 renvoient vers « Mon forfait »', () => {
   const signup = between('async function verifyClientSignup(', 'async function login(');
   assert.match(signup, /openNewCase\(\{ welcome: true \}\)/u);
-  assert.match(signup, /14 jours Premium offerts/u);
+  assert.match(signup, /Activez vos 14 jours gratuits/u);
+  assert.match(signup, /await maybeCardGate\(\)/u, 'la carte est demandée avant le premier dossier (D-046)');
   assert.match(source, /response\.status === 402 \? ' Voir « Mon forfait » dans les réglages\.' : ''/u);
 });

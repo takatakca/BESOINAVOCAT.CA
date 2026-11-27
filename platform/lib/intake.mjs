@@ -121,7 +121,7 @@ function contactInput(body) {
   const contact = contactFields(body);
   if (!['client','professional'].includes(body.role)) throw invalid();
   if (body.consent !== true || body.consentVersion !== CONSENT_VERSION) throw consentRequired();
-  if ((body.role === 'professional' && !['weekly','monthly'].includes(body.periodicity)) || (body.role === 'client' && body.periodicity !== undefined)) throw invalid();
+  if ((body.role === 'professional' && !['yearly','monthly'].includes(body.periodicity)) || (body.role === 'client' && body.periodicity !== undefined)) throw invalid();
   const { name, email, phone, language, domain, region } = contact;
   return { name, email, phone, role: body.role, language, domain, region,
     ...(body.role === 'professional' ? { periodicity: body.periodicity } : {}), consent: true, consentVersion: CONSENT_VERSION };

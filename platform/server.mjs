@@ -220,10 +220,10 @@ export function createApp({
   const integrations = createIntegrations({ db: store.db, access: store.access, audit: store.audit, config: integrationConfiguration(env), fetch: integrationFetch });
   const telephony = createTelephony({ db: store.db, access: store.access, audit: store.audit, store, config: telephonyConfiguration(env), fetch: telephonyFetch, clock });
   const video = createVideoRooms({ db: store.db, access: store.access, audit: store.audit, iceServers: createIceServers(iceConfiguration(env), clock), clock });
-  const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS), isLawyer: accounts.has, trialDays: accounts.config.trialDays });
+  const membership = createMembership({ db: store.db, config: membershipConfiguration(env), fetch: paymentsFetch, clock, teamMembers: teamMembers(env.BESOINAVOCAT_TEAM_MEMBERS), isLawyer: accounts.has, trialDays: accounts.config.trialDays, cardTrial: env.BESOINAVOCAT_CARD_TRIAL !== 'false' });
   // Forfaits des clients, espace et modules d'intégration (lib/billing.mjs, D-041). Limites actives seulement quand
   // le paiement est raccordé; la garde des pièces s'exécute dans la transaction d'ajout.
-  const billing = createBilling({ db: store.db, config: billingConfiguration(env), fetch: paymentsFetch, clock, isClient: clients.has, isLawyer: accounts.has });
+  const billing = createBilling({ db: store.db, config: billingConfiguration(env), fetch: paymentsFetch, clock, isClient: clients.has, isLawyer: accounts.has, cardTrial: env.BESOINAVOCAT_CARD_TRIAL !== 'false' });
   store.setUploadGuard((actor, caseId, info) => billing.checkUpload(actor, caseId, info));
   // Accès avocat payant (propriétaire, 20 novembre 2026, D-044) : 14 jours gratuits, puis 100 $ par semaine ou 300 $
   // par mois avec engagement d'un an (lib/pricing.mjs). Par défaut, l'essai expiré ne bloque que lorsque Stripe est
@@ -234,7 +234,10 @@ export function createApp({
   // Essai ou abonnement en cours : exigé pour rejoindre ou accepter un dossier quand l'accès avocat est exigé.
   const requireLawyerAccess = user => {
     if (!accounts.has(user)) throw new HttpError(403, 'NOT_A_LAWYER', 'Ouvrez d’abord votre espace avocat.');
-    if (lawyerAccessEnforced && !membership.isActive(user)) throw new HttpError(402, 'PAYMENT_REQUIRED', 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+    if (lawyerAccessEnforced && !membership.isActive(user)) {
+      const state = membership.state(user);
+      throw new HttpError(402, 'PAYMENT_REQUIRED', state.cardRequired && !state.trial ? 'Activez vos 14 jours gratuits dans votre espace avocat : choisissez votre forfait et entrez votre carte chez Stripe.' : 'Votre essai gratuit est terminé. Choisissez un abonnement pour continuer.');
+    }
   };
   const documentRequests = createDocumentRequests({ db: store.db, access: store.access, audit: store.audit, clock });
   const deadlines = createDeadlines({ db: store.db, access: store.access, audit: store.audit, clock });

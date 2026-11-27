@@ -1,13 +1,14 @@
 // Prices are an expression of interest, not an activated checkout or contract.
 // Publish a new version when amounts, consent or the selection schema change.
 import { publicQuestionnaire } from './questionnaire.mjs';
-export const CATALOG_VERSION = '2026-11-04.1';
+export const CATALOG_VERSION = '2026-11-27.1';
 export const CONSENT_VERSION = '2026-10-26.1';
 // Detailed client request (situation, urgency, deadline). Separate consent; disabled unless configured.
 export const REQUEST_CONSENT_VERSION = '2026-10-27.1';
 export const SUMMARY_LIMITS = Object.freeze({ min: 20, max: 1500 });
 export const DEADLINE_MAX_DAYS = 1830;
-const PROFESSIONAL_AMOUNTS = Object.freeze({ weekly: 10000, monthly: 30000 });
+// D-046: 14 days free with a card, then billed for the year; monthly costs 50 % more.
+const PROFESSIONAL_AMOUNTS = Object.freeze({ yearly: 360000, monthly: 45000 });
 const labels = (id, fr, en) => ({ id, label: { fr, en } });
 // Display order of the guided request. The ids of the first eight areas are unchanged since 2026-10-26.
 export const DOMAINS = [
@@ -83,8 +84,8 @@ export function publicCatalog({ intakeConfigured = false, requestEnabled = false
     professional: {
       audience: 'lawyer', pricingStatus: 'announced', subscriptionActive: false, taxTreatment: 'not_configured',
       plans: [
-        { id: 'weekly', amountMinor: PROFESSIONAL_AMOUNTS.weekly, interval: 'week', intervalCount: 1, label: { fr: '100 CAD par semaine', en: 'CAD 100 per week' } },
-        { id: 'monthly', amountMinor: PROFESSIONAL_AMOUNTS.monthly, interval: 'month', intervalCount: 1, label: { fr: '300 CAD par mois', en: 'CAD 300 per month' } },
+        { id: 'yearly', amountMinor: PROFESSIONAL_AMOUNTS.yearly, interval: 'year', intervalCount: 1, label: { fr: '3 600 CAD par année', en: 'CAD 3,600 per year' } },
+        { id: 'monthly', amountMinor: PROFESSIONAL_AMOUNTS.monthly, interval: 'month', intervalCount: 1, label: { fr: '450 CAD par mois', en: 'CAD 450 per month' } },
       ],
     },
     aiCredits: { includedInProfessionalPlan: false, pricingStatus: 'not_configured', purchaseAvailable: false,

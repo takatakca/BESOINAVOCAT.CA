@@ -132,7 +132,7 @@ test('/api/v1 deposits a request server to server, replays idempotently and keep
   const readerIntake = await f.request('/api/v1/intake', { method: 'POST', body: contact(), headers: { ...f.bearer(f.reader), 'Idempotency-Key': randomUUID() } });
   assert.equal(readerIntake.status, 403); assert.equal(readerIntake.json.error.code, 'API_SCOPE_MISSING');
   const catalog = await f.request('/api/v1/catalog', { headers: f.bearer(f.site) });
-  assert.equal(catalog.status, 200); assert.equal(catalog.json.version, '2026-11-04.1');
+  assert.equal(catalog.status, 200); assert.equal(catalog.json.version, '2026-11-27.1');
   assert.equal((await f.request('/api/v1/unknown', { headers: f.bearer(f.site) })).status, 404);
   assert.equal((await f.request('/api/v1/catalog', { method: 'POST', body: {}, headers: f.bearer(f.site) })).status, 405);
   assert.equal((await f.request('/api/v1/me?x=1', { headers: f.bearer(f.site) })).status, 400);

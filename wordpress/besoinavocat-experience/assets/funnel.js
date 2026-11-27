@@ -37,7 +37,7 @@
       professionalDetail: 'Signaler mon intérêt pour un espace professionnel, sous réserve de vérification de mon habilitation.',
       preferencesTitle: 'Dans quel domaine et quelle région ?', preferencesHint: 'Ces catégories servent à orienter votre demande. Elles ne garantissent ni réponse ni disponibilité.',
       domain: 'Domaine', region: 'Région', choose: 'Choisir une option', plan: 'Formule qui vous intéresse',
-      weekly: '100 CAD / semaine', monthly: '300 CAD / mois', planHint: 'Choix indicatif uniquement : aucun abonnement, paiement ou engagement à cette étape.',
+      yearly: '3 600 CAD / année', monthly: '450 CAD / mois', planHint: 'Choix indicatif uniquement : aucun abonnement, paiement ou engagement à cette étape.',
       contactTitle: 'Comment vous recontacter ?', contactHint: 'Renseignez uniquement vos coordonnées. Aucun détail de votre affaire, mot de passe ou document.',
       name: 'Nom', email: 'Courriel', phone: 'Téléphone (facultatif)',
       consent: 'Je consens à ce que BesoinAvocat conserve ces coordonnées et catégories pour traiter ma demande de contact. Je ne transmets aucun récit juridique ni document. Cet envoi ne crée ni mandat, ni abonnement, ni paiement.',
@@ -73,7 +73,7 @@
       professionalDetail: 'Express interest in a professional workspace, subject to verification of my professional authorization.',
       preferencesTitle: 'Which area of law and region?', preferencesHint: 'These categories help route your request. They do not guarantee a response or availability.',
       domain: 'Area of law', region: 'Region', choose: 'Choose an option', plan: 'Option you are interested in',
-      weekly: '100 CAD / week', monthly: '300 CAD / month', planHint: 'This is an indication of interest only: no subscription, payment or commitment at this step.',
+      yearly: 'CAD 3,600 / year', monthly: 'CAD 450 / month', planHint: 'This is an indication of interest only: no subscription, payment or commitment at this step.',
       contactTitle: 'How can we contact you?', contactHint: 'Enter contact details only. Do not include case details, passwords or documents.',
       name: 'Name', email: 'Email', phone: 'Phone (optional)',
       consent: 'I consent to BesoinAvocat storing these contact details and categories to process my contact request. I am not submitting a legal account or document. This submission does not create a legal engagement, subscription or payment.',
@@ -131,7 +131,7 @@
     if (throughStep < 1) return null;
     if (!has(DOMAINS, state.domain)) return { field: 'domain', key: 'missingDomain' };
     if (!has(REGIONS, state.region)) return { field: 'region', key: 'missingRegion' };
-    if (state.role === 'professional' && !['weekly', 'monthly'].includes(state.periodicity)) return { field: 'periodicity', key: 'missingPlan' };
+    if (state.role === 'professional' && !['yearly', 'monthly'].includes(state.periodicity)) return { field: 'periodicity', key: 'missingPlan' };
     if (throughStep < 2) return null;
     const name = String(state.name || '').trim();
     const email = String(state.email || '').trim();
@@ -251,7 +251,7 @@
       return `<button type="button" class="ba-funnel__choice${state.role === role ? ' is-selected' : ''}" data-ba-role="${role}" aria-pressed="${state.role === role}"${disabled()}><span class="ba-funnel__choice-icon" aria-hidden="true">${role === 'client' ? '↗' : '§'}</span><strong>${escaped(role)}</strong><span>${escaped(role + 'Detail')}</span><i aria-hidden="true">${state.role === role ? '✓' : '+'}</i></button>`;
     }
     function planCards() {
-      return `<fieldset class="ba-funnel__plans"><legend>${escaped('plan')}</legend><div>${['weekly', 'monthly'].map((plan) => `<button type="button" class="${state.periodicity === plan ? 'is-selected' : ''}" data-ba-plan="${plan}" aria-pressed="${state.periodicity === plan}"${disabled()}>${escaped(plan)}</button>`).join('')}</div><p class="ba-funnel__fine">${escaped('planHint')}</p></fieldset>`;
+      return `<fieldset class="ba-funnel__plans"><legend>${escaped('plan')}</legend><div>${['yearly', 'monthly'].map((plan) => `<button type="button" class="${state.periodicity === plan ? 'is-selected' : ''}" data-ba-plan="${plan}" aria-pressed="${state.periodicity === plan}"${disabled()}>${escaped(plan)}</button>`).join('')}</div><p class="ba-funnel__fine">${escaped('planHint')}</p></fieldset>`;
     }
     function summary() {
       const rows = [[text('role'), text(state.role + 'Short')], [text('domain'), labelOf(DOMAINS, state.domain, state.language)], [text('region'), labelOf(REGIONS, state.region, state.language)], [text('language'), text(state.requestLanguage || state.language)], [text('price'), state.role === 'professional' ? text(state.periodicity) : text('free')]];
@@ -311,7 +311,7 @@
     }
     function open(settings = {}, trigger) {
       if (!state.pending && !state.receipt && settings.role) state.role = settings.role === 'professional' || settings.role === 'lawyer' ? 'professional' : 'client';
-      if (!state.pending && !state.receipt && ['weekly', 'monthly'].includes(settings.periodicity)) { state.role = 'professional'; state.periodicity = settings.periodicity; }
+      if (!state.pending && !state.receipt && ['yearly', 'monthly'].includes(settings.periodicity)) { state.role = 'professional'; state.periodicity = settings.periodicity; }
       opener = trigger || global.document.activeElement;
       render(false);
       if (dialog) {

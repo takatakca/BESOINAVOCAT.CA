@@ -21,7 +21,18 @@ export const NOTICE_KINDS = Object.freeze({
   deadline_shared: { audience: 'clients', subject: 'Une nouvelle date dans votre dossier', body: 'Votre avocat a ajouté une date à votre dossier BesoinAvocat.' },
   document_provided: { audience: 'managers', subject: 'Une pièce demandée est arrivée', body: 'Une pièce que vous aviez demandée a été déposée dans un dossier BesoinAvocat.' },
   signature_completed: { audience: 'sender', subject: 'Un document a été signé', body: 'Un document que vous avez envoyé pour signature est signé. Versez la version signée au dossier depuis le portail.' },
+  case_accepted: { audience: 'clients', subject: 'Un avocat a accepté votre dossier', body: 'Un avocat a accepté votre dossier BesoinAvocat. Convenez maintenant ensemble des conditions du mandat, dans le dossier.' },
+  message_posted: { audience: 'others', subject: 'Nouveau message dans votre dossier', body: 'Un nouveau message vous attend dans votre dossier BesoinAvocat.' },
 });
+// Personnes à aviser d'un événement de dossier, rôle relu maintenant; jamais l'auteur de l'événement.
+export function caseAudience(db, actor, caseId, kind, sender) {
+  const audience = NOTICE_KINDS[kind]?.audience;
+  if (!audience) return [];
+  if (audience === 'sender') return db.prepare('SELECT subject FROM members WHERE tenantId=? AND caseId=? AND subject=?').all(actor.tenantId, caseId, sender ?? '').map(m => m.subject);
+  return db.prepare('SELECT subject, role FROM members WHERE tenantId=? AND caseId=?').all(actor.tenantId, caseId)
+    .filter(m => m.subject !== actor.subject && (audience === 'others' || (audience === 'clients' ? !MANAGERS.includes(m.role) : MANAGERS.includes(m.role))))
+    .map(m => m.subject);
+}
 const hash = value => createHash('sha256').update(value, 'utf8').digest('hex');
 const same = (a, b) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
 const mask = email => { const [local, domain] = email.split('@'); return `${local.slice(0, 1)}${'•'.repeat(Math.max(1, Math.min(6, local.length - 1)))}@${domain}`; };
@@ -75,11 +86,7 @@ export function createNotifications({ db, audit, config = notificationConfigurat
 
   // Recipients of a case event, with their role re-read now. Never the person who caused the event.
   function recipients(actor, caseId, kind, sender) {
-    const audience = NOTICE_KINDS[kind].audience;
-    const rows = audience === 'sender' ? sql('SELECT subject, role FROM members WHERE tenantId=? AND caseId=? AND subject=?').all(actor.tenantId, caseId, sender)
-      : sql('SELECT subject, role FROM members WHERE tenantId=? AND caseId=?').all(actor.tenantId, caseId)
-        .filter(m => (audience === 'clients' ? !MANAGERS.includes(m.role) : MANAGERS.includes(m.role)) && m.subject !== actor.subject);
-    return rows.map(m => sql("SELECT * FROM notification_contacts WHERE tenantId=? AND subject=? AND status='verified' AND paused=0").get(actor.tenantId, m.subject)).filter(Boolean);
+    return caseAudience(db, actor, caseId, kind, sender).map(subject => sql("SELECT * FROM notification_contacts WHERE tenantId=? AND subject=? AND status='verified' AND paused=0").get(actor.tenantId, subject)).filter(Boolean);
   }
 
   async function caseEvent(actor, caseId, kind, { sender } = {}) {

@@ -497,13 +497,15 @@
         ${offer('premium', 'year', 'Premium annuel', `par année · dossiers illimités, ${esc(gb(premium.storageBytes))}, vidéos${keep}`)}
         ${offer('premium', 'month', 'Premium mensuel', 'par mois · 50 % de plus qu’à l’année')}</div>`;
       const gate = o.cardRequired ? `<div class="callout warning">${icon('info')}<p><strong>Activez vos ${esc(String(o.trialDays || 14))} jours gratuits</strong>Choisissez un forfait ci-dessous et entrez votre carte chez Stripe. Rien n’est facturé pendant l’essai; ensuite, le forfait choisi est facturé automatiquement, sauf si vous l’annulez avant. Vos dossiers restent consultables.</p></div>` : '';
+      const f = o.features || {};
+      const perks = f.priority ? `<div class="callout">${icon('spark')}<p><strong>Dossiers proposés en priorité</strong>Quand vous déclarez un dossier prêt, il passe en tête de la liste des avocats du domaine${f.priority > 1 ? ', devant les dossiers Membre' : ''}, avec la mention « Prioritaire ».${f.prioritySupport ? ' <strong>Soutien prioritaire</strong> : appelez le <a href="tel:+15148252825">514 825-2825</a> et dites « Premium » : votre demande passe en premier.' : ''}</p></div>` : '';
       const pack = p.client.storagePack;
       const storage = o.subscriptions.storage?.live ? `<p class="table-subtext">Espace supplémentaire : ${esc(String(o.subscriptions.storage.quantity))} × ${esc(gb(pack.bytes))}.</p>`
         : o.plan.source === 'subscription' ? `<p class="table-subtext">Besoin de plus d’espace ? ${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois, cumulable. <button type="button" class="button subtle small" data-live-action="billing-checkout" data-item="storage"${canPay && o.available.storage ? '' : ' disabled'}>Ajouter ${esc(gb(pack.bytes))}</button></p>`
         : `<p class="table-subtext">L’espace additionnel (${esc(gb(pack.bytes))} pour ${esc(cad(pack.prices.month))} par mois) s’ajoute aux forfaits Membre et Premium.</p>`;
       plan = `${gate}<p>${pill(o.plan.id === 'free' ? 'off' : 'ok', o.plan.label)}${trial}${renew}</p>
         <p class="table-subtext">Espace utilisé : ${esc(gb(u.bytes))} sur ${esc(gb(u.quotaBytes))} · ${esc(String(u.cases))} dossier${u.cases > 1 ? 's' : ''}${u.maxCases ? ` sur ${esc(String(u.maxCases))}` : ''}${o.features.video ? ' · vidéos comprises' : ' · vidéos avec Membre ou Premium'}</p>
-        <meter class="billing-meter" min="0" max="100" low="70" high="90" optimum="10" value="${esc(String(u.percent))}" aria-label="Espace utilisé">${esc(String(u.percent))} %</meter>${offers}${storage}`;
+        <meter class="billing-meter" min="0" max="100" low="70" high="90" optimum="10" value="${esc(String(u.percent))}" aria-label="Espace utilisé">${esc(String(u.percent))} %</meter>${perks}${offers}${storage}`;
     }
     const subI = o.subscriptions.integrations;
     const yearly = p.plugins.subscription.year ? ` ou ${esc(cad(p.plugins.subscription.year))} par année` : '';
@@ -600,6 +602,49 @@
     node.innerHTML = `${head}<div class="panel-body">${body}<p class="table-subtext">Au plus un avis par sorte et par dossier toutes les 10 minutes, et 20 par jour. Votre adresse sert seulement à ces avis.</p></div>`;
   }
 
+  // ---------- Avis sur cet appareil (Web Push, D-047) ----------
+  const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+  const deviceLabel = () => { const ua = navigator.userAgent || ''; return /iPhone|iPad/u.test(ua) ? 'iPhone ou iPad' : /Android/u.test(ua) ? 'Android' : /Windows/u.test(ua) ? 'Ordinateur Windows' : /Mac/u.test(ua) ? 'Mac' : 'Appareil'; };
+  const keyBytes = value => { const raw = atob(value.replace(/-/gu, '+').replace(/_/gu, '/') + '==='.slice((value.length + 3) % 4)); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
+  async function currentSubscription() {
+    if (!pushSupported()) return null;
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    return registration ? registration.pushManager.getSubscription() : null;
+  }
+  async function paintPush(node) {
+    if (bridge.isDemo()) { node.innerHTML = demo('Avis sur cet appareil'); return; }
+    const o = await api('/api/notifications/push');
+    const head = `<div class="panel-heading"><div><h2>Avis sur cet appareil</h2><p>Une alerte sur votre téléphone ou votre ordinateur quand un avocat accepte votre dossier, vous écrit ou vous demande une pièce. Gratuit. Jamais de nom, de titre de dossier ni de contenu.</p></div></div>`;
+    if (!o.ready) { node.innerHTML = `${head}<div class="panel-body"><div class="callout">${icon('info')}<p><strong>Avis à activer sur le serveur</strong>L’adresse publique du portail (APP_ORIGIN) n’est pas configurée.</p></div></div>`; return; }
+    const ios = /iPhone|iPad/u.test(navigator.userAgent || '');
+    let body;
+    if (!pushSupported()) body = `<div class="callout">${icon('info')}<p><strong>Cet appareil ne reçoit pas encore les avis</strong>${ios ? 'Sur iPhone et iPad : touchez « Partager », puis « Sur l’écran d’accueil », ouvrez BesoinAvocat depuis l’écran d’accueil et revenez ici.' : 'Ouvrez le portail dans Chrome, Edge, Firefox ou Safari à jour.'}</p></div>`;
+    else if (Notification.permission === 'denied') body = `<div class="callout warning">${icon('info')}<p><strong>Avis bloqués par le navigateur</strong>Autorisez les notifications pour portail.besoinavocat.ca dans les réglages du navigateur (icône à gauche de l’adresse), puis rechargez la page.</p></div>`;
+    else {
+      const sub = await currentSubscription().catch(() => null);
+      const on = Boolean(sub && Notification.permission === 'granted');
+      body = `<p>${pill(on ? 'ok' : 'off', on ? 'Actifs sur cet appareil' : 'Pas activés sur cet appareil')}${o.devices.length ? ` · ${o.devices.length} appareil${o.devices.length > 1 ? 's' : ''} inscrit${o.devices.length > 1 ? 's' : ''}` : ''}</p>
+        <div class="tile-actions">${on ? '<button type="button" class="button secondary small" data-live-action="push-test">Envoyer un essai</button><button type="button" class="button subtle small" data-live-action="push-off">Désactiver sur cet appareil</button>' : '<button type="button" class="button small" data-live-action="push-on">Activer les avis sur cet appareil</button>'}</div>
+        ${o.devices.length ? `<ul class="drawer-list">${o.devices.map(d => `<li><span class="queue-icon">${icon('phone')}</span><span class="queue-text"><strong>${esc(d.label || 'Appareil')}</strong> <small>inscrit le ${esc(when(d.createdAt))}${d.lastSentAt ? ` · dernier avis le ${esc(when(d.lastSentAt))}` : ''}</small></span><button type="button" class="button subtle small" data-live-action="push-remove" data-id="${esc(d.id)}">Retirer</button></li>`).join('')}</ul>` : ''}`;
+    }
+    node.innerHTML = `${head}<div class="panel-body">${body}<p class="table-subtext">Jusqu’à ${esc(String(o.maxDevices))} appareils. Au plus un avis par sorte et par dossier toutes les 10 minutes. Retirez un appareil en tout temps.</p></div>`;
+  }
+  async function pushOn() {
+    if (!pushSupported()) throw new Error('Cet appareil ne permet pas les avis.');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { repaint('push'); throw new Error('Les notifications n’ont pas été autorisées.'); }
+    const o = await api('/api/notifications/push');
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(() => navigator.serviceWorker.ready);
+    let sub = await registration.pushManager.getSubscription();
+    if (!sub) sub = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(o.publicKey) });
+    const json = sub.toJSON();
+    await post('/api/notifications/push/subscribe', { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth }, label: deviceLabel() });
+  }
+  async function pushOff() {
+    const sub = await currentSubscription().catch(() => null);
+    if (sub) { await post('/api/notifications/push/unsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe().catch(() => false); }
+  }
+
   // ---------- Abonnement agenda privé (lien iCal secret) ----------
   let feedLink = null;
   const FEED_DETAIL = { discreet: 'Discret : type et référence du dossier seulement', full: 'Complet : titres et notes inclus' };
@@ -619,7 +664,7 @@
   }
 
   // ---------- Painting, refresh and events ----------
-  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, canlii: paintCanlii, 'case-clio': paintClio, billing: paintBilling };
+  const PAINTERS = { phone: paintPhone, 'case-calls': paintCalls, 'case-video': paintVideo, 'case-journal': paintJournal, 'case-documents': paintDocuments, team: paintTeam, 'case-requests': paintRequests, 'client-home': paintClientHome, membership: paintMembership, 'case-deadlines': paintDeadlines, 'deadline-week': paintWeek, 'intake-counts': paintIntakes, 'calendar-feed': paintCalendarFeed, 'case-signatures': paintSignatures, notices: paintNotices, push: paintPush, canlii: paintCanlii, 'case-clio': paintClio, billing: paintBilling };
   async function paint(node) {
     const painter = PAINTERS[node.dataset.live];
     if (!painter) return;
@@ -688,6 +733,10 @@
     else if (action === 'signature-void') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/void`, { reason: 'Envoi annulé par l’avocat depuis BesoinAvocat.' }); repaint('case-signatures'); bridge.notify('Envoi annulé chez DocuSign.'); }
     else if (action === 'signature-retrieve') { await post(`${caseBase()}/signatures/${encodeURIComponent(id)}/retrieve`); repaint('case-signatures'); await bridge.reloadCase(); bridge.notify('La version signée et son certificat sont versés aux pièces.'); }
     else if (action === 'notice-pause') { await post('/api/notifications/pause', { paused: button.dataset.paused === 'true' }); repaint('notices'); bridge.notify(button.dataset.paused === 'true' ? 'Avis suspendus.' : 'Avis repris.'); }
+    else if (action === 'push-on') { await pushOn(); repaint('push'); bridge.notify('Avis activés sur cet appareil.'); }
+    else if (action === 'push-off') { await pushOff(); repaint('push'); bridge.notify('Avis désactivés sur cet appareil.'); }
+    else if (action === 'push-remove') { await post('/api/notifications/push/unsubscribe', { id }); repaint('push'); bridge.notify('Appareil retiré.'); }
+    else if (action === 'push-test') { const r = await post('/api/notifications/push/test'); bridge.notify(r.sent ? 'Essai envoyé : l’alerte arrive dans quelques secondes.' : 'L’essai n’a pas pu être livré. Désactivez puis réactivez les avis.'); repaint('push'); }
     else if (action === 'notice-remove') { await post('/api/notifications/remove'); repaint('notices'); bridge.notify('Adresse retirée. Aucun avis ne sera envoyé.'); }
     else if (action === 'clio-time') { const r = await post(`${caseBase()}/clio/time`); repaint('case-clio'); bridge.notify(`${r.sent} entrée${r.sent > 1 ? 's' : ''} de temps envoyée${r.sent > 1 ? 's' : ''} à Clio.`); }
     else if (action === 'feed-create') { feedLink = await post('/api/calendar-feed', { detail: document.getElementById('feed-detail')?.value || 'discreet' }); repaint('calendar-feed'); bridge.notify('Lien d’agenda créé. Copiez-le avant de quitter la page.'); }

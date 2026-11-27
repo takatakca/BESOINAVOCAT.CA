@@ -137,7 +137,7 @@ test('a person creates their dashboard with an email code, prepares a case, mark
   // Only the family lawyer sees it, without the pieces; the tax lawyer does not; a stranger cannot accept it.
   const seen = (await f.request('/api/lawyer/ready-cases', { cookie: family })).json;
   assert.equal(seen.cases.length, 1);
-  assert.deepEqual(seen.cases[0], { id: caseId, title: 'Garde partagée', reference: 'GP-1', createdAt: created.json.case.createdAt, domain: 'family', domainLabel: 'Famille et jeunesse', summary: 'Séparation, deux enfants, entente à revoir.', documents: 0, readyAt: '2026-11-14T20:00:00.000Z' });
+  assert.deepEqual(seen.cases[0], { id: caseId, title: 'Garde partagée', reference: 'GP-1', createdAt: created.json.case.createdAt, domain: 'family', domainLabel: 'Famille et jeunesse', summary: 'Séparation, deux enfants, entente à revoir.', documents: 0, readyAt: '2026-11-14T20:00:00.000Z', priority: false });
   assert.equal((await f.request(`/api/cases/${caseId}`, { cookie: family })).status, 404, 'no access before accepting');
   assert.deepEqual((await f.request('/api/lawyer/ready-cases', { cookie: tax })).json.cases, []);
   assert.equal((await f.request('/api/lawyer/accept', { method: 'POST', cookie: tax, body: { caseId } })).status, 200, 'a lawyer may accept outside the declared domains, but sees only the matching ones by default');

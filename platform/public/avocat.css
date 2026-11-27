@@ -92,6 +92,9 @@
 .ready-list { display: grid; gap: 10px; }
 .ready-case { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--amber); border-radius: var(--r); background: var(--surface); }
 .ready-case-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+.ready-case.priority { border-left-color: var(--gold, #b08d3c); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold, #b08d3c) 35%, transparent); }
+.ready-case-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.badge.priority { background: color-mix(in srgb, var(--gold, #b08d3c) 16%, transparent); color: #6d5317; border: 1px solid color-mix(in srgb, var(--gold, #b08d3c) 45%, transparent); }
 .ready-case-head strong { font-size: 15px; overflow-wrap: anywhere; }
 .ready-case-summary { margin: 0; font-size: 13.5px; color: var(--ink-2); white-space: pre-wrap; max-width: 70ch; }
 .ready-case-summary em { color: var(--muted); }

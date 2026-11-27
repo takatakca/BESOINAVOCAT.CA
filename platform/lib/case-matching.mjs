@@ -113,16 +113,25 @@ export function createCaseMatching({ db, access, audit, clock = Date.now }) {
     // Ce qu'un avocat voit avant d'accepter : les dossiers prêts de son organisation, dans ses domaines (tous les
     // domaines s'il n'en a déclaré aucun), dont il n'est pas déjà membre. Titre, domaine, résumé, nombre de pièces,
     // date — jamais les pièces, les messages ni l'identité de la personne.
-    readyCases(user, domains = []) {
+    // Priorité (forfaits Membre et Premium payés, D-047) : priorityOf(personne) donne 0, 1 ou 2; les dossiers des
+    // forfaits payés passent devant, Premium d'abord, puis par date « prêt ». Le badge ne dit que « Prioritaire ».
+    readyCases(user, domains = [], { priorityOf = () => 0 } = {}) {
       const chosen = validDomains(domains);
-      const rows = sql(`SELECT c.id,c.title,c.reference,c.createdAt,p.domain,p.summary,p.readyAt,
+      const rows = sql(`SELECT c.id,c.title,c.reference,c.createdAt,c.createdBy,p.domain,p.summary,p.readyAt,
           (SELECT COUNT(*) FROM documents d WHERE d.tenantId=c.tenantId AND d.caseId=c.id) AS documents
         FROM case_profiles p JOIN cases c ON c.tenantId=p.tenantId AND c.id=p.caseId
         WHERE p.tenantId=? AND p.status='pret'
           AND NOT EXISTS (SELECT 1 FROM members m WHERE m.tenantId=c.tenantId AND m.caseId=c.id AND m.subject=?)
         ORDER BY p.readyAt,c.id`).all(user.tenantId, user.subject);
+      const ranks = new Map();
+      const rank = row => {
+        if (!ranks.has(row.createdBy)) { let value = 0; try { value = Number(priorityOf({ tenantId: user.tenantId, subject: row.createdBy })) || 0; } catch { value = 0; } ranks.set(row.createdBy, value); }
+        return ranks.get(row.createdBy);
+      };
       const list = rows.filter(row => !chosen.length || chosen.includes(row.domain))
-        .map(row => ({ id: row.id, title: row.title, reference: row.reference, createdAt: row.createdAt, domain: row.domain, domainLabel: DOMAIN_LABELS[row.domain] ?? null, summary: row.summary, documents: row.documents, readyAt: row.readyAt }));
+        .map((row, order) => ({ row, order, priority: rank(row) }))
+        .sort((a, b) => b.priority - a.priority || a.order - b.order)
+        .map(({ row, priority }) => ({ id: row.id, title: row.title, reference: row.reference, createdAt: row.createdAt, domain: row.domain, domainLabel: DOMAIN_LABELS[row.domain] ?? null, summary: row.summary, documents: row.documents, readyAt: row.readyAt, priority: priority > 0 }));
       return { cases: list, domains: chosen, total: rows.length };
     },
     // L'avocat accepte : il devient membre « lawyer », le dossier passe à « accepte », et un message dans le dossier

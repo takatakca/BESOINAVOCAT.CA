@@ -15,7 +15,7 @@ test('la fenêtre du dossier propose un dépôt de plusieurs fichiers, facultati
   assert.match(dialog, /maxDocumentBytes/u, 'la limite par fichier vient de /api/capabilities');
   assert.match(dialog, /\.mp4|\.webm/u, 'vidéo acceptée dans la liste; le serveur tranche selon le forfait');
   assert.match(dialog, /welcome \? 'Votre premier dossier' : 'Nouveau dossier'/u);
-  assert.match(dialog, /14 jours Premium offerts/u);
+  assert.match(dialog, /14 jours gratuits pour commencer/u);
 });
 
 test('après la création, les fichiers partent un à un par la file de dépôt; un refus du forfait arrête la série sans annuler le dossier', () => {

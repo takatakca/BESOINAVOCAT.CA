@@ -665,7 +665,7 @@ test('the sign-in screen offers the lawyer sign-up only once the server announce
   h.ui.state.mode = 'signedout';
   h.ui.state.health = { status: 'ok', loginConfigured: true, lawyerSpace: { url: './avocat', trialDays: 14 } };
   h.ui.render();
-  assert.match(h.main(), /<p class="login-lawyer">Vous êtes avocat \? <a href="\.\/avocat">Créer mon compte \(14 jours gratuits, sans carte\)<\/a><\/p>/u);
+  assert.match(h.main(), /<p class="login-lawyer">Vous êtes avocat \? <a href="\.\/avocat">Créer mon compte \(14 jours gratuits\)<\/a><\/p>/u);
   h.ui.state.health = { status: 'ok', loginConfigured: true };
   h.ui.render();
   assert.doesNotMatch(h.main(), /login-lawyer/u, 'no link to a page that does not exist yet');

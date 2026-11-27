@@ -296,7 +296,7 @@ export function createApp({
       res.setHeader('Cache-Control', 'public, max-age=3600');
       return json(res, 200, assetLinks);
     }
-    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured });
+    if (path === '/api/health' && method === 'GET') return json(res, 200, { status: 'ok', mode: 'pilot', identityConfigured, loginConfigured, emailCodeConfigured, intakeConfigured: intake.configured, apiKeysConfigured: apiKeys.configured, lawyerSpace: { url: '/avocat', trialDays: accounts.config.trialDays }, clientSignup: emailCodeConfigured || googleConfigured, googleSignIn: googleConfigured, connectorsReady: integrations.engineReady() });
     // Annuaire public : nom du cabinet, ville et palier seulement — jamais une coordonnée (lib/firms-directory.mjs).
     if (path === '/api/firms' && method === 'GET') return json(res, 200, firmsDirectory.publicDirectory());
     // Public price grid (lib/pricing.mjs): no account state, readable before sign-in.

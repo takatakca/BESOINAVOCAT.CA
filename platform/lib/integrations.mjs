@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, createSecretKey, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, statSync, writeSync } from 'node:fs';
+import { dirname, isAbsolute } from 'node:path';
 import { privatePath } from './browser-session-store.mjs';
 import { httpsOrigin } from './browser-session.mjs';
 import { zoomJoinUrl } from './communications.mjs';
@@ -115,8 +116,21 @@ export function integrationConfiguration(env = process.env) {
   });
 }
 
-function loadVault(keyFile) {
+// D-048: when developer credentials are configured but the key file was never created on the volume, the
+// portal creates it once (32 random bytes, 0600, exclusive create) instead of leaving every connector off.
+// An existing file is never touched; a wrong or exposed file still fails closed as before.
+function createVaultKey(keyFile) {
+  if (!isAbsolute(keyFile) || existsSync(keyFile) || !existsSync(dirname(keyFile))) return;
+  const bytes = randomBytes(32);
+  let fd;
+  try { fd = openSync(keyFile, 'wx', 0o600); writeSync(fd, bytes); }
+  catch { /* another start created it, or the volume is read-only: loadVault decides */ }
+  finally { if (fd !== undefined) closeSync(fd); bytes.fill(0); }
+}
+
+function loadVault(keyFile, { create = false } = {}) {
   if (!keyFile) return { ready: false, reason: 'key_not_configured' };
+  if (create) createVaultKey(keyFile);
   try {
     const keyPath = privatePath(keyFile);
     if (statSync(keyPath).size !== 32) return { ready: false, reason: 'key_invalid' };
@@ -192,7 +206,7 @@ export async function readWebhookBody(req) {
 
 export function createIntegrations({ db, access, audit, config = integrationConfiguration(), fetch: fetchImpl = globalThis.fetch, clock = Date.now }) {
   if (!db || typeof access !== 'function' || typeof audit !== 'function' || typeof fetchImpl !== 'function') throw new Error('Integrations require db, access, audit and fetch');
-  const vault = loadVault(config.keyFile);
+  const vault = loadVault(config.keyFile, { create: Object.keys(config.oauth).length > 0 });
   db.exec(`
     CREATE TABLE IF NOT EXISTS integration_meta (name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS integration_states (

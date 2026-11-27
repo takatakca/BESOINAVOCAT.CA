@@ -74,9 +74,9 @@ final class BesoinAvocat_Render_Integrity {
             }
             if ($page_id === 151) {
                 $professional_headings = array(
-                    '75 000+' => '100 $ CA',
-                    'références / an' => 'par semaine',
-                    '30 à 40%' => '300 $ CA',
+                    '75 000+' => '3 600 $ CA',
+                    'références / an' => 'par année',
+                    '30 à 40%' => '450 $ CA',
                     "d'ouverture de dossier" => 'par mois',
                     'd’ouverture de dossier' => 'par mois',
                     '8 à 12x' => 'Crédits IA',
@@ -171,7 +171,7 @@ final class BesoinAvocat_Render_Integrity {
     }
 
     private static function professional_faq() {
-        return '<section class="ba-integrity-note ba-professional-faq" aria-labelledby="ba-professional-faq-title"><h2 id="ba-professional-faq-title">Les offres professionnelles se préparent</h2><h3>Quels sont les tarifs annoncés ?</h3><p>L’inscription des avocats est proposée à 100 $ CA par semaine ou à 300 $ CA par mois. La souscription n’est pas ouverte; les taxes et les conditions seront précisées avant activation. Aucun volume de références, taux de conversion ou rendement n’est promis.</p><h3>Les crédits IA sont-ils inclus ?</h3><p>Les crédits IA seront achetés séparément. Leur prix et leur achat ne sont pas encore activés.</p><h3>Un abonnement est-il activé ?</h3><p>Non. Cette présentation ne crée aucun compte professionnel, mandat ou abonnement. Les honoraires d’un avocat sont convenus directement avec son client. La demande client reste gratuite.</p></section>';
+        return '<section class="ba-integrity-note ba-professional-faq" aria-labelledby="ba-professional-faq-title"><h2 id="ba-professional-faq-title">Les offres professionnelles se préparent</h2><h3>Quels sont les tarifs annoncés ?</h3><p>L’inscription des avocats est proposée à 3 600 $ CA par année ou à 450 $ CA par mois. La souscription n’est pas ouverte; les taxes et les conditions seront précisées avant activation. Aucun volume de références, taux de conversion ou rendement n’est promis.</p><h3>Les crédits IA sont-ils inclus ?</h3><p>Les crédits IA seront achetés séparément. Leur prix et leur achat ne sont pas encore activés.</p><h3>Un abonnement est-il activé ?</h3><p>Non. Cette présentation ne crée aucun compte professionnel, mandat ou abonnement. Les honoraires d’un avocat sont convenus directement avec son client. La demande client reste gratuite.</p></section>';
     }
 
     public static function widget($html, $widget) {

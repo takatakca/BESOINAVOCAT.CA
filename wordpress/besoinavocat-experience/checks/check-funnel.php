@@ -15,7 +15,7 @@ funnel_check(strpos($inline, 'data-ba-intake-endpoint=""') !== false, 'No implic
 funnel_check(strpos($inline, 'data-ba-context="client"') !== false, 'Client context');
 funnel_check(strpos($inline, 'data-ba-fr=') !== false && strpos($inline, 'data-ba-en=') !== false, 'Bilingual content present');
 funnel_check(strpos($inline, 'change uniquement la langue de ce parcours') !== false, 'Language scope explicitly limited to the form');
-funnel_check(strpos($inline, '100 <span>CAD</span>') !== false && strpos($inline, '300 <span>CAD</span>') !== false, 'Approved professional prices');
+funnel_check(strpos($inline, '3 600 <span>CAD</span>') !== false && strpos($inline, '450 <span>CAD</span>') !== false, 'Approved professional prices');
 funnel_check(strpos($inline, '0 <span>CAD</span>') !== false, 'Free client request');
 funnel_check(strpos($inline, 'Les crédits IA sont séparés') !== false, 'AI credits remain separate');
 funnel_check(strpos($inline, 'ne déclenche aucun paiement') !== false, 'No checkout claim');

@@ -49,7 +49,7 @@ $GLOBALS['test_page'] = 151;
 $professionals = '<h2>75 000+</h2><h2>30 à 40%</h2><h2>8 à 12x</h2><div data-id="9f15bdf"><div>6 000 références par mois</div></div><p>Other text retained</p>';
 $professional_out = BesoinAvocat_Render_Integrity::content($professionals);
 check(strpos($professional_out, '75 000+') === false && strpos($professional_out, '6 000 références') === false, 'Professional figures and old FAQ removed');
-check(strpos($professional_out, 'Other text retained') !== false && strpos($professional_out, '100 $ CA par semaine') !== false && strpos($professional_out, '300 $ CA par mois') !== false, 'Professional prices changed without adjacent loss');
+check(strpos($professional_out, 'Other text retained') !== false && strpos($professional_out, '3 600 $ CA par année') !== false && strpos($professional_out, '450 $ CA par mois') !== false, 'Professional prices changed without adjacent loss');
 if (isset($argv[1])) {
     $GLOBALS['test_page'] = 13;
     $dom = file_get_contents($argv[1]);

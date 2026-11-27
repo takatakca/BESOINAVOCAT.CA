@@ -40,5 +40,5 @@ $intake = BesoinAvocat_Experience::intake(array('role' => 'professional', 'endpo
 check_integration(strpos($intake, 'data-ba-intake-endpoint=""') !== false, 'Shortcode cannot select a contact-data recipient');
 check_integration(strpos($intake, 'unexpected.example') === false, 'Untrusted shortcode destination ignored');
 check_integration(strpos($intake, 'data-ba-context="professional"') !== false, 'Professional interest is distinct from client path');
-check_integration(strpos($rendered, '100 $ CA') !== false && strpos($rendered, '300 $ CA') !== false, 'Announced prices present');
+check_integration(strpos($rendered, '3 600 $ CA') !== false && strpos($rendered, '450 $ CA') !== false, 'Announced prices present');
 echo "WordPress integration checks passed.\n";
